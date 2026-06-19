@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildLootMonitorReport, extractEnchantment, parseChestLog } from './lootMonitor';
+import {
+  buildLootLogExport,
+  buildLootMonitorReport,
+  extractEnchantment,
+  parseChestLog,
+  parseLootEvents,
+} from './lootMonitor';
 
 describe('loot monitor parsing', () => {
   it('extracts enchantment from Albion item ids', () => {
@@ -29,6 +35,43 @@ describe('loot monitor parsing', () => {
 });
 
 describe('loot monitor report', () => {
+  it('exports deduplicated events in the original loot-log format', () => {
+    const events = [
+      {
+        alliance: 'CHAIR',
+        enchantment: 3,
+        eventType: 'looted',
+        guild: 'Militant',
+        item: "Adept's Lymhurst Cape",
+        itemId: 'T4_CAPEITEM_FW_LYMHURST@3',
+        lostTo: '',
+        player: 'Winner',
+        quantity: 2,
+        timestamp: '2026-06-18T18:33:00.000Z',
+      },
+      {
+        alliance: 'ENEMY',
+        enchantment: 3,
+        eventType: 'lost',
+        guild: 'Enemy Guild',
+        item: "Adept's Lymhurst Cape",
+        itemId: 'T4_CAPEITEM_FW_LYMHURST@3',
+        lostTo: 'Winner',
+        player: 'Loser',
+        quantity: 2,
+        timestamp: '2026-06-18T18:33:00.000Z',
+      },
+    ];
+
+    const exported = buildLootLogExport(events);
+    const parsed = parseLootEvents(exported);
+
+    expect(exported).toContain('timestamp_utc;looted_by__alliance');
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.rows[0]).toMatchObject({ player: 'Winner', quantity: 2 });
+    expect(parsed.lostRows[0]).toMatchObject({ lostTo: 'Winner', player: 'Loser', quantity: 2 });
+  });
+
   it('marks kept, resolved, donated, and lost quantities', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',

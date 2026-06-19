@@ -1,4 +1,4 @@
-function parseDelimited(text, delimiter) {
+export function parseDelimited(text, delimiter) {
   const rows = [];
   let row = [];
   let value = '';
@@ -44,7 +44,7 @@ function parseDelimited(text, delimiter) {
   return rows;
 }
 
-function rowsToObjects(rows) {
+export function rowsToObjects(rows) {
   if (rows.length === 0) return [];
   const headers = rows[0].map((header) => header.replace(/^\uFEFF/, '').trim());
 
@@ -310,8 +310,7 @@ function summarizePlayers(rows) {
   ));
 }
 
-export function buildLootMonitorReport(lootText, chestText) {
-  const loot = parseLootEvents(lootText);
+function buildLootMonitorReportFromParsedLoot(loot, chestText) {
   const chest = parseChestLog(chestText);
   const lootByKey = aggregateLoot(loot.rows);
   const chestByKey = aggregateChest(chest.rows);
@@ -392,6 +391,125 @@ export function buildLootMonitorReport(lootText, chestText) {
       withdrawalRows: chest.withdrawals.length,
     },
   };
+}
+
+export function buildLootMonitorReport(lootText, chestText) {
+  return buildLootMonitorReportFromParsedLoot(parseLootEvents(lootText), chestText);
+}
+
+export function buildLootMonitorReportFromEvents(events, chestText) {
+  const loot = {
+    lostRows: [],
+    rows: [],
+    skippedRows: [],
+  };
+
+  (events || []).forEach((event) => {
+    const row = {
+      alliance: event.alliance || '',
+      enchantment: event.enchantment || 0,
+      guild: event.guild || '',
+      item: event.item || '',
+      itemId: event.itemId || '',
+      player: event.player || '',
+      quantity: event.quantity || 0,
+      timestamp: event.timestamp || '',
+    };
+
+    if (event.eventType === 'lost') {
+      loot.lostRows.push({ ...row, lostTo: event.lostTo || '' });
+    } else {
+      loot.rows.push(row);
+    }
+  });
+
+  return buildLootMonitorReportFromParsedLoot(loot, chestText);
+}
+
+function exportTimestamp(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value || '') : date.toISOString();
+}
+
+function exportEventMatchKey(event, player) {
+  return [
+    exportTimestamp(event.timestamp),
+    normalize(event.itemId || event.item),
+    String(event.enchantment || 0),
+    String(event.quantity || 0),
+    normalize(player),
+  ].join('|');
+}
+
+function escapeSemicolonCell(value) {
+  const text = String(value ?? '');
+  return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+export function buildLootLogExport(events) {
+  const headers = [
+    'timestamp_utc',
+    'looted_by__alliance',
+    'looted_by__guild',
+    'looted_by__name',
+    'item_id',
+    'item_name',
+    'quantity',
+    'looted_from__alliance',
+    'looted_from__guild',
+    'looted_from__name',
+  ];
+  const lostByLootKey = new Map();
+  const unmatchedLost = new Set();
+
+  (events || []).filter((event) => event.eventType === 'lost').forEach((event) => {
+    const key = exportEventMatchKey(event, event.lostTo);
+    const matches = lostByLootKey.get(key) || [];
+    matches.push(event);
+    lostByLootKey.set(key, matches);
+    unmatchedLost.add(event);
+  });
+
+  const rows = (events || [])
+    .filter((event) => event.eventType !== 'lost')
+    .sort((left, right) => exportTimestamp(left.timestamp).localeCompare(exportTimestamp(right.timestamp)))
+    .map((event) => {
+      const key = exportEventMatchKey(event, event.player);
+      const loss = lostByLootKey.get(key)?.shift();
+      if (loss) unmatchedLost.delete(loss);
+
+      return [
+        exportTimestamp(event.timestamp),
+        event.alliance,
+        event.guild,
+        event.player,
+        event.itemId,
+        event.item,
+        event.quantity,
+        loss?.alliance || '',
+        loss?.guild || '',
+        loss?.player || '',
+      ];
+    });
+
+  unmatchedLost.forEach((loss) => {
+    rows.push([
+      exportTimestamp(loss.timestamp),
+      '',
+      '',
+      loss.lostTo || '@UNKNOWN',
+      loss.itemId,
+      loss.item,
+      loss.quantity,
+      loss.alliance,
+      loss.guild,
+      loss.player,
+    ]);
+  });
+
+  return [headers, ...rows]
+    .map((row) => row.map(escapeSemicolonCell).join(';'))
+    .join('\r\n');
 }
 
 export function uniqueSorted(values) {

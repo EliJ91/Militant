@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { fetchWestAveragePrices } from '../services/albionMarket';
-import { buildLootMonitorReport } from '../utils/lootMonitor';
+import {
+  deleteLootLogBundle,
+  fetchLootLogBundle,
+  fetchLootLogBundles,
+  submitChestLog,
+  submitLootLog,
+  updateLootLogBundle,
+} from '../services/lootLogApi';
+import {
+  buildLootMonitorReport,
+  buildLootMonitorReportFromEvents,
+} from '../utils/lootMonitor';
 import { warmItemImageCache } from '../utils/itemImageCache';
 
 const FILTER_STORAGE_KEY = 'militant.lootMonitor.filters.v3';
@@ -9,6 +20,10 @@ const LEGACY_FILTER_STORAGE_KEY = 'militant.lootMonitor.filters.v2';
 const GUILDLESS_VALUE = '__guildless__';
 const NO_ALLIANCE_VALUE = '__no_alliance__';
 const NONE_SELECTED_VALUE = '__none__';
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DOWNLOAD_AGE_DAYS = 60;
+const RETENTION_DAYS = 90;
+const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 
 const TIER_OPTIONS = [
   { label: 'T4', value: 'tier4' },
@@ -71,6 +86,92 @@ function formatNumber(value) {
 
 function formatSilver(value) {
   return `$${formatNumber(Math.round(value || 0))}`;
+}
+
+function formatUtcDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown date';
+
+  return new Intl.DateTimeFormat('en-US', {
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'UTC',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatUtcDateInput(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, '0'),
+    String(date.getUTCDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function buildEditedFileNames(dateUtc, ctaHour) {
+  const date = new Date(`${dateUtc}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return { chest: 'Chest Log', loot: 'Loot Log' };
+
+  const month = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' })
+    .format(date)
+    .toUpperCase();
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const baseName = `${String(ctaHour).padStart(2, '0')}UTC-${month}-${day}`;
+
+  return {
+    chest: `${baseName} Chest Log`,
+    loot: `${baseName} Loot Log`,
+  };
+}
+
+function stripLogSuffix(value, suffix) {
+  const suffixLower = suffix.toLowerCase();
+  let prefix = String(value || '').trim();
+
+  while (prefix.toLowerCase().endsWith(suffixLower)) {
+    prefix = prefix.slice(0, -suffix.length).trim();
+  }
+
+  return prefix;
+}
+
+function appendLogSuffix(value, suffix) {
+  const prefix = stripLogSuffix(value, suffix);
+  return prefix ? `${prefix} ${suffix}` : suffix;
+}
+
+function getRetentionStatus(startAt, now = Date.now()) {
+  const startedAt = new Date(startAt).getTime();
+  if (!Number.isFinite(startedAt)) return null;
+
+  const ageMs = now - startedAt;
+  if (ageMs < DOWNLOAD_AGE_DAYS * DAY_MS) return null;
+
+  const expiresAt = startedAt + (RETENTION_DAYS * DAY_MS);
+  return {
+    daysUntilDeletion: Math.max(0, Math.ceil((expiresAt - now) / DAY_MS)),
+    expiresAt: new Date(expiresAt).toISOString(),
+  };
+}
+
+function formatDeletionCountdown(days) {
+  if (days <= 0) return 'Deletes today';
+  return `Deletes in ${formatNumber(days)} ${days === 1 ? 'day' : 'days'}`;
+}
+
+function archiveFileName(bundle) {
+  return `${safeDownloadName(bundle.lootFileName, 'Loot Log')}.zip`;
+}
+
+function safeDownloadName(value, fallback) {
+  const cleaned = String(value || fallback)
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+    .replace(/[. ]+$/g, '')
+    .trim();
+  return cleaned || fallback;
 }
 
 function compareText(left, right) {
@@ -491,7 +592,7 @@ function FileDropzone({ chestFileName, lootFileName, onFiles }) {
   return (
     <section
       className={isDragging ? 'loot-upload-panel drag-over' : 'loot-upload-panel'}
-      aria-label="Loot monitor files"
+      aria-label="Local loot monitor files"
       onDragEnter={(event) => {
         event.preventDefault();
         setIsDragging(true);
@@ -505,7 +606,7 @@ function FileDropzone({ chestFileName, lootFileName, onFiles }) {
     >
       <div className="file-dropzone">
         <label className="file-drop-label">
-          <span>Log Upload</span>
+          <span>Local Files Only</span>
           <input
             accept=".csv,.txt,.tsv,text/csv,text/plain"
             className="file-input-hidden"
@@ -518,14 +619,14 @@ function FileDropzone({ chestFileName, lootFileName, onFiles }) {
           />
           <strong>Choose files</strong>
         </label>
-        <div className="loaded-files" aria-label="Loaded files">
+        <div className="loaded-files" aria-label="Loaded local files">
           <span className="loaded-file">
             <small>Loot Events</small>
-            <strong>{lootFileName || 'No loot file loaded'}</strong>
+            <strong>{lootFileName || 'No local loot file loaded'}</strong>
           </span>
           <span className="loaded-file">
             <small>Chest Log</small>
-            <strong>{chestFileName || 'No chest log loaded'}</strong>
+            <strong>{chestFileName || 'No local chest log loaded'}</strong>
           </span>
         </div>
         <StatusLegend className="upload-status-legend" />
@@ -708,22 +809,518 @@ function PlayerEmv({ emv }) {
   );
 }
 
-export default function LootMonitor() {
+function FileUploadButton({ accept, className, disabled, dropLabel, enableDrop = false, label, loadingLabel, onFile }) {
+  const inputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  function receiveDroppedFile(event) {
+    if (!enableDrop || disabled) return;
+    event.preventDefault();
+    setIsDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) onFile(file);
+  }
+
+  return (
+    <>
+      <input
+        accept={accept}
+        className="file-input-hidden"
+        disabled={disabled}
+        ref={inputRef}
+        type="file"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) onFile(file);
+        }}
+      />
+      <button
+        className={`${className}${isDragging ? ' drag-over' : ''}`}
+        disabled={disabled}
+        type="button"
+        onDragEnter={(event) => {
+          if (!enableDrop || disabled) return;
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDragOver={(event) => {
+          if (!enableDrop || disabled) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+          setIsDragging(true);
+        }}
+        onDrop={receiveDroppedFile}
+        onClick={() => inputRef.current?.click()}
+      >
+        {isDragging && dropLabel ? dropLabel : (disabled && loadingLabel ? loadingLabel : label)}
+      </button>
+    </>
+  );
+}
+
+function LootLogBundleList({
+  bundles,
+  deletingBundleId,
+  downloadingBundleId,
+  editingBundleId,
+  editValues,
+  onCancelEdit,
+  onEdit,
+  onEditValue,
+  onDelete,
+  onDownload,
+  onSaveEdit,
+  onUploadChest,
+  onView,
+  status,
+  updatingBundleId,
+  uploadingBundleId,
+}) {
+  if (status.state === 'idle') return null;
+
+  return (
+    <section className="saved-log-section" aria-label="Saved combined loot logs">
+      <header className="saved-log-header">
+        <h2>View Logs</h2>
+        <strong>{status.state === 'loading' ? 'Loading' : `${formatNumber(bundles.length)} logs`}</strong>
+      </header>
+      {status.message ? (
+        <p className={`saved-log-message ${status.state === 'error' ? 'error' : ''}`}>{status.message}</p>
+      ) : null}
+      {status.state !== 'loading' && bundles.length === 0 && !status.message ? (
+        <p className="saved-log-message">No combined logs found.</p>
+      ) : null}
+      {bundles.length > 0 ? (
+        <div className="saved-log-list">
+          {bundles.map((bundle) => {
+            const totals = bundle.summary?.totals || {};
+            const submitters = bundle.submitters?.length ? bundle.submitters.join(', ') : 'Manual';
+            const retention = getRetentionStatus(bundle.startAt);
+            const isEditing = editingBundleId === bundle.id;
+
+            return (
+              <article className={`saved-log-row${isEditing ? ' editing' : ''}`} key={bundle.id}>
+                <div className="saved-log-time">
+                  {isEditing ? (
+                    <div className="saved-log-edit-fields">
+                      <label>
+                        <span>UTC Date</span>
+                        <input
+                          aria-label="UTC Date"
+                          max="9999-12-31"
+                          type="date"
+                          value={editValues.dateUtc}
+                          onChange={(event) => onEditValue('dateUtc', event.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span>CTA Time</span>
+                        <select
+                          aria-label="CTA Time"
+                          value={editValues.ctaHour}
+                          onChange={(event) => onEditValue('ctaHour', Number(event.target.value))}
+                        >
+                          {CTA_UTC_HOURS.map((hour) => (
+                            <option key={hour} value={hour}>{String(hour).padStart(2, '0')} UTC</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  ) : (
+                    <>
+                      <strong>{formatUtcDate(bundle.startAt)}</strong>
+                      <span>{bundle.ctaTimer || '-- UTC'} CTA</span>
+                    </>
+                  )}
+                  {!isEditing && retention ? (
+                    <small className="saved-log-countdown" title={`Scheduled deletion: ${formatUtcDate(retention.expiresAt)}`}>
+                      {formatDeletionCountdown(retention.daysUntilDeletion)}
+                    </small>
+                  ) : null}
+                </div>
+                <div className="saved-log-users">
+                  <small>Loot Log</small>
+                  {isEditing ? (
+                    <div className="saved-log-name-editor">
+                      <input
+                        aria-label="Loot Log Name"
+                        className="saved-log-name-input"
+                        maxLength={151}
+                        type="text"
+                        value={editValues.lootFileName}
+                        onChange={(event) => onEditValue('lootFileName', event.target.value)}
+                      />
+                      <b className="saved-log-name-suffix">Loot Log</b>
+                    </div>
+                  ) : (
+                    <strong>{bundle.lootFileName || 'Loot Log'}</strong>
+                  )}
+                  <span>Uploaded by {submitters}</span>
+                </div>
+                <div className="saved-log-totals">
+                  <span>{formatNumber(totals.players)} {totals.players === 1 ? 'player' : 'players'}</span>
+                </div>
+                <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
+                  <div className="saved-log-chest-status">
+                    <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
+                    {!bundle.hasChestLog ? (
+                      <FileUploadButton
+                        accept=".txt,.tsv,text/plain,text/tab-separated-values"
+                        className="saved-log-inline-button"
+                        disabled={uploadingBundleId === bundle.id}
+                        label="Upload Chest Log"
+                        loadingLabel="Uploading..."
+                        onFile={(file) => onUploadChest(bundle, file)}
+                      />
+                    ) : null}
+                  </div>
+                  {isEditing && bundle.hasChestLog ? (
+                    <div className="saved-log-name-editor" aria-label="Chest Log Name">
+                      <span className="saved-log-name-readonly">{editValues.lootFileName}</span>
+                      <b className="saved-log-name-suffix">Chest Log</b>
+                    </div>
+                  ) : (
+                    <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
+                  )}
+                </div>
+                <div className={`saved-log-actions${isEditing ? ' editing' : ''}`}>
+                  {isEditing ? (
+                    <>
+                      <button
+                        className="saved-log-save-button"
+                        disabled={
+                          !editValues.dateUtc
+                          || !editValues.lootFileName.trim()
+                          || updatingBundleId === bundle.id
+                        }
+                        type="button"
+                        onClick={() => onSaveEdit(bundle)}
+                      >
+                        {updatingBundleId === bundle.id ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        className="saved-log-cancel-button"
+                        disabled={updatingBundleId === bundle.id}
+                        type="button"
+                        onClick={onCancelEdit}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="saved-log-edit-button" type="button" onClick={() => onEdit(bundle)}>
+                        Edit
+                      </button>
+                      <button
+                        className="saved-log-download-button"
+                        disabled={downloadingBundleId === bundle.id}
+                        type="button"
+                        onClick={() => onDownload(bundle)}
+                      >
+                        {downloadingBundleId === bundle.id ? 'Packing...' : 'Download'}
+                      </button>
+                      <button
+                        className="saved-log-delete-button"
+                        disabled={deletingBundleId === bundle.id}
+                        type="button"
+                        onClick={() => onDelete(bundle)}
+                      >
+                        {deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                      <button className="saved-log-view-button" type="button" onClick={() => onView(bundle.id)}>
+                        View
+                      </button>
+                    </>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+export function LootLogArchive({ onBack = () => {}, onView = () => {} }) {
+  const [actionStatus, setActionStatus] = useState({ message: '', state: 'idle' });
+  const [deletingBundleId, setDeletingBundleId] = useState('');
+  const [downloadingBundleId, setDownloadingBundleId] = useState('');
+  const [editingBundleId, setEditingBundleId] = useState('');
+  const [editValues, setEditValues] = useState({
+    ctaHour: 0,
+    dateUtc: '',
+    lootFileName: '',
+  });
+  const [savedLogBundles, setSavedLogBundles] = useState([]);
+  const [savedLogStatus, setSavedLogStatus] = useState({ message: '', state: 'loading' });
+  const [updatingBundleId, setUpdatingBundleId] = useState('');
+  const [uploadingBundleId, setUploadingBundleId] = useState('');
+
+  async function loadSavedLogs() {
+    setSavedLogStatus({ message: '', state: 'loading' });
+
+    try {
+      const result = await fetchLootLogBundles();
+      setSavedLogBundles(result.bundles || []);
+      setSavedLogStatus({ message: '', state: 'loaded' });
+    } catch (savedLogError) {
+      setSavedLogStatus({
+        message: savedLogError.message || 'Could not load combined logs.',
+        state: 'error',
+      });
+    }
+  }
+
+  useEffect(() => {
+    loadSavedLogs();
+  }, []);
+
+  async function uploadLootLog(file) {
+    setActionStatus({ message: 'Uploading loot log...', state: 'loading' });
+
+    try {
+      const text = await file.text();
+      if (detectFileKind(text) !== 'loot') throw new Error('Choose a valid loot-events file.');
+
+      const result = await submitLootLog({ lootLogText: text, username: 'manual-web-upload' });
+      const savedName = result.summary?.fileNames?.loot || 'Loot Log';
+      setActionStatus({ message: `${savedName} uploaded.`, state: 'success' });
+      await loadSavedLogs();
+    } catch (uploadError) {
+      setActionStatus({
+        message: uploadError.message || 'Could not upload the loot log.',
+        state: 'error',
+      });
+    }
+  }
+
+  async function uploadChestLog(bundle, file) {
+    setUploadingBundleId(bundle.id);
+    setActionStatus({ message: `Uploading ${bundle.chestFileName || 'chest log'}...`, state: 'loading' });
+
+    try {
+      const text = await file.text();
+      if (detectFileKind(text) !== 'chest') throw new Error('Choose a valid chest log file.');
+
+      const result = await submitChestLog({
+        bundleId: bundle.id,
+        chestLogText: text,
+        username: 'manual-web-upload',
+      });
+      setActionStatus({ message: `${result.fileName || 'Chest Log'} uploaded.`, state: 'success' });
+      await loadSavedLogs();
+    } catch (uploadError) {
+      setActionStatus({
+        message: uploadError.message || 'Could not upload the chest log.',
+        state: 'error',
+      });
+    } finally {
+      setUploadingBundleId('');
+    }
+  }
+
+  async function deleteBundle(bundle) {
+    const confirmed = window.confirm(
+      `Delete ${bundle.lootFileName || 'this loot log'} and its linked chest log? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingBundleId(bundle.id);
+    setActionStatus({ message: `Deleting ${bundle.lootFileName || 'loot log'}...`, state: 'deleting' });
+
+    try {
+      await deleteLootLogBundle(bundle.id);
+      setActionStatus({ message: `${bundle.lootFileName || 'Loot log'} deleted.`, state: 'success' });
+      await loadSavedLogs();
+    } catch (deleteError) {
+      setActionStatus({
+        message: deleteError.message || 'Could not delete the loot log.',
+        state: 'error',
+      });
+    } finally {
+      setDeletingBundleId('');
+    }
+  }
+
+  function editBundle(bundle) {
+    setEditingBundleId(bundle.id);
+    setEditValues({
+      ctaHour: Number.parseInt(bundle.ctaTimer, 10) || 0,
+      dateUtc: formatUtcDateInput(bundle.startAt),
+      lootFileName: stripLogSuffix(bundle.lootFileName, 'Loot Log'),
+    });
+  }
+
+  function cancelEditBundle() {
+    setEditingBundleId('');
+    setEditValues({ ctaHour: 0, dateUtc: '', lootFileName: '' });
+  }
+
+  function updateEditValue(key, value) {
+    setEditValues((current) => {
+      const next = { ...current, [key]: value };
+
+      if (key === 'dateUtc' || key === 'ctaHour') {
+        const generated = buildEditedFileNames(next.dateUtc, next.ctaHour);
+        next.lootFileName = stripLogSuffix(generated.loot, 'Loot Log');
+      }
+
+      return next;
+    });
+  }
+
+  async function saveEditedBundle(bundle) {
+    setUpdatingBundleId(bundle.id);
+    setActionStatus({ message: `Updating ${bundle.lootFileName || 'loot log'}...`, state: 'loading' });
+
+    try {
+      const result = await updateLootLogBundle({
+        bundleId: bundle.id,
+        ctaHour: editValues.ctaHour,
+        dateUtc: editValues.dateUtc,
+        fileNames: {
+          baseName: editValues.lootFileName.trim(),
+          chest: appendLogSuffix(editValues.lootFileName, 'Chest Log'),
+          loot: appendLogSuffix(editValues.lootFileName, 'Loot Log'),
+        },
+      });
+      setActionStatus({ message: `${result.fileNames?.loot || 'Loot log'} updated.`, state: 'success' });
+      cancelEditBundle();
+      await loadSavedLogs();
+    } catch (updateError) {
+      setActionStatus({
+        message: updateError.message || 'Could not update the loot log.',
+        state: 'error',
+      });
+    } finally {
+      setUpdatingBundleId('');
+    }
+  }
+
+  async function downloadBundle(bundle) {
+    setDownloadingBundleId(bundle.id);
+    setActionStatus({ message: `Packing ${archiveFileName(bundle)}...`, state: 'downloading' });
+
+    try {
+      const result = await fetchLootLogBundle(bundle.id);
+      const detail = result.bundle;
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+      if (!detail.lootLogText) throw new Error('The original loot log text is unavailable.');
+
+      zip.file(`${safeDownloadName(detail.lootFileName, 'Loot Log')}.txt`, detail.lootLogText);
+      if (detail.chestLogText) {
+        zip.file(`${safeDownloadName(detail.chestFileName, 'Chest Log')}.txt`, detail.chestLogText);
+      }
+
+      const blob = await zip.generateAsync({ compression: 'DEFLATE', type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = archiveFileName(detail);
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setActionStatus({ message: `${archiveFileName(detail)} downloaded.`, state: 'success' });
+    } catch (downloadError) {
+      setActionStatus({
+        message: downloadError.message || 'Could not download the log archive.',
+        state: 'error',
+      });
+    } finally {
+      setDownloadingBundleId('');
+    }
+  }
+
+  return (
+    <main className="dashboard-shell loot-monitor-shell">
+      <section className="dashboard-heading loot-monitor-heading" aria-labelledby="view-logs-title">
+        <div>
+          <p className="eyebrow">Tool</p>
+          <h1 id="view-logs-title">View Logs</h1>
+        </div>
+        <div className="loot-monitor-heading-actions">
+          <button className="view-logs-button" type="button" onClick={onBack}>
+            Loot Monitor
+          </button>
+          <FileUploadButton
+            accept=".csv,.txt,text/csv,text/plain"
+            className="view-logs-button"
+            disabled={actionStatus.state === 'loading'}
+            dropLabel="Drop Loot Log"
+            enableDrop
+            label="Upload"
+            loadingLabel="Uploading"
+            onFile={uploadLootLog}
+          />
+          <button
+            aria-label="Refresh logs"
+            className="view-logs-button view-logs-icon-button"
+            disabled={savedLogStatus.state === 'loading'}
+            title="Refresh logs"
+            type="button"
+            onClick={loadSavedLogs}
+          >
+            <span
+              aria-hidden="true"
+              className={savedLogStatus.state === 'loading' ? 'refresh-icon spinning' : 'refresh-icon'}
+            >
+              &#x21bb;
+            </span>
+          </button>
+        </div>
+      </section>
+
+      {actionStatus.message ? (
+        <p className={`loot-message archive-action-message ${actionStatus.state === 'error' ? 'error' : ''}`}>
+          {actionStatus.message}
+        </p>
+      ) : null}
+
+      <LootLogBundleList
+        bundles={savedLogBundles}
+        deletingBundleId={deletingBundleId}
+        downloadingBundleId={downloadingBundleId}
+        editingBundleId={editingBundleId}
+        editValues={editValues}
+        onCancelEdit={cancelEditBundle}
+        onEdit={editBundle}
+        onEditValue={updateEditValue}
+        onDelete={deleteBundle}
+        onDownload={downloadBundle}
+        onSaveEdit={saveEditedBundle}
+        onUploadChest={uploadChestLog}
+        onView={onView}
+        status={savedLogStatus}
+        updatingBundleId={updatingBundleId}
+        uploadingBundleId={uploadingBundleId}
+      />
+    </main>
+  );
+}
+
+export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
   const boardRef = useRef(null);
-  const [chestFile, setChestFile] = useState({ name: '', text: '' });
-  const [error, setError] = useState('');
   const [filters, setFilters] = useState(loadSavedFilters);
-  const [lootFile, setLootFile] = useState({ name: '', text: '' });
+  const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
+  const [localChestFile, setLocalChestFile] = useState({ name: '', text: '' });
+  const [localError, setLocalError] = useState('');
+  const [localLootFile, setLocalLootFile] = useState({ name: '', text: '' });
   const [marketPrices, setMarketPrices] = useState({});
   const [marketPriceError, setMarketPriceError] = useState('');
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
+  const [selectedBundle, setSelectedBundle] = useState(null);
 
   async function readSelectedFiles(fileList) {
     const files = [...(fileList || [])];
     if (files.length === 0) return;
 
-    setError('');
-
+    setLocalError('');
     const detected = {
       chest: null,
       loot: null,
@@ -747,15 +1344,51 @@ export default function LootMonitor() {
       }
     }));
 
-    setLootFile(detected.loot || (detected.chest && lootFile.text ? lootFile : { name: '', text: '' }));
-    setChestFile(detected.chest || (detected.loot ? { name: '', text: '' } : chestFile));
+    setLocalLootFile(detected.loot || (detected.chest && localLootFile.text
+      ? localLootFile
+      : { name: '', text: '' }));
+    setLocalChestFile(detected.chest || (detected.loot
+      ? { name: '', text: '' }
+      : localChestFile));
 
-    if (!detected.loot && !(detected.chest && lootFile.text)) {
-      setError('Upload a loot-events file to show loot.');
+    if (!detected.loot && !(detected.chest && localLootFile.text)) {
+      setLocalError('Load a loot-events file to show loot.');
     } else if (detected.unknown.length > 0) {
-      setError(`Ignored unrecognized file${detected.unknown.length > 1 ? 's' : ''}: ${detected.unknown.join(', ')}.`);
+      setLocalError(`Ignored unrecognized file${detected.unknown.length > 1 ? 's' : ''}: ${detected.unknown.join(', ')}.`);
     }
   }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!bundleId) {
+      setSelectedBundle(null);
+      setLoadStatus({ message: '', state: 'idle' });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setSelectedBundle(null);
+    setLoadStatus({ message: '', state: 'loading' });
+    fetchLootLogBundle(bundleId)
+      .then((result) => {
+        if (cancelled) return;
+        setSelectedBundle(result.bundle || null);
+        setLoadStatus({ message: '', state: 'loaded' });
+      })
+      .catch((bundleError) => {
+        if (cancelled) return;
+        setLoadStatus({
+          message: bundleError.message || 'Could not load the selected loot log.',
+          state: 'error',
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bundleId]);
 
   useEffect(() => {
     try {
@@ -765,12 +1398,21 @@ export default function LootMonitor() {
     }
   }, [filters]);
 
+  const isLocalMode = Boolean(localLootFile.text);
   const report = useMemo(() => {
-    if (!lootFile.text) return null;
-    return buildLootMonitorReport(lootFile.text, chestFile.text);
-  }, [chestFile.text, lootFile.text]);
+    if (localLootFile.text) {
+      return buildLootMonitorReport(localLootFile.text, localChestFile.text);
+    }
+    if (!selectedBundle) return null;
+    return buildLootMonitorReportFromEvents(
+      selectedBundle.events || [],
+      selectedBundle.chestLogText || '',
+    );
+  }, [localChestFile.text, localLootFile.text, selectedBundle]);
 
-  const hasChestLog = Boolean(chestFile.text);
+  const hasChestLog = isLocalMode
+    ? Boolean(localChestFile.text)
+    : Boolean(selectedBundle?.hasChestLog && selectedBundle?.chestLogText);
   const activeFilters = useMemo(() => (
     hasChestLog ? filters : { ...filters, status: 'all' }
   ), [filters, hasChestLog]);
@@ -858,24 +1500,56 @@ export default function LootMonitor() {
 
   return (
     <main className="dashboard-shell loot-monitor-shell">
-      <section className="dashboard-heading" aria-labelledby="loot-monitor-title">
-        <p className="eyebrow">Tool</p>
-        <h1 id="loot-monitor-title">Loot Monitor</h1>
+      <section className="dashboard-heading loot-monitor-heading" aria-labelledby="loot-monitor-title">
+        <div>
+          <p className="eyebrow">Tool</p>
+          <h1 id="loot-monitor-title">Loot Monitor</h1>
+        </div>
+        <button
+          className="view-logs-button"
+          type="button"
+          onClick={onViewLogs}
+        >
+          View Logs
+        </button>
       </section>
 
       <FileDropzone
-        chestFileName={chestFile.name}
-        lootFileName={lootFile.name}
+        chestFileName={localChestFile.name}
+        lootFileName={localLootFile.name}
         onFiles={readSelectedFiles}
       />
 
-      {error && <p className="loot-message error">{error}</p>}
+      {selectedBundle && !isLocalMode ? (
+        <section className="selected-log-summary" aria-label="Selected CTA log">
+          <div className="selected-log-cta">
+            <small>CTA</small>
+            <strong>{formatUtcDate(selectedBundle.startAt)}</strong>
+            <span>{selectedBundle.ctaTimer || '-- UTC'} CTA</span>
+          </div>
+          <div className="selected-log-file">
+            <small>Loot Log</small>
+            <strong>{selectedBundle.lootFileName || 'Loot Log'}</strong>
+          </div>
+          <div className={hasChestLog ? 'selected-log-file linked' : 'selected-log-file'}>
+            <small>Chest Log</small>
+            <strong>{hasChestLog ? selectedBundle.chestFileName : 'No chest log assigned'}</strong>
+          </div>
+        </section>
+      ) : null}
+
+      {localError ? <p className="loot-message error">{localError}</p> : null}
+      {loadStatus.state === 'error' && !isLocalMode ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {marketPriceError && <p className="loot-message error">{marketPriceError}</p>}
 
       {!report ? (
         <section className="loot-empty-state">
-          <h2>Awaiting Files</h2>
-          <p>Load a loot-events file to inspect items.</p>
+          <h2>{loadStatus.state === 'loading' ? 'Loading Log' : 'Select a Stored Log'}</h2>
+          <p>
+            {loadStatus.state === 'loading'
+              ? 'Loading the selected CTA from the database.'
+              : 'Open View Logs to choose a stored CTA, or load local files above.'}
+          </p>
         </section>
       ) : (
         <>

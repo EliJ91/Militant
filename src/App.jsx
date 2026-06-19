@@ -1,16 +1,24 @@
 import { useEffect, useState } from 'react';
-import LootMonitor from './components/LootMonitor';
+import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 
 const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
+const SELECTED_LOOT_LOG_KEY = 'militant.selectedLootLogBundle';
 
 function getRoute() {
-  if (window.location.hash === '#loot-monitor') return 'loot-monitor';
-  return window.location.hash === '#dashboard' ? 'dashboard' : 'landing';
+  const route = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '').toLowerCase();
+
+  if (route === 'loot-logs') return 'loot-logs';
+  if (route === 'loot-monitor') return 'loot-monitor';
+  return route === 'dashboard' ? 'dashboard' : 'landing';
 }
 
 function navigateTo(hash) {
-  window.location.hash = hash;
-  window.dispatchEvent(new HashChangeEvent('hashchange'));
+  if (window.location.hash !== hash) {
+    window.history.pushState(null, '', hash);
+  }
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  window.dispatchEvent(new Event('militant-route-change'));
 }
 
 function BrandLockup({ compact = false }) {
@@ -86,7 +94,7 @@ function DashboardPage() {
   );
 }
 
-function LootMonitorPage() {
+function LootMonitorPage({ bundleId }) {
   return (
     <>
       <header className="topbar">
@@ -100,13 +108,39 @@ function LootMonitorPage() {
           </button>
         </div>
       </header>
-      <LootMonitor />
+      <LootMonitor bundleId={bundleId} onViewLogs={() => navigateTo('#loot-logs')} />
+    </>
+  );
+}
+
+function LootLogsPage({ onBackToMonitor, onViewBundle }) {
+  return (
+    <>
+      <header className="topbar">
+        <BrandLockup compact />
+        <div className="topbar-actions">
+          <button className="navigation-button" type="button" onClick={() => navigateTo('#dashboard')}>
+            Dashboard
+          </button>
+          <button className="navigation-button" type="button" onClick={() => navigateTo('#')}>
+            Sign Out
+          </button>
+        </div>
+      </header>
+      <LootLogArchive onBack={onBackToMonitor} onView={onViewBundle} />
     </>
   );
 }
 
 export default function App() {
   const [route, setRoute] = useState(getRoute);
+  const [selectedBundleId, setSelectedBundleId] = useState(() => {
+    try {
+      return window.sessionStorage.getItem(SELECTED_LOOT_LOG_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
 
   useEffect(() => {
     const updateRoute = () => {
@@ -114,16 +148,41 @@ export default function App() {
     };
 
     window.addEventListener('hashchange', updateRoute);
-    return () => window.removeEventListener('hashchange', updateRoute);
+    window.addEventListener('popstate', updateRoute);
+    window.addEventListener('militant-route-change', updateRoute);
+    return () => {
+      window.removeEventListener('hashchange', updateRoute);
+      window.removeEventListener('popstate', updateRoute);
+      window.removeEventListener('militant-route-change', updateRoute);
+    };
   }, []);
 
   useEffect(() => {
-    document.title = route === 'loot-monitor' ? 'Loot Monitor'
+    document.title = route === 'loot-logs' ? 'View Logs'
+      : route === 'loot-monitor' ? 'Loot Monitor'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);
 
+  function viewLootLogBundle(bundleId) {
+    setSelectedBundleId(bundleId);
+    try {
+      window.sessionStorage.setItem(SELECTED_LOOT_LOG_KEY, bundleId);
+    } catch {
+      // The selected log still opens for this session when storage is unavailable.
+    }
+    navigateTo('#loot-monitor');
+  }
+
   if (route === 'dashboard') return <DashboardPage />;
-  if (route === 'loot-monitor') return <LootMonitorPage />;
+  if (route === 'loot-logs') {
+    return (
+      <LootLogsPage
+        onBackToMonitor={() => navigateTo('#loot-monitor')}
+        onViewBundle={viewLootLogBundle}
+      />
+    );
+  }
+  if (route === 'loot-monitor') return <LootMonitorPage bundleId={selectedBundleId} />;
   return <LandingPage />;
 }

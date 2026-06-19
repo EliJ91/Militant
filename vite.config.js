@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 function albionItemProxy() {
@@ -35,16 +35,143 @@ function albionItemProxy() {
   };
 }
 
-export default defineConfig({
-  base: './',
-  plugins: [react(), albionItemProxy()],
-  server: {
-    host: '127.0.0.1',
-    port: 5173,
-    strictPort: true,
-  },
-  test: {
-    environment: 'jsdom',
-    setupFiles: './src/test/setup.js',
-  },
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 10 * 1024 * 1024) {
+        reject(new Error('Request body is too large.'));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        reject(new Error('Request body must be valid JSON.'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+function sendJson(res, statusCode, payload) {
+  res.statusCode = statusCode;
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'DELETE,GET,PATCH,POST,OPTIONS');
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(payload));
+}
+
+function lootLogApi() {
+  async function handleLootLogs(req, res) {
+    if (req.method === 'OPTIONS') {
+      sendJson(res, 204, {});
+      return;
+    }
+
+    if (req.method === 'GET') {
+      try {
+        const requestUrl = new URL(req.url || '/', 'http://127.0.0.1');
+        const bundleId = requestUrl.searchParams.get('bundleId');
+        const { getLootLogBundle, listLootLogBundles } = await import('./src/server/supabaseLootLogs.js');
+        const result = bundleId
+          ? await getLootLogBundle(bundleId)
+          : await listLootLogBundles();
+        sendJson(res, 200, result);
+      } catch (error) {
+        sendJson(res, 400, { error: error.message || 'Could not load loot logs.' });
+      }
+      return;
+    }
+
+    if (req.method === 'DELETE') {
+      try {
+        const { deleteExpiredLootLogBundles, deleteLootLogBundle } = await import('./src/server/supabaseLootLogs.js');
+        const body = await readJsonBody(req);
+        const result = body.deleteExpired
+          ? await deleteExpiredLootLogBundles()
+          : await deleteLootLogBundle(body.bundleId);
+        sendJson(res, 200, result);
+      } catch (error) {
+        sendJson(res, 400, { error: error.message || 'Could not delete loot log.' });
+      }
+      return;
+    }
+
+    if (req.method === 'PATCH') {
+      try {
+        const { updateLootLogBundle } = await import('./src/server/supabaseLootLogs.js');
+        const body = await readJsonBody(req);
+        const result = await updateLootLogBundle({
+          bundleId: body.bundleId,
+          ctaHour: body.ctaHour,
+          dateUtc: body.dateUtc,
+          fileNames: body.fileNames,
+        });
+        sendJson(res, 200, result);
+      } catch (error) {
+        sendJson(res, 400, { error: error.message || 'Could not update loot log.' });
+      }
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { error: 'Method not allowed.' });
+      return;
+    }
+
+    try {
+      const { submitChestLog, submitLootLog } = await import('./src/server/supabaseLootLogs.js');
+      const body = await readJsonBody(req);
+      const result = body.action === 'chest'
+        ? await submitChestLog({
+          bundleId: body.bundleId,
+          chestLogText: body.chestLogText || body.chestText || body.text,
+          username: body.username,
+        })
+        : await submitLootLog({
+          bundleId: body.bundleId || null,
+          lootLogText: body.lootLogText || body.lootText || body.text,
+          username: body.username,
+        });
+
+      sendJson(res, 200, result);
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || 'Could not submit loot log.' });
+    }
+  }
+
+  return {
+    name: 'loot-log-api',
+    configureServer(server) {
+      server.middlewares.use('/api/loot-logs', handleLootLogs);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use('/api/loot-logs', handleLootLogs);
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  process.env.SUPABASE_URL ||= env.SUPABASE_URL || env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||= env.SUPABASE_SERVICE_ROLE_KEY;
+
+  return {
+    base: './',
+    plugins: [react(), albionItemProxy(), lootLogApi()],
+    server: {
+      host: '127.0.0.1',
+      port: 5173,
+      strictPort: true,
+    },
+    test: {
+      environment: 'jsdom',
+      setupFiles: './src/test/setup.js',
+    },
+  };
 });

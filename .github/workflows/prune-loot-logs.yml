@@ -1,0 +1,18 @@
+name: Prune expired loot logs
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete loot logs older than 90 days
+        run: >-
+          curl --fail-with-body
+          --request DELETE
+          --header 'Content-Type: application/json'
+          --data '{"deleteExpired":true}'
+          https://maeljnrgffgrljqusnre.supabase.co/functions/v1/loot-logs

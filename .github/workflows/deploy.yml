@@ -33,6 +33,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_PRODUCTION_LOOT_LOG_API_URL: https://maeljnrgffgrljqusnre.supabase.co/functions/v1/loot-logs
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -41,6 +43,22 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Configure loot log API secrets
+        run: supabase secrets set SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" --project-ref maeljnrgffgrljqusnre
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Deploy loot log API
+        run: supabase functions deploy loot-logs --no-verify-jwt --project-ref maeljnrgffgrljqusnre
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
   deploy:
     environment:
