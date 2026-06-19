@@ -44,22 +44,6 @@ jobs:
         with:
           path: dist
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Configure loot log API secrets
-        run: supabase secrets set SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" --project-ref maeljnrgffgrljqusnre
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
-      - name: Deploy loot log API
-        run: supabase functions deploy loot-logs --no-verify-jwt --project-ref maeljnrgffgrljqusnre
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
   deploy:
     environment:
       name: github-pages
@@ -70,3 +54,31 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
+  deploy-api:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Supabase credentials not configured
+        if: ${{ env.SUPABASE_ACCESS_TOKEN == '' || env.SUPABASE_SERVICE_ROLE_KEY == '' }}
+        run: echo "Skipping API deployment until Supabase repository secrets are configured."
+
+      - name: Checkout
+        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Configure loot log API secrets
+        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        run: supabase secrets set SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" --project-ref maeljnrgffgrljqusnre
+
+      - name: Deploy loot log API
+        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        run: supabase functions deploy loot-logs --no-verify-jwt --project-ref maeljnrgffgrljqusnre
