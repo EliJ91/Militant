@@ -127,7 +127,7 @@ function buildSharedFileNames(value, fallback) {
   };
 }
 
-function getBundleFileNames(bundle, startAt = bundle?.start_at) {
+export function getBundleFileNames(bundle, startAt = bundle?.start_at) {
   const generated = buildBundleFileNames(startAt);
   const stored = bundle?.combined_loot_summary?.fileNames || {};
 
@@ -264,7 +264,7 @@ function collapseEventsByHash(events) {
 async function findMatchingBundle(supabase, range) {
   const { data, error } = await supabase
     .from('loot_log_bundles')
-    .select('id,start_at,end_at')
+    .select('id,start_at,end_at,combined_loot_summary')
     .lte('start_at', range.matchEndAt)
     .gte('end_at', range.matchStartAt);
 
@@ -283,7 +283,7 @@ async function getOrCreateBundle(supabase, { bundleId, range }) {
   if (bundleId) {
     const { data, error } = await supabase
       .from('loot_log_bundles')
-      .select('id,start_at,end_at')
+      .select('id,start_at,end_at,combined_loot_summary')
       .eq('id', bundleId)
       .single();
 
@@ -300,25 +300,25 @@ async function getOrCreateBundle(supabase, { bundleId, range }) {
       end_at: range.endAt,
       start_at: range.startAt,
     })
-    .select('id,start_at,end_at')
+    .select('id,start_at,end_at,combined_loot_summary')
     .single();
 
   if (error) throw error;
   return { bundle: data, matchedExistingBundle: false };
 }
 
-async function refreshBundleSummary(supabase, bundleId) {
-  const events = await fetchAllBundleEvents(supabase, bundleId);
+async function refreshBundleSummary(supabase, bundle) {
+  const events = await fetchAllBundleEvents(supabase, bundle.id);
 
   const mergeEvents = (events || []).map(dbEventToMergeEvent);
   const summary = aggregateLootLogEvents(mergeEvents);
   const range = getLootLogTimeRange(mergeEvents);
   const summaryWithFileNames = {
     ...summary,
-    fileNames: buildBundleFileNames(range?.startAt),
+    fileNames: getBundleFileNames(bundle, range?.startAt),
   };
 
-  const { data: bundle, error: updateError } = await supabase
+  const { data: refreshedBundle, error: updateError } = await supabase
     .from('loot_log_bundles')
     .update({
       combined_loot_summary: summaryWithFileNames,
@@ -326,13 +326,13 @@ async function refreshBundleSummary(supabase, bundleId) {
       start_at: range?.startAt,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', bundleId)
+    .eq('id', bundle.id)
     .select('id,start_at,end_at,combined_loot_summary')
     .single();
 
   if (updateError) throw updateError;
 
-  return { bundle, eventCount: mergeEvents.length, summary: summaryWithFileNames };
+  return { bundle: refreshedBundle, eventCount: mergeEvents.length, summary: summaryWithFileNames };
 }
 
 async function mergeLootLogEvents(supabase, { bundleId, events, submissionId }) {
@@ -452,7 +452,7 @@ export async function submitLootLog({ bundleId = null, lootLogText, username }) 
     submissionId: submission.id,
   });
 
-  const refreshed = await refreshBundleSummary(supabase, bundle.id);
+  const refreshed = await refreshBundleSummary(supabase, bundle);
 
   return {
     bundle: refreshed.bundle,

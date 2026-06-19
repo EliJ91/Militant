@@ -799,7 +799,7 @@ Deno.serve(async (request) => {
 
     const { data: matchingBundles, error: matchError } = await supabase
       .from('loot_log_bundles')
-      .select('id,start_at,end_at')
+      .select('id,start_at,end_at,combined_loot_summary')
       .lte('start_at', range.matchEndAt)
       .gte('end_at', range.matchStartAt);
 
@@ -812,7 +812,7 @@ Deno.serve(async (request) => {
       const { data, error } = await supabase
         .from('loot_log_bundles')
         .insert({ end_at: range.endAt, start_at: range.startAt })
-        .select('id,start_at,end_at')
+        .select('id,start_at,end_at,combined_loot_summary')
         .single();
 
       if (error) throw error;
@@ -911,7 +911,7 @@ Deno.serve(async (request) => {
     const refreshedRange = getLootLogTimeRange(mergeEvents);
     const summaryWithFileNames = {
       ...summary,
-      fileNames: buildBundleFileNames(refreshedRange?.startAt || bundle.start_at),
+      fileNames: getBundleFileNames(bundle, refreshedRange?.startAt || bundle.start_at),
     };
     const { data: refreshedBundle, error: updateError } = await supabase
       .from('loot_log_bundles')
