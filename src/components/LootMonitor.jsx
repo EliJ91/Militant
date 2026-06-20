@@ -1423,6 +1423,9 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
   const hasChestLog = isLocalMode
     ? Boolean(localChestFile.text)
     : Boolean(selectedBundle?.hasChestLog && selectedBundle?.chestLogText);
+  const lootLoggers = useMemo(() => uniqueStrings(
+    (selectedBundle?.submissions || []).map((submission) => submission.submittedBy),
+  ), [selectedBundle?.submissions]);
   const activeFilters = useMemo(() => (
     hasChestLog ? filters : { ...filters, status: 'all' }
   ), [filters, hasChestLog]);
@@ -1544,6 +1547,10 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
           <div className={hasChestLog ? 'selected-log-file linked' : 'selected-log-file'}>
             <small>Chest Log</small>
             <strong>{hasChestLog ? selectedBundle.chestFileName : 'No chest log assigned'}</strong>
+          </div>
+          <div className="selected-log-file selected-log-loggers">
+            <small>Loot Loggers</small>
+            <strong>{lootLoggers.length > 0 ? lootLoggers.join(', ') : 'Unknown'}</strong>
           </div>
         </section>
       ) : null}

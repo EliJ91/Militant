@@ -1303,7 +1303,7 @@ button:focus-visible {
 
 .selected-log-summary {
   display: grid;
-  grid-template-columns: minmax(160px, 0.55fr) minmax(240px, 1fr) minmax(240px, 1fr);
+  grid-template-columns: minmax(150px, 0.55fr) repeat(3, minmax(210px, 1fr));
   gap: 0;
   overflow: hidden;
   margin-top: 18px;
@@ -1348,6 +1348,13 @@ button:focus-visible {
   font-size: 0.88rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.selected-log-loggers strong {
+  overflow: visible;
+  line-height: 1.45;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .selected-log-cta span,

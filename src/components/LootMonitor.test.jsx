@@ -150,6 +150,24 @@ describe('LootMonitor', () => {
     expect(submitChestLog).not.toHaveBeenCalled();
   });
 
+  it('shows unique loot-log uploaders without using chest-log submitters', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        submissions: [
+          { id: 'submission-1', submittedBy: 'Onslawt' },
+          { id: 'submission-2', submittedBy: 'Manual' },
+          { id: 'submission-3', submittedBy: 'Onslawt' },
+        ],
+      }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    const summary = await screen.findByRole('region', { name: 'Selected CTA log' });
+    expect(within(summary).getByText('Loot Loggers')).toBeInTheDocument();
+    expect(within(summary).getByText('Onslawt, Manual')).toBeInTheDocument();
+  });
+
   it('loads a saved bundle and keeps the saved monitor filters', async () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       alliances: ['CHAIR'],
