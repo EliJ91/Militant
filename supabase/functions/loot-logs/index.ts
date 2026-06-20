@@ -203,17 +203,23 @@ function getBundleFileNames(bundle: any, startAt = bundle?.start_at) {
   );
 }
 
-function cleanOriginalFileName(value: unknown) {
+function cleanDisplayLogName(value: unknown) {
   const fileName = String(value || '').trim().split(/[\\/]/).pop() || '';
-  return fileName.replace(/[\r\n]/g, '').slice(0, 255);
+  return stripLogTypeSuffixes(
+    fileName.replace(/[\r\n]/g, '').replace(/\.(?:csv|log|tsv|txt)$/i, ''),
+  ).slice(0, 151);
 }
 
 function getBundleDisplayLootFileName(bundle: any, originalFileName?: unknown, startAt = bundle?.start_at) {
   const summary = bundle?.combined_loot_summary || {};
-  return cleanOriginalFileName(summary.displayLootFileName)
-    || cleanOriginalFileName(summary.fileNames?.loot)
-    || cleanOriginalFileName(originalFileName)
-    || getBundleFileNames(bundle, startAt).loot;
+  return cleanDisplayLogName(summary.displayLootFileName)
+    || cleanDisplayLogName(summary.fileNames?.loot)
+    || cleanDisplayLogName(originalFileName)
+    || getBundleFileNames(bundle, startAt).baseName;
+}
+
+function getBundleDisplayChestFileName(bundle: any, startAt = bundle?.start_at) {
+  return getBundleDisplayLootFileName(bundle, '', startAt);
 }
 
 function getEditedFileNames(fileNames: any, startAt: string) {
@@ -543,7 +549,7 @@ Deno.serve(async (request) => {
       const fileNames = getEditedFileNames(body.fileNames, range.startAt);
       const combinedSummary = {
         ...(bundle.combined_loot_summary || {}),
-        displayLootFileName: fileNames.loot,
+        displayLootFileName: fileNames.baseName,
         fileNames,
       };
       const { data: updatedBundle, error: updateError } = await supabase
@@ -584,6 +590,7 @@ Deno.serve(async (request) => {
         bundle: updatedBundle,
         bundleId,
         ctaTimer: getCtaTimer(range.startAt),
+        displayLootFileName: fileNames.baseName,
         fileNames,
       });
     }
@@ -642,7 +649,7 @@ Deno.serve(async (request) => {
 
         return jsonResponse(200, {
           bundle: {
-            chestFileName: fileNames.chest,
+            chestFileName: getBundleDisplayChestFileName(bundle),
             chestLogText: chestLog?.raw_log_text || '',
             ctaTimer: getCtaTimer(bundle.start_at),
             endAt: bundle.end_at,
@@ -698,7 +705,7 @@ Deno.serve(async (request) => {
 
           return {
             chestLogCount: chestLogs.length,
-            chestFileName: fileNames.chest,
+            chestFileName: getBundleDisplayChestFileName(bundle),
             ctaTimer: getCtaTimer(bundle.start_at),
             endAt: bundle.end_at,
             hasChestLog: chestLogs.length > 0,

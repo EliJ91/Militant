@@ -60,14 +60,14 @@ const storedEvents = [
 
 function createBundle(overrides = {}) {
   return {
-    chestFileName: '18UTC-JUN-18 Chest Log',
+    chestFileName: '18UTC-JUN-18',
     chestLogText: chestText,
     ctaTimer: '18 UTC',
     endAt: '2026-06-18T19:30:00.000Z',
     events: storedEvents,
     hasChestLog: true,
     id: 'bundle-18',
-    lootFileName: '18UTC-JUN-18 Loot Log',
+    lootFileName: '18UTC-JUN-18',
     lootLogText: lootText,
     startAt: '2026-06-18T18:33:00.000Z',
     submissions: [{ id: 'submission-1', submittedBy: 'Manual' }],
@@ -117,6 +117,7 @@ describe('LootMonitor', () => {
     deleteLootLogBundle.mockResolvedValue({ bundleId: 'bundle-18', deleted: true });
     updateLootLogBundle.mockResolvedValue({
       bundleId: 'bundle-18',
+      displayLootFileName: 'Custom',
       fileNames: {
         chest: 'Custom Chest Log',
         loot: 'Custom Loot Log',
@@ -161,8 +162,7 @@ describe('LootMonitor', () => {
 
     const { container } = render(<LootMonitor bundleId="bundle-18" />);
 
-    expect(await screen.findByText('18UTC-JUN-18 Loot Log')).toBeInTheDocument();
-    expect(screen.getByText('18UTC-JUN-18 Chest Log')).toBeInTheDocument();
+    expect(await screen.findAllByText('18UTC-JUN-18')).toHaveLength(2);
     expect(screen.queryByText('Log Upload')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Choose files' })).not.toBeInTheDocument();
     expect(screen.getByText('Tier')).toBeInTheDocument();
@@ -253,12 +253,12 @@ describe('LootMonitor', () => {
       bundles: [createBundle({
         chestLogText: '',
         hasChestLog: false,
-        lootFileName: 'loot-events-original.txt',
+        lootFileName: 'loot-events-original',
       })],
     });
     const { container } = render(<LootLogArchive onBack={onBack} onView={onView} />);
 
-    expect(await screen.findByText('loot-events-original.txt')).toBeInTheDocument();
+    expect(await screen.findByText('loot-events-original')).toBeInTheDocument();
     expect(screen.getByText('18 UTC CTA')).toBeInTheDocument();
     expect(screen.queryByText(/18:33 UTC/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Loot Monitor' }));
@@ -332,19 +332,18 @@ describe('LootMonitor', () => {
 
     expect(screen.getByLabelText('Loot Log Name')).toHaveValue('04UTC-JUN-20');
     expect(screen.queryByRole('textbox', { name: 'Chest Log Name' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Chest Log Name')).toHaveTextContent('04UTC-JUN-20Chest Log');
-    expect([...container.querySelectorAll('.saved-log-name-suffix')].map((suffix) => suffix.textContent))
-      .toEqual(['Loot Log', 'Chest Log']);
+    expect(screen.getByLabelText('Chest Log Name')).toHaveTextContent('04UTC-JUN-20');
+    expect(container.querySelector('.saved-log-name-suffix')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(updateLootLogBundle).not.toHaveBeenCalled();
-    expect(screen.getByText('18UTC-JUN-18 Loot Log')).toBeInTheDocument();
+    expect(screen.getAllByText('18UTC-JUN-18')).toHaveLength(2);
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByLabelText('UTC Date'), { target: { value: '2026-06-20' } });
     fireEvent.change(screen.getByLabelText('CTA Time'), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Loot Log Name'), { target: { value: 'Custom' } });
-    expect(screen.getByLabelText('Chest Log Name')).toHaveTextContent('CustomChest Log');
+    expect(screen.getByLabelText('Chest Log Name')).toHaveTextContent('Custom');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(updateLootLogBundle).toHaveBeenCalledWith({
@@ -357,7 +356,7 @@ describe('LootMonitor', () => {
         loot: 'Custom Loot Log',
       },
     }));
-    expect(await screen.findByText('Custom Loot Log updated.')).toBeInTheDocument();
+    expect(await screen.findByText('Custom updated.')).toBeInTheDocument();
   });
 
   it('shows retention countdowns and downloads older logs as a zip archive', async () => {
@@ -386,7 +385,7 @@ describe('LootMonitor', () => {
     await waitFor(() => expect(fetchLootLogBundle).toHaveBeenCalledWith('bundle-18'));
     await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalledTimes(1));
     expect(linkClick).toHaveBeenCalledTimes(1);
-    expect(linkClick.mock.instances[0].download).toBe('18UTC-JUN-18 Loot Log.zip');
+    expect(linkClick.mock.instances[0].download).toBe('18UTC-JUN-18.zip');
 
     const archiveBlob = URL.createObjectURL.mock.calls[0][0];
     const { default: JSZip } = await import('jszip');

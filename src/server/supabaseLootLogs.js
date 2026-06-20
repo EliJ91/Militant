@@ -137,17 +137,23 @@ export function getBundleFileNames(bundle, startAt = bundle?.start_at) {
   );
 }
 
-function cleanOriginalFileName(value) {
+function cleanDisplayLogName(value) {
   const fileName = String(value || '').trim().split(/[\\/]/).pop() || '';
-  return fileName.replace(/[\r\n]/g, '').slice(0, 255);
+  return stripLogTypeSuffixes(
+    fileName.replace(/[\r\n]/g, '').replace(/\.(?:csv|log|tsv|txt)$/i, ''),
+  ).slice(0, 151);
 }
 
 export function getBundleDisplayLootFileName(bundle, originalFileName, startAt = bundle?.start_at) {
   const summary = bundle?.combined_loot_summary || {};
-  return cleanOriginalFileName(summary.displayLootFileName)
-    || cleanOriginalFileName(summary.fileNames?.loot)
-    || cleanOriginalFileName(originalFileName)
-    || getBundleFileNames(bundle, startAt).loot;
+  return cleanDisplayLogName(summary.displayLootFileName)
+    || cleanDisplayLogName(summary.fileNames?.loot)
+    || cleanDisplayLogName(originalFileName)
+    || getBundleFileNames(bundle, startAt).baseName;
+}
+
+export function getBundleDisplayChestFileName(bundle, startAt = bundle?.start_at) {
+  return getBundleDisplayLootFileName(bundle, '', startAt);
 }
 
 function getEditedFileNames(fileNames, startAt) {
@@ -219,7 +225,7 @@ function mapBundleListRow(bundle) {
 
   return {
     chestLogCount: chestLogs.length,
-    chestFileName: fileNames.chest,
+    chestFileName: getBundleDisplayChestFileName(bundle, startAt),
     ctaTimer: getCtaTimer(startAt),
     endAt,
     hasChestLog: chestLogs.length > 0,
@@ -605,7 +611,7 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
   const fileNames = getEditedFileNames(editedFileNames, range.startAt);
   const combinedSummary = {
     ...(bundle.combined_loot_summary || {}),
-    displayLootFileName: fileNames.loot,
+    displayLootFileName: fileNames.baseName,
     fileNames,
   };
   const { data: updatedBundle, error: updateError } = await supabase
@@ -646,6 +652,7 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
     bundle: updatedBundle,
     bundleId,
     ctaTimer: getCtaTimer(range.startAt),
+    displayLootFileName: fileNames.baseName,
     fileNames,
   };
 }
@@ -684,7 +691,7 @@ export async function getLootLogBundle(bundleId) {
 
   return {
     bundle: {
-      chestFileName: fileNames.chest,
+      chestFileName: getBundleDisplayChestFileName(bundle),
       chestLogText: chestLog?.raw_log_text || '',
       ctaTimer: getCtaTimer(bundle.start_at),
       endAt: bundle.end_at,

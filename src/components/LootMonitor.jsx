@@ -957,7 +957,6 @@ function LootLogBundleList({
                         value={editValues.lootFileName}
                         onChange={(event) => onEditValue('lootFileName', event.target.value)}
                       />
-                      <b className="saved-log-name-suffix">Loot Log</b>
                     </div>
                   ) : (
                     <strong>{bundle.lootFileName || 'Loot Log'}</strong>
@@ -984,7 +983,6 @@ function LootLogBundleList({
                   {isEditing && bundle.hasChestLog ? (
                     <div className="saved-log-name-editor" aria-label="Chest Log Name">
                       <span className="saved-log-name-readonly">{editValues.lootFileName}</span>
-                      <b className="saved-log-name-suffix">Chest Log</b>
                     </div>
                   ) : (
                     <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
@@ -1197,7 +1195,10 @@ export function LootLogArchive({ onBack = () => {}, onView = () => {} }) {
           loot: appendLogSuffix(editValues.lootFileName, 'Loot Log'),
         },
       });
-      setActionStatus({ message: `${result.fileNames?.loot || 'Loot log'} updated.`, state: 'success' });
+      setActionStatus({
+        message: `${result.displayLootFileName || result.fileNames?.baseName || 'Loot log'} updated.`,
+        state: 'success',
+      });
       cancelEditBundle();
       await loadSavedLogs();
     } catch (updateError) {
@@ -1221,9 +1222,9 @@ export function LootLogArchive({ onBack = () => {}, onView = () => {} }) {
       const zip = new JSZip();
       if (!detail.lootLogText) throw new Error('The original loot log text is unavailable.');
 
-      zip.file(textDownloadName(detail.lootFileName, 'Loot Log'), detail.lootLogText);
+      zip.file(textDownloadName(`${detail.lootFileName} Loot Log`, 'Loot Log'), detail.lootLogText);
       if (detail.chestLogText) {
-        zip.file(textDownloadName(detail.chestFileName, 'Chest Log'), detail.chestLogText);
+        zip.file(textDownloadName(`${detail.chestFileName} Chest Log`, 'Chest Log'), detail.chestLogText);
       }
 
       const blob = await zip.generateAsync({ compression: 'DEFLATE', type: 'blob' });

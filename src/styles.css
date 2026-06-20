@@ -1131,8 +1131,7 @@ button:focus-visible {
   min-height: 34px;
   padding: 6px 9px;
   border: 1px solid rgba(87, 216, 120, 0.56);
-  border-right: 0;
-  border-radius: 6px 0 0 6px;
+  border-radius: 6px;
   outline: none;
   background: #030605;
   color: var(--green-hot);
@@ -1152,21 +1151,6 @@ button:focus-visible {
 .saved-log-name-input:focus {
   border-color: var(--green-hot);
   box-shadow: 0 0 0 2px rgba(87, 216, 120, 0.13);
-}
-
-.saved-log-name-suffix {
-  display: inline-flex;
-  flex: 0 0 auto;
-  min-height: 34px;
-  align-items: center;
-  padding: 6px 9px;
-  border: 1px solid rgba(87, 216, 120, 0.56);
-  border-radius: 0 6px 6px 0;
-  background: rgba(87, 216, 120, 0.13);
-  color: var(--white);
-  font-size: 0.66rem;
-  font-weight: 900;
-  white-space: nowrap;
 }
 
 .saved-log-totals {

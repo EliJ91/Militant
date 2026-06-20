@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getBundleDisplayLootFileName, getBundleFileNames } from './supabaseLootLogs.js';
+import {
+  getBundleDisplayChestFileName,
+  getBundleDisplayLootFileName,
+  getBundleFileNames,
+} from './supabaseLootLogs.js';
 
 describe('getBundleFileNames', () => {
   it('keeps the original bundle title when merged events change the time range', () => {
@@ -32,14 +36,14 @@ describe('getBundleFileNames', () => {
   it('uses the original uploaded filename and keeps it through later merges', () => {
     const newBundle = { start_at: '2026-06-18T18:00:00.000Z' };
     expect(getBundleDisplayLootFileName(newBundle, 'C:\\logs\\loot-events-original.txt'))
-      .toBe('loot-events-original.txt');
+      .toBe('loot-events-original');
 
     const mergedBundle = {
       ...newBundle,
-      combined_loot_summary: { displayLootFileName: 'loot-events-original.txt' },
+      combined_loot_summary: { displayLootFileName: 'loot-events-original' },
     };
     expect(getBundleDisplayLootFileName(mergedBundle, 'later-merged-file.txt'))
-      .toBe('loot-events-original.txt');
+      .toBe('loot-events-original');
   });
 
   it('uses an edited display title instead of later uploaded filenames', () => {
@@ -51,6 +55,7 @@ describe('getBundleFileNames', () => {
     };
 
     expect(getBundleDisplayLootFileName(bundle, 'later-merged-file.txt'))
-      .toBe('Custom Raid Loot Log');
+      .toBe('Custom Raid');
+    expect(getBundleDisplayChestFileName(bundle)).toBe('Custom Raid');
   });
 });
