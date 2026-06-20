@@ -3,7 +3,6 @@ import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
 
 const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
-const SELECTED_LOOT_LOG_KEY = 'militant.selectedLootLogBundle';
 
 function getRoute() {
   const route = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '').toLowerCase();
@@ -155,13 +154,7 @@ function SiphonedEnergyPage() {
 
 export default function App() {
   const [route, setRoute] = useState(getRoute);
-  const [selectedBundleId, setSelectedBundleId] = useState(() => {
-    try {
-      return window.sessionStorage.getItem(SELECTED_LOOT_LOG_KEY) || '';
-    } catch {
-      return '';
-    }
-  });
+  const [selectedBundleId, setSelectedBundleId] = useState('');
 
   useEffect(() => {
     const updateRoute = () => {
@@ -186,13 +179,12 @@ export default function App() {
         : 'Militant';
   }, [route]);
 
+  useEffect(() => {
+    if (route !== 'loot-monitor') setSelectedBundleId('');
+  }, [route]);
+
   function viewLootLogBundle(bundleId) {
     setSelectedBundleId(bundleId);
-    try {
-      window.sessionStorage.setItem(SELECTED_LOOT_LOG_KEY, bundleId);
-    } catch {
-      // The selected log still opens for this session when storage is unavailable.
-    }
     navigateTo('#loot-monitor');
   }
 

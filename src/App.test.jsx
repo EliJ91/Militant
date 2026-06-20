@@ -19,6 +19,7 @@ vi.mock('./services/siphonedEnergyApi', () => ({
 describe('App', () => {
   beforeEach(() => {
     window.location.hash = '';
+    window.localStorage.clear();
     window.sessionStorage.clear();
   });
 
@@ -72,6 +73,21 @@ describe('App', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
     expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
+  });
+
+  it('does not restore a previously selected loot log after a refresh', () => {
+    window.sessionStorage.setItem('militant.selectedLootLogBundle', 'stale-bundle');
+    window.localStorage.setItem('militant.lootMonitor.filters.v3', JSON.stringify({
+      sortDirection: 'asc',
+      status: 'all',
+      tierFilters: ['tier4'],
+    }));
+    window.location.hash = '#loot-monitor';
+
+    render(<App />);
+
+    expect(screen.getByRole('heading', { name: 'Select a Stored Log' })).toBeInTheDocument();
+    expect(window.localStorage.getItem('militant.lootMonitor.filters.v3')).toContain('tier4');
   });
 });
 
