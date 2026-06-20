@@ -1812,6 +1812,12 @@ button:focus-visible {
   justify-content: space-between;
 }
 
+.energy-heading-actions {
+  align-items: stretch;
+  display: flex;
+  gap: 8px;
+}
+
 .energy-total {
   display: grid;
   gap: 3px;
@@ -1836,7 +1842,6 @@ button:focus-visible {
   font-size: 1.35rem;
 }
 
-.energy-import,
 .energy-debt-section,
 .energy-log-section {
   margin-top: 18px;
@@ -1846,14 +1851,7 @@ button:focus-visible {
   background: rgba(7, 16, 8, 0.76);
 }
 
-.energy-import {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 16px;
-  padding: 18px;
-}
-
-.energy-import-copy h2,
+.energy-modal-heading h2,
 .energy-section-heading h2 {
   margin: 5px 0 0;
   color: var(--white);
@@ -1865,6 +1863,7 @@ button:focus-visible {
   align-items: center;
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .secondary-button,
@@ -1899,10 +1898,9 @@ button:focus-visible {
   transform: none;
 }
 
-.energy-import textarea {
-  grid-column: 1 / -1;
+.energy-import-modal textarea {
   width: 100%;
-  min-height: 180px;
+  min-height: 220px;
   resize: vertical;
   padding: 14px;
   border: 1px solid rgba(247, 250, 245, 0.18);
@@ -1915,12 +1913,12 @@ button:focus-visible {
   line-height: 1.55;
 }
 
-.energy-import textarea:focus {
+.energy-import-modal textarea:focus {
   border-color: var(--green-hot);
   box-shadow: 0 0 0 3px rgba(87, 216, 120, 0.1);
 }
 
-.energy-import textarea::placeholder {
+.energy-import-modal textarea::placeholder {
   color: #738174;
 }
 
@@ -1941,20 +1939,85 @@ button:focus-visible {
   color: #ff7d89;
 }
 
+.energy-update-result {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(87, 216, 120, 0.3);
+  border-radius: 7px;
+  background: rgba(87, 216, 120, 0.08);
+  color: var(--green-hot);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.energy-update-result.error {
+  border-color: rgba(255, 101, 115, 0.35);
+  background: rgba(255, 101, 115, 0.08);
+  color: #ff7d89;
+}
+
+.energy-modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  align-items: center;
+  display: grid;
+  justify-items: center;
+  overflow-y: auto;
+  padding: 24px;
+  background: rgba(2, 4, 3, 0.82);
+  backdrop-filter: blur(4px);
+}
+
+.energy-import-modal {
+  display: grid;
+  gap: 16px;
+  width: min(760px, 100%);
+  padding: 20px;
+  border: 1px solid rgba(87, 216, 120, 0.38);
+  border-radius: 8px;
+  background: #071008;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.72);
+}
+
+.energy-modal-heading {
+  align-items: start;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.energy-modal-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(247, 250, 245, 0.18);
+  border-radius: 6px;
+  background: rgba(247, 250, 245, 0.04);
+  color: var(--white);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.energy-modal-close:hover:not(:disabled) {
+  border-color: var(--green-hot);
+  background: rgba(87, 216, 120, 0.14);
+}
+
 .energy-section-heading {
   align-items: center;
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 18px;
+  padding: 12px 14px;
   border-bottom: 1px solid rgba(247, 250, 245, 0.12);
 }
 
 .energy-debt-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 1px;
-  background: rgba(247, 250, 245, 0.1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
 }
 
 .energy-debt-card {
@@ -1962,15 +2025,18 @@ button:focus-visible {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  min-height: 66px;
-  padding: 14px 18px;
-  background: #071008;
+  min-width: 180px;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 101, 115, 0.3);
+  border-radius: 6px;
+  background: rgba(255, 101, 115, 0.06);
 }
 
 .energy-debt-card span {
   overflow: hidden;
   color: var(--white);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 900;
   text-overflow: ellipsis;
 }
@@ -1981,18 +2047,21 @@ button:focus-visible {
 }
 
 .energy-debt-card strong {
-  font-size: 1.05rem;
+  font-size: 0.9rem;
 }
 
 .energy-empty-inline {
   margin: 0;
-  padding: 22px 18px;
+  padding: 14px;
   color: var(--muted);
   font-size: 0.86rem;
 }
 
 .energy-table-wrap {
-  overflow-x: auto;
+  max-height: min(62vh, 620px);
+  overflow: auto;
+  scrollbar-color: rgba(87, 216, 120, 0.55) rgba(2, 4, 3, 0.7);
+  scrollbar-width: thin;
 }
 
 .energy-table {
@@ -2009,6 +2078,11 @@ button:focus-visible {
 }
 
 .energy-table th {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  background: #071008;
+  box-shadow: 0 1px 0 rgba(247, 250, 245, 0.14);
   color: var(--muted);
   font-size: 0.68rem;
   font-weight: 900;
@@ -2140,8 +2214,9 @@ button:focus-visible {
     text-align: left;
   }
 
-  .energy-import {
-    grid-template-columns: 1fr;
+  .energy-heading-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(130px, 1fr);
   }
 
   .energy-import-actions {
@@ -2157,6 +2232,19 @@ button:focus-visible {
 
   .energy-table {
     min-width: 680px;
+  }
+
+  .energy-modal-backdrop {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .energy-import-modal {
+    padding: 16px;
+  }
+
+  .energy-import-modal textarea {
+    min-height: 210px;
   }
 
   .loot-upload-panel,
