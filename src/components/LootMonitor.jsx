@@ -166,6 +166,11 @@ function archiveFileName(bundle) {
   return `${safeDownloadName(bundle.lootFileName, 'Loot Log')}.zip`;
 }
 
+function textDownloadName(value, fallback) {
+  const name = safeDownloadName(value, fallback);
+  return name.toLowerCase().endsWith('.txt') ? name : `${name}.txt`;
+}
+
 function safeDownloadName(value, fallback) {
   const cleaned = String(value || fallback)
     .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
@@ -1086,8 +1091,12 @@ export function LootLogArchive({ onBack = () => {}, onView = () => {} }) {
       const text = await file.text();
       if (detectFileKind(text) !== 'loot') throw new Error('Choose a valid loot-events file.');
 
-      const result = await submitLootLog({ lootLogText: text, username: 'manual-web-upload' });
-      const savedName = result.summary?.fileNames?.loot || 'Loot Log';
+      const result = await submitLootLog({
+        lootLogText: text,
+        originalFileName: file.name,
+        username: 'manual-web-upload',
+      });
+      const savedName = result.summary?.displayLootFileName || result.summary?.fileNames?.loot || 'Loot Log';
       setActionStatus({ message: `${savedName} uploaded.`, state: 'success' });
       await loadSavedLogs();
     } catch (uploadError) {
@@ -1212,9 +1221,9 @@ export function LootLogArchive({ onBack = () => {}, onView = () => {} }) {
       const zip = new JSZip();
       if (!detail.lootLogText) throw new Error('The original loot log text is unavailable.');
 
-      zip.file(`${safeDownloadName(detail.lootFileName, 'Loot Log')}.txt`, detail.lootLogText);
+      zip.file(textDownloadName(detail.lootFileName, 'Loot Log'), detail.lootLogText);
       if (detail.chestLogText) {
-        zip.file(`${safeDownloadName(detail.chestFileName, 'Chest Log')}.txt`, detail.chestLogText);
+        zip.file(textDownloadName(detail.chestFileName, 'Chest Log'), detail.chestLogText);
       }
 
       const blob = await zip.generateAsync({ compression: 'DEFLATE', type: 'blob' });

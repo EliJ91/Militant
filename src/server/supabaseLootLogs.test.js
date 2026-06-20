@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getBundleFileNames } from './supabaseLootLogs.js';
+import { getBundleDisplayLootFileName, getBundleFileNames } from './supabaseLootLogs.js';
 
 describe('getBundleFileNames', () => {
   it('keeps the original bundle title when merged events change the time range', () => {
@@ -27,5 +27,30 @@ describe('getBundleFileNames', () => {
       chest: '18UTC-JUN-18 Chest Log',
       loot: '18UTC-JUN-18 Loot Log',
     });
+  });
+
+  it('uses the original uploaded filename and keeps it through later merges', () => {
+    const newBundle = { start_at: '2026-06-18T18:00:00.000Z' };
+    expect(getBundleDisplayLootFileName(newBundle, 'C:\\logs\\loot-events-original.txt'))
+      .toBe('loot-events-original.txt');
+
+    const mergedBundle = {
+      ...newBundle,
+      combined_loot_summary: { displayLootFileName: 'loot-events-original.txt' },
+    };
+    expect(getBundleDisplayLootFileName(mergedBundle, 'later-merged-file.txt'))
+      .toBe('loot-events-original.txt');
+  });
+
+  it('uses an edited display title instead of later uploaded filenames', () => {
+    const bundle = {
+      combined_loot_summary: {
+        displayLootFileName: 'Custom Raid Loot Log',
+        fileNames: { loot: 'Custom Raid Loot Log' },
+      },
+    };
+
+    expect(getBundleDisplayLootFileName(bundle, 'later-merged-file.txt'))
+      .toBe('Custom Raid Loot Log');
   });
 });

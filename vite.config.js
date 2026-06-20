@@ -136,6 +136,15 @@ function lootLogApi() {
         : await submitLootLog({
           bundleId: body.bundleId || null,
           lootLogText: body.lootLogText || body.lootText || body.text,
+          originalFileName: body.originalFileName
+            || body.original_filename
+            || body.lootFileName
+            || body.logFileName
+            || body.fileName
+            || body.filename
+            || body.file_name
+            || req.headers['x-file-name']
+            || req.headers['x-filename'],
           username: body.username,
         });
 

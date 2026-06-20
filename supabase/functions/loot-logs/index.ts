@@ -203,6 +203,19 @@ function getBundleFileNames(bundle: any, startAt = bundle?.start_at) {
   );
 }
 
+function cleanOriginalFileName(value: unknown) {
+  const fileName = String(value || '').trim().split(/[\\/]/).pop() || '';
+  return fileName.replace(/[\r\n]/g, '').slice(0, 255);
+}
+
+function getBundleDisplayLootFileName(bundle: any, originalFileName?: unknown, startAt = bundle?.start_at) {
+  const summary = bundle?.combined_loot_summary || {};
+  return cleanOriginalFileName(summary.displayLootFileName)
+    || cleanOriginalFileName(summary.fileNames?.loot)
+    || cleanOriginalFileName(originalFileName)
+    || getBundleFileNames(bundle, startAt).loot;
+}
+
 function getEditedFileNames(fileNames: any, startAt: string) {
   const generated = buildBundleFileNames(startAt);
   const edited = buildSharedFileNames(
@@ -530,6 +543,7 @@ Deno.serve(async (request) => {
       const fileNames = getEditedFileNames(body.fileNames, range.startAt);
       const combinedSummary = {
         ...(bundle.combined_loot_summary || {}),
+        displayLootFileName: fileNames.loot,
         fileNames,
       };
       const { data: updatedBundle, error: updateError } = await supabase
@@ -635,7 +649,7 @@ Deno.serve(async (request) => {
             events: eventsResult.map(dbEventToMergeEvent),
             hasChestLog: Boolean(chestLog),
             id: bundle.id,
-            lootFileName: fileNames.loot,
+            lootFileName: getBundleDisplayLootFileName(bundle),
             lootLogText: primaryLootLog?.raw_log_text || '',
             startAt: bundle.start_at,
             submissions: (submissionsResult.data || []).map((submission: any) => ({
@@ -689,7 +703,7 @@ Deno.serve(async (request) => {
             endAt: bundle.end_at,
             hasChestLog: chestLogs.length > 0,
             id: bundle.id,
-            lootFileName: fileNames.loot,
+            lootFileName: getBundleDisplayLootFileName(bundle),
             startAt: bundle.start_at,
             submissions: submissions.map((submission: any) => ({
               createdAt: submission.created_at,
@@ -782,6 +796,15 @@ Deno.serve(async (request) => {
     }
 
     const lootLogText = body.lootLogText || body.lootText || body.text;
+    const originalFileName = body.originalFileName
+      || body.original_filename
+      || body.lootFileName
+      || body.logFileName
+      || body.fileName
+      || body.filename
+      || body.file_name
+      || request.headers.get('x-file-name')
+      || request.headers.get('x-filename');
 
     if (!lootLogText || typeof lootLogText !== 'string') {
       throw new Error('lootLogText is required.');
@@ -911,6 +934,11 @@ Deno.serve(async (request) => {
     const refreshedRange = getLootLogTimeRange(mergeEvents);
     const summaryWithFileNames = {
       ...summary,
+      displayLootFileName: getBundleDisplayLootFileName(
+        bundle,
+        originalFileName,
+        refreshedRange?.startAt || bundle.start_at,
+      ),
       fileNames: getBundleFileNames(bundle, refreshedRange?.startAt || bundle.start_at),
     };
     const { data: refreshedBundle, error: updateError } = await supabase

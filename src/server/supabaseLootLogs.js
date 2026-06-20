@@ -137,6 +137,19 @@ export function getBundleFileNames(bundle, startAt = bundle?.start_at) {
   );
 }
 
+function cleanOriginalFileName(value) {
+  const fileName = String(value || '').trim().split(/[\\/]/).pop() || '';
+  return fileName.replace(/[\r\n]/g, '').slice(0, 255);
+}
+
+export function getBundleDisplayLootFileName(bundle, originalFileName, startAt = bundle?.start_at) {
+  const summary = bundle?.combined_loot_summary || {};
+  return cleanOriginalFileName(summary.displayLootFileName)
+    || cleanOriginalFileName(summary.fileNames?.loot)
+    || cleanOriginalFileName(originalFileName)
+    || getBundleFileNames(bundle, startAt).loot;
+}
+
 function getEditedFileNames(fileNames, startAt) {
   const generated = buildBundleFileNames(startAt);
   const edited = buildSharedFileNames(
@@ -211,7 +224,7 @@ function mapBundleListRow(bundle) {
     endAt,
     hasChestLog: chestLogs.length > 0,
     id: bundle.id,
-    lootFileName: fileNames.loot,
+    lootFileName: getBundleDisplayLootFileName(bundle, '', startAt),
     startAt,
     submissions: submissions.map((submission) => ({
       createdAt: submission.created_at,
@@ -307,7 +320,7 @@ async function getOrCreateBundle(supabase, { bundleId, range }) {
   return { bundle: data, matchedExistingBundle: false };
 }
 
-async function refreshBundleSummary(supabase, bundle) {
+async function refreshBundleSummary(supabase, bundle, originalFileName) {
   const events = await fetchAllBundleEvents(supabase, bundle.id);
 
   const mergeEvents = (events || []).map(dbEventToMergeEvent);
@@ -315,6 +328,7 @@ async function refreshBundleSummary(supabase, bundle) {
   const range = getLootLogTimeRange(mergeEvents);
   const summaryWithFileNames = {
     ...summary,
+    displayLootFileName: getBundleDisplayLootFileName(bundle, originalFileName, range?.startAt),
     fileNames: getBundleFileNames(bundle, range?.startAt),
   };
 
@@ -420,7 +434,7 @@ async function mergeLootLogEvents(supabase, { bundleId, events, submissionId }) 
   };
 }
 
-export async function submitLootLog({ bundleId = null, lootLogText, username }) {
+export async function submitLootLog({ bundleId = null, lootLogText, originalFileName, username }) {
   const cleanUsername = String(username || '').trim() || 'manual-web-upload';
   if (!lootLogText || typeof lootLogText !== 'string') throw new Error('lootLogText is required.');
 
@@ -452,7 +466,7 @@ export async function submitLootLog({ bundleId = null, lootLogText, username }) 
     submissionId: submission.id,
   });
 
-  const refreshed = await refreshBundleSummary(supabase, bundle);
+  const refreshed = await refreshBundleSummary(supabase, bundle, originalFileName);
 
   return {
     bundle: refreshed.bundle,
@@ -591,6 +605,7 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
   const fileNames = getEditedFileNames(editedFileNames, range.startAt);
   const combinedSummary = {
     ...(bundle.combined_loot_summary || {}),
+    displayLootFileName: fileNames.loot,
     fileNames,
   };
   const { data: updatedBundle, error: updateError } = await supabase
@@ -676,7 +691,7 @@ export async function getLootLogBundle(bundleId) {
       events: eventsResult.map(dbEventToMergeEvent),
       hasChestLog: Boolean(chestLog),
       id: bundle.id,
-      lootFileName: fileNames.loot,
+      lootFileName: getBundleDisplayLootFileName(bundle),
       lootLogText: primaryLootLog?.raw_log_text || '',
       startAt: bundle.start_at,
       submissions: (lootSubmissionsResult.data || []).map((submission) => ({

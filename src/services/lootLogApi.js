@@ -8,10 +8,11 @@ export function getLootLogApiUrl() {
   return import.meta.env.VITE_LOCAL_LOOT_LOG_API_URL || DEFAULT_LOOT_LOG_API_URL;
 }
 
-export async function submitLootLog({ lootLogText, username }) {
+export async function submitLootLog({ lootLogText, originalFileName, username }) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
       lootLogText,
+      originalFileName,
       username,
     }),
     headers: { 'Content-Type': 'application/json' },

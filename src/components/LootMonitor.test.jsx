@@ -250,11 +250,15 @@ describe('LootMonitor', () => {
     const onBack = vi.fn();
     const onView = vi.fn();
     fetchLootLogBundles.mockResolvedValue({
-      bundles: [createBundle({ chestLogText: '', hasChestLog: false })],
+      bundles: [createBundle({
+        chestLogText: '',
+        hasChestLog: false,
+        lootFileName: 'loot-events-original.txt',
+      })],
     });
     const { container } = render(<LootLogArchive onBack={onBack} onView={onView} />);
 
-    expect(await screen.findByText('18UTC-JUN-18 Loot Log')).toBeInTheDocument();
+    expect(await screen.findByText('loot-events-original.txt')).toBeInTheDocument();
     expect(screen.getByText('18 UTC CTA')).toBeInTheDocument();
     expect(screen.queryByText(/18:33 UTC/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Loot Monitor' }));
@@ -276,6 +280,7 @@ describe('LootMonitor', () => {
     });
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
       lootLogText: lootText,
+      originalFileName: 'loot-events.txt',
       username: 'manual-web-upload',
     }));
 
@@ -288,6 +293,7 @@ describe('LootMonitor', () => {
     fireEvent.drop(uploadButton, { dataTransfer: { files: [droppedLootFile] } });
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
       lootLogText: lootText,
+      originalFileName: 'dropped-loot-events.txt',
       username: 'manual-web-upload',
     }));
     expect(uploadButton).not.toHaveClass('drag-over');
