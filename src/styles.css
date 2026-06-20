@@ -33,7 +33,8 @@ button {
 }
 
 input,
-select {
+select,
+textarea {
   color: inherit;
   font: inherit;
 }
@@ -1801,6 +1802,269 @@ button:focus-visible {
   color: #ff5262;
 }
 
+.siphoned-energy-shell {
+  width: min(1320px, 100%);
+}
+
+.siphoned-energy-heading {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+}
+
+.energy-total {
+  display: grid;
+  gap: 3px;
+  min-width: 150px;
+  padding: 10px 14px;
+  border: 1px solid rgba(87, 216, 120, 0.34);
+  border-radius: 7px;
+  background: rgba(87, 216, 120, 0.08);
+  text-align: right;
+}
+
+.energy-total small,
+.energy-section-heading > strong {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.energy-total strong {
+  color: var(--white);
+  font-size: 1.35rem;
+}
+
+.energy-import,
+.energy-debt-section,
+.energy-log-section {
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(247, 250, 245, 0.14);
+  border-radius: 8px;
+  background: rgba(7, 16, 8, 0.76);
+}
+
+.energy-import {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 18px;
+}
+
+.energy-import-copy h2,
+.energy-section-heading h2 {
+  margin: 5px 0 0;
+  color: var(--white);
+  font-size: 1.15rem;
+  letter-spacing: 0;
+}
+
+.energy-import-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.secondary-button,
+.energy-update-button {
+  min-width: 142px;
+  min-height: 42px;
+  padding: 9px 16px;
+  border-radius: 7px;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.secondary-button {
+  border: 1px solid rgba(87, 216, 120, 0.44);
+  background: rgba(87, 216, 120, 0.1);
+  color: var(--white);
+}
+
+.secondary-button:hover {
+  border-color: var(--green-hot);
+  background: rgba(87, 216, 120, 0.18);
+}
+
+.energy-update-button {
+  box-shadow: none;
+}
+
+.energy-update-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+  transform: none;
+}
+
+.energy-import textarea {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  padding: 14px;
+  border: 1px solid rgba(247, 250, 245, 0.18);
+  border-radius: 7px;
+  outline: none;
+  background: #020604;
+  color: var(--white);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.energy-import textarea:focus {
+  border-color: var(--green-hot);
+  box-shadow: 0 0 0 3px rgba(87, 216, 120, 0.1);
+}
+
+.energy-import textarea::placeholder {
+  color: #738174;
+}
+
+.energy-message {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.energy-message.success,
+.energy-message.ready {
+  color: var(--green-hot);
+}
+
+.energy-message.error {
+  color: #ff7d89;
+}
+
+.energy-section-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.12);
+}
+
+.energy-debt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1px;
+  background: rgba(247, 250, 245, 0.1);
+}
+
+.energy-debt-card {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 66px;
+  padding: 14px 18px;
+  background: #071008;
+}
+
+.energy-debt-card span {
+  overflow: hidden;
+  color: var(--white);
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+}
+
+.energy-debt-card strong,
+.energy-negative {
+  color: #ff6573;
+}
+
+.energy-debt-card strong {
+  font-size: 1.05rem;
+}
+
+.energy-empty-inline {
+  margin: 0;
+  padding: 22px 18px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.energy-table-wrap {
+  overflow-x: auto;
+}
+
+.energy-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.energy-table th,
+.energy-table td {
+  padding: 13px 18px;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.09);
+  text-align: left;
+}
+
+.energy-table th {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.energy-table td {
+  color: var(--white);
+  font-size: 0.84rem;
+}
+
+.energy-table th:first-child,
+.energy-table td:first-child {
+  width: 260px;
+}
+
+.energy-table th:nth-child(3),
+.energy-table td:nth-child(3) {
+  width: 160px;
+}
+
+.energy-table th:last-child,
+.energy-table td:last-child {
+  width: 140px;
+  text-align: right;
+}
+
+.energy-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.energy-table tbody tr:hover td {
+  background: rgba(247, 250, 245, 0.025);
+}
+
+.energy-reason {
+  display: inline-block;
+  min-width: 96px;
+  padding: 5px 8px;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.energy-reason.deposit,
+.energy-positive {
+  color: var(--green-hot);
+}
+
+.energy-reason.withdrawal {
+  color: #ff7d89;
+}
+
 @media (max-width: 720px) {
   .landing-page {
     padding: 24px 18px;
@@ -1865,6 +2129,34 @@ button:focus-visible {
 
   .tool-board {
     grid-template-columns: 1fr;
+  }
+
+  .siphoned-energy-heading {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .energy-total {
+    text-align: left;
+  }
+
+  .energy-import {
+    grid-template-columns: 1fr;
+  }
+
+  .energy-import-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .secondary-button,
+  .energy-update-button {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .energy-table {
+    min-width: 680px;
   }
 
   .loot-upload-panel,

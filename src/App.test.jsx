@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
 vi.mock('./services/lootLogApi', () => ({
@@ -11,11 +11,18 @@ vi.mock('./services/lootLogApi', () => ({
   updateLootLogBundle: vi.fn(),
 }));
 
+vi.mock('./services/siphonedEnergyApi', () => ({
+  fetchSiphonedEnergyTransactions: vi.fn().mockResolvedValue({ transactions: [] }),
+  updateSiphonedEnergyTransactions: vi.fn(),
+}));
+
 describe('App', () => {
   beforeEach(() => {
     window.location.hash = '';
     window.sessionStorage.clear();
   });
+
+  afterEach(cleanup);
 
   it('opens the dashboard from the landing button', () => {
     const { container } = render(<App />);
@@ -28,9 +35,8 @@ describe('App', () => {
     expect(window.location.hash).toBe('#dashboard');
     expect(screen.getByText('Review kept, lost, resolved, and donated loot from CTA logs.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /open tool/i })).not.toBeInTheDocument();
-    expect(screen.getByText('Under Construction')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Pending' })).toBeInTheDocument();
-    expect(screen.getByText('Make a suggestion!')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
+    expect(screen.getByText('Track deposits, withdrawals, and outstanding member balances.')).toBeInTheDocument();
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: /loot monitor/i }));
@@ -54,6 +60,18 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Loot Monitor' }));
     expect(window.location.hash).toBe('#loot-monitor');
     expect(screen.getByRole('heading', { name: /loot monitor/i })).toBeInTheDocument();
+  });
+
+  it('opens the Siphoned Energy Tracker from the dashboard', () => {
+    window.location.hash = '#dashboard';
+    const { container } = render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /siphoned energy tracker/i }));
+
+    expect(window.location.hash).toBe('#siphoned-energy');
+    expect(screen.getByRole('heading', { level: 1, name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
+    expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
+    expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
   });
 });
 

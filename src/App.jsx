@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
+import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
 
 const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
 const SELECTED_LOOT_LOG_KEY = 'militant.selectedLootLogBundle';
@@ -9,6 +10,7 @@ function getRoute() {
 
   if (route === 'loot-logs') return 'loot-logs';
   if (route === 'loot-monitor') return 'loot-monitor';
+  if (route === 'siphoned-energy') return 'siphoned-energy';
   return route === 'dashboard' ? 'dashboard' : 'landing';
 }
 
@@ -83,10 +85,10 @@ function DashboardPage() {
             <h2>Loot Monitor</h2>
             <p>Review kept, lost, resolved, and donated loot from CTA logs.</p>
           </button>
-          <button className="tool-card tool-card-button tool-card-muted" type="button">
-            <span className="tool-card-kicker">Under Construction</span>
-            <h2>Pending</h2>
-            <p>Make a suggestion!</p>
+          <button className="tool-card tool-card-button" type="button" onClick={() => navigateTo('#siphoned-energy')}>
+            <span className="tool-card-kicker">Tools</span>
+            <h2>Siphoned Energy Tracker</h2>
+            <p>Track deposits, withdrawals, and outstanding member balances.</p>
           </button>
         </section>
       </main>
@@ -132,6 +134,25 @@ function LootLogsPage({ onBackToMonitor, onViewBundle }) {
   );
 }
 
+function SiphonedEnergyPage() {
+  return (
+    <>
+      <header className="topbar">
+        <BrandLockup compact />
+        <div className="topbar-actions">
+          <button className="navigation-button" type="button" onClick={() => navigateTo('#dashboard')}>
+            Dashboard
+          </button>
+          <button className="navigation-button" type="button" onClick={() => navigateTo('#')}>
+            Sign Out
+          </button>
+        </div>
+      </header>
+      <SiphonedEnergyTracker />
+    </>
+  );
+}
+
 export default function App() {
   const [route, setRoute] = useState(getRoute);
   const [selectedBundleId, setSelectedBundleId] = useState(() => {
@@ -160,6 +181,7 @@ export default function App() {
   useEffect(() => {
     document.title = route === 'loot-logs' ? 'View Logs'
       : route === 'loot-monitor' ? 'Loot Monitor'
+      : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);
@@ -184,5 +206,6 @@ export default function App() {
     );
   }
   if (route === 'loot-monitor') return <LootMonitorPage bundleId={selectedBundleId} />;
+  if (route === 'siphoned-energy') return <SiphonedEnergyPage />;
   return <LandingPage />;
 }

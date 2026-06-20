@@ -165,6 +165,47 @@ function lootLogApi() {
   };
 }
 
+function siphonedEnergyApi() {
+  async function handleSiphonedEnergy(req, res) {
+    if (req.method === 'OPTIONS') {
+      sendJson(res, 204, {});
+      return;
+    }
+
+    try {
+      const {
+        importSiphonedEnergyTransactions,
+        listSiphonedEnergyTransactions,
+      } = await import('./src/server/supabaseSiphonedEnergy.js');
+
+      if (req.method === 'GET') {
+        sendJson(res, 200, await listSiphonedEnergyTransactions());
+        return;
+      }
+
+      if (req.method === 'POST') {
+        const body = await readJsonBody(req);
+        sendJson(res, 200, await importSiphonedEnergyTransactions(body.logText));
+        return;
+      }
+
+      sendJson(res, 405, { error: 'Method not allowed.' });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || 'Could not update Siphoned Energy transactions.' });
+    }
+  }
+
+  return {
+    name: 'siphoned-energy-api',
+    configureServer(server) {
+      server.middlewares.use('/api/siphoned-energy', handleSiphonedEnergy);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use('/api/siphoned-energy', handleSiphonedEnergy);
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   process.env.SUPABASE_URL ||= env.SUPABASE_URL || env.VITE_SUPABASE_URL;
@@ -172,7 +213,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',
-    plugins: [react(), albionItemProxy(), lootLogApi()],
+    plugins: [react(), albionItemProxy(), lootLogApi(), siphonedEnergyApi()],
     server: {
       host: '127.0.0.1',
       port: 5173,
