@@ -49,7 +49,8 @@ describe('SiphonedEnergyTracker', () => {
     expect(screen.getAllByText('-110')).toHaveLength(2);
     expect(screen.getByText('Dyathix')).toBeInTheDocument();
     expect(screen.getByText('+6')).toBeInTheDocument();
-    expect(screen.getByText('1 flagged')).toBeInTheDocument();
+    expect(document.querySelector('.energy-flag-count')).toHaveTextContent('1 flagged');
+    expect(document.querySelectorAll('.energy-debt-column')).toHaveLength(1);
     expect(screen.queryByRole('dialog', { name: 'Update Energy Log' })).not.toBeInTheDocument();
   });
 

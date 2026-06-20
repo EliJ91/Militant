@@ -60,6 +60,14 @@ export default function SiphonedEnergyTracker() {
     calculateSiphonedEnergyBalances(transactions)
       .filter((player) => player.amount <= NEGATIVE_THRESHOLD)
   ), [transactions]);
+  const negativePlayerColumns = useMemo(() => {
+    if (negativePlayers.length === 0) return [];
+    const columnCount = Math.min(5, Math.ceil(negativePlayers.length / 4));
+    const rowsPerColumn = Math.ceil(negativePlayers.length / columnCount);
+    return Array.from({ length: columnCount }, (_, index) => (
+      negativePlayers.slice(index * rowsPerColumn, (index + 1) * rowsPerColumn)
+    )).filter((column) => column.length > 0);
+  }, [negativePlayers]);
 
   async function pasteClipboard() {
     if (!navigator.clipboard?.readText) {
@@ -135,14 +143,23 @@ export default function SiphonedEnergyTracker() {
             <p className="eyebrow">Negative Tracker</p>
             <h2 id="energy-debt-title">Outstanding Energy</h2>
           </div>
-          <strong>{negativePlayers.length} flagged</strong>
+          <strong className="energy-flag-count">
+            <span>{negativePlayers.length}</span> flagged
+          </strong>
         </div>
         {negativePlayers.length > 0 ? (
-          <div className="energy-debt-grid">
-            {negativePlayers.map((player) => (
-              <div className="energy-debt-card" key={player.player.toLowerCase()}>
-                <span>{player.player}</span>
-                <strong>{formatAmount(player.amount, false)}</strong>
+          <div
+            className="energy-debt-grid"
+            style={{ '--energy-debt-columns': negativePlayerColumns.length }}
+          >
+            {negativePlayerColumns.map((column) => (
+              <div className="energy-debt-column" key={column[0].player.toLowerCase()}>
+                {column.map((player) => (
+                  <div className="energy-debt-card" key={player.player.toLowerCase()}>
+                    <span>{player.player}</span>
+                    <strong>{formatAmount(player.amount, false)}</strong>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

@@ -1837,6 +1837,19 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+.energy-flag-count {
+  padding: 7px 11px;
+  border: 1px solid rgba(247, 250, 245, 0.16);
+  border-radius: 999px;
+  background: rgba(247, 250, 245, 0.035);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.energy-flag-count span {
+  color: var(--green-hot);
+}
+
 .energy-total strong {
   color: var(--white);
   font-size: 1.35rem;
@@ -2014,29 +2027,41 @@ button:focus-visible {
 }
 
 .energy-debt-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(var(--energy-debt-columns), minmax(0, 1fr));
+  width: min(1220px, 100%);
+  margin: 0 auto;
+  padding: 18px 20px;
+}
+
+.energy-debt-column {
+  min-width: 0;
+  padding: 0 18px;
+  border-left: 1px solid rgba(247, 250, 245, 0.12);
+}
+
+.energy-debt-column:first-child {
+  border-left: 0;
 }
 
 .energy-debt-card {
   align-items: center;
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  min-width: 180px;
-  min-height: 40px;
-  padding: 7px 10px;
-  border: 1px solid rgba(255, 101, 115, 0.3);
-  border-radius: 6px;
-  background: rgba(255, 101, 115, 0.06);
+  gap: 14px;
+  min-height: 48px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.12);
+}
+
+.energy-debt-card:last-child {
+  border-bottom: 0;
 }
 
 .energy-debt-card span {
   overflow: hidden;
   color: var(--white);
-  font-size: 0.8rem;
+  font-size: 0.86rem;
   font-weight: 900;
   text-overflow: ellipsis;
 }
@@ -2047,7 +2072,8 @@ button:focus-visible {
 }
 
 .energy-debt-card strong {
-  font-size: 0.9rem;
+  flex: 0 0 auto;
+  font-size: 0.94rem;
 }
 
 .energy-empty-inline {
@@ -2232,6 +2258,20 @@ button:focus-visible {
 
   .energy-table {
     min-width: 680px;
+  }
+
+  .energy-debt-grid {
+    grid-template-columns: 1fr;
+    padding: 10px 14px;
+  }
+
+  .energy-debt-column {
+    padding: 0;
+    border-left: 0;
+  }
+
+  .energy-debt-column + .energy-debt-column {
+    border-top: 1px solid rgba(247, 250, 245, 0.12);
   }
 
   .energy-modal-backdrop {
