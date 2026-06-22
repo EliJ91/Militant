@@ -234,9 +234,14 @@ describe('LootMonitor', () => {
     expect(screen.getByRole('button', { name: 'Kept' })).toBeDisabled();
     expect(screen.getByTitle('A chest log must be uploaded to select Kept.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Lost' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Lost' }));
-    expect(statusLabel.nextElementSibling.querySelector('summary')).toHaveTextContent('Lost');
-    expect(screen.getByText('No item icons match the current filters.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All' })).toHaveClass('selected-option');
+    const lostOption = screen.getByRole('button', { name: 'Lost' });
+    fireEvent.click(lostOption);
+    expect(lostOption).toHaveClass('unselected-option');
+    expect(statusLabel.nextElementSibling.querySelector('summary')).toHaveTextContent('3 selected');
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    expect(screen.getByRole('button', { name: 'Lost' })).toHaveClass('selected-option');
+    expect(statusLabel.nextElementSibling.querySelector('summary')).toHaveTextContent('All');
   });
 
   it('keeps weapons visible when item type filters exclude ordinary item types', async () => {

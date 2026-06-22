@@ -75,7 +75,7 @@ const DEFAULT_FILTERS = {
   alliances: [],
   guilds: [],
   sortDirection: 'desc',
-  status: 'all',
+  status: [],
   tierFilters: [],
   typeFilters: [],
 };
@@ -216,15 +216,18 @@ function migrateOldTypeFilters(value) {
 }
 
 function sanitizeFilters(value = {}) {
-  const statusValues = new Set(STATUS_OPTIONS.map((option) => option.value));
+  const statusValues = new Set(STATUS_OPTIONS.filter((option) => option.value !== 'all').map((option) => option.value));
   const sortValues = new Set(SORT_OPTIONS.map((option) => option.value));
   const migratedStatus = value.status === 'deposited' ? 'donated' : value.status;
+  const selectedStatuses = Array.isArray(migratedStatus)
+    ? uniqueStrings(migratedStatus).filter((status) => statusValues.has(status))
+    : statusValues.has(migratedStatus) ? [migratedStatus] : [];
 
   return {
     alliances: sanitizeStringArray(value.alliances ?? (value.alliance ? [value.alliance] : [])),
     guilds: sanitizeStringArray(value.guilds ?? (value.guild ? [value.guild] : [])),
     sortDirection: sortValues.has(value.sortDirection) ? value.sortDirection : DEFAULT_FILTERS.sortDirection,
-    status: statusValues.has(migratedStatus) ? migratedStatus : DEFAULT_FILTERS.status,
+    status: selectedStatuses.length === statusValues.size ? [] : selectedStatuses,
     tierFilters: sanitizeOptionArray(value.tierFilters ?? migrateOldTierFilters(value), TIER_OPTIONS),
     typeFilters: sanitizeOptionArray(value.typeFilters ?? migrateOldTypeFilters(value), TYPE_OPTIONS),
   };
@@ -339,9 +342,8 @@ function getItemKind(row) {
   return 'other';
 }
 
-function allowsTileStatus(tileStatus, selectedStatus) {
-  if (selectedStatus === 'all') return true;
-  return tileStatus === selectedStatus;
+function allowsTileStatus(tileStatus, selectedStatuses) {
+  return selectedStatuses.length === 0 || selectedStatuses.includes(tileStatus);
 }
 
 function allowsItemFilters(row, filters) {
@@ -358,10 +360,12 @@ function allowsItemFilters(row, filters) {
 
 function getVisibleRows(rows, filters) {
   return rows.filter((row) => {
-    if (filters.status === 'kept' && row.kept <= 0) return false;
-    if (filters.status === 'lost' && row.lost <= 0) return false;
-    if (filters.status === 'donated' && row.donated <= 0) return false;
-    if (filters.status === 'resolved' && row.accounted <= 0) return false;
+    if (filters.status.length > 0 && !filters.status.some((status) => (
+      (status === 'kept' && row.kept > 0)
+      || (status === 'lost' && row.lost > 0)
+      || (status === 'donated' && row.donated > 0)
+      || (status === 'resolved' && row.accounted > 0)
+    ))) return false;
     if (!matchesAny(guildValuesForRow(row), filters.guilds)) return false;
     if (!matchesAny(allianceValuesForRow(row), filters.alliances)) return false;
     return allowsItemFilters(row, filters);
@@ -743,10 +747,19 @@ function MultiSelectDropdown({ allLabel, getLabel, label, onChange, options, sel
   );
 }
 
-function SingleSelectDropdown({ disabledOptions = {}, label, onChange, options, value }) {
+function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, options, selectedValues }) {
   const controlRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
-  const selectedOption = options.find((option) => option.value === value) || options[0];
+  const statusOptions = options.filter((option) => option.value !== 'all');
+  const optionValues = statusOptions.map((option) => option.value);
+  const allSelected = selectedValues.length === 0
+    || optionValues.every((optionValue) => selectedValues.includes(optionValue));
+  const selectedLabels = statusOptions
+    .filter((option) => selectedValues.includes(option.value))
+    .map((option) => option.label);
+  const summary = allSelected ? 'All'
+    : selectedLabels.length === 1 ? selectedLabels[0]
+      : `${selectedLabels.length} selected`;
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -773,11 +786,19 @@ function SingleSelectDropdown({ disabledOptions = {}, label, onChange, options, 
             setIsOpen((current) => !current);
           }}
         >
-          <strong>{selectedOption.label}</strong>
+          <strong>{summary}</strong>
         </summary>
         <div className="filter-menu single-select-menu">
-          {options.map((option) => {
+          <button
+            className={allSelected ? 'filter-option selected-option' : 'filter-option unselected-option'}
+            type="button"
+            onClick={() => onChange([])}
+          >
+            All
+          </button>
+          {statusOptions.map((option) => {
             const tooltip = disabledOptions[option.value];
+            const isSelected = allSelected || selectedValues.includes(option.value);
             return (
               <div
                 className={tooltip ? 'filter-option-tooltip' : undefined}
@@ -789,14 +810,18 @@ function SingleSelectDropdown({ disabledOptions = {}, label, onChange, options, 
                   aria-disabled={Boolean(tooltip)}
                   className={[
                     'filter-option',
-                    option.value === value ? 'selected-option' : 'unselected-option',
+                    isSelected ? 'selected-option' : 'unselected-option',
                     tooltip ? 'disabled-option' : '',
                   ].filter(Boolean).join(' ')}
                   disabled={Boolean(tooltip)}
                   type="button"
                   onClick={() => {
-                    onChange(option.value);
-                    setIsOpen(false);
+                    const next = allSelected
+                      ? optionValues.filter((value) => value !== option.value)
+                      : selectedValues.includes(option.value)
+                        ? selectedValues.filter((value) => value !== option.value)
+                        : [...selectedValues, option.value];
+                    onChange(optionValues.every((value) => next.includes(value)) ? [] : next);
                   }}
                 >
                   {option.label}
@@ -1493,10 +1518,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
   const lootLoggers = useMemo(() => uniqueStrings(
     (selectedBundle?.submissions || []).map((submission) => submission.submittedBy),
   ), [selectedBundle?.submissions]);
-  const selectedStatus = !hasChestLog && filters.status === 'kept' ? 'all' : filters.status;
-  const activeFilters = useMemo(() => (
-    selectedStatus === filters.status ? filters : { ...filters, status: selectedStatus }
-  ), [filters, selectedStatus]);
+  const activeFilters = filters;
 
   const filterOptions = useMemo(() => {
     if (!report) return { alliances: [], guilds: [] };
@@ -1679,13 +1701,13 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
                 ))}
               </select>
             </label>
-            <SingleSelectDropdown
+            <StatusMultiSelectDropdown
               disabledOptions={hasChestLog ? {} : {
                 kept: 'A chest log must be uploaded to select Kept.',
               }}
               label="Status"
               options={STATUS_OPTIONS}
-              value={selectedStatus}
+              selectedValues={filters.status}
               onChange={(value) => updateFilter('status', value)}
             />
           </section>
