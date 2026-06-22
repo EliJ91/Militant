@@ -186,8 +186,11 @@ describe('LootMonitor', () => {
     expect(screen.getByText('Tier')).toBeInTheDocument();
     expect(screen.getByText('Item Type')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Least to most')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Lost')).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Resolved' })).toBeInTheDocument();
+    const statusControl = screen.getByText('Status').closest('.filter-dropdown-control');
+    expect(statusControl.querySelector('summary')).toHaveTextContent('Lost');
+    fireEvent.click(statusControl.querySelector('summary'));
+    expect(within(statusControl).getByRole('button', { name: 'Resolved' })).toBeInTheDocument();
+    fireEvent.click(statusControl.querySelector('summary'));
     const screenshotButton = screen.getByRole('button', { name: 'Copy Screenshot' });
     expect(container.querySelector('.loot-board-section')).not.toContainElement(screenshotButton);
     const renderedTile = container.querySelector('.loot-item-tile');
@@ -212,7 +215,7 @@ describe('LootMonitor', () => {
     });
   });
 
-  it('shows stored loot without a chest log and disables status filtering', async () => {
+  it('only disables Kept status when no chest log is loaded', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
         chestLogText: '',
@@ -224,10 +227,16 @@ describe('LootMonitor', () => {
     render(<LootMonitor bundleId="bundle-18" />);
 
     expect(await screen.findByText('No chest log assigned')).toBeInTheDocument();
-    expect(screen.getByLabelText('Status')).toBeDisabled();
-    expect(screen.getByTitle('There must be a chest log uploaded to sort by status.')).toBeInTheDocument();
     expect(screen.getByText(/Windyyyzz/)).toBeInTheDocument();
     expect(await screen.findByText('EMV $230')).toBeInTheDocument();
+    const statusLabel = screen.getByText('Status');
+    fireEvent.click(statusLabel.nextElementSibling.querySelector('summary'));
+    expect(screen.getByRole('button', { name: 'Kept' })).toBeDisabled();
+    expect(screen.getByTitle('A chest log must be uploaded to select Kept.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lost' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Lost' }));
+    expect(statusLabel.nextElementSibling.querySelector('summary')).toHaveTextContent('Lost');
+    expect(screen.getByText('No item icons match the current filters.')).toBeInTheDocument();
   });
 
   it('keeps weapons visible when item type filters exclude ordinary item types', async () => {

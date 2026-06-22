@@ -743,6 +743,73 @@ function MultiSelectDropdown({ allLabel, getLabel, label, onChange, options, sel
   );
 }
 
+function SingleSelectDropdown({ disabledOptions = {}, label, onChange, options, value }) {
+  const controlRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find((option) => option.value === value) || options[0];
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    function handlePointerDown(event) {
+      if (!controlRef.current?.contains(event.target)) setIsOpen(false);
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="filter-dropdown-control" ref={controlRef}>
+      <span className="filter-label">{label}</span>
+      <details className="filter-dropdown" open={isOpen}>
+        <summary
+          onClick={(event) => {
+            event.preventDefault();
+            setIsOpen((current) => !current);
+          }}
+        >
+          <strong>{selectedOption.label}</strong>
+        </summary>
+        <div className="filter-menu single-select-menu">
+          {options.map((option) => {
+            const tooltip = disabledOptions[option.value];
+            return (
+              <div
+                className={tooltip ? 'filter-option-tooltip' : undefined}
+                data-tooltip={tooltip || undefined}
+                key={option.value}
+                title={tooltip || undefined}
+              >
+                <button
+                  aria-disabled={Boolean(tooltip)}
+                  className={[
+                    'filter-option',
+                    option.value === value ? 'selected-option' : 'unselected-option',
+                    tooltip ? 'disabled-option' : '',
+                  ].filter(Boolean).join(' ')}
+                  disabled={Boolean(tooltip)}
+                  type="button"
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                  }}
+                >
+                  {option.label}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </details>
+    </div>
+  );
+}
+
 function LootItemTile({ tile }) {
   const [imageAttempt, setImageAttempt] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
@@ -1426,9 +1493,10 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
   const lootLoggers = useMemo(() => uniqueStrings(
     (selectedBundle?.submissions || []).map((submission) => submission.submittedBy),
   ), [selectedBundle?.submissions]);
+  const selectedStatus = !hasChestLog && filters.status === 'kept' ? 'all' : filters.status;
   const activeFilters = useMemo(() => (
-    hasChestLog ? filters : { ...filters, status: 'all' }
-  ), [filters, hasChestLog]);
+    selectedStatus === filters.status ? filters : { ...filters, status: selectedStatus }
+  ), [filters, selectedStatus]);
 
   const filterOptions = useMemo(() => {
     if (!report) return { alliances: [], guilds: [] };
@@ -1611,22 +1679,15 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
                 ))}
               </select>
             </label>
-            <label
-              className={hasChestLog ? 'status-control' : 'status-control disabled-control'}
-              data-tooltip={hasChestLog ? undefined : 'There must be a chest log uploaded to sort by status.'}
-              title={hasChestLog ? undefined : 'There must be a chest log uploaded to sort by status.'}
-            >
-              <span>Status</span>
-              <select
-                disabled={!hasChestLog}
-                value={hasChestLog ? filters.status : 'all'}
-                onChange={(event) => updateFilter('status', event.target.value)}
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
+            <SingleSelectDropdown
+              disabledOptions={hasChestLog ? {} : {
+                kept: 'A chest log must be uploaded to select Kept.',
+              }}
+              label="Status"
+              options={STATUS_OPTIONS}
+              value={selectedStatus}
+              onChange={(value) => updateFilter('status', value)}
+            />
           </section>
 
           <div className="loot-board-toolbar">
