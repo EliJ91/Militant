@@ -130,22 +130,12 @@ describe('LootMonitor', () => {
     vi.unstubAllGlobals();
   });
 
-  it('loads local monitor files without uploading them to the database', async () => {
-    const { container } = render(<LootMonitor />);
-    const localInput = container.querySelector('.loot-upload-panel input[type="file"]');
+  it('does not show the local file upload panel on the loot detail page', () => {
+    render(<LootMonitor />);
 
-    fireEvent.change(localInput, {
-      target: {
-        files: [
-          new File([lootText], 'local-loot-events.txt', { type: 'text/plain' }),
-          new File([chestText], 'local-chest.txt', { type: 'text/plain' }),
-        ],
-      },
-    });
-
-    expect(await screen.findByText('local-loot-events.txt')).toBeInTheDocument();
-    expect(screen.getByText('local-chest.txt')).toBeInTheDocument();
-    expect(screen.getByText(/Windyyyzz/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Loot Log Details' })).toBeInTheDocument();
+    expect(screen.queryByText('Local Files Only')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Choose files' })).not.toBeInTheDocument();
     expect(submitLootLog).not.toHaveBeenCalled();
     expect(submitChestLog).not.toHaveBeenCalled();
   });
@@ -320,8 +310,7 @@ describe('LootMonitor', () => {
     expect(screen.queryByLabelText("TokenHolder Kept 1 Expert's Bag")).not.toBeInTheDocument();
   });
 
-  it('keeps uploads on View Logs and opens a selected bundle with View', async () => {
-    const onBack = vi.fn();
+  it('keeps uploads on View Loot Logs and opens a selected bundle with View', async () => {
     const onView = vi.fn();
     fetchLootLogBundles.mockResolvedValue({
       bundles: [createBundle({
@@ -330,13 +319,13 @@ describe('LootMonitor', () => {
         lootFileName: 'loot-events-original',
       })],
     });
-    const { container } = render(<LootLogArchive onBack={onBack} onView={onView} />);
+    const { container } = render(<LootLogArchive onView={onView} />);
 
     expect(await screen.findByText('loot-events-original')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'View Loot Logs' })).toBeInTheDocument();
     expect(screen.getByText('18 UTC CTA')).toBeInTheDocument();
     expect(screen.queryByText(/18:33 UTC/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Loot Monitor' }));
-    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Loot Monitor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toHaveAttribute('title', 'Refresh logs');
     expect(screen.getByText('1 player')).toBeInTheDocument();
     expect(screen.queryByText('2 looted')).not.toBeInTheDocument();

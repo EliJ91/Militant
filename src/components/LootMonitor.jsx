@@ -10,7 +10,6 @@ import {
   updateLootLogBundle,
 } from '../services/lootLogApi';
 import {
-  buildLootMonitorReport,
   buildLootMonitorReportFromEvents,
 } from '../utils/lootMonitor';
 import { warmItemImageCache } from '../utils/itemImageCache';
@@ -592,61 +591,6 @@ function StatusLegend({ className = '' }) {
   );
 }
 
-function FileDropzone({ chestFileName, lootFileName, onFiles }) {
-  const [isDragging, setIsDragging] = useState(false);
-
-  function handleDrop(event) {
-    event.preventDefault();
-    setIsDragging(false);
-    onFiles(event.dataTransfer.files);
-  }
-
-  return (
-    <section
-      className={isDragging ? 'loot-upload-panel drag-over' : 'loot-upload-panel'}
-      aria-label="Local loot monitor files"
-      onDragEnter={(event) => {
-        event.preventDefault();
-        setIsDragging(true);
-      }}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setIsDragging(true);
-      }}
-      onDragLeave={() => setIsDragging(false)}
-      onDrop={handleDrop}
-    >
-      <div className="file-dropzone">
-        <label className="file-drop-label">
-          <span>Local Files Only</span>
-          <input
-            accept=".csv,.txt,.tsv,text/csv,text/plain"
-            className="file-input-hidden"
-            multiple
-            type="file"
-            onChange={(event) => {
-              onFiles(event.target.files);
-              event.target.value = '';
-            }}
-          />
-          <strong>Choose files</strong>
-        </label>
-        <div className="loaded-files" aria-label="Loaded local files">
-          <span className="loaded-file">
-            <small>Loot Events</small>
-            <strong>{lootFileName || 'No local loot file loaded'}</strong>
-          </span>
-          <span className="loaded-file">
-            <small>Chest Log</small>
-            <strong>{chestFileName || 'No local chest log loaded'}</strong>
-          </span>
-        </div>
-        <StatusLegend className="upload-status-legend" />
-      </div>
-    </section>
-  );
-}
-
 function MultiSelectDropdown({ allLabel, getLabel, label, onChange, options, selectedValues }) {
   const controlRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -1007,7 +951,7 @@ function LootLogBundleList({
   return (
     <section className="saved-log-section" aria-label="Saved combined loot logs">
       <header className="saved-log-header">
-        <h2>View Logs</h2>
+        <h2>View Loot Logs</h2>
         <strong>{status.state === 'loading' ? 'Loading' : `${formatNumber(bundles.length)} logs`}</strong>
       </header>
       {status.message ? (
@@ -1166,7 +1110,7 @@ function LootLogBundleList({
   );
 }
 
-export function LootLogArchive({ onBack = () => {}, onView = () => {} }) {
+export function LootLogArchive({ onView = () => {} }) {
   const [actionStatus, setActionStatus] = useState({ message: '', state: 'idle' });
   const [deletingBundleId, setDeletingBundleId] = useState('');
   const [downloadingBundleId, setDownloadingBundleId] = useState('');
@@ -1405,12 +1349,9 @@ export function LootLogArchive({ onBack = () => {}, onView = () => {} }) {
       <section className="dashboard-heading loot-monitor-heading" aria-labelledby="view-logs-title">
         <div>
           <p className="eyebrow">Tool</p>
-          <h1 id="view-logs-title">View Logs</h1>
+          <h1 id="view-logs-title">View Loot Logs</h1>
         </div>
         <div className="loot-monitor-heading-actions">
-          <button className="view-logs-button" type="button" onClick={onBack}>
-            Loot Monitor
-          </button>
           <FileUploadButton
             accept=".csv,.txt,text/csv,text/plain"
             className="view-logs-button"
@@ -1472,62 +1413,10 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
   const boardRef = useRef(null);
   const [filters, setFilters] = useState(loadSavedFilters);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
-  const [localChestFile, setLocalChestFile] = useState({ name: '', text: '' });
-  const [localError, setLocalError] = useState('');
-  const [localLootFile, setLocalLootFile] = useState({ name: '', text: '' });
   const [marketPrices, setMarketPrices] = useState({});
   const [marketPriceError, setMarketPriceError] = useState('');
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
   const [selectedBundle, setSelectedBundle] = useState(null);
-
-  async function readSelectedFiles(fileList) {
-    const files = [...(fileList || [])];
-    if (files.length === 0) return;
-
-    setLocalError('');
-    const detected = {
-      chests: [],
-      loot: null,
-      unknown: [],
-    };
-
-    await Promise.all(files.map(async (file) => {
-      try {
-        const text = await file.text();
-        const kind = detectFileKind(text);
-
-        if (kind === 'loot') {
-          detected.loot = { name: file.name, text };
-        } else if (kind === 'chest') {
-          detected.chests.push({ name: file.name, text });
-        } else {
-          detected.unknown.push(file.name);
-        }
-      } catch {
-        detected.unknown.push(file.name);
-      }
-    }));
-
-    const detectedChest = detected.chests.length > 0
-      ? {
-        name: detected.chests.map((file) => file.name).join(', '),
-        text: detected.chests.map((file) => file.text).join('\n'),
-      }
-      : null;
-
-    setLocalLootFile(detected.loot || (detectedChest && localLootFile.text
-      ? localLootFile
-      : { name: '', text: '' }));
-    setLocalChestFile(detectedChest || (detected.loot
-      ? { name: '', text: '' }
-      : localChestFile));
-
-    if (!detected.loot && !(detectedChest && localLootFile.text)) {
-      setLocalError('Load a loot-events file to show loot.');
-    } else if (detected.unknown.length > 0) {
-      setLocalError(`Ignored unrecognized file${detected.unknown.length > 1 ? 's' : ''}: ${detected.unknown.join(', ')}.`);
-    }
-  }
 
   useEffect(() => {
     let cancelled = false;
@@ -1569,21 +1458,15 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
     }
   }, [filters]);
 
-  const isLocalMode = Boolean(localLootFile.text);
   const report = useMemo(() => {
-    if (localLootFile.text) {
-      return buildLootMonitorReport(localLootFile.text, localChestFile.text);
-    }
     if (!selectedBundle) return null;
     return buildLootMonitorReportFromEvents(
       selectedBundle.events || [],
       selectedBundle.chestLogReportText || selectedBundle.chestLogText || '',
     );
-  }, [localChestFile.text, localLootFile.text, selectedBundle]);
+  }, [selectedBundle]);
 
-  const hasChestLog = isLocalMode
-    ? Boolean(localChestFile.text)
-    : Boolean(selectedBundle?.hasChestLog && selectedBundle?.chestLogText);
+  const hasChestLog = Boolean(selectedBundle?.hasChestLog && selectedBundle?.chestLogText);
   const lootLoggers = useMemo(() => uniqueStrings(
     (selectedBundle?.submissions || []).map((submission) => submission.submittedBy),
   ), [selectedBundle?.submissions]);
@@ -1675,24 +1558,18 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
       <section className="dashboard-heading loot-monitor-heading" aria-labelledby="loot-monitor-title">
         <div>
           <p className="eyebrow">Tool</p>
-          <h1 id="loot-monitor-title">Loot Monitor</h1>
+          <h1 id="loot-monitor-title">Loot Log Details</h1>
         </div>
         <button
           className="view-logs-button"
           type="button"
           onClick={onViewLogs}
         >
-          View Logs
+          View Loot Logs
         </button>
       </section>
 
-      <FileDropzone
-        chestFileName={localChestFile.name}
-        lootFileName={localLootFile.name}
-        onFiles={readSelectedFiles}
-      />
-
-      {selectedBundle && !isLocalMode ? (
+      {selectedBundle ? (
         <section className="selected-log-summary" aria-label="Selected CTA log">
           <div className="selected-log-cta">
             <small>CTA</small>
@@ -1714,8 +1591,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
         </section>
       ) : null}
 
-      {localError ? <p className="loot-message error">{localError}</p> : null}
-      {loadStatus.state === 'error' && !isLocalMode ? <p className="loot-message error">{loadStatus.message}</p> : null}
+      {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {marketPriceError && <p className="loot-message error">{marketPriceError}</p>}
 
       {!report ? (
@@ -1724,7 +1600,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
           <p>
             {loadStatus.state === 'loading'
               ? 'Loading the selected CTA from the database.'
-              : 'Open View Logs to choose a stored CTA, or load local files above.'}
+              : 'Open View Loot Logs to choose a stored CTA.'}
           </p>
         </section>
       ) : (

@@ -34,33 +34,21 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
     expect(window.location.hash).toBe('#dashboard');
-    expect(screen.getByText('Review kept, lost, resolved, and donated loot from CTA logs.')).toBeInTheDocument();
+    expect(screen.getByText('Browse uploaded CTA loot and chest logs.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /open tool/i })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
     expect(screen.getByText('Track deposits, withdrawals, and outstanding member balances.')).toBeInTheDocument();
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole('button', { name: /loot monitor/i }));
+    fireEvent.click(screen.getByRole('button', { name: /view loot logs/i }));
 
-    expect(screen.getByRole('heading', { name: /loot monitor/i })).toBeInTheDocument();
-    expect(window.location.hash).toBe('#loot-monitor');
+    expect(screen.getByRole('heading', { level: 1, name: 'View Loot Logs' })).toBeInTheDocument();
+    expect(window.location.hash).toBe('#loot-logs');
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(2);
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
     expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'View Logs' }));
-
-    expect(screen.getByRole('heading', { level: 1, name: 'View Logs' })).toBeInTheDocument();
-    expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(2);
-    expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
-    expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
-    expect(container.querySelector('.topbar')).not.toHaveTextContent('Loot Monitor');
     expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Loot Monitor' }));
-    expect(window.location.hash).toBe('#loot-monitor');
-    expect(screen.getByRole('heading', { name: /loot monitor/i })).toBeInTheDocument();
   });
 
   it('opens the Siphoned Energy Tracker from the dashboard', () => {

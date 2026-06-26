@@ -79,10 +79,10 @@ function DashboardPage() {
         </section>
 
         <section className="tool-board" aria-label="Dashboard tools">
-          <button className="tool-card tool-card-button" type="button" onClick={() => navigateTo('#loot-monitor')}>
+          <button className="tool-card tool-card-button" type="button" onClick={() => navigateTo('#loot-logs')}>
             <span className="tool-card-kicker">Tools</span>
-            <h2>Loot Monitor</h2>
-            <p>Review kept, lost, resolved, and donated loot from CTA logs.</p>
+            <h2>View Loot Logs</h2>
+            <p>Browse uploaded CTA loot and chest logs.</p>
           </button>
           <button className="tool-card tool-card-button" type="button" onClick={() => navigateTo('#siphoned-energy')}>
             <span className="tool-card-kicker">Tools</span>
@@ -114,7 +114,7 @@ function LootMonitorPage({ bundleId }) {
   );
 }
 
-function LootLogsPage({ onBackToMonitor, onViewBundle }) {
+function LootLogsPage({ onViewBundle }) {
   return (
     <>
       <header className="topbar">
@@ -128,7 +128,7 @@ function LootLogsPage({ onBackToMonitor, onViewBundle }) {
           </button>
         </div>
       </header>
-      <LootLogArchive onBack={onBackToMonitor} onView={onViewBundle} />
+      <LootLogArchive onView={onViewBundle} />
     </>
   );
 }
@@ -172,8 +172,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.title = route === 'loot-logs' ? 'View Logs'
-      : route === 'loot-monitor' ? 'Loot Monitor'
+    document.title = route === 'loot-logs' ? 'View Loot Logs'
+      : route === 'loot-monitor' ? 'Loot Log Details'
       : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
@@ -192,7 +192,6 @@ export default function App() {
   if (route === 'loot-logs') {
     return (
       <LootLogsPage
-        onBackToMonitor={() => navigateTo('#loot-monitor')}
         onViewBundle={viewLootLogBundle}
       />
     );
