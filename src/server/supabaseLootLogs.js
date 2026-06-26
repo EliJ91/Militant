@@ -507,14 +507,6 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
 
   if (bundleError) throw bundleError;
 
-  const { count: existingChestCount, error: chestCountError } = await supabase
-    .from('chest_log_submissions')
-    .select('id', { count: 'exact', head: true })
-    .eq('bundle_id', bundleId);
-
-  if (chestCountError) throw chestCountError;
-  if (existingChestCount > 0) throw new Error('A chest log is already assigned to this loot log.');
-
   const fileNames = getBundleFileNames(bundle);
   const parsedSummary = {
     fileName: fileNames.chest,

@@ -361,6 +361,27 @@ describe('LootMonitor', () => {
       chestLogText: chestText,
       username: 'manual-web-upload',
     }));
+
+    submitChestLog.mockClear();
+    fireEvent.change(chestInput, {
+      target: {
+        files: [
+          new File([chestText], 'first-chest.txt', { type: 'text/plain' }),
+          new File([chestText], 'second-chest.txt', { type: 'text/plain' }),
+        ],
+      },
+    });
+    await waitFor(() => expect(submitChestLog).toHaveBeenCalledTimes(2));
+    expect(submitChestLog).toHaveBeenNthCalledWith(1, {
+      bundleId: 'bundle-18',
+      chestLogText: chestText,
+      username: 'manual-web-upload',
+    });
+    expect(submitChestLog).toHaveBeenNthCalledWith(2, {
+      bundleId: 'bundle-18',
+      chestLogText: chestText,
+      username: 'manual-web-upload',
+    });
   });
 
   it('deletes a saved bundle only after confirmation', async () => {

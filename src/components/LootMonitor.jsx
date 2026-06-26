@@ -1091,7 +1091,8 @@ function LootLogBundleList({
                         disabled={uploadingBundleId === bundle.id}
                         label="Upload Chest Log"
                         loadingLabel="Uploading..."
-                        onFile={(file) => onUploadChest(bundle, file)}
+                        multiple
+                        onFiles={(files) => onUploadChest(bundle, files)}
                       />
                     ) : null}
                   </div>
@@ -1236,24 +1237,43 @@ export function LootLogArchive({ onBack = () => {}, onView = () => {} }) {
     }
   }
 
-  async function uploadChestLog(bundle, file) {
+  async function uploadChestLog(bundle, files) {
+    const selectedFiles = [...(Array.isArray(files) ? files : [files])].filter(Boolean);
+    if (selectedFiles.length === 0) return;
+
     setUploadingBundleId(bundle.id);
-    setActionStatus({ message: `Uploading ${bundle.chestFileName || 'chest log'}...`, state: 'loading' });
+    setActionStatus({
+      message: selectedFiles.length === 1
+        ? `Uploading ${bundle.chestFileName || 'chest log'}...`
+        : `Uploading ${selectedFiles.length} chest logs...`,
+      state: 'loading',
+    });
 
     try {
-      const text = await file.text();
-      if (detectFileKind(text) !== 'chest') throw new Error('Choose a valid chest log file.');
+      const uploadedNames = [];
 
-      const result = await submitChestLog({
-        bundleId: bundle.id,
-        chestLogText: text,
-        username: 'manual-web-upload',
+      for (const file of selectedFiles) {
+        const text = await file.text();
+        if (detectFileKind(text) !== 'chest') throw new Error(`${file.name} is not a valid chest log file.`);
+
+        const result = await submitChestLog({
+          bundleId: bundle.id,
+          chestLogText: text,
+          username: 'manual-web-upload',
+        });
+        uploadedNames.push(result.fileName || file.name || 'Chest Log');
+      }
+
+      setActionStatus({
+        message: selectedFiles.length === 1
+          ? `${uploadedNames[0]} uploaded.`
+          : `${selectedFiles.length} chest logs uploaded.`,
+        state: 'success',
       });
-      setActionStatus({ message: `${result.fileName || 'Chest Log'} uploaded.`, state: 'success' });
       await loadSavedLogs();
     } catch (uploadError) {
       setActionStatus({
-        message: uploadError.message || 'Could not upload the chest log.',
+        message: uploadError.message || 'Could not upload the chest logs.',
         state: 'error',
       });
     } finally {
