@@ -200,7 +200,7 @@ describe('loot monitor report', () => {
     const donor = report.rows.find((row) => row.player === 'Donor');
 
     expect(looter).toMatchObject({ accounted: 1, kept: 0, looted: 2, status: 'resolved' });
-    expect(courier).toMatchObject({ accounted: 1, itemId: 'T4_CAPEITEM_FW_LYMHURST@3' });
+    expect(courier).toMatchObject({ accounted: 1, kept: 0, itemId: 'T4_CAPEITEM_FW_LYMHURST@3', status: 'resolved' });
     expect(donor).toBeUndefined();
     expect(report.totals.depositedQuantity).toBe(2);
   });
@@ -233,6 +233,7 @@ describe('loot monitor report', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
       "2026-06-17T00:01:00.000Z;CHAIR;Militant;PlayerA;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;1;;;@MOB_T5",
+      "2026-06-17T00:02:00.000Z;CHAIR;Militant;PlayerB;T7_POTION_REVIVE;Major Gigantify Potion;1;;;@MOB_T5",
     ].join('\n');
     const chestText = [
       '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
@@ -241,7 +242,7 @@ describe('loot monitor report', () => {
 
     const report = buildLootMonitorReport(lootText, chestText);
     const playerA = report.rows.find((row) => row.player === 'PlayerA');
-    const playerB = report.rows.find((row) => row.player === 'PlayerB');
+    const playerB = report.rows.find((row) => row.player === 'PlayerB' && row.item === "Adept's Lymhurst Cape");
 
     expect(playerA).toMatchObject({
       accounted: 1,
@@ -253,10 +254,38 @@ describe('loot monitor report', () => {
     expect(playerB).toBeUndefined();
   });
 
+  it('does not resolve traded custody across guilds', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-06-17T00:01:00.000Z;CHAIR;Militant;PlayerA;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;1;;;@MOB_T5",
+      "2026-06-17T00:02:00.000Z;CHAIR;Other Guild;PlayerB;T7_POTION_REVIVE;Major Gigantify Potion;1;;;@MOB_T5",
+    ].join('\n');
+    const chestText = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:10:00"\t"PlayerB"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+    ].join('\n');
+
+    const report = buildLootMonitorReport(lootText, chestText);
+    const playerA = report.rows.find((row) => row.player === 'PlayerA' && row.item === "Adept's Lymhurst Cape");
+    const playerB = report.rows.find((row) => row.player === 'PlayerB' && row.item === "Adept's Lymhurst Cape");
+
+    expect(playerA).toMatchObject({
+      accounted: 0,
+      kept: 1,
+      status: 'kept',
+    });
+    expect(playerB).toMatchObject({
+      donated: 1,
+      guild: 'Other Guild',
+      status: 'donated',
+    });
+  });
+
   it('uses the final chest count to resolve custody even when the chest timestamp is earlier', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
       "2026-06-24T04:20:00.000Z;CHAIR;Militant;A1;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+      "2026-06-24T04:21:00.000Z;CHAIR;Militant;PlayerB;T7_POTION_REVIVE;Major Gigantify Potion;1;;;@MOB_T5",
     ].join('\n');
     const chestText = [
       '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
@@ -265,7 +294,7 @@ describe('loot monitor report', () => {
 
     const report = buildLootMonitorReport(lootText, chestText);
     const looter = report.rows.find((row) => row.player === 'A1');
-    const depositor = report.rows.find((row) => row.player === 'PlayerB');
+    const depositor = report.rows.find((row) => row.player === 'PlayerB' && row.item === "Master's Realmbreaker");
 
     expect(looter).toMatchObject({
       accounted: 1,
@@ -277,10 +306,37 @@ describe('loot monitor report', () => {
     expect(depositor).toBeUndefined();
   });
 
+  it('matches a final realmbreaker deposit to a looter in the depositor guild', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-06-24T04:15:47.902Z;H1VE;A N X X I E T Y;CuraQueVouCagar;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+      "2026-06-24T04:16:23.714Z;CHAIR;Militant;Onslawht;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+      "2026-06-24T04:16:25.013Z;CHAIR;Nirvana Calling;huanghui1020;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+      "2026-06-24T04:16:35.055Z;CHAIR;The Lonely Men;PixelPecs;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+      "2026-06-24T04:17:00.000Z;CHAIR;Militant;Zikeman;T7_POTION_REVIVE;Major Gigantify Potion;1;;;@MOB_T5",
+    ].join('\n');
+    const chestText = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/24/2026 04:48:11"\t"Zikeman"\t"Master\'s Realmbreaker"\t"3"\t"4"\t"1"',
+    ].join('\n');
+
+    const report = buildLootMonitorReport(lootText, chestText);
+    const cura = report.rows.find((row) => row.player === 'CuraQueVouCagar' && row.item === "Master's Realmbreaker");
+    const onslawht = report.rows.find((row) => row.player === 'Onslawht' && row.item === "Master's Realmbreaker");
+    const huanghui = report.rows.find((row) => row.player === 'huanghui1020' && row.item === "Master's Realmbreaker");
+    const pixelPecs = report.rows.find((row) => row.player === 'PixelPecs' && row.item === "Master's Realmbreaker");
+
+    expect(cura).toMatchObject({ accounted: 0, kept: 1, status: 'kept' });
+    expect(onslawht).toMatchObject({ accounted: 1, kept: 0, status: 'resolved' });
+    expect(huanghui).toMatchObject({ accounted: 0, kept: 1, status: 'kept' });
+    expect(pixelPecs).toMatchObject({ accounted: 0, kept: 1, status: 'kept' });
+  });
+
   it('resolves traded items that remain in any uploaded chest log', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
       "2026-06-24T04:01:00.000Z;CHAIR;Militant;Onslawht;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+      "2026-06-24T04:02:00.000Z;CHAIR;Militant;Zikeman;T7_POTION_REVIVE;Major Gigantify Potion;1;;;@MOB_T5",
     ].join('\n');
     const firstChest = [
       '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
@@ -293,7 +349,7 @@ describe('loot monitor report', () => {
 
     const report = buildLootMonitorReport(lootText, `${firstChest}\n${laterFinalChest}`);
     const looter = report.rows.find((row) => row.player === 'Onslawht');
-    const depositor = report.rows.find((row) => row.player === 'Zikeman');
+    const depositor = report.rows.find((row) => row.player === 'Zikeman' && row.item === "Master's Realmbreaker");
 
     expect(looter).toMatchObject({
       accounted: 1,

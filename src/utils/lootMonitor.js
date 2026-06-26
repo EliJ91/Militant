@@ -1,5 +1,7 @@
 import albionItemLookup from '../data/albion_item_lookup.json' with { type: 'json' };
 
+const DEFAULT_CUSTODY_GUILD = 'Militant';
+
 export function parseDelimited(text, delimiter) {
   const rows = [];
   let row = [];
@@ -549,9 +551,12 @@ function consumeLots(store, player, itemKey, quantity) {
   return { consumed, missing: remaining };
 }
 
-function consumeAnyLots(store, itemKey, quantity) {
+function consumeAnyLots(store, itemKey, quantity, guildScope = '') {
   const consumed = [];
   let remaining = quantity;
+  const normalizedGuildScope = normalize(guildScope);
+
+  if (!normalizedGuildScope) return { consumed, missing: remaining };
 
   for (const key of [...store.keys()]) {
     if (remaining <= 0) break;
@@ -560,6 +565,8 @@ function consumeAnyLots(store, itemKey, quantity) {
     const lots = store.get(key) || [];
     while (remaining > 0 && lots.length > 0) {
       const lot = lots[0];
+      if (normalize(lot.guild) !== normalizedGuildScope) break;
+
       const used = Math.min(remaining, lot.quantity);
       consumed.push({ ...lot, quantity: used });
       lot.quantity -= used;
@@ -609,6 +616,7 @@ function consumePoolLots(pool, itemKey, quantity) {
 function buildLootMonitorReportFromParsedLoot(loot, chestText) {
   const chest = parseChestLog(chestText);
   const itemIdLookup = buildItemIdLookup([...loot.rows, ...loot.lostRows]);
+  const playerIdentity = buildPlayerIdentity([...loot.rows, ...loot.lostRows]);
   const rowMap = new Map();
   const holderLots = new Map();
   const chestLots = new Map();
@@ -633,7 +641,13 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
       || itemIdLookup.exact.get(makeItemLookupKey(row))
       || itemIdLookup.byName.get(makeItemNameLookupKey(row))
       || '';
-    const itemRow = { ...row, itemId };
+    const identity = playerIdentity.get(normalize(row.player));
+    const itemRow = {
+      ...row,
+      alliance: row.alliance || identity?.alliance?.[0] || '',
+      guild: row.guild || identity?.guild?.[0] || (event.type === 'deposit' ? DEFAULT_CUSTODY_GUILD : ''),
+      itemId,
+    };
     const itemKey = makeItemKey(itemRow);
 
     if (event.type === 'loot') {
@@ -653,8 +667,6 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
       const { consumed, missing } = consumePoolLots(chestLots, itemKey, Math.abs(row.amount));
       addLots(holderLots, row.player, itemKey, consumed.map((lot) => ({
         ...lot,
-        alliance: '',
-        guild: '',
         player: row.player,
       })));
       if (missing > 0) addLots(holderLots, row.player, itemKey, [makeLot(itemRow, missing)]);
@@ -663,7 +675,7 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
 
     const ownDeposit = consumeLots(holderLots, row.player, itemKey, row.amount);
     const tradedDeposit = ownDeposit.missing > 0
-      ? consumeAnyLots(holderLots, itemKey, ownDeposit.missing)
+      ? consumeAnyLots(holderLots, itemKey, ownDeposit.missing, itemRow.guild)
       : { consumed: [], missing: 0 };
     addLotsToPool(chestLots, itemKey, [...ownDeposit.consumed, ...tradedDeposit.consumed]);
     if (tradedDeposit.missing > 0) {
