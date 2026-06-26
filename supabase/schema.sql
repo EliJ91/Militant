@@ -36,6 +36,10 @@ create table if not exists public.loot_log_events (
   quantity integer not null check (quantity > 0),
   timestamp_utc timestamptz not null,
   lost_to text not null default '',
+  emv_each numeric,
+  emv_total numeric,
+  emv_source_city text,
+  emv_priced_at timestamptz,
   created_at timestamptz not null default now(),
   unique (bundle_id, event_hash)
 );

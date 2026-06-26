@@ -8,6 +8,16 @@ const UPDATE_BATCH_SIZE = 25;
 const DATABASE_PAGE_SIZE = 1000;
 const RETENTION_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const EMV_SOURCE_CITY = 'Albion West Global';
+const WEST_API_BASE = 'https://west.albion-online-data.com/api/v2/stats';
+const MAX_MARKET_ITEMS_PER_REQUEST = 60;
+const SPECIAL_MARKET_LOCATIONS = [
+  'Arthurs Rest Smugglers Network',
+  'Merlyns Rest Smugglers Network',
+  'Morganas Rest Smugglers Network',
+  'Black Market',
+];
+const SPECIAL_MARKET_LOCATION_SET = new Set(SPECIAL_MARKET_LOCATIONS);
 const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'DELETE, GET, PATCH, POST, OPTIONS',
@@ -317,6 +327,10 @@ type LootEvent = {
   alliance: string;
   dedupeKey: string;
   enchantment: number;
+  emvEach?: number | null;
+  emvPricedAt?: string;
+  emvSourceCity?: string;
+  emvTotal?: number | null;
   eventHash?: string;
   eventType: 'looted' | 'lost';
   guild: string;
@@ -438,6 +452,108 @@ function unique(values: unknown[]) {
   return [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
 }
 
+function getWestMultiHistoryUrl(itemIds: string[], locations: string[] = []) {
+  const encodedItems = itemIds.map((itemId) => encodeURIComponent(itemId)).join(',');
+  const locationQuery = locations.length
+    ? `&locations=${locations.map((location) => encodeURIComponent(location)).join(',')}`
+    : '';
+
+  return `${WEST_API_BASE}/history/${encodedItems}.json?time-scale=24${locationQuery}`;
+}
+
+async function requestMarketHistory(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Albion market API returned HTTP ${response.status}.`);
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+}
+
+function normalizeMarketItemIds(history: any[], itemIds: string[]) {
+  if (itemIds.length !== 1) return history;
+  return history.map((entry) => ({ ...entry, item_id: entry.item_id || itemIds[0] }));
+}
+
+function mergeMarketHistory(...historyGroups: any[][]) {
+  const merged = new Map<string, any>();
+
+  for (const history of historyGroups) {
+    for (const entry of history) {
+      const key = `${entry.item_id || ''}|${entry.location}|${entry.quality}`;
+      const existing = merged.get(key);
+      if (!existing) {
+        merged.set(key, { ...entry, data: [...(entry.data || [])] });
+        continue;
+      }
+
+      const points = new Map((existing.data || []).map((point: any) => [point.timestamp, point]));
+      for (const point of entry.data || []) points.set(point.timestamp, point);
+      existing.data = [...points.values()].sort(
+        (left: any, right: any) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+      );
+    }
+  }
+
+  return [...merged.values()];
+}
+
+async function fetchWestHistoryChunk(itemIds: string[]) {
+  const [primaryHistory, specialMarketsHistory] = await Promise.all([
+    requestMarketHistory(getWestMultiHistoryUrl(itemIds)),
+    requestMarketHistory(getWestMultiHistoryUrl(itemIds, SPECIAL_MARKET_LOCATIONS)).catch(() => []),
+  ]);
+
+  return mergeMarketHistory(
+    normalizeMarketItemIds(primaryHistory, itemIds),
+    normalizeMarketItemIds(specialMarketsHistory, itemIds).filter((entry) => (
+      SPECIAL_MARKET_LOCATION_SET.has(entry.location)
+    )),
+  );
+}
+
+function getEstimatedMarketValue(history: any[]) {
+  const totals = history.reduce(
+    (result, entry) => {
+      for (const point of entry.data || []) {
+        const itemCount = Number(point.item_count) || 0;
+        const averagePrice = Number(point.avg_price) || 0;
+        result.itemCount += itemCount;
+        result.weightedPrice += averagePrice * itemCount;
+      }
+      return result;
+    },
+    { itemCount: 0, weightedPrice: 0 },
+  );
+
+  return totals.itemCount > 0 ? totals.weightedPrice / totals.itemCount : null;
+}
+
+async function fetchGlobalEmvByItemId(itemIds: string[]) {
+  const uniqueItemIds = [...new Set(itemIds.filter(Boolean))];
+  const pricedAt = new Date().toISOString();
+  if (uniqueItemIds.length === 0) return new Map<string, any>();
+
+  const historyGroups = await Promise.all(
+    chunkArray(uniqueItemIds, MAX_MARKET_ITEMS_PER_REQUEST).map((itemIdChunk) => (
+      fetchWestHistoryChunk(itemIdChunk).catch(() => [])
+    )),
+  );
+  const byItemId = new Map(uniqueItemIds.map((itemId) => [itemId, [] as any[]]));
+
+  historyGroups.flat().forEach((entry: any) => {
+    if (!byItemId.has(entry.item_id)) return;
+    byItemId.get(entry.item_id)?.push(entry);
+  });
+
+  return new Map(uniqueItemIds.map((itemId) => {
+    const emvEach = getEstimatedMarketValue(byItemId.get(itemId) || []);
+    return [itemId, {
+      emvEach: Number.isFinite(Number(emvEach)) && Number(emvEach) > 0 ? Number(emvEach) : null,
+      emvPricedAt: pricedAt,
+      emvSourceCity: EMV_SOURCE_CITY,
+    }];
+  }));
+}
+
 function aggregateLootLogEvents(events: LootEvent[]) {
   const byKey = new Map<string, any>();
 
@@ -455,17 +571,21 @@ function aggregateLootLogEvents(events: LootEvent[]) {
       item: event.item,
       itemId: event.itemId,
       lost: 0,
+      lostEmv: 0,
       lostTo: [],
       looted: 0,
+      lootedEmv: 0,
       player: event.player,
       timestamps: [],
     };
 
     if (event.eventType === 'lost') {
       current.lost += event.quantity || 0;
+      current.lostEmv += Number(event.emvTotal) || 0;
       if (event.lostTo) current.lostTo.push(event.lostTo);
     } else {
       current.looted += event.quantity || 0;
+      current.lootedEmv += Number(event.emvTotal) || 0;
     }
 
     current.alliance.push(event.alliance);
@@ -487,6 +607,7 @@ function aggregateLootLogEvents(events: LootEvent[]) {
     rows,
     totals: {
       eventRows: events.length,
+      emvTotal: rows.reduce((sum, row) => sum + row.lootedEmv, 0),
       keptQuantity: rows.reduce((sum, row) => sum + row.kept, 0),
       lostQuantity: rows.reduce((sum, row) => sum + row.lost, 0),
       lootedQuantity: rows.reduce((sum, row) => sum + row.looted, 0),
@@ -500,6 +621,10 @@ function dbEventToMergeEvent(event: any): LootEvent {
     alliance: event.alliance,
     dedupeKey: event.dedupe_key,
     enchantment: event.enchantment,
+    emvEach: event.emv_each === null ? null : Number(event.emv_each),
+    emvPricedAt: event.emv_priced_at || '',
+    emvSourceCity: event.emv_source_city || '',
+    emvTotal: event.emv_total === null ? null : Number(event.emv_total),
     eventType: event.event_type,
     guild: event.guild,
     item: event.item_name,
@@ -509,6 +634,37 @@ function dbEventToMergeEvent(event: any): LootEvent {
     quantity: event.quantity,
     timestamp: event.timestamp_utc,
   };
+}
+
+async function ensureEventEmv(supabase: any, events: any[]) {
+  const missing = (events || []).filter((event) => (
+    event.item_id && (event.emv_each === null || event.emv_each === undefined || !event.emv_priced_at)
+  ));
+  if (missing.length === 0) return events;
+
+  const emvByItemId = await fetchGlobalEmvByItemId([...new Set(missing.map((event) => event.item_id))]);
+  const updates = missing.map((event) => {
+    const emv = emvByItemId.get(event.item_id) || {};
+    const emvEach = emv.emvEach ?? null;
+    return {
+      emv_each: emvEach,
+      emv_priced_at: emv.emvPricedAt || new Date().toISOString(),
+      emv_source_city: emv.emvSourceCity || EMV_SOURCE_CITY,
+      emv_total: emvEach === null ? null : emvEach * event.quantity,
+      id: event.id,
+    };
+  });
+
+  for (const updateBatch of chunkArray(updates, UPDATE_BATCH_SIZE)) {
+    await Promise.all(updateBatch.map(async ({ id, ...update }) => {
+      const { error } = await supabase.from('loot_log_events').update(update).eq('id', id);
+      if (error) throw error;
+      const event = events.find((row) => row.id === id);
+      if (event) Object.assign(event, update);
+    }));
+  }
+
+  return events;
 }
 
 Deno.serve(async (request) => {
@@ -627,7 +783,7 @@ Deno.serve(async (request) => {
 
         if (bundleError) throw bundleError;
 
-        const [eventsResult, submissionsResult, chestResult] = await Promise.all([
+        const [rawEventsResult, submissionsResult, chestResult] = await Promise.all([
           fetchAllBundleEvents(supabase, bundleId),
           supabase.from('loot_log_submissions')
             .select('id,submitted_by,raw_log_text,created_at')
@@ -642,6 +798,8 @@ Deno.serve(async (request) => {
         if (submissionsResult.error) throw submissionsResult.error;
         if (chestResult.error) throw chestResult.error;
 
+        const eventsResult = await ensureEventEmv(supabase, rawEventsResult);
+        const summary = aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent));
         const chestLogs = chestResult.data || [];
         const chestLog = chestLogs[chestLogs.length - 1] || null;
         const primaryLootLog = submissionsResult.data?.[0] || null;
@@ -664,7 +822,7 @@ Deno.serve(async (request) => {
               id: submission.id,
               submittedBy: submission.submitted_by === 'manual-web-upload' ? 'Manual' : submission.submitted_by,
             })),
-            summary: bundle.combined_loot_summary,
+            summary,
             updatedAt: bundle.updated_at,
           },
         });
@@ -877,6 +1035,9 @@ Deno.serve(async (request) => {
       if (!current || event.quantity > current.quantity) eventsByHash.set(event.eventHash, event);
     });
     const collapsedEvents = [...eventsByHash.values()];
+    const emvByItemId = await fetchGlobalEmvByItemId([
+      ...new Set(collapsedEvents.map((event) => event.itemId).filter(Boolean)),
+    ]);
     const existingEventBatches = await Promise.all(
       chunkArray(collapsedEvents.map((event) => event.eventHash), HASH_LOOKUP_BATCH_SIZE)
         .map(async (hashBatch) => {
@@ -898,6 +1059,8 @@ Deno.serve(async (request) => {
 
     for (const event of collapsedEvents) {
       const existing = existingByHash.get(event.eventHash);
+      const emv = emvByItemId.get(event.itemId) || {};
+      const emvEach = emv.emvEach ?? null;
       const row = {
         alliance: event.alliance,
         bundle_id: bundle.id,
@@ -913,6 +1076,10 @@ Deno.serve(async (request) => {
         quantity: event.quantity,
         submission_id: submission.id,
         timestamp_utc: event.timestamp,
+        emv_each: emvEach,
+        emv_priced_at: emv.emvPricedAt || null,
+        emv_source_city: emv.emvSourceCity || (event.itemId ? EMV_SOURCE_CITY : null),
+        emv_total: emvEach === null ? null : emvEach * event.quantity,
       };
 
       if (!existing) {
@@ -940,7 +1107,7 @@ Deno.serve(async (request) => {
     const insertedEvents = insertRows.length;
     const updatedEvents = updateRows.length;
 
-    const savedEvents = await fetchAllBundleEvents(supabase, bundle.id);
+    const savedEvents = await ensureEventEmv(supabase, await fetchAllBundleEvents(supabase, bundle.id));
 
     const mergeEvents = (savedEvents || []).map(dbEventToMergeEvent);
     const summary = aggregateLootLogEvents(mergeEvents);

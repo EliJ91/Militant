@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import { fetchWestAveragePrices } from '../services/albionMarket';
 import {
   deleteLootLogBundle,
   fetchLootLogBundle,
@@ -451,10 +450,10 @@ function formatScreenshotError(error) {
 
 function buildItemTiles(row, filters) {
   return [
-    { quantity: row.kept, status: 'kept' },
-    { quantity: row.donated, status: 'donated' },
-    { quantity: row.accounted, status: 'resolved' },
-    { quantity: row.lost, status: 'lost' },
+    { emvTotal: row.keptEmv, quantity: row.kept, status: 'kept' },
+    { emvTotal: row.donatedEmv, quantity: row.donated, status: 'donated' },
+    { emvTotal: row.accountedEmv, quantity: row.accounted, status: 'resolved' },
+    { emvTotal: row.lostEmv, quantity: row.lost, status: 'lost' },
   ].filter((tile) => (
     tile.quantity > 0 && allowsTileStatus(tile.status, filters.status)
   )).map((tile) => ({
@@ -465,6 +464,9 @@ function buildItemTiles(row, filters) {
     imageUrl: itemImageUrl(row.itemId),
     item: row.item,
     itemId: row.itemId,
+    emvEach: row.emvEach ?? null,
+    emvMissing: tile.status === 'kept' && row.itemId && (!Number.isFinite(Number(row.emvEach)) || Number(row.emvEach) <= 0),
+    emvTotal: Number(tile.emvTotal) || 0,
     lostTo: row.lostTo,
     player: row.player,
   }));
@@ -474,47 +476,33 @@ function formatMissingPriceItem(tile) {
   return `${getItemTierLabel(tile)} | ${tile.item || 'Unknown item'} | Enchantment ${tile.enchantment || 0}`;
 }
 
-function calculatePlayerEmv(player, marketPrices) {
+function calculatePlayerEmv(player) {
   const missingByItem = new Map();
-  let pendingCount = 0;
-  let baseValue = 0;
+  let value = 0;
 
   player.tiles
     .filter((tile) => tile.status === 'kept')
     .forEach((tile) => {
-      if (!tile.itemId) {
-        missingByItem.set(tile.item || 'unknown', tile);
-        return;
-      }
-
-      const priceEntry = marketPrices[tile.itemId];
-      if (!priceEntry) {
-        pendingCount += 1;
-        return;
-      }
-
-      const averagePrice = Number(priceEntry.averagePrice) || 0;
-      if (averagePrice <= 0) {
+      if (tile.emvMissing || !tile.itemId) {
         missingByItem.set(tile.itemId, tile);
         return;
       }
 
-      baseValue += averagePrice * tile.quantity;
+      value += Number(tile.emvTotal) || 0;
     });
 
   const missingItems = [...missingByItem.values()].map(formatMissingPriceItem);
 
   return {
     missingItems,
-    pending: pendingCount > 0,
-    value: Math.round(baseValue * 1.15),
+    value: Math.round(value),
   };
 }
 
-function addPlayerEmv(players, marketPrices) {
+function addPlayerEmv(players) {
   return players.map((player) => ({
     ...player,
-    emv: calculatePlayerEmv(player, marketPrices),
+    emv: calculatePlayerEmv(player),
   }));
 }
 
@@ -845,11 +833,10 @@ function PlayerEmv({ emv }) {
       className={[
         'loot-player-emv',
         hasMissingPrices ? 'missing-price' : '',
-        emv.pending ? 'loading-price' : '',
       ].filter(Boolean).join(' ')}
       title={title}
     >
-      {emv.pending ? 'EMV loading...' : `EMV ${formatSilver(emv.value)}`}
+      EMV {formatSilver(emv.value)}
     </strong>
   );
 }
@@ -1058,6 +1045,8 @@ function LootLogBundleList({
                 </div>
                 <div className="saved-log-totals">
                   <span>{formatNumber(totals.players)} {totals.players === 1 ? 'player' : 'players'}</span>
+                  <span>{formatNumber(totals.lootedQuantity)} items</span>
+                  <span>EMV {formatSilver(totals.emvTotal)}</span>
                 </div>
                 <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
                   <div className="saved-log-chest-status">
@@ -1447,8 +1436,6 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
   const boardRef = useRef(null);
   const [filters, setFilters] = useState(loadSavedFilters);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
-  const [marketPrices, setMarketPrices] = useState({});
-  const [marketPriceError, setMarketPriceError] = useState('');
   const [shareStatus, setShareStatus] = useState({ message: '', state: 'idle' });
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
   const [selectedBundle, setSelectedBundle] = useState(null);
@@ -1522,44 +1509,11 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
 
   const visiblePlayers = useMemo(() => buildVisiblePlayerGroups(visibleRows, activeFilters), [activeFilters, visibleRows]);
   const visiblePlayersWithEmv = useMemo(() => (
-    addPlayerEmv(visiblePlayers, marketPrices)
-  ), [marketPrices, visiblePlayers]);
-  const visibleKeptItemIds = useMemo(() => (
-    [...new Set(visiblePlayers.flatMap((player) => (
-      player.tiles
-        .filter((tile) => tile.status === 'kept')
-        .map((tile) => tile.itemId)
-        .filter(Boolean)
-    )))]
+    addPlayerEmv(visiblePlayers)
   ), [visiblePlayers]);
-  const unfetchedKeptItemIds = useMemo(() => (
-    visibleKeptItemIds.filter((itemId) => !Object.hasOwn(marketPrices, itemId))
-  ), [marketPrices, visibleKeptItemIds]);
   const visibleImageUrls = useMemo(() => (
     visiblePlayers.flatMap((player) => player.tiles.map((tile) => tile.imageUrl)).filter(Boolean)
   ), [visiblePlayers]);
-
-  useEffect(() => {
-    if (unfetchedKeptItemIds.length === 0) return undefined;
-
-    const controller = new AbortController();
-    setMarketPriceError('');
-
-    fetchWestAveragePrices(unfetchedKeptItemIds, controller.signal)
-      .then((prices) => {
-        setMarketPrices((current) => ({ ...current, ...prices }));
-      })
-      .catch((priceError) => {
-        if (priceError.name === 'AbortError') return;
-        setMarketPriceError('Some Albion West market prices could not be loaded.');
-        setMarketPrices((current) => ({
-          ...current,
-          ...Object.fromEntries(unfetchedKeptItemIds.map((itemId) => [itemId, { averagePrice: null }])),
-        }));
-      });
-
-    return () => controller.abort();
-  }, [unfetchedKeptItemIds.join('|')]);
 
   useEffect(() => {
     warmItemImageCache(visibleImageUrls);
@@ -1651,11 +1605,14 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
             <small>Loot Loggers</small>
             <strong>{lootLoggers.length > 0 ? lootLoggers.join(', ') : 'Unknown'}</strong>
           </div>
+          <div className="selected-log-file">
+            <small>Bundle EMV</small>
+            <strong>{formatSilver(selectedBundle.summary?.totals?.emvTotal)}</strong>
+          </div>
         </section>
       ) : null}
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
-      {marketPriceError && <p className="loot-message error">{marketPriceError}</p>}
       <StatusToasts messages={[shareStatus, screenshotStatus]} />
 
       {!report ? (

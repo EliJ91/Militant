@@ -469,17 +469,25 @@ function createReportRow(rowMap, source) {
   ].join('::');
   const current = rowMap.get(key) || {
     accounted: 0,
+    accountedEmv: 0,
     alliance: [],
     deposited: 0,
     donated: 0,
+    donatedEmv: 0,
     enchantment: source.enchantment || 0,
+    emvEach: source.emvEach ?? null,
+    emvPricedAt: source.emvPricedAt || '',
+    emvSourceCity: source.emvSourceCity || '',
     guild: [],
     item: source.item || '',
     itemId,
     kept: 0,
+    keptEmv: 0,
     lost: 0,
+    lostEmv: 0,
     lostTo: [],
     looted: 0,
+    lootedEmv: 0,
     player: source.player || '',
     qualities: [],
     sourceLooters: [],
@@ -487,6 +495,9 @@ function createReportRow(rowMap, source) {
 
   if (!current.itemId && itemId) current.itemId = itemId;
   if (!current.item && source.item) current.item = source.item;
+  if (current.emvEach === null && source.emvEach !== undefined) current.emvEach = source.emvEach;
+  if (!current.emvPricedAt && source.emvPricedAt) current.emvPricedAt = source.emvPricedAt;
+  if (!current.emvSourceCity && source.emvSourceCity) current.emvSourceCity = source.emvSourceCity;
   pushUnique(current.alliance, source.alliance);
   pushUnique(current.guild, source.guild);
   pushUnique(current.sourceLooters, source.sourceLooter);
@@ -498,6 +509,15 @@ function addReportQuantity(rowMap, source, field, quantity, extra = {}) {
   if (!quantity || quantity <= 0) return;
   const row = createReportRow(rowMap, source);
   row[field] += quantity;
+  const fieldEmvKey = `${field}Emv`;
+  if (Object.hasOwn(row, fieldEmvKey)) {
+    const sourceEach = Number(source.emvEach);
+    const sourceTotal = Number(source.emvTotal);
+    const fallbackTotal = Number.isFinite(sourceEach) ? sourceEach * quantity : 0;
+    row[fieldEmvKey] += Number.isFinite(sourceTotal) && source.quantity === quantity
+      ? sourceTotal
+      : fallbackTotal;
+  }
   if (field === 'accounted' || field === 'donated') row.deposited += quantity;
   pushUnique(row.qualities, extra.quality ? `Q${extra.quality}` : '');
   pushUnique(row.lostTo, extra.lostTo);
@@ -512,7 +532,20 @@ function makeLot(row, quantity) {
     itemId: row.itemId || '',
     player: row.player || '',
     quantity,
+    emvEach: row.emvEach ?? null,
+    emvPricedAt: row.emvPricedAt || '',
+    emvSourceCity: row.emvSourceCity || '',
+    emvTotal: Number.isFinite(Number(row.emvEach)) ? Number(row.emvEach) * quantity : null,
     sourceLooter: row.sourceLooter || row.player || '',
+  };
+}
+
+function consumeLotSlice(lot, quantity) {
+  const emvEach = Number(lot.emvEach);
+  return {
+    ...lot,
+    quantity,
+    emvTotal: Number.isFinite(emvEach) ? emvEach * quantity : null,
   };
 }
 
@@ -536,7 +569,7 @@ function consumeLots(store, player, itemKey, quantity) {
   while (remaining > 0 && lots.length > 0) {
     const lot = lots[0];
     const used = Math.min(remaining, lot.quantity);
-    consumed.push({ ...lot, quantity: used });
+    consumed.push(consumeLotSlice(lot, used));
     lot.quantity -= used;
     remaining -= used;
     if (lot.quantity <= 0) lots.shift();
@@ -568,7 +601,7 @@ function consumeAnyLots(store, itemKey, quantity, guildScope = '') {
       if (normalize(lot.guild) !== normalizedGuildScope) break;
 
       const used = Math.min(remaining, lot.quantity);
-      consumed.push({ ...lot, quantity: used });
+      consumed.push(consumeLotSlice(lot, used));
       lot.quantity -= used;
       remaining -= used;
       if (lot.quantity <= 0) lots.shift();
@@ -598,7 +631,7 @@ function consumePoolLots(pool, itemKey, quantity) {
   while (remaining > 0 && lots.length > 0) {
     const lot = lots[0];
     const used = Math.min(remaining, lot.quantity);
-    consumed.push({ ...lot, quantity: used });
+    consumed.push(consumeLotSlice(lot, used));
     lot.quantity -= used;
     remaining -= used;
     if (lot.quantity <= 0) lots.shift();
@@ -769,6 +802,10 @@ export function buildLootMonitorReportFromEvents(events, chestText) {
       player: event.player || '',
       quantity: event.quantity || 0,
       timestamp: event.timestamp || '',
+      emvEach: event.emvEach ?? null,
+      emvPricedAt: event.emvPricedAt || '',
+      emvSourceCity: event.emvSourceCity || '',
+      emvTotal: event.emvTotal ?? null,
     };
 
     if (event.eventType === 'lost') {
