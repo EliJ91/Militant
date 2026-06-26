@@ -600,25 +600,22 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
       return;
     }
 
-    if (row.isFinalChest) {
-      const ownDeposit = consumeLots(holderLots, row.player, itemKey, row.amount);
-      const tradedDeposit = ownDeposit.missing > 0
-        ? consumeAnyLots(holderLots, itemKey, ownDeposit.missing)
-        : { consumed: [], missing: 0 };
-      [...ownDeposit.consumed, ...tradedDeposit.consumed]
-        .forEach((lot) => addReportQuantity(rowMap, lot, 'accounted', lot.quantity, { quality: row.quality }));
-      if (tradedDeposit.missing > 0) {
-        addReportQuantity(rowMap, itemRow, 'donated', tradedDeposit.missing, { quality: row.quality });
-      }
-      return;
-    }
-
     const ownDeposit = consumeLots(holderLots, row.player, itemKey, row.amount);
     const tradedDeposit = ownDeposit.missing > 0
       ? consumeAnyLots(holderLots, itemKey, ownDeposit.missing)
       : { consumed: [], missing: 0 };
     addLotsToPool(chestLots, itemKey, [...ownDeposit.consumed, ...tradedDeposit.consumed]);
-    if (tradedDeposit.missing > 0) addLotsToPool(chestLots, itemKey, [makeLot(itemRow, tradedDeposit.missing)]);
+    if (tradedDeposit.missing > 0) {
+      if (row.isFinalChest) {
+        addReportQuantity(rowMap, itemRow, 'donated', tradedDeposit.missing, { quality: row.quality });
+      } else {
+        addLotsToPool(chestLots, itemKey, [makeLot(itemRow, tradedDeposit.missing)]);
+      }
+    }
+  });
+
+  chestLots.forEach((lots) => {
+    lots.forEach((lot) => addReportQuantity(rowMap, lot, 'accounted', lot.quantity));
   });
 
   holderLots.forEach((lots) => {

@@ -234,4 +234,32 @@ describe('loot monitor report', () => {
     });
     expect(playerB).toBeUndefined();
   });
+
+  it('resolves traded items that remain in any uploaded chest log', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-06-24T04:01:00.000Z;CHAIR;Militant;Onslawht;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+    ].join('\n');
+    const firstChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/24/2026 04:10:00"\t"Zikeman"\t"Master\'s Realmbreaker"\t"3"\t"4"\t"1"',
+    ].join('\n');
+    const laterFinalChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/24/2026 04:20:00"\t"Donor"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
+    ].join('\n');
+
+    const report = buildLootMonitorReport(lootText, `${firstChest}\n${laterFinalChest}`);
+    const looter = report.rows.find((row) => row.player === 'Onslawht');
+    const depositor = report.rows.find((row) => row.player === 'Zikeman');
+
+    expect(looter).toMatchObject({
+      accounted: 1,
+      itemId: 'T6_2H_AXE_AVALON@3',
+      kept: 0,
+      looted: 1,
+      status: 'resolved',
+    });
+    expect(depositor).toBeUndefined();
+  });
 });
