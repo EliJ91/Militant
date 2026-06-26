@@ -317,6 +317,28 @@ describe('LootMonitor', () => {
     }));
 
     submitLootLog.mockClear();
+    const secondLootText = lootText.replace('Windyyyzz', 'SecondLogger');
+    fireEvent.change(lootInput, {
+      target: {
+        files: [
+          new File([lootText], 'first-loot-events.txt', { type: 'text/plain' }),
+          new File([secondLootText], 'second-loot-events.txt', { type: 'text/plain' }),
+        ],
+      },
+    });
+    await waitFor(() => expect(submitLootLog).toHaveBeenCalledTimes(2));
+    expect(submitLootLog).toHaveBeenNthCalledWith(1, {
+      lootLogText: lootText,
+      originalFileName: 'first-loot-events.txt',
+      username: 'manual-web-upload',
+    });
+    expect(submitLootLog).toHaveBeenNthCalledWith(2, {
+      lootLogText: secondLootText,
+      originalFileName: 'second-loot-events.txt',
+      username: 'manual-web-upload',
+    });
+
+    submitLootLog.mockClear();
     const uploadButton = screen.getByRole('button', { name: 'Upload' });
     const droppedLootFile = new File([lootText], 'dropped-loot-events.txt', { type: 'text/plain' });
     fireEvent.dragEnter(uploadButton, { dataTransfer: { files: [droppedLootFile] } });

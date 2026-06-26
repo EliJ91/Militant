@@ -950,7 +950,7 @@ function FileUploadButton({
         ref={inputRef}
         type="file"
         onChange={(event) => {
-          const files = event.target.files;
+          const files = [...(event.target.files || [])];
           event.target.value = '';
           receiveFiles(files);
         }}
