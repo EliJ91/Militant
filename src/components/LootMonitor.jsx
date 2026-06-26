@@ -99,6 +99,21 @@ function formatUtcDate(value) {
   }).format(date);
 }
 
+function formatUtcDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown';
+
+  const day = new Intl.DateTimeFormat('en-US', {
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'UTC',
+    year: 'numeric',
+  }).format(date);
+  const time = `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+
+  return `${day} ${time}`;
+}
+
 function formatUtcDateInput(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -986,48 +1001,52 @@ function LootLogBundleList({
             const submitters = bundle.submitters?.length ? bundle.submitters.join(', ') : 'Manual';
             const retention = getRetentionStatus(bundle.startAt);
             const isEditing = editingBundleId === bundle.id;
+            const logEntryCount = totals.eventRows || totals.lootedQuantity || 0;
+            const fileCount = Math.max(1, (bundle.submissions?.length || 0) + (bundle.chestLogCount || 0));
 
             return (
               <article className={`saved-log-row${isEditing ? ' editing' : ''}`} key={bundle.id}>
-                <div className="saved-log-time">
-                  {isEditing ? (
-                    <div className="saved-log-edit-fields">
-                      <label>
-                        <span>UTC Date</span>
-                        <input
-                          aria-label="UTC Date"
-                          max="9999-12-31"
-                          type="date"
-                          value={editValues.dateUtc}
-                          onChange={(event) => onEditValue('dateUtc', event.target.value)}
-                        />
-                      </label>
-                      <label>
-                        <span>CTA Time</span>
-                        <select
-                          aria-label="CTA Time"
-                          value={editValues.ctaHour}
-                          onChange={(event) => onEditValue('ctaHour', Number(event.target.value))}
-                        >
-                          {CTA_UTC_HOURS.map((hour) => (
-                            <option key={hour} value={hour}>{String(hour).padStart(2, '0')} UTC</option>
-                          ))}
-                        </select>
-                      </label>
+                <div className="saved-log-card">
+                  <div className="saved-log-card-main">
+                    <div className="saved-log-time">
+                      <span className="saved-log-icon" aria-hidden="true">□</span>
+                      {isEditing ? (
+                        <div className="saved-log-edit-fields">
+                          <label>
+                            <span>UTC Date</span>
+                            <input
+                              aria-label="UTC Date"
+                              max="9999-12-31"
+                              type="date"
+                              value={editValues.dateUtc}
+                              onChange={(event) => onEditValue('dateUtc', event.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <span>CTA Time</span>
+                            <select
+                              aria-label="CTA Time"
+                              value={editValues.ctaHour}
+                              onChange={(event) => onEditValue('ctaHour', Number(event.target.value))}
+                            >
+                              {CTA_UTC_HOURS.map((hour) => (
+                                <option key={hour} value={hour}>{String(hour).padStart(2, '0')} UTC</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      ) : (
+                        <>
+                          <strong>{formatUtcDate(bundle.startAt)}</strong>
+                          <span>{bundle.ctaTimer || '-- UTC'} CTA</span>
+                        </>
+                      )}
+                      {!isEditing && retention ? (
+                        <small className="saved-log-countdown" title={`Scheduled deletion: ${formatUtcDate(retention.expiresAt)}`}>
+                          {formatDeletionCountdown(retention.daysUntilDeletion)}
+                        </small>
+                      ) : null}
                     </div>
-                  ) : (
-                    <>
-                      <strong>{formatUtcDate(bundle.startAt)}</strong>
-                      <span>{bundle.ctaTimer || '-- UTC'} CTA</span>
-                    </>
-                  )}
-                  {!isEditing && retention ? (
-                    <small className="saved-log-countdown" title={`Scheduled deletion: ${formatUtcDate(retention.expiresAt)}`}>
-                      {formatDeletionCountdown(retention.daysUntilDeletion)}
-                    </small>
-                  ) : null}
-                </div>
-                <div className="saved-log-detail-panel">
                   <div className="saved-log-users">
                     <small>Loot Log</small>
                     {isEditing ? (
@@ -1044,7 +1063,7 @@ function LootLogBundleList({
                     ) : (
                       <strong>{bundle.lootFileName || 'Loot Log'}</strong>
                     )}
-                    <span>Uploaded by {submitters}</span>
+                    <span>Uploaded by <strong>{submitters}</strong></span>
                     {!isEditing ? (
                       <FileUploadButton
                         accept=".csv,.txt,text/csv,text/plain"
@@ -1058,12 +1077,12 @@ function LootLogBundleList({
                     ) : null}
                   </div>
                   <div className="saved-log-totals">
-                    <span><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
-                    <span><strong>{formatNumber(totals.lootedQuantity)}</strong><small>items</small></span>
+                    <span><i aria-hidden="true">◎</i><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
+                    <span><i aria-hidden="true">◇</i><strong>{formatNumber(totals.lootedQuantity)}</strong><small>items</small></span>
                   </div>
                   <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
                     <div className="saved-log-chest-status">
-                      <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
+                      <span><i aria-hidden="true">{bundle.hasChestLog ? '↗' : '!'}</i>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
                       <FileUploadButton
                         accept=".txt,.tsv,text/plain,text/tab-separated-values"
                         className="saved-log-inline-button"
@@ -1082,57 +1101,64 @@ function LootLogBundleList({
                       <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
                     )}
                   </div>
-                </div>
-                <div className={`saved-log-actions${isEditing ? ' editing' : ''}`}>
-                  {isEditing ? (
-                    <>
-                      <button
-                        className="saved-log-save-button"
-                        disabled={
-                          !editValues.dateUtc
-                          || !editValues.lootFileName.trim()
-                          || updatingBundleId === bundle.id
-                        }
-                        type="button"
-                        onClick={() => onSaveEdit(bundle)}
-                      >
-                        {updatingBundleId === bundle.id ? 'Saving...' : 'Save'}
-                      </button>
-                      <button
-                        className="saved-log-cancel-button"
-                        disabled={updatingBundleId === bundle.id}
-                        type="button"
-                        onClick={onCancelEdit}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button className="saved-log-edit-button" type="button" onClick={() => onEdit(bundle)}>
-                        Edit
-                      </button>
-                      <button
-                        className="saved-log-download-button"
-                        disabled={downloadingBundleId === bundle.id}
-                        type="button"
-                        onClick={() => onDownload(bundle)}
-                      >
-                        {downloadingBundleId === bundle.id ? 'Packing...' : 'Download'}
-                      </button>
-                      <button
-                        className="saved-log-delete-button"
-                        disabled={deletingBundleId === bundle.id}
-                        type="button"
-                        onClick={() => onDelete(bundle)}
-                      >
-                        {deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}
-                      </button>
-                      <button className="saved-log-view-button" type="button" onClick={() => onView(bundle.id)}>
-                        View
-                      </button>
-                    </>
-                  )}
+                    <div className={`saved-log-actions${isEditing ? ' editing' : ''}`}>
+                      {isEditing ? (
+                        <>
+                          <button
+                            className="saved-log-save-button"
+                            disabled={
+                              !editValues.dateUtc
+                              || !editValues.lootFileName.trim()
+                              || updatingBundleId === bundle.id
+                            }
+                            type="button"
+                            onClick={() => onSaveEdit(bundle)}
+                          >
+                            {updatingBundleId === bundle.id ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            className="saved-log-cancel-button"
+                            disabled={updatingBundleId === bundle.id}
+                            type="button"
+                            onClick={onCancelEdit}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="saved-log-edit-button" type="button" onClick={() => onEdit(bundle)}>
+                            Edit
+                          </button>
+                          <button
+                            className="saved-log-download-button"
+                            disabled={downloadingBundleId === bundle.id}
+                            type="button"
+                            onClick={() => onDownload(bundle)}
+                          >
+                            {downloadingBundleId === bundle.id ? 'Packing...' : 'Download'}
+                          </button>
+                          <button
+                            className="saved-log-delete-button"
+                            disabled={deletingBundleId === bundle.id}
+                            type="button"
+                            onClick={() => onDelete(bundle)}
+                          >
+                            {deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                          <button className="saved-log-view-button" type="button" onClick={() => onView(bundle.id)}>
+                            View
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="saved-log-card-footer">
+                    <span><i aria-hidden="true">▤</i><strong>{formatNumber(logEntryCount)}</strong><small>Log entries</small></span>
+                    <span><i aria-hidden="true">◷</i><strong>{bundle.ctaTimer || '-- UTC'}</strong><small>Time range</small></span>
+                    <span><i aria-hidden="true">▣</i><strong>{formatNumber(fileCount)} {fileCount === 1 ? 'file' : 'files'}</strong><small>Bundle files</small></span>
+                    <span><i aria-hidden="true">✓</i><strong>Uploaded</strong><small>{formatUtcDateTime(bundle.updatedAt || bundle.startAt)}</small></span>
+                  </div>
                 </div>
               </article>
             );
