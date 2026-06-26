@@ -1054,7 +1054,7 @@ button:focus-visible {
 
 .saved-log-row {
   display: grid;
-  grid-template-columns: 170px minmax(260px, 1.25fr) minmax(110px, 0.42fr) minmax(250px, 0.9fr) 250px;
+  grid-template-columns: 170px minmax(640px, 1fr) 250px;
   gap: 16px;
   align-items: center;
   min-width: 1080px;
@@ -1089,6 +1089,29 @@ button:focus-visible {
   gap: 5px;
   min-width: 0;
   align-content: center;
+}
+
+.saved-log-detail-panel {
+  display: grid;
+  grid-template-columns: minmax(250px, 1.2fr) minmax(104px, 0.42fr) minmax(260px, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(87, 216, 120, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(87, 216, 120, 0.045), rgba(2, 4, 3, 0.2)),
+    rgba(2, 8, 4, 0.32);
+}
+
+.saved-log-users,
+.saved-log-chest {
+  min-height: 96px;
+  padding: 12px;
+  border: 1px solid rgba(247, 250, 245, 0.1);
+  border-radius: 7px;
+  background: rgba(2, 4, 3, 0.35);
 }
 
 .saved-log-time strong,
@@ -1218,20 +1241,21 @@ button:focus-visible {
 }
 
 .saved-log-totals {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 8px;
-  align-items: center;
-  justify-content: center;
+  align-content: center;
+  min-width: 0;
 }
 
 .saved-log-totals span,
 .saved-log-chest span {
   display: inline-flex;
-  width: max-content;
+  width: 100%;
   max-width: 100%;
-  min-height: 28px;
+  min-height: 42px;
   align-items: center;
+  justify-content: center;
   padding: 4px 8px;
   border: 1px solid rgba(247, 250, 245, 0.14);
   border-radius: 7px;
@@ -1239,6 +1263,25 @@ button:focus-visible {
   color: var(--white);
   font-size: 0.74rem;
   font-weight: 900;
+}
+
+.saved-log-totals span {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.saved-log-totals strong {
+  color: var(--white);
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.saved-log-totals small {
+  color: var(--muted);
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .saved-log-chest span {
@@ -1250,20 +1293,21 @@ button:focus-visible {
 }
 
 .saved-log-chest-status {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
+  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(96px, auto) minmax(128px, 1fr);
   gap: 8px;
 }
 
 .saved-log-users .saved-log-inline-button {
-  justify-self: start;
-  width: min(190px, 100%);
+  justify-self: stretch;
+  width: 100%;
 }
 
 .saved-log-chest-status .saved-log-inline-button {
-  flex: 0 0 auto;
-  min-width: 128px;
+  min-width: 0;
+  min-height: 42px;
+  width: 100%;
 }
 
 .saved-log-inline-button,
@@ -2410,6 +2454,10 @@ button:focus-visible {
     gap: 16px;
     min-width: 0;
     padding: 18px 16px;
+  }
+
+  .saved-log-detail-panel {
+    grid-template-columns: 1fr;
   }
 
   .saved-log-users strong,

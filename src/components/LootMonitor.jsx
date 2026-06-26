@@ -1027,59 +1027,61 @@ function LootLogBundleList({
                     </small>
                   ) : null}
                 </div>
-                <div className="saved-log-users">
-                  <small>Loot Log</small>
-                  {isEditing ? (
-                    <div className="saved-log-name-editor">
-                      <input
-                        aria-label="Loot Log Name"
-                        className="saved-log-name-input"
-                        maxLength={151}
-                        type="text"
-                        value={editValues.lootFileName}
-                        onChange={(event) => onEditValue('lootFileName', event.target.value)}
+                <div className="saved-log-detail-panel">
+                  <div className="saved-log-users">
+                    <small>Loot Log</small>
+                    {isEditing ? (
+                      <div className="saved-log-name-editor">
+                        <input
+                          aria-label="Loot Log Name"
+                          className="saved-log-name-input"
+                          maxLength={151}
+                          type="text"
+                          value={editValues.lootFileName}
+                          onChange={(event) => onEditValue('lootFileName', event.target.value)}
+                        />
+                      </div>
+                    ) : (
+                      <strong>{bundle.lootFileName || 'Loot Log'}</strong>
+                    )}
+                    <span>Uploaded by {submitters}</span>
+                    {!isEditing ? (
+                      <FileUploadButton
+                        accept=".csv,.txt,text/csv,text/plain"
+                        className="saved-log-inline-button"
+                        disabled={uploadingBundleId === bundle.id}
+                        label="Add Loot Log"
+                        loadingLabel="Uploading..."
+                        multiple
+                        onFiles={(files) => onUploadLoot(files, bundle)}
+                      />
+                    ) : null}
+                  </div>
+                  <div className="saved-log-totals">
+                    <span><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
+                    <span><strong>{formatNumber(totals.lootedQuantity)}</strong><small>items</small></span>
+                  </div>
+                  <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
+                    <div className="saved-log-chest-status">
+                      <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
+                      <FileUploadButton
+                        accept=".txt,.tsv,text/plain,text/tab-separated-values"
+                        className="saved-log-inline-button"
+                        disabled={uploadingBundleId === bundle.id}
+                        label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
+                        loadingLabel="Uploading..."
+                        multiple
+                        onFiles={(files) => onUploadChest(bundle, files)}
                       />
                     </div>
-                  ) : (
-                    <strong>{bundle.lootFileName || 'Loot Log'}</strong>
-                  )}
-                  <span>Uploaded by {submitters}</span>
-                  {!isEditing ? (
-                    <FileUploadButton
-                      accept=".csv,.txt,text/csv,text/plain"
-                      className="saved-log-inline-button"
-                      disabled={uploadingBundleId === bundle.id}
-                      label="Add Loot Log"
-                      loadingLabel="Uploading..."
-                      multiple
-                      onFiles={(files) => onUploadLoot(files, bundle)}
-                    />
-                  ) : null}
-                </div>
-                <div className="saved-log-totals">
-                  <span>{formatNumber(totals.players)} {totals.players === 1 ? 'player' : 'players'}</span>
-                  <span>{formatNumber(totals.lootedQuantity)} items</span>
-                </div>
-                <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
-                  <div className="saved-log-chest-status">
-                    <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
-                    <FileUploadButton
-                      accept=".txt,.tsv,text/plain,text/tab-separated-values"
-                      className="saved-log-inline-button"
-                      disabled={uploadingBundleId === bundle.id}
-                      label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
-                      loadingLabel="Uploading..."
-                      multiple
-                      onFiles={(files) => onUploadChest(bundle, files)}
-                    />
+                    {isEditing && bundle.hasChestLog ? (
+                      <div className="saved-log-name-editor" aria-label="Chest Log Name">
+                        <span className="saved-log-name-readonly">{editValues.lootFileName}</span>
+                      </div>
+                    ) : (
+                      <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
+                    )}
                   </div>
-                  {isEditing && bundle.hasChestLog ? (
-                    <div className="saved-log-name-editor" aria-label="Chest Log Name">
-                      <span className="saved-log-name-readonly">{editValues.lootFileName}</span>
-                    </div>
-                  ) : (
-                    <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
-                  )}
                 </div>
                 <div className={`saved-log-actions${isEditing ? ' editing' : ''}`}>
                   {isEditing ? (

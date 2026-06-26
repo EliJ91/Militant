@@ -344,7 +344,11 @@ describe('LootMonitor', () => {
     expect(screen.queryByText(/18:33 UTC/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Loot Monitor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toHaveAttribute('title', 'Refresh logs');
-    expect(screen.getByText('1 player')).toBeInTheDocument();
+    const stats = container.querySelector('.saved-log-totals');
+    expect(within(stats).getByText('1')).toBeInTheDocument();
+    expect(within(stats).getByText('player')).toBeInTheDocument();
+    expect(within(stats).getByText('2')).toBeInTheDocument();
+    expect(within(stats).getByText('items')).toBeInTheDocument();
     expect(screen.queryByText('2 looted')).not.toBeInTheDocument();
     expect(screen.queryByText('0 kept')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
