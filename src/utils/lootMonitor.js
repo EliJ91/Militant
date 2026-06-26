@@ -187,6 +187,7 @@ export function parseChestLog(text) {
   const withdrawals = [];
   const events = [];
   const rows = [];
+  const sourceStats = new Map();
   let sourceIndex = -1;
   let headers = [];
 
@@ -231,16 +232,27 @@ export function parseChestLog(text) {
       timestamp: parseTimestamp(record.Date),
     };
 
+    const stats = sourceStats.get(row.sourceIndex) || {
+      hasDeposit: false,
+      hasWithdrawal: false,
+      latestDepositTime: Number.NEGATIVE_INFINITY,
+    };
+    if (amount > 0) {
+      stats.hasDeposit = true;
+      stats.latestDepositTime = Math.max(stats.latestDepositTime, timestampMs(row.timestamp));
+    }
+    if (amount < 0) stats.hasWithdrawal = true;
+    sourceStats.set(row.sourceIndex, stats);
+
     events.push(row);
     if (amount < 0) withdrawals.push(row);
     if (amount > 0) rows.push(row);
   });
 
-  const latestTimestamp = Math.max(
-    ...events.map((row) => timestampMs(row.timestamp)).filter((time) => Number.isFinite(time)),
-  );
-  const latestEvent = events.find((row) => timestampMs(row.timestamp) === latestTimestamp);
-  const finalSourceIndex = latestEvent?.sourceIndex ?? 0;
+  const finalSource = [...sourceStats.entries()]
+    .filter(([, stats]) => stats.hasDeposit && !stats.hasWithdrawal)
+    .sort((left, right) => right[1].latestDepositTime - left[1].latestDepositTime)[0];
+  const finalSourceIndex = finalSource?.[0] ?? -1;
   rows.forEach((row) => {
     row.isFinalChest = row.sourceIndex === finalSourceIndex;
   });
@@ -412,12 +424,14 @@ function createReportRow(rowMap, source) {
     looted: 0,
     player: source.player || '',
     qualities: [],
+    sourceLooters: [],
   };
 
   if (!current.itemId && itemId) current.itemId = itemId;
   if (!current.item && source.item) current.item = source.item;
   pushUnique(current.alliance, source.alliance);
   pushUnique(current.guild, source.guild);
+  pushUnique(current.sourceLooters, source.sourceLooter);
   rowMap.set(key, current);
   return current;
 }
@@ -440,6 +454,7 @@ function makeLot(row, quantity) {
     itemId: row.itemId || '',
     player: row.player || '',
     quantity,
+    sourceLooter: row.sourceLooter || row.player || '',
   };
 }
 
@@ -514,8 +529,8 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
   const holderLots = new Map();
   const chestLots = new Map();
   const events = [
-    ...loot.lostRows.map((row) => ({ order: 0, row, timestamp: row.timestamp, type: 'lost' })),
-    ...loot.rows.map((row) => ({ order: 1, row, timestamp: row.timestamp, type: 'loot' })),
+    ...loot.rows.map((row) => ({ order: 0, row, timestamp: row.timestamp, type: 'loot' })),
+    ...loot.lostRows.map((row) => ({ order: 1, row, timestamp: row.timestamp, type: 'lost' })),
     ...chest.withdrawals.map((row) => ({ order: 2, row, timestamp: row.timestamp, type: 'withdrawal' })),
     ...chest.rows.map((row) => ({ order: row.isFinalChest ? 4 : 3, row, timestamp: row.timestamp, type: 'deposit' })),
   ].sort((left, right) => (
@@ -591,6 +606,7 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
       kept,
       lostTo: row.lostTo.join(', '),
       qualities: row.qualities.join(', '),
+      sourceLooters: row.sourceLooters.join(', '),
       status,
     };
   }).sort((left, right) => (

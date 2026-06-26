@@ -28,9 +28,11 @@ describe('loot monitor parsing', () => {
       amount: 1,
       enchantment: 3,
       item: "Adept's Lymhurst Cape",
+      isFinalChest: true,
       player: 'Windyyyzz',
     });
     expect(parsed.withdrawals).toHaveLength(1);
+    expect(parsed.withdrawals[0].isFinalChest).toBe(false);
   });
 });
 
@@ -183,5 +185,29 @@ describe('loot monitor report', () => {
     expect(courier).toMatchObject({ accounted: 1, itemId: 'T4_CAPEITEM_FW_LYMHURST@3' });
     expect(donor).toMatchObject({ donated: 1, itemId: 'T4_CAPEITEM_FW_LYMHURST@3' });
     expect(report.totals.depositedQuantity).toBe(2);
+  });
+
+  it('uses the latest deposit-only chest as final and keeps items with the latest holder', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-06-17T00:01:00.000Z;CHAIR;Militant;Looter;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;2;;;@MOB_T5",
+    ].join('\n');
+    const finalChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:10:00"\t"Looter"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+    ].join('\n');
+    const laterNonFinalChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:12:00"\t"Looter"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+      '"06/17/2026 00:13:00"\t"Courier"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"-1"',
+    ].join('\n');
+
+    const report = buildLootMonitorReport(lootText, `${finalChest}\n${laterNonFinalChest}`);
+    const looter = report.rows.find((row) => row.player === 'Looter');
+    const courier = report.rows.find((row) => row.player === 'Courier');
+
+    expect(looter).toMatchObject({ accounted: 1, kept: 0 });
+    expect(courier).toMatchObject({ kept: 1, status: 'kept' });
+    expect(report.totals.depositedQuantity).toBe(1);
   });
 });
