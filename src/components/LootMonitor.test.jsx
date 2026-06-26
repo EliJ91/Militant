@@ -300,6 +300,7 @@ describe('LootMonitor', () => {
     expect(screen.queryByText('2 looted')).not.toBeInTheDocument();
     expect(screen.queryByText('0 kept')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Upload Chest Log' })).toBeInTheDocument();
     expect([...container.querySelector('.saved-log-actions').querySelectorAll('button')]
       .map((button) => button.textContent)).toEqual(['Edit', 'Download', 'Delete', 'View']);
 
@@ -396,6 +397,13 @@ describe('LootMonitor', () => {
     await waitFor(() => expect(deleteLootLogBundle).toHaveBeenCalledWith('bundle-18'));
     expect(confirm).toHaveBeenCalledTimes(2);
     confirm.mockRestore();
+  });
+
+  it('allows adding chest logs after one is already linked', async () => {
+    render(<LootLogArchive />);
+
+    expect(await screen.findByText('Chest linked')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Chest Log' })).toBeInTheDocument();
   });
 
   it('previews, customizes, cancels, and saves log metadata edits', async () => {

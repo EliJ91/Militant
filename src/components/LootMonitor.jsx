@@ -1088,17 +1088,15 @@ function LootLogBundleList({
                 <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
                   <div className="saved-log-chest-status">
                     <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
-                    {!bundle.hasChestLog ? (
-                      <FileUploadButton
-                        accept=".txt,.tsv,text/plain,text/tab-separated-values"
-                        className="saved-log-inline-button"
-                        disabled={uploadingBundleId === bundle.id}
-                        label="Upload Chest Log"
-                        loadingLabel="Uploading..."
-                        multiple
-                        onFiles={(files) => onUploadChest(bundle, files)}
-                      />
-                    ) : null}
+                    <FileUploadButton
+                      accept=".txt,.tsv,text/plain,text/tab-separated-values"
+                      className="saved-log-inline-button"
+                      disabled={uploadingBundleId === bundle.id}
+                      label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
+                      loadingLabel="Uploading..."
+                      multiple
+                      onFiles={(files) => onUploadChest(bundle, files)}
+                    />
                   </div>
                   {isEditing && bundle.hasChestLog ? (
                     <div className="saved-log-name-editor" aria-label="Chest Log Name">
