@@ -1,9 +1,11 @@
 const CACHE_NAME = 'militant-albion-item-images-v1';
 const MAX_CACHE_ENTRIES = 1200;
 const ALBION_RENDER_HOST = 'render.albiononline.com';
+const IMAGE_PROXY_HOST = 'images.weserv.nl';
 
 function isAlbionItemImageUrl(url) {
-  return (url.hostname === ALBION_RENDER_HOST && url.pathname.startsWith('/v1/item/'))
+  return (url.hostname === IMAGE_PROXY_HOST && url.searchParams.has('url'))
+    || (url.hostname === ALBION_RENDER_HOST && url.pathname.startsWith('/v1/item/'))
     || url.pathname.startsWith('/item-image/');
 }
 
@@ -22,9 +24,9 @@ async function cacheItemImage(url) {
 
   const response = itemUrl.hostname === ALBION_RENDER_HOST
     ? await fetch(itemUrl.href, { mode: 'no-cors', credentials: 'omit' })
-    : await fetch(itemUrl.href, { credentials: 'same-origin' });
+    : await fetch(itemUrl.href, { credentials: itemUrl.origin === self.location.origin ? 'same-origin' : 'omit' });
 
-  if (response && (response.ok || response.type === 'opaque')) {
+  if (response && response.ok ) {
     await cache.put(itemUrl.href, response.clone());
     await trimCache(cache);
   }
@@ -52,7 +54,7 @@ self.addEventListener('fetch', (event) => {
     if (cached) return cached;
 
     const response = await fetch(event.request);
-    if (response && (response.ok || response.type === 'opaque')) {
+    if (response && response.ok ) {
       await cache.put(event.request.url, response.clone());
       await trimCache(cache);
     }

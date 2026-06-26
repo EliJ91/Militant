@@ -379,20 +379,23 @@ function itemImageUrl(itemId) {
     return `/item-image/${imagePath}`;
   }
 
-  return `https://render.albiononline.com/v1/item/${imagePath}`;
+  return `https://images.weserv.nl/?url=${encodeURIComponent(`render.albiononline.com/v1/item/${imagePath}`)}`;
 }
 
 function waitForImages(element) {
   const images = [...element.querySelectorAll('img')];
 
   return Promise.all(images.map((image) => {
-    if (image.complete) return Promise.resolve();
+    image.loading = 'eager';
+    if (image.complete && image.naturalWidth > 0) {
+      return image.decode ? image.decode().catch(() => {}) : Promise.resolve();
+    }
 
     return new Promise((resolve) => {
       const timeout = window.setTimeout(resolve, 2000);
       image.addEventListener('load', () => {
         window.clearTimeout(timeout);
-        resolve();
+        (image.decode ? image.decode() : Promise.resolve()).catch(() => {}).finally(resolve);
       }, { once: true });
       image.addEventListener('error', () => {
         window.clearTimeout(timeout);
@@ -416,7 +419,7 @@ async function renderElementScreenshotBlob(element) {
     scale: Math.min(2, window.devicePixelRatio || 1.5),
     scrollX: -window.scrollX,
     scrollY: -window.scrollY,
-    useCORS: false,
+    useCORS: true,
     width: element.scrollWidth,
     windowHeight: Math.max(document.documentElement.clientHeight, element.scrollHeight),
     windowWidth: Math.max(document.documentElement.clientWidth, element.scrollWidth),
@@ -872,6 +875,7 @@ function LootItemTile({ tile }) {
       {tile.imageUrl && !imageFailed ? (
         <img
           alt=""
+          crossOrigin="anonymous"
           decoding="async"
           loading="lazy"
           src={imageSrc}
