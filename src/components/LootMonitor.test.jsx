@@ -205,6 +205,23 @@ describe('LootMonitor', () => {
     });
   });
 
+  it('copies a share link for the selected bundle', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Share' }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining('#loot-monitor/bundle-18'),
+    ));
+    expect(await screen.findByText('Link copied')).toBeInTheDocument();
+  });
+
   it('only disables Kept status when no chest log is loaded', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
@@ -343,8 +360,21 @@ describe('LootMonitor', () => {
       target: { files: [new File([lootText], 'loot-events.txt', { type: 'text/plain' })] },
     });
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
+      bundleId: null,
       lootLogText: lootText,
       originalFileName: 'loot-events.txt',
+      username: 'manual-web-upload',
+    }));
+
+    submitLootLog.mockClear();
+    const addLootInput = container.querySelectorAll('input[accept^=".csv"]')[1];
+    fireEvent.change(addLootInput, {
+      target: { files: [new File([lootText], 'additional-loot-events.txt', { type: 'text/plain' })] },
+    });
+    await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
+      bundleId: 'bundle-18',
+      lootLogText: lootText,
+      originalFileName: 'additional-loot-events.txt',
       username: 'manual-web-upload',
     }));
 
@@ -360,11 +390,13 @@ describe('LootMonitor', () => {
     });
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledTimes(2));
     expect(submitLootLog).toHaveBeenNthCalledWith(1, {
+      bundleId: null,
       lootLogText: lootText,
       originalFileName: 'first-loot-events.txt',
       username: 'manual-web-upload',
     });
     expect(submitLootLog).toHaveBeenNthCalledWith(2, {
+      bundleId: null,
       lootLogText: secondLootText,
       originalFileName: 'second-loot-events.txt',
       username: 'manual-web-upload',
@@ -378,6 +410,7 @@ describe('LootMonitor', () => {
     expect(uploadButton).toHaveTextContent('Drop Loot Log');
     fireEvent.drop(uploadButton, { dataTransfer: { files: [droppedLootFile] } });
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
+      bundleId: null,
       lootLogText: lootText,
       originalFileName: 'dropped-loot-events.txt',
       username: 'manual-web-upload',

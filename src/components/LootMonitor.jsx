@@ -939,6 +939,7 @@ function LootLogBundleList({
   onEditValue,
   onDelete,
   onDownload,
+  onUploadLoot,
   onSaveEdit,
   onUploadChest,
   onView,
@@ -1025,6 +1026,17 @@ function LootLogBundleList({
                     <strong>{bundle.lootFileName || 'Loot Log'}</strong>
                   )}
                   <span>Uploaded by {submitters}</span>
+                  {!isEditing ? (
+                    <FileUploadButton
+                      accept=".csv,.txt,text/csv,text/plain"
+                      className="saved-log-inline-button"
+                      disabled={uploadingBundleId === bundle.id}
+                      label="Add Loot Log"
+                      loadingLabel="Uploading..."
+                      multiple
+                      onFiles={(files) => onUploadLoot(files, bundle)}
+                    />
+                  ) : null}
                 </div>
                 <div className="saved-log-totals">
                   <span>{formatNumber(totals.players)} {totals.players === 1 ? 'player' : 'players'}</span>
@@ -1144,12 +1156,16 @@ export function LootLogArchive({ onView = () => {} }) {
     loadSavedLogs();
   }, []);
 
-  async function uploadLootLogs(files) {
+  async function uploadLootLogs(files, bundle = null) {
     const selectedFiles = [...(Array.isArray(files) ? files : [files])].filter(Boolean);
     if (selectedFiles.length === 0) return;
+    const targetBundleId = bundle?.id || null;
 
+    if (targetBundleId) setUploadingBundleId(targetBundleId);
     setActionStatus({
-      message: selectedFiles.length === 1 ? 'Uploading loot log...' : `Uploading ${selectedFiles.length} loot logs...`,
+      message: selectedFiles.length === 1
+        ? `Uploading ${targetBundleId ? (bundle.lootFileName || 'loot log') : 'loot log'}...`
+        : `Uploading ${selectedFiles.length} loot logs...`,
       state: 'loading',
     });
 
@@ -1161,6 +1177,7 @@ export function LootLogArchive({ onView = () => {} }) {
         if (detectFileKind(text) !== 'loot') throw new Error(`${file.name} is not a valid loot-events file.`);
 
         const result = await submitLootLog({
+          bundleId: targetBundleId,
           lootLogText: text,
           originalFileName: file.name,
           username: 'manual-web-upload',
@@ -1180,6 +1197,8 @@ export function LootLogArchive({ onView = () => {} }) {
         message: uploadError.message || 'Could not upload the loot logs.',
         state: 'error',
       });
+    } finally {
+      if (targetBundleId) setUploadingBundleId('');
     }
   }
 
@@ -1398,6 +1417,7 @@ export function LootLogArchive({ onView = () => {} }) {
         onEditValue={updateEditValue}
         onDelete={deleteBundle}
         onDownload={downloadBundle}
+        onUploadLoot={uploadLootLogs}
         onSaveEdit={saveEditedBundle}
         onUploadChest={uploadChestLog}
         onView={onView}
@@ -1415,6 +1435,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
   const [marketPrices, setMarketPrices] = useState({});
   const [marketPriceError, setMarketPriceError] = useState('');
+  const [shareStatus, setShareStatus] = useState({ message: '', state: 'idle' });
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
   const [selectedBundle, setSelectedBundle] = useState(null);
 
@@ -1534,6 +1555,24 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
     setFilters((current) => sanitizeFilters({ ...current, [key]: value }));
   }
 
+  async function shareBundleLink() {
+    if (!selectedBundle?.id || shareStatus.state === 'copying') return;
+
+    const shareUrl = new URL(window.location.href);
+    shareUrl.hash = `loot-monitor/${encodeURIComponent(selectedBundle.id)}`;
+    setShareStatus({ message: 'Copying...', state: 'copying' });
+
+    try {
+      await navigator.clipboard.writeText(shareUrl.toString());
+      setShareStatus({ message: 'Link copied', state: 'copied' });
+      window.setTimeout(() => {
+        setShareStatus((current) => (current.state === 'copied' ? { message: '', state: 'idle' } : current));
+      }, 1800);
+    } catch {
+      setShareStatus({ message: 'Could not copy link', state: 'error' });
+    }
+  }
+
   async function copyBoardScreenshot() {
     if (!boardRef.current || screenshotStatus.state === 'copying') return;
 
@@ -1567,6 +1606,14 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
         >
           View Loot Logs
         </button>
+        <button
+          className="view-logs-button"
+          disabled={!selectedBundle?.id || shareStatus.state === 'copying'}
+          type="button"
+          onClick={shareBundleLink}
+        >
+          {shareStatus.state === 'copying' ? 'Copying...' : 'Share'}
+        </button>
       </section>
 
       {selectedBundle ? (
@@ -1593,6 +1640,9 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {marketPriceError && <p className="loot-message error">{marketPriceError}</p>}
+      {shareStatus.message ? (
+        <p className={`loot-message ${shareStatus.state === 'error' ? 'error' : ''}`}>{shareStatus.message}</p>
+      ) : null}
 
       {!report ? (
         <section className="loot-empty-state">

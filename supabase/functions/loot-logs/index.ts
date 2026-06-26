@@ -795,6 +795,7 @@ Deno.serve(async (request) => {
     }
 
     const lootLogText = body.lootLogText || body.lootText || body.text;
+    const requestedBundleId = String(body.bundleId || '').trim();
     const originalFileName = body.originalFileName
       || body.original_filename
       || body.lootFileName
@@ -819,16 +820,29 @@ Deno.serve(async (request) => {
       throw new Error('The loot log does not contain any valid timestamp_utc values.');
     }
 
-    const { data: matchingBundles, error: matchError } = await supabase
-      .from('loot_log_bundles')
-      .select('id,start_at,end_at,combined_loot_summary')
-      .lte('start_at', range.matchEndAt)
-      .gte('end_at', range.matchStartAt);
+    let matchedExistingBundle = Boolean(requestedBundleId);
+    let bundle;
 
-    if (matchError) throw matchError;
+    if (requestedBundleId) {
+      const { data, error } = await supabase
+        .from('loot_log_bundles')
+        .select('id,start_at,end_at,combined_loot_summary')
+        .eq('id', requestedBundleId)
+        .single();
 
-    let matchedExistingBundle = Boolean(matchingBundles?.length);
-    let bundle = matchingBundles?.[0];
+      if (error) throw error;
+      bundle = data;
+    } else {
+      const { data: matchingBundles, error: matchError } = await supabase
+        .from('loot_log_bundles')
+        .select('id,start_at,end_at,combined_loot_summary')
+        .lte('start_at', range.matchEndAt)
+        .gte('end_at', range.matchStartAt);
+
+      if (matchError) throw matchError;
+      matchedExistingBundle = Boolean(matchingBundles?.length);
+      bundle = matchingBundles?.[0];
+    }
 
     if (!bundle) {
       const { data, error } = await supabase

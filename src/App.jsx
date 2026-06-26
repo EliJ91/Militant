@@ -8,9 +8,14 @@ function getRoute() {
   const route = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '').toLowerCase();
 
   if (route === 'loot-logs') return 'loot-logs';
-  if (route === 'loot-monitor') return 'loot-monitor';
+  if (route === 'loot-monitor' || route.startsWith('loot-monitor/')) return 'loot-monitor';
   if (route === 'siphoned-energy') return 'siphoned-energy';
   return route === 'dashboard' ? 'dashboard' : 'landing';
+}
+
+function getLootMonitorBundleId() {
+  const match = window.location.hash.match(/^#\/?loot-monitor\/([^/?#]+)/i);
+  return match ? decodeURIComponent(match[1]) : '';
 }
 
 function navigateTo(hash) {
@@ -159,6 +164,7 @@ export default function App() {
   useEffect(() => {
     const updateRoute = () => {
       setRoute(getRoute());
+      setSelectedBundleId(getLootMonitorBundleId());
     };
 
     window.addEventListener('hashchange', updateRoute);
@@ -180,12 +186,16 @@ export default function App() {
   }, [route]);
 
   useEffect(() => {
-    if (route !== 'loot-monitor') setSelectedBundleId('');
+    if (route === 'loot-monitor') {
+      setSelectedBundleId(getLootMonitorBundleId());
+    } else {
+      setSelectedBundleId('');
+    }
   }, [route]);
 
   function viewLootLogBundle(bundleId) {
     setSelectedBundleId(bundleId);
-    navigateTo('#loot-monitor');
+    navigateTo(`#loot-monitor/${encodeURIComponent(bundleId)}`);
   }
 
   if (route === 'dashboard') return <DashboardPage />;
