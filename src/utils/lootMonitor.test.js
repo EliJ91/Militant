@@ -181,9 +181,9 @@ describe('loot monitor report', () => {
     const courier = report.rows.find((row) => row.player === 'Courier');
     const donor = report.rows.find((row) => row.player === 'Donor');
 
-    expect(looter).toMatchObject({ kept: 1, looted: 2, status: 'kept' });
+    expect(looter).toMatchObject({ accounted: 1, kept: 0, looted: 2, status: 'resolved' });
     expect(courier).toMatchObject({ accounted: 1, itemId: 'T4_CAPEITEM_FW_LYMHURST@3' });
-    expect(donor).toMatchObject({ donated: 1, itemId: 'T4_CAPEITEM_FW_LYMHURST@3' });
+    expect(donor).toBeUndefined();
     expect(report.totals.depositedQuantity).toBe(2);
   });
 
@@ -209,5 +209,29 @@ describe('loot monitor report', () => {
     expect(looter).toMatchObject({ accounted: 1, kept: 0 });
     expect(courier).toMatchObject({ kept: 1, status: 'kept' });
     expect(report.totals.depositedQuantity).toBe(1);
+  });
+
+  it('resolves items deposited by another player as traded custody', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-06-17T00:01:00.000Z;CHAIR;Militant;PlayerA;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;1;;;@MOB_T5",
+    ].join('\n');
+    const chestText = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:10:00"\t"PlayerB"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+    ].join('\n');
+
+    const report = buildLootMonitorReport(lootText, chestText);
+    const playerA = report.rows.find((row) => row.player === 'PlayerA');
+    const playerB = report.rows.find((row) => row.player === 'PlayerB');
+
+    expect(playerA).toMatchObject({
+      accounted: 1,
+      donated: 0,
+      kept: 0,
+      looted: 1,
+      status: 'resolved',
+    });
+    expect(playerB).toBeUndefined();
   });
 });

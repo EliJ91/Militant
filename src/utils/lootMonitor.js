@@ -493,6 +493,34 @@ function consumeLots(store, player, itemKey, quantity) {
   return { consumed, missing: remaining };
 }
 
+function consumeAnyLots(store, itemKey, quantity) {
+  const consumed = [];
+  let remaining = quantity;
+
+  for (const key of [...store.keys()]) {
+    if (remaining <= 0) break;
+    if (!key.endsWith(`::${itemKey}`)) continue;
+
+    const lots = store.get(key) || [];
+    while (remaining > 0 && lots.length > 0) {
+      const lot = lots[0];
+      const used = Math.min(remaining, lot.quantity);
+      consumed.push({ ...lot, quantity: used });
+      lot.quantity -= used;
+      remaining -= used;
+      if (lot.quantity <= 0) lots.shift();
+    }
+
+    if (lots.length > 0) {
+      store.set(key, lots);
+    } else {
+      store.delete(key);
+    }
+  }
+
+  return { consumed, missing: remaining };
+}
+
 function addLotsToPool(pool, itemKey, lots) {
   const current = pool.get(itemKey) || [];
   current.push(...lots.filter((lot) => lot.quantity > 0));
@@ -573,15 +601,24 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
     }
 
     if (row.isFinalChest) {
-      const { consumed, missing } = consumeLots(holderLots, row.player, itemKey, row.amount);
-      consumed.forEach((lot) => addReportQuantity(rowMap, lot, 'accounted', lot.quantity, { quality: row.quality }));
-      if (missing > 0) addReportQuantity(rowMap, itemRow, 'donated', missing, { quality: row.quality });
+      const ownDeposit = consumeLots(holderLots, row.player, itemKey, row.amount);
+      const tradedDeposit = ownDeposit.missing > 0
+        ? consumeAnyLots(holderLots, itemKey, ownDeposit.missing)
+        : { consumed: [], missing: 0 };
+      [...ownDeposit.consumed, ...tradedDeposit.consumed]
+        .forEach((lot) => addReportQuantity(rowMap, lot, 'accounted', lot.quantity, { quality: row.quality }));
+      if (tradedDeposit.missing > 0) {
+        addReportQuantity(rowMap, itemRow, 'donated', tradedDeposit.missing, { quality: row.quality });
+      }
       return;
     }
 
-    const { consumed, missing } = consumeLots(holderLots, row.player, itemKey, row.amount);
-    addLotsToPool(chestLots, itemKey, consumed);
-    if (missing > 0) addLotsToPool(chestLots, itemKey, [makeLot(itemRow, missing)]);
+    const ownDeposit = consumeLots(holderLots, row.player, itemKey, row.amount);
+    const tradedDeposit = ownDeposit.missing > 0
+      ? consumeAnyLots(holderLots, itemKey, ownDeposit.missing)
+      : { consumed: [], missing: 0 };
+    addLotsToPool(chestLots, itemKey, [...ownDeposit.consumed, ...tradedDeposit.consumed]);
+    if (tradedDeposit.missing > 0) addLotsToPool(chestLots, itemKey, [makeLot(itemRow, tradedDeposit.missing)]);
   });
 
   holderLots.forEach((lots) => {
