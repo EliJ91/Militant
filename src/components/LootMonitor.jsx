@@ -906,16 +906,38 @@ function PlayerEmv({ emv }) {
   );
 }
 
-function FileUploadButton({ accept, className, disabled, dropLabel, enableDrop = false, label, loadingLabel, onFile }) {
+function FileUploadButton({
+  accept,
+  className,
+  disabled,
+  dropLabel,
+  enableDrop = false,
+  label,
+  loadingLabel,
+  multiple = false,
+  onFile,
+  onFiles,
+}) {
   const inputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  function receiveFiles(fileList) {
+    const files = [...(fileList || [])];
+    if (files.length === 0) return;
+
+    if (multiple && onFiles) {
+      onFiles(files);
+      return;
+    }
+
+    onFile?.(files[0]);
+  }
 
   function receiveDroppedFile(event) {
     if (!enableDrop || disabled) return;
     event.preventDefault();
     setIsDragging(false);
-    const file = event.dataTransfer.files?.[0];
-    if (file) onFile(file);
+    receiveFiles(event.dataTransfer.files);
   }
 
   return (
@@ -924,12 +946,13 @@ function FileUploadButton({ accept, className, disabled, dropLabel, enableDrop =
         accept={accept}
         className="file-input-hidden"
         disabled={disabled}
+        multiple={multiple}
         ref={inputRef}
         type="file"
         onChange={(event) => {
-          const file = event.target.files?.[0];
+          const files = event.target.files;
           event.target.value = '';
-          if (file) onFile(file);
+          receiveFiles(files);
         }}
       />
       <button
@@ -1174,24 +1197,40 @@ export function LootLogArchive({ onBack = () => {}, onView = () => {} }) {
     loadSavedLogs();
   }, []);
 
-  async function uploadLootLog(file) {
-    setActionStatus({ message: 'Uploading loot log...', state: 'loading' });
+  async function uploadLootLogs(files) {
+    const selectedFiles = [...(Array.isArray(files) ? files : [files])].filter(Boolean);
+    if (selectedFiles.length === 0) return;
+
+    setActionStatus({
+      message: selectedFiles.length === 1 ? 'Uploading loot log...' : `Uploading ${selectedFiles.length} loot logs...`,
+      state: 'loading',
+    });
 
     try {
-      const text = await file.text();
-      if (detectFileKind(text) !== 'loot') throw new Error('Choose a valid loot-events file.');
+      const uploadedNames = [];
 
-      const result = await submitLootLog({
-        lootLogText: text,
-        originalFileName: file.name,
-        username: 'manual-web-upload',
+      for (const file of selectedFiles) {
+        const text = await file.text();
+        if (detectFileKind(text) !== 'loot') throw new Error(`${file.name} is not a valid loot-events file.`);
+
+        const result = await submitLootLog({
+          lootLogText: text,
+          originalFileName: file.name,
+          username: 'manual-web-upload',
+        });
+        uploadedNames.push(result.summary?.displayLootFileName || result.summary?.fileNames?.loot || file.name || 'Loot Log');
+      }
+
+      setActionStatus({
+        message: selectedFiles.length === 1
+          ? `${uploadedNames[0]} uploaded.`
+          : `${selectedFiles.length} loot logs uploaded.`,
+        state: 'success',
       });
-      const savedName = result.summary?.displayLootFileName || result.summary?.fileNames?.loot || 'Loot Log';
-      setActionStatus({ message: `${savedName} uploaded.`, state: 'success' });
       await loadSavedLogs();
     } catch (uploadError) {
       setActionStatus({
-        message: uploadError.message || 'Could not upload the loot log.',
+        message: uploadError.message || 'Could not upload the loot logs.',
         state: 'error',
       });
     }
@@ -1358,7 +1397,8 @@ export function LootLogArchive({ onBack = () => {}, onView = () => {} }) {
             enableDrop
             label="Upload"
             loadingLabel="Uploading"
-            onFile={uploadLootLog}
+            multiple
+            onFiles={uploadLootLogs}
           />
           <button
             aria-label="Refresh logs"
