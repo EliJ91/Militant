@@ -1577,7 +1577,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
     if (!selectedBundle) return null;
     return buildLootMonitorReportFromEvents(
       selectedBundle.events || [],
-      selectedBundle.chestLogText || '',
+      selectedBundle.chestLogReportText || selectedBundle.chestLogText || '',
     );
   }, [localChestFile.text, localLootFile.text, selectedBundle]);
 

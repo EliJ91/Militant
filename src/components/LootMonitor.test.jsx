@@ -278,6 +278,48 @@ describe('LootMonitor', () => {
     expect(screen.queryByLabelText("WeaponUser Kept 1 Expert's Bag")).not.toBeInTheDocument();
   });
 
+  it('shows uncategorized items in Other while gear remains visible', async () => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ typeFilters: ['other'] }));
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        events: [
+          {
+            ...storedEvents[0],
+            enchantment: 0,
+            item: "Smuggler's Coin",
+            itemId: 'QUESTITEM_TOKEN_SMUGGLER',
+            player: 'TokenHolder',
+            quantity: 3,
+          },
+          {
+            ...storedEvents[0],
+            enchantment: 0,
+            item: "Adept's Broadsword",
+            itemId: 'T4_MAIN_SWORD',
+            player: 'TokenHolder',
+            quantity: 1,
+          },
+          {
+            ...storedEvents[0],
+            enchantment: 1,
+            item: "Expert's Bag",
+            itemId: 'T5_BAG@1',
+            player: 'TokenHolder',
+            quantity: 1,
+          },
+        ],
+        hasChestLog: false,
+      }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    expect(await screen.findByLabelText("TokenHolder Kept 3 Smuggler's Coin")).toBeInTheDocument();
+    expect(screen.getByLabelText("TokenHolder Kept 1 Adept's Broadsword")).toBeInTheDocument();
+    expect(screen.queryByLabelText("TokenHolder Kept 1 Expert's Bag")).not.toBeInTheDocument();
+  });
+
   it('keeps uploads on View Logs and opens a selected bundle with View', async () => {
     const onBack = vi.fn();
     const onView = vi.fn();

@@ -5,7 +5,7 @@ import {
   buildLootLogEvents,
   getLootLogTimeRange,
 } from '../utils/lootLogMerge.js';
-import { parseChestLog } from '../utils/lootMonitor.js';
+import { combineChestLogTexts, parseChestLog } from '../utils/lootMonitor.js';
 
 function requireConfig() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -677,14 +677,15 @@ export async function getLootLogBundle(bundleId) {
   if (chestResult.error) throw chestResult.error;
 
   const chestLogs = chestResult.data || [];
-  const chestLog = chestLogs[chestLogs.length - 1] || null;
+  const rawChestLogTexts = chestLogs.map((log) => log.raw_log_text || '').filter(Boolean);
   const primaryLootLog = lootSubmissionsResult.data?.[0] || null;
   const fileNames = getBundleFileNames(bundle);
 
   return {
     bundle: {
       chestFileName: getBundleDisplayChestFileName(bundle),
-      chestLogText: chestLogs.map((log) => log.raw_log_text || '').filter(Boolean).join('\n'),
+      chestLogReportText: rawChestLogTexts.join('\n'),
+      chestLogText: combineChestLogTexts(rawChestLogTexts),
       ctaTimer: getCtaTimer(bundle.start_at),
       endAt: bundle.end_at,
       events: eventsResult.map(dbEventToMergeEvent),

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildLootLogExport,
   buildLootMonitorReport,
+  combineChestLogTexts,
   extractEnchantment,
   parseChestLog,
   parseLootEvents,
@@ -33,6 +34,23 @@ describe('loot monitor parsing', () => {
     });
     expect(parsed.withdrawals).toHaveLength(1);
     expect(parsed.withdrawals[0].isFinalChest).toBe(false);
+  });
+
+  it('combines chest logs with one header in chronological order', () => {
+    const firstChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:42:31"\t"Late"\t"Battle Memento"\t"0"\t"1"\t"1"',
+    ].join('\n');
+    const secondChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:41:56"\t"Early"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+    ].join('\n');
+
+    expect(combineChestLogTexts([firstChest, secondChest])).toBe([
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:41:56"\t"Early"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+      '"06/17/2026 00:42:31"\t"Late"\t"Battle Memento"\t"0"\t"1"\t"1"',
+    ].join('\n'));
   });
 });
 

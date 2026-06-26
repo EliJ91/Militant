@@ -128,6 +128,15 @@ function timestampMs(value) {
   return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
 }
 
+function escapeTabCell(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function isChestHeader(cells) {
+  const normalizedCells = cells.map((cell) => cell.trim());
+  return normalizedCells[0] === 'Date' && normalizedCells.includes('Player') && normalizedCells.includes('Amount');
+}
+
 function resolveChestItemId(item, enchantment) {
   const baseId = albionItemLookup[normalizeItemLookupName(item)] || '';
   if (!baseId) return '';
@@ -261,6 +270,53 @@ export function parseChestLog(text) {
   });
 
   return { events, finalSourceIndex, rows, skippedRows, withdrawals };
+}
+
+export function combineChestLogTexts(texts) {
+  const logs = (texts || []).map((text) => String(text || '')).filter((text) => text.trim());
+  if (logs.length === 0) return '';
+
+  const entries = [];
+  let header = null;
+  let headerCount = 0;
+  let order = 0;
+
+  logs.forEach((text) => {
+    let activeHeader = null;
+    parseDelimited(text, '\t').forEach((cells) => {
+      if (isChestHeader(cells)) {
+        const normalizedHeader = cells.map((cell) => cell.replace(/^\uFEFF/, '').trim());
+        headerCount += 1;
+        if (!header) header = normalizedHeader;
+        activeHeader = normalizedHeader;
+        return;
+      }
+
+      if (!activeHeader && header) activeHeader = header;
+      if (!activeHeader || !cells.some((cell) => cell.trim())) return;
+
+      const dateIndex = activeHeader.findIndex((cell) => cell === 'Date');
+      const timestamp = parseTimestamp(cells[dateIndex] || '');
+      entries.push({
+        cells: activeHeader.map((_, index) => (cells[index] || '').trim()),
+        order,
+        timestamp,
+      });
+      order += 1;
+    });
+  });
+
+  if (!header || entries.length === 0) return logs.join('\n');
+  if (logs.length === 1 && headerCount <= 1) return logs[0];
+
+  entries.sort((left, right) => (
+    timestampMs(left.timestamp) - timestampMs(right.timestamp)
+    || left.order - right.order
+  ));
+
+  return [header, ...entries.map((entry) => entry.cells)]
+    .map((row) => row.map(escapeTabCell).join('\t'))
+    .join('\n');
 }
 
 function aggregateLoot(rows) {
