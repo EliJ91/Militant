@@ -928,6 +928,24 @@ function FileUploadButton({
   );
 }
 
+function StatusToasts({ messages }) {
+  const visibleMessages = messages
+    .filter((status) => status?.message)
+    .map((status, index) => ({ ...status, id: `${status.state || 'status'}-${index}` }));
+
+  if (visibleMessages.length === 0) return null;
+
+  return (
+    <div className="status-toast-stack" aria-live="polite" aria-atomic="true">
+      {visibleMessages.map((status) => (
+        <p className={`status-toast ${status.state === 'error' ? 'error' : ''}`} key={status.id}>
+          {status.message}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 function LootLogBundleList({
   bundles,
   deletingBundleId,
@@ -1400,11 +1418,7 @@ export function LootLogArchive({ onView = () => {} }) {
         </div>
       </section>
 
-      {actionStatus.message ? (
-        <p className={`loot-message archive-action-message ${actionStatus.state === 'error' ? 'error' : ''}`}>
-          {actionStatus.message}
-        </p>
-      ) : null}
+      <StatusToasts messages={[actionStatus]} />
 
       <LootLogBundleList
         bundles={savedLogBundles}
@@ -1599,21 +1613,23 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
           <p className="eyebrow">Tool</p>
           <h1 id="loot-monitor-title">Loot Log Details</h1>
         </div>
-        <button
-          className="view-logs-button"
-          type="button"
-          onClick={onViewLogs}
-        >
-          View Loot Logs
-        </button>
-        <button
-          className="view-logs-button"
-          disabled={!selectedBundle?.id || shareStatus.state === 'copying'}
-          type="button"
-          onClick={shareBundleLink}
-        >
-          {shareStatus.state === 'copying' ? 'Copying...' : 'Share'}
-        </button>
+        <div className="loot-monitor-heading-actions">
+          <button
+            className="view-logs-button"
+            type="button"
+            onClick={onViewLogs}
+          >
+            View Loot Logs
+          </button>
+          <button
+            className="view-logs-button"
+            disabled={!selectedBundle?.id || shareStatus.state === 'copying'}
+            type="button"
+            onClick={shareBundleLink}
+          >
+            {shareStatus.state === 'copying' ? 'Copying...' : 'Share'}
+          </button>
+        </div>
       </section>
 
       {selectedBundle ? (
@@ -1640,9 +1656,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {marketPriceError && <p className="loot-message error">{marketPriceError}</p>}
-      {shareStatus.message ? (
-        <p className={`loot-message ${shareStatus.state === 'error' ? 'error' : ''}`}>{shareStatus.message}</p>
-      ) : null}
+      <StatusToasts messages={[shareStatus, screenshotStatus]} />
 
       {!report ? (
         <section className="loot-empty-state">
@@ -1716,11 +1730,6 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
             >
               {screenshotStatus.state === 'copying' ? 'Copying...' : 'Copy Screenshot'}
             </button>
-            {screenshotStatus.message ? (
-              <span className={`screenshot-status screenshot-${screenshotStatus.state}`}>
-                {screenshotStatus.message}
-              </span>
-            ) : null}
           </div>
 
           <section className="loot-board-section" aria-label="Player loot board" ref={boardRef}>

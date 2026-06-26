@@ -382,14 +382,16 @@ button:focus-visible {
 
 .loot-monitor-heading {
   align-items: end;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
 }
 
 .loot-monitor-heading-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
   justify-content: flex-end;
 }
 
@@ -429,6 +431,35 @@ button:focus-visible {
 .view-logs-button:disabled {
   cursor: not-allowed;
   opacity: 0.56;
+}
+
+.status-toast-stack {
+  position: fixed;
+  z-index: 80;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  gap: 8px;
+  width: min(340px, calc(100vw - 36px));
+  pointer-events: none;
+}
+
+.status-toast {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid rgba(87, 216, 120, 0.36);
+  border-radius: 8px;
+  background: rgba(2, 4, 3, 0.94);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.42);
+  color: var(--green-hot);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.status-toast.error {
+  border-color: rgba(255, 82, 98, 0.42);
+  color: #ff8b96;
 }
 
 .view-logs-icon-button {
@@ -1023,11 +1054,11 @@ button:focus-visible {
 
 .saved-log-row {
   display: grid;
-  grid-template-columns: 170px minmax(220px, 1.2fr) minmax(110px, 0.45fr) minmax(270px, 1.1fr) 250px;
-  gap: 14px;
+  grid-template-columns: 170px minmax(260px, 1.25fr) minmax(110px, 0.42fr) minmax(250px, 0.9fr) 250px;
+  gap: 16px;
   align-items: center;
   min-width: 1080px;
-  padding: 14px 16px;
+  padding: 16px;
 }
 
 .saved-log-row + .saved-log-row {
@@ -1055,8 +1086,9 @@ button:focus-visible {
 .saved-log-users,
 .saved-log-chest {
   display: grid;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
+  align-content: center;
 }
 
 .saved-log-time strong,
@@ -1189,6 +1221,8 @@ button:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+  justify-content: center;
 }
 
 .saved-log-totals span,
@@ -1220,6 +1254,16 @@ button:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.saved-log-users .saved-log-inline-button {
+  justify-self: start;
+  width: min(190px, 100%);
+}
+
+.saved-log-chest-status .saved-log-inline-button {
+  flex: 0 0 auto;
+  min-width: 128px;
 }
 
 .saved-log-inline-button,
@@ -1257,6 +1301,7 @@ button:focus-visible {
   display: grid;
   grid-template-columns: minmax(58px, 0.78fr) minmax(92px, 1.28fr) minmax(66px, 0.9fr);
   gap: 8px;
+  align-self: center;
 }
 
 .saved-log-actions.editing {
@@ -1326,11 +1371,6 @@ button:focus-visible {
 .saved-log-delete-button:disabled {
   cursor: wait;
   opacity: 0.58;
-}
-
-.archive-action-message {
-  border-color: rgba(87, 216, 120, 0.3);
-  color: var(--green-hot);
 }
 
 .selected-log-summary {
@@ -2250,12 +2290,13 @@ button:focus-visible {
 
   .loot-monitor-heading-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) 42px;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     width: 100%;
   }
 
   .view-logs-icon-button {
     width: 42px;
+    justify-self: end;
   }
 
   .tool-board {
