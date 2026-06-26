@@ -1,3 +1,5 @@
+import albionItemLookup from '../data/albion_item_lookup.json' with { type: 'json' };
+
 export function parseDelimited(text, delimiter) {
   const rows = [];
   let row = [];
@@ -60,6 +62,15 @@ function normalize(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizeItemLookupName(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function parseInteger(value) {
   const parsed = Number.parseInt(String(value || '').trim(), 10);
   return Number.isFinite(parsed) ? parsed : null;
@@ -74,6 +85,11 @@ function makeInventoryKey({ player, item, enchantment }) {
   return [normalize(player), normalize(item), String(enchantment || 0)].join('::');
 }
 
+function makeItemKey({ itemId, item, enchantment }) {
+  const id = normalize(itemId);
+  return id || [normalize(item), String(enchantment || 0)].join('::');
+}
+
 function makeItemLookupKey({ item, enchantment }) {
   return [normalize(item), String(enchantment || 0)].join('::');
 }
@@ -85,6 +101,39 @@ function makeItemNameLookupKey({ item }) {
 function pushUnique(list, value) {
   const clean = String(value || '').trim();
   if (clean && !list.includes(clean)) list.push(clean);
+}
+
+function parseTimestamp(value) {
+  const text = String(value || '').trim();
+  const localMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+
+  if (localMatch) {
+    const [, month, day, year, hour, minute, second = '0'] = localMatch;
+    return new Date(Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    )).toISOString();
+  }
+
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+}
+
+function timestampMs(value) {
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
+}
+
+function resolveChestItemId(item, enchantment) {
+  const baseId = albionItemLookup[normalizeItemLookupName(item)] || '';
+  if (!baseId) return '';
+
+  const cleanBaseId = String(baseId).replace(/@\d+$/, '');
+  return enchantment > 0 ? `${cleanBaseId}@${enchantment}` : cleanBaseId;
 }
 
 export function parseLootEvents(text) {
@@ -133,24 +182,41 @@ export function parseLootEvents(text) {
 }
 
 export function parseChestLog(text) {
-  const records = rowsToObjects(parseDelimited(text, '\t'));
+  const tableRows = parseDelimited(text, '\t');
   const skippedRows = [];
   const withdrawals = [];
+  const events = [];
+  const rows = [];
+  let sourceIndex = -1;
+  let headers = [];
 
-  const rows = records.flatMap((record, index) => {
+  tableRows.forEach((cells, index) => {
+    const normalizedCells = cells.map((cell) => cell.trim());
+    if (normalizedCells[0] === 'Date' && normalizedCells.includes('Player') && normalizedCells.includes('Amount')) {
+      sourceIndex += 1;
+      headers = normalizedCells;
+      return;
+    }
+
+    if (headers.length === 0) {
+      sourceIndex = 0;
+      headers = tableRows[0].map((header) => header.replace(/^\uFEFF/, '').trim());
+      if (index === 0) return;
+    }
+
+    const record = headers.reduce((current, header, cellIndex) => ({
+      ...current,
+      [header]: (cells[cellIndex] || '').trim(),
+    }), {});
     const player = record.Player;
     const item = record.Item;
     const amount = parseInteger(record.Amount);
     const enchantment = parseInteger(record.Enchantment) ?? 0;
     const quality = parseInteger(record.Quality) ?? 0;
 
-    if (record.Date === 'Date' || player === 'Player') {
-      return [];
-    }
-
     if (!player || !item || amount === null) {
       skippedRows.push(index + 2);
-      return [];
+      return;
     }
 
     const row = {
@@ -158,17 +224,31 @@ export function parseChestLog(text) {
       date: record.Date || '',
       enchantment,
       item,
+      itemId: resolveChestItemId(item, enchantment),
       player,
       quality,
+      sourceIndex: Math.max(sourceIndex, 0),
+      timestamp: parseTimestamp(record.Date),
     };
 
+    events.push(row);
     if (amount < 0) withdrawals.push(row);
-    if (amount <= 0) return [];
-
-    return [row];
+    if (amount > 0) rows.push(row);
   });
 
-  return { rows, skippedRows, withdrawals };
+  const latestTimestamp = Math.max(
+    ...events.map((row) => timestampMs(row.timestamp)).filter((time) => Number.isFinite(time)),
+  );
+  const latestEvent = events.find((row) => timestampMs(row.timestamp) === latestTimestamp);
+  const finalSourceIndex = latestEvent?.sourceIndex ?? 0;
+  rows.forEach((row) => {
+    row.isFinalChest = row.sourceIndex === finalSourceIndex;
+  });
+  withdrawals.forEach((row) => {
+    row.isFinalChest = row.sourceIndex === finalSourceIndex;
+  });
+
+  return { events, finalSourceIndex, rows, skippedRows, withdrawals };
 }
 
 function aggregateLoot(rows) {
@@ -310,36 +390,194 @@ function summarizePlayers(rows) {
   ));
 }
 
+function createReportRow(rowMap, source) {
+  const itemId = source.itemId || '';
+  const key = [
+    normalize(source.player),
+    makeItemKey(source),
+    String(source.enchantment || 0),
+  ].join('::');
+  const current = rowMap.get(key) || {
+    accounted: 0,
+    alliance: [],
+    deposited: 0,
+    donated: 0,
+    enchantment: source.enchantment || 0,
+    guild: [],
+    item: source.item || '',
+    itemId,
+    kept: 0,
+    lost: 0,
+    lostTo: [],
+    looted: 0,
+    player: source.player || '',
+    qualities: [],
+  };
+
+  if (!current.itemId && itemId) current.itemId = itemId;
+  if (!current.item && source.item) current.item = source.item;
+  pushUnique(current.alliance, source.alliance);
+  pushUnique(current.guild, source.guild);
+  rowMap.set(key, current);
+  return current;
+}
+
+function addReportQuantity(rowMap, source, field, quantity, extra = {}) {
+  if (!quantity || quantity <= 0) return;
+  const row = createReportRow(rowMap, source);
+  row[field] += quantity;
+  if (field === 'accounted' || field === 'donated') row.deposited += quantity;
+  pushUnique(row.qualities, extra.quality ? `Q${extra.quality}` : '');
+  pushUnique(row.lostTo, extra.lostTo);
+}
+
+function makeLot(row, quantity) {
+  return {
+    alliance: row.alliance || '',
+    enchantment: row.enchantment || 0,
+    guild: row.guild || '',
+    item: row.item || '',
+    itemId: row.itemId || '',
+    player: row.player || '',
+    quantity,
+  };
+}
+
+function custodyKey(player, itemKey) {
+  return `${normalize(player)}::${itemKey}`;
+}
+
+function addLots(store, player, itemKey, lots) {
+  const key = custodyKey(player, itemKey);
+  const current = store.get(key) || [];
+  current.push(...lots.filter((lot) => lot.quantity > 0));
+  store.set(key, current);
+}
+
+function consumeLots(store, player, itemKey, quantity) {
+  const key = custodyKey(player, itemKey);
+  const lots = store.get(key) || [];
+  const consumed = [];
+  let remaining = quantity;
+
+  while (remaining > 0 && lots.length > 0) {
+    const lot = lots[0];
+    const used = Math.min(remaining, lot.quantity);
+    consumed.push({ ...lot, quantity: used });
+    lot.quantity -= used;
+    remaining -= used;
+    if (lot.quantity <= 0) lots.shift();
+  }
+
+  if (lots.length > 0) {
+    store.set(key, lots);
+  } else {
+    store.delete(key);
+  }
+
+  return { consumed, missing: remaining };
+}
+
+function addLotsToPool(pool, itemKey, lots) {
+  const current = pool.get(itemKey) || [];
+  current.push(...lots.filter((lot) => lot.quantity > 0));
+  pool.set(itemKey, current);
+}
+
+function consumePoolLots(pool, itemKey, quantity) {
+  const lots = pool.get(itemKey) || [];
+  const consumed = [];
+  let remaining = quantity;
+
+  while (remaining > 0 && lots.length > 0) {
+    const lot = lots[0];
+    const used = Math.min(remaining, lot.quantity);
+    consumed.push({ ...lot, quantity: used });
+    lot.quantity -= used;
+    remaining -= used;
+    if (lot.quantity <= 0) lots.shift();
+  }
+
+  if (lots.length > 0) {
+    pool.set(itemKey, lots);
+  } else {
+    pool.delete(itemKey);
+  }
+
+  return { consumed, missing: remaining };
+}
+
 function buildLootMonitorReportFromParsedLoot(loot, chestText) {
   const chest = parseChestLog(chestText);
-  const lootByKey = aggregateLoot(loot.rows);
-  const chestByKey = aggregateChest(chest.rows);
-  const lostByKey = aggregateLost(loot.lostRows);
   const itemIdLookup = buildItemIdLookup([...loot.rows, ...loot.lostRows]);
-  const playerIdentity = buildPlayerIdentity([...loot.rows, ...loot.lostRows]);
-  const inventoryKeys = new Set([...lootByKey.keys(), ...lostByKey.keys(), ...chestByKey.keys()]);
+  const rowMap = new Map();
+  const holderLots = new Map();
+  const chestLots = new Map();
+  const events = [
+    ...loot.lostRows.map((row) => ({ order: 0, row, timestamp: row.timestamp, type: 'lost' })),
+    ...loot.rows.map((row) => ({ order: 1, row, timestamp: row.timestamp, type: 'loot' })),
+    ...chest.withdrawals.map((row) => ({ order: 2, row, timestamp: row.timestamp, type: 'withdrawal' })),
+    ...chest.rows.map((row) => ({ order: row.isFinalChest ? 4 : 3, row, timestamp: row.timestamp, type: 'deposit' })),
+  ].sort((left, right) => (
+    timestampMs(left.timestamp) - timestampMs(right.timestamp)
+    || left.order - right.order
+  ));
 
-  const rows = [...inventoryKeys].map((key) => {
-    const looted = lootByKey.get(key);
-    const lost = lostByKey.get(key);
-    const deposited = chestByKey.get(key) || { amount: 0, qualities: [] };
-    const lootedQuantity = looted?.quantity || 0;
-    const lostQuantity = lost?.quantity || 0;
-    const depositedQuantity = deposited.amount;
-    const accounted = Math.min(lootedQuantity, depositedQuantity);
-    const donated = Math.max(depositedQuantity - lootedQuantity, 0);
-    const kept = Math.max(lootedQuantity - accounted - lostQuantity, 0);
-    const player = looted?.player || lost?.player || deposited.player || '';
-    const item = looted?.item || lost?.item || deposited.item || '';
-    const enchantment = looted?.enchantment ?? lost?.enchantment ?? deposited.enchantment ?? 0;
-    const itemId = looted?.itemId
-      || lost?.itemId
-      || itemIdLookup.exact.get(makeItemLookupKey({ item, enchantment }))
-      || itemIdLookup.byName.get(makeItemNameLookupKey({ item }))
+  events.forEach((event) => {
+    const row = event.row;
+    const itemId = row.itemId
+      || itemIdLookup.exact.get(makeItemLookupKey(row))
+      || itemIdLookup.byName.get(makeItemNameLookupKey(row))
       || '';
-    const identity = playerIdentity.get(normalize(player));
-    const alliance = looted?.alliance?.length ? looted.alliance : (lost?.alliance?.length ? lost.alliance : (identity?.alliance || []));
-    const guild = looted?.guild?.length ? looted.guild : (lost?.guild?.length ? lost.guild : (identity?.guild || []));
+    const itemRow = { ...row, itemId };
+    const itemKey = makeItemKey(itemRow);
+
+    if (event.type === 'loot') {
+      addReportQuantity(rowMap, itemRow, 'looted', row.quantity);
+      addLots(holderLots, row.player, itemKey, [makeLot(itemRow, row.quantity)]);
+      return;
+    }
+
+    if (event.type === 'lost') {
+      const { consumed, missing } = consumeLots(holderLots, row.player, itemKey, row.quantity);
+      consumed.forEach((lot) => addReportQuantity(rowMap, lot, 'lost', lot.quantity, { lostTo: row.lostTo }));
+      if (missing > 0) addReportQuantity(rowMap, itemRow, 'lost', missing, { lostTo: row.lostTo });
+      return;
+    }
+
+    if (event.type === 'withdrawal') {
+      const { consumed, missing } = consumePoolLots(chestLots, itemKey, Math.abs(row.amount));
+      addLots(holderLots, row.player, itemKey, consumed.map((lot) => ({
+        ...lot,
+        alliance: '',
+        guild: '',
+        player: row.player,
+      })));
+      if (missing > 0) addLots(holderLots, row.player, itemKey, [makeLot(itemRow, missing)]);
+      return;
+    }
+
+    if (row.isFinalChest) {
+      const { consumed, missing } = consumeLots(holderLots, row.player, itemKey, row.amount);
+      consumed.forEach((lot) => addReportQuantity(rowMap, lot, 'accounted', lot.quantity, { quality: row.quality }));
+      if (missing > 0) addReportQuantity(rowMap, itemRow, 'donated', missing, { quality: row.quality });
+      return;
+    }
+
+    const { consumed, missing } = consumeLots(holderLots, row.player, itemKey, row.amount);
+    addLotsToPool(chestLots, itemKey, consumed);
+    if (missing > 0) addLotsToPool(chestLots, itemKey, [makeLot(itemRow, missing)]);
+  });
+
+  holderLots.forEach((lots) => {
+    lots.forEach((lot) => addReportQuantity(rowMap, lot, 'kept', lot.quantity));
+  });
+
+  const rows = [...rowMap.values()].map((row) => {
+    const lootedQuantity = row.looted || 0;
+    const lostQuantity = row.lost || 0;
+    const kept = row.kept || 0;
+    const donated = row.donated || 0;
     const status = donated > 0 && lootedQuantity === 0 && lostQuantity === 0 ? 'donated'
       : lostQuantity > 0 && kept > 0 ? 'mixed'
       : lostQuantity > 0 ? 'lost'
@@ -347,20 +585,12 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
           : 'resolved';
 
     return {
-      accounted,
-      alliance: alliance.join(', '),
-      deposited: depositedQuantity,
-      donated,
-      enchantment,
-      guild: guild.join(', '),
-      item,
-      itemId,
+      ...row,
+      alliance: row.alliance.join(', '),
+      guild: row.guild.join(', '),
       kept,
-      lost: lostQuantity,
-      lostTo: lost?.lostTo?.join(', ') || '',
-      looted: lootedQuantity,
-      player,
-      qualities: deposited.qualities.join(', '),
+      lostTo: row.lostTo.join(', '),
+      qualities: row.qualities.join(', '),
       status,
     };
   }).sort((left, right) => (
@@ -379,7 +609,9 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
     rows,
     totals: {
       accountedQuantity: rows.reduce((sum, row) => sum + row.accounted, 0),
-      depositedQuantity: chest.rows.reduce((sum, row) => sum + row.amount, 0),
+      depositedQuantity: chest.rows
+        .filter((row) => row.isFinalChest)
+        .reduce((sum, row) => sum + row.amount, 0),
       donatedQuantity: rows.reduce((sum, row) => sum + row.donated, 0),
       donatedRows: donatedRows.length,
       keptQuantity: attentionRows.reduce((sum, row) => sum + row.kept, 0),

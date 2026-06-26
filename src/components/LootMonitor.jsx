@@ -1424,7 +1424,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
 
     setLocalError('');
     const detected = {
-      chest: null,
+      chests: [],
       loot: null,
       unknown: [],
     };
@@ -1437,7 +1437,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
         if (kind === 'loot') {
           detected.loot = { name: file.name, text };
         } else if (kind === 'chest') {
-          detected.chest = { name: file.name, text };
+          detected.chests.push({ name: file.name, text });
         } else {
           detected.unknown.push(file.name);
         }
@@ -1446,14 +1446,21 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
       }
     }));
 
-    setLocalLootFile(detected.loot || (detected.chest && localLootFile.text
+    const detectedChest = detected.chests.length > 0
+      ? {
+        name: detected.chests.map((file) => file.name).join(', '),
+        text: detected.chests.map((file) => file.text).join('\n'),
+      }
+      : null;
+
+    setLocalLootFile(detected.loot || (detectedChest && localLootFile.text
       ? localLootFile
       : { name: '', text: '' }));
-    setLocalChestFile(detected.chest || (detected.loot
+    setLocalChestFile(detectedChest || (detected.loot
       ? { name: '', text: '' }
       : localChestFile));
 
-    if (!detected.loot && !(detected.chest && localLootFile.text)) {
+    if (!detected.loot && !(detectedChest && localLootFile.text)) {
       setLocalError('Load a loot-events file to show loot.');
     } else if (detected.unknown.length > 0) {
       setLocalError(`Ignored unrecognized file${detected.unknown.length > 1 ? 's' : ''}: ${detected.unknown.join(', ')}.`);

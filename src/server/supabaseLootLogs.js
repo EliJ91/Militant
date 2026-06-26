@@ -678,25 +678,25 @@ export async function getLootLogBundle(bundleId) {
     supabase.from('chest_log_submissions')
       .select('id,submitted_by,raw_log_text,parsed_chest_summary,created_at')
       .eq('bundle_id', bundleId)
-      .order('created_at', { ascending: false })
-      .limit(1),
+      .order('created_at', { ascending: true }),
   ]);
 
   if (lootSubmissionsResult.error) throw lootSubmissionsResult.error;
   if (chestResult.error) throw chestResult.error;
 
-  const chestLog = chestResult.data?.[0] || null;
+  const chestLogs = chestResult.data || [];
+  const chestLog = chestLogs[chestLogs.length - 1] || null;
   const primaryLootLog = lootSubmissionsResult.data?.[0] || null;
   const fileNames = getBundleFileNames(bundle);
 
   return {
     bundle: {
       chestFileName: getBundleDisplayChestFileName(bundle),
-      chestLogText: chestLog?.raw_log_text || '',
+      chestLogText: chestLogs.map((log) => log.raw_log_text || '').filter(Boolean).join('\n'),
       ctaTimer: getCtaTimer(bundle.start_at),
       endAt: bundle.end_at,
       events: eventsResult.map(dbEventToMergeEvent),
-      hasChestLog: Boolean(chestLog),
+      hasChestLog: chestLogs.length > 0,
       id: bundle.id,
       lootFileName: getBundleDisplayLootFileName(bundle),
       lootLogText: primaryLootLog?.raw_log_text || '',

@@ -138,7 +138,7 @@ describe('loot monitor report', () => {
     expect(report.totals.depositedQuantity).toBe(0);
   });
 
-  it('recovers donated item ids by unique item name when chest enchantment does not match', () => {
+  it('resolves donated chest item ids with the chest enchantment', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
       "2026-06-17T00:08:30.420Z;CHAIR;Militant;Windyyyzz;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;1;;;@MOB_T5",
@@ -153,8 +153,35 @@ describe('loot monitor report', () => {
 
     expect(donation).toMatchObject({
       donated: 1,
-      itemId: 'T4_CAPEITEM_FW_LYMHURST@3',
+      itemId: 'T4_CAPEITEM_FW_LYMHURST',
       status: 'donated',
     });
+  });
+
+  it('tracks custody across multiple chest logs and uses the final chest as accounted', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-06-17T00:01:00.000Z;CHAIR;Militant;Looter;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;2;;;@MOB_T5",
+    ].join('\n');
+    const firstChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:05:00"\t"Looter"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+      '"06/17/2026 00:06:00"\t"Courier"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"-1"',
+    ].join('\n');
+    const finalChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:10:00"\t"Courier"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+      '"06/17/2026 00:11:00"\t"Donor"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+    ].join('\n');
+
+    const report = buildLootMonitorReport(lootText, `${firstChest}\n${finalChest}`);
+    const looter = report.rows.find((row) => row.player === 'Looter');
+    const courier = report.rows.find((row) => row.player === 'Courier');
+    const donor = report.rows.find((row) => row.player === 'Donor');
+
+    expect(looter).toMatchObject({ kept: 1, looted: 2, status: 'kept' });
+    expect(courier).toMatchObject({ accounted: 1, itemId: 'T4_CAPEITEM_FW_LYMHURST@3' });
+    expect(donor).toMatchObject({ donated: 1, itemId: 'T4_CAPEITEM_FW_LYMHURST@3' });
+    expect(report.totals.depositedQuantity).toBe(2);
   });
 });
