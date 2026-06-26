@@ -253,6 +253,30 @@ describe('loot monitor report', () => {
     expect(playerB).toBeUndefined();
   });
 
+  it('uses the final chest count to resolve custody even when the chest timestamp is earlier', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-06-24T04:20:00.000Z;CHAIR;Militant;A1;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+    ].join('\n');
+    const chestText = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/24/2026 04:10:00"\t"PlayerB"\t"Master\'s Realmbreaker"\t"3"\t"4"\t"1"',
+    ].join('\n');
+
+    const report = buildLootMonitorReport(lootText, chestText);
+    const looter = report.rows.find((row) => row.player === 'A1');
+    const depositor = report.rows.find((row) => row.player === 'PlayerB');
+
+    expect(looter).toMatchObject({
+      accounted: 1,
+      itemId: 'T6_2H_AXE_AVALON@3',
+      kept: 0,
+      looted: 1,
+      status: 'resolved',
+    });
+    expect(depositor).toBeUndefined();
+  });
+
   it('resolves traded items that remain in any uploaded chest log', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',

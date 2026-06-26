@@ -616,7 +616,12 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
     ...loot.rows.map((row) => ({ order: 0, row, timestamp: row.timestamp, type: 'loot' })),
     ...loot.lostRows.map((row) => ({ order: 1, row, timestamp: row.timestamp, type: 'lost' })),
     ...chest.withdrawals.map((row) => ({ order: 2, row, timestamp: row.timestamp, type: 'withdrawal' })),
-    ...chest.rows.map((row) => ({ order: row.isFinalChest ? 4 : 3, row, timestamp: row.timestamp, type: 'deposit' })),
+    ...chest.rows.map((row) => ({
+      order: row.isFinalChest ? 4 : 3,
+      row,
+      timestamp: row.isFinalChest ? '' : row.timestamp,
+      type: 'deposit',
+    })),
   ].sort((left, right) => (
     timestampMs(left.timestamp) - timestampMs(right.timestamp)
     || left.order - right.order
