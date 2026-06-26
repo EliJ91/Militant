@@ -1002,14 +1002,12 @@ function LootLogBundleList({
             const retention = getRetentionStatus(bundle.startAt);
             const isEditing = editingBundleId === bundle.id;
             const logEntryCount = totals.eventRows || totals.lootedQuantity || 0;
-            const fileCount = Math.max(1, (bundle.submissions?.length || 0) + (bundle.chestLogCount || 0));
 
             return (
               <article className={`saved-log-row${isEditing ? ' editing' : ''}`} key={bundle.id}>
                 <div className="saved-log-card">
                   <div className="saved-log-card-main">
                     <div className="saved-log-time">
-                      <span className="saved-log-icon" aria-hidden="true">□</span>
                       {isEditing ? (
                         <div className="saved-log-edit-fields">
                           <label>
@@ -1048,7 +1046,20 @@ function LootLogBundleList({
                       ) : null}
                     </div>
                   <div className="saved-log-users">
-                    <small>Loot Log</small>
+                    <div className="saved-log-title-line">
+                      <small>Loot Log</small>
+                      {!isEditing ? (
+                        <FileUploadButton
+                          accept=".csv,.txt,text/csv,text/plain"
+                          className="saved-log-title-upload"
+                          disabled={uploadingBundleId === bundle.id}
+                          label="Add Loot Log"
+                          loadingLabel="Uploading..."
+                          multiple
+                          onFiles={(files) => onUploadLoot(files, bundle)}
+                        />
+                      ) : null}
+                    </div>
                     {isEditing ? (
                       <div className="saved-log-name-editor">
                         <input
@@ -1064,34 +1075,25 @@ function LootLogBundleList({
                       <strong>{bundle.lootFileName || 'Loot Log'}</strong>
                     )}
                     <span>Uploaded by <strong>{submitters}</strong></span>
-                    {!isEditing ? (
-                      <FileUploadButton
-                        accept=".csv,.txt,text/csv,text/plain"
-                        className="saved-log-inline-button"
-                        disabled={uploadingBundleId === bundle.id}
-                        label="Add Loot Log"
-                        loadingLabel="Uploading..."
-                        multiple
-                        onFiles={(files) => onUploadLoot(files, bundle)}
-                      />
-                    ) : null}
                   </div>
                   <div className="saved-log-totals">
-                    <span><i aria-hidden="true">◎</i><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
-                    <span><i aria-hidden="true">◇</i><strong>{formatNumber(totals.lootedQuantity)}</strong><small>items</small></span>
+                    <span><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
+                    <span><strong>{formatNumber(totals.lootedQuantity)}</strong><small>items</small></span>
                   </div>
                   <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
                     <div className="saved-log-chest-status">
-                      <span><i aria-hidden="true">{bundle.hasChestLog ? '↗' : '!'}</i>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
-                      <FileUploadButton
-                        accept=".txt,.tsv,text/plain,text/tab-separated-values"
-                        className="saved-log-inline-button"
-                        disabled={uploadingBundleId === bundle.id}
-                        label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
-                        loadingLabel="Uploading..."
-                        multiple
-                        onFiles={(files) => onUploadChest(bundle, files)}
-                      />
+                      <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
+                      {!isEditing ? (
+                        <FileUploadButton
+                          accept=".txt,.tsv,text/plain,text/tab-separated-values"
+                          className="saved-log-title-upload"
+                          disabled={uploadingBundleId === bundle.id}
+                          label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
+                          loadingLabel="Uploading..."
+                          multiple
+                          onFiles={(files) => onUploadChest(bundle, files)}
+                        />
+                      ) : null}
                     </div>
                     {isEditing && bundle.hasChestLog ? (
                       <div className="saved-log-name-editor" aria-label="Chest Log Name">
@@ -1154,10 +1156,9 @@ function LootLogBundleList({
                     </div>
                   </div>
                   <div className="saved-log-card-footer">
-                    <span><i aria-hidden="true">▤</i><strong>{formatNumber(logEntryCount)}</strong><small>Log entries</small></span>
-                    <span><i aria-hidden="true">◷</i><strong>{bundle.ctaTimer || '-- UTC'}</strong><small>Time range</small></span>
-                    <span><i aria-hidden="true">▣</i><strong>{formatNumber(fileCount)} {fileCount === 1 ? 'file' : 'files'}</strong><small>Bundle files</small></span>
-                    <span><i aria-hidden="true">✓</i><strong>Uploaded</strong><small>{formatUtcDateTime(bundle.updatedAt || bundle.startAt)}</small></span>
+                    <span><strong>{formatNumber(logEntryCount)}</strong><small>Items</small></span>
+                    <span><strong>{bundle.ctaTimer || '-- UTC'}</strong><small>Time</small></span>
+                    <span><strong>Uploaded</strong><small>{formatUtcDateTime(bundle.updatedAt || bundle.startAt)}</small></span>
                   </div>
                 </div>
               </article>

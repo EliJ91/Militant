@@ -1088,15 +1088,15 @@ button:focus-visible {
 
 .saved-log-card {
   display: grid;
-  gap: 22px;
-  padding: 18px 22px 16px;
+  gap: 14px;
+  padding: 14px 18px;
   overflow: hidden;
   border: 1px solid rgba(87, 216, 120, 0.34);
   border-radius: 12px;
   background:
-    radial-gradient(circle at 20% 0%, rgba(87, 216, 120, 0.18), transparent 22%),
-    radial-gradient(circle at 52% 100%, rgba(87, 216, 120, 0.22), transparent 28%),
-    linear-gradient(110deg, rgba(3, 12, 10, 0.96), rgba(1, 5, 8, 0.98));
+    radial-gradient(circle at 20% 0%, rgba(87, 216, 120, 0.14), transparent 22%),
+    radial-gradient(circle at 52% 100%, rgba(87, 216, 120, 0.16), transparent 26%),
+    linear-gradient(110deg, rgba(8, 24, 15, 0.98), rgba(3, 10, 12, 0.99));
   box-shadow:
     inset 0 0 0 1px rgba(247, 250, 245, 0.04),
     0 18px 46px rgba(0, 0, 0, 0.42);
@@ -1104,7 +1104,7 @@ button:focus-visible {
 
 .saved-log-card-main {
   display: grid;
-  grid-template-columns: minmax(150px, 0.8fr) minmax(260px, 1.55fr) minmax(150px, 0.72fr) minmax(260px, 1.28fr) minmax(190px, 0.95fr);
+  grid-template-columns: minmax(140px, 0.82fr) minmax(250px, 1.55fr) minmax(142px, 0.72fr) minmax(250px, 1.22fr) minmax(160px, 0.8fr);
   gap: 0;
   align-items: stretch;
   min-width: 0;
@@ -1115,8 +1115,8 @@ button:focus-visible {
 .saved-log-time,
 .saved-log-totals,
 .saved-log-actions {
-  min-height: 148px;
-  padding: 12px 24px;
+  min-height: 108px;
+  padding: 8px 20px;
   border-left: 1px solid rgba(247, 250, 245, 0.12);
 }
 
@@ -1143,20 +1143,8 @@ button:focus-visible {
   font-weight: 900;
 }
 
-.saved-log-icon {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 1px solid rgba(87, 216, 120, 0.42);
-  border-radius: 8px;
-  color: var(--green-hot);
-  font-size: 1.35rem;
-  box-shadow: 0 0 22px rgba(87, 216, 120, 0.08);
-}
-
 .saved-log-time strong {
-  font-size: 1.25rem;
+  font-size: 1.12rem;
 }
 
 .saved-log-users > span {
@@ -1188,8 +1176,22 @@ button:focus-visible {
   letter-spacing: 0.06em;
 }
 
+.saved-log-title-line,
+.saved-log-chest-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.saved-log-title-line small,
+.saved-log-chest-status span {
+  min-width: 0;
+}
+
 .saved-log-users strong {
-  font-size: 1.7rem;
+  font-size: 1.35rem;
 }
 
 .saved-log-users > span {
@@ -1294,7 +1296,7 @@ button:focus-visible {
 
 .saved-log-card-footer {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
   border: 1px solid rgba(247, 250, 245, 0.08);
   border-radius: 10px;
@@ -1303,31 +1305,16 @@ button:focus-visible {
 
 .saved-log-card-footer span {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  column-gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3px;
   align-items: center;
   min-width: 0;
-  min-height: 86px;
-  padding: 14px 22px;
+  min-height: 58px;
+  padding: 10px 18px;
 }
 
 .saved-log-card-footer span + span {
   border-left: 1px solid rgba(247, 250, 245, 0.08);
-}
-
-.saved-log-card-footer i {
-  grid-row: 1 / span 2;
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border: 1px solid rgba(87, 216, 120, 0.1);
-  border-radius: 999px;
-  background: rgba(87, 216, 120, 0.055);
-  color: var(--green-hot);
-  font-style: normal;
-  font-size: 1.05rem;
 }
 
 .saved-log-card-footer strong,
@@ -1339,12 +1326,12 @@ button:focus-visible {
 
 .saved-log-card-footer strong {
   color: var(--white);
-  font-size: 0.98rem;
+  font-size: 0.9rem;
 }
 
 .saved-log-card-footer small {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1386,22 +1373,9 @@ button:focus-visible {
   border-left: 1px solid rgba(247, 250, 245, 0.12);
 }
 
-.saved-log-totals i {
-  display: grid;
-  width: 50px;
-  height: 50px;
-  place-items: center;
-  border: 1px solid rgba(87, 216, 120, 0.12);
-  border-radius: 999px;
-  background: rgba(87, 216, 120, 0.05);
-  color: var(--green-hot);
-  font-style: normal;
-  font-size: 1.4rem;
-}
-
 .saved-log-totals strong {
   color: var(--white);
-  font-size: 1.7rem;
+  font-size: 1.42rem;
   line-height: 1;
 }
 
@@ -1426,10 +1400,7 @@ button:focus-visible {
 }
 
 .saved-log-chest-status {
-  align-items: stretch;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
+  min-width: 0;
 }
 
 .saved-log-users .saved-log-inline-button {
@@ -1437,13 +1408,8 @@ button:focus-visible {
   width: 100%;
 }
 
-.saved-log-chest-status .saved-log-inline-button {
-  min-width: 0;
-  min-height: 52px;
-  width: 100%;
-}
-
 .saved-log-inline-button,
+.saved-log-title-upload,
 .saved-log-view-button,
 .saved-log-download-button,
 .saved-log-edit-button,
@@ -1461,16 +1427,38 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+.saved-log-title-upload {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+}
+
+.saved-log-title-upload::before {
+  content: "+";
+  color: var(--green-hot);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.saved-log-title-upload:hover:not(:disabled)::before {
+  color: var(--black);
+}
+
 .saved-log-actions .saved-log-edit-button,
 .saved-log-actions .saved-log-download-button,
 .saved-log-actions .saved-log-delete-button,
 .saved-log-actions .saved-log-view-button {
-  min-height: 56px;
+  min-height: 40px;
   display: inline-flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   justify-content: center;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
 }
 
 .saved-log-actions .saved-log-edit-button::before,
@@ -1491,11 +1479,8 @@ button:focus-visible {
   content: "⌫";
 }
 
-.saved-log-users .saved-log-inline-button {
-  min-height: 52px;
-}
-
 .saved-log-inline-button:hover:not(:disabled),
+.saved-log-title-upload:hover:not(:disabled),
 .saved-log-view-button:hover:not(:disabled),
 .saved-log-download-button:hover:not(:disabled),
 .saved-log-save-button:hover:not(:disabled) {
@@ -1511,7 +1496,7 @@ button:focus-visible {
 .saved-log-actions {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
+  gap: 8px;
   align-self: center;
 }
 
