@@ -6,7 +6,6 @@ import {
   getLootLogTimeRange,
 } from '../utils/lootLogMerge.js';
 import { combineChestLogTexts, parseChestLog } from '../utils/lootMonitor.js';
-import { fetchWestAveragePrices } from '../services/albionMarket.js';
 
 function requireConfig() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -33,7 +32,6 @@ const UPDATE_BATCH_SIZE = 25;
 const DATABASE_PAGE_SIZE = 1000;
 const RETENTION_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const EMV_SOURCE_CITY = 'Albion West Global';
 
 function chunkArray(values, size) {
   const chunks = [];
@@ -253,10 +251,6 @@ function dbEventToMergeEvent(event) {
   return {
     alliance: event.alliance,
     enchantment: event.enchantment,
-    emvEach: event.emv_each === null ? null : Number(event.emv_each),
-    emvPricedAt: event.emv_priced_at || '',
-    emvSourceCity: event.emv_source_city || '',
-    emvTotal: event.emv_total === null ? null : Number(event.emv_total),
     eventType: event.event_type,
     guild: event.guild,
     item: event.item_name,
@@ -266,51 +260,6 @@ function dbEventToMergeEvent(event) {
     quantity: event.quantity,
     timestamp: event.timestamp_utc,
   };
-}
-
-async function fetchGlobalEmvByItemId(itemIds) {
-  const pricedAt = new Date().toISOString();
-  const prices = await fetchWestAveragePrices(itemIds).catch(() => ({}));
-
-  return new Map(Object.entries(prices).map(([itemId, price]) => {
-    const emvEach = Number(price?.averagePrice);
-    return [itemId, {
-      emvEach: Number.isFinite(emvEach) && emvEach > 0 ? emvEach : null,
-      emvPricedAt: pricedAt,
-      emvSourceCity: EMV_SOURCE_CITY,
-    }];
-  }));
-}
-
-async function ensureEventEmv(supabase, events) {
-  const missing = (events || []).filter((event) => (
-    event.item_id && (event.emv_each === null || event.emv_each === undefined || !event.emv_priced_at)
-  ));
-  if (missing.length === 0) return events;
-
-  const emvByItemId = await fetchGlobalEmvByItemId([...new Set(missing.map((event) => event.item_id))]);
-  const updates = missing.map((event) => {
-    const emv = emvByItemId.get(event.item_id) || {};
-    const emvEach = emv.emvEach ?? null;
-    return {
-      emv_each: emvEach,
-      emv_priced_at: emv.emvPricedAt || new Date().toISOString(),
-      emv_source_city: emv.emvSourceCity || EMV_SOURCE_CITY,
-      emv_total: emvEach === null ? null : emvEach * event.quantity,
-      id: event.id,
-    };
-  });
-
-  for (const updateBatch of chunkArray(updates, UPDATE_BATCH_SIZE)) {
-    await Promise.all(updateBatch.map(async ({ id, ...update }) => {
-      const { error } = await supabase.from('loot_log_events').update(update).eq('id', id);
-      if (error) throw error;
-      const event = events.find((row) => row.id === id);
-      if (event) Object.assign(event, update);
-    }));
-  }
-
-  return events;
 }
 
 function collapseEventsByHash(events) {
@@ -378,7 +327,7 @@ async function getOrCreateBundle(supabase, { bundleId, range }) {
 }
 
 async function refreshBundleSummary(supabase, bundle, originalFileName) {
-  const events = await ensureEventEmv(supabase, await fetchAllBundleEvents(supabase, bundle.id));
+  const events = await fetchAllBundleEvents(supabase, bundle.id);
 
   const mergeEvents = (events || []).map(dbEventToMergeEvent);
   const summary = aggregateLootLogEvents(mergeEvents);
@@ -408,9 +357,6 @@ async function refreshBundleSummary(supabase, bundle, originalFileName) {
 
 async function mergeLootLogEvents(supabase, { bundleId, events, submissionId }) {
   const collapsedEvents = collapseEventsByHash(events);
-  const emvByItemId = await fetchGlobalEmvByItemId([
-    ...new Set(collapsedEvents.map((event) => event.itemId).filter(Boolean)),
-  ]);
   const eventHashes = collapsedEvents.map((event) => event.eventHash);
   const existingEventBatches = await Promise.all(
     chunkArray(eventHashes, HASH_LOOKUP_BATCH_SIZE).map(async (hashBatch) => {
@@ -433,8 +379,6 @@ async function mergeLootLogEvents(supabase, { bundleId, events, submissionId }) 
 
   collapsedEvents.forEach((event) => {
     const existing = existingByHash.get(event.eventHash);
-    const emv = emvByItemId.get(event.itemId) || {};
-    const emvEach = emv.emvEach ?? null;
     const row = {
       alliance: event.alliance,
       bundle_id: bundleId,
@@ -450,10 +394,6 @@ async function mergeLootLogEvents(supabase, { bundleId, events, submissionId }) 
       quantity: event.quantity,
       submission_id: submissionId,
       timestamp_utc: event.timestamp,
-      emv_each: emvEach,
-      emv_priced_at: emv.emvPricedAt || null,
-      emv_source_city: emv.emvSourceCity || (event.itemId ? EMV_SOURCE_CITY : null),
-      emv_total: emvEach === null ? null : emvEach * event.quantity,
     };
 
     if (!existing) {
@@ -721,7 +661,7 @@ export async function getLootLogBundle(bundleId) {
 
   if (bundleError) throw bundleError;
 
-  const [rawEventsResult, lootSubmissionsResult, chestResult] = await Promise.all([
+  const [eventsResult, lootSubmissionsResult, chestResult] = await Promise.all([
     fetchAllBundleEvents(supabase, bundleId),
     supabase.from('loot_log_submissions')
       .select('id,submitted_by,raw_log_text,created_at')
@@ -736,7 +676,6 @@ export async function getLootLogBundle(bundleId) {
   if (lootSubmissionsResult.error) throw lootSubmissionsResult.error;
   if (chestResult.error) throw chestResult.error;
 
-  const eventsResult = await ensureEventEmv(supabase, rawEventsResult);
   const summary = aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent));
   const chestLogs = chestResult.data || [];
   const rawChestLogTexts = chestLogs.map((log) => log.raw_log_text || '').filter(Boolean);

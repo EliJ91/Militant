@@ -1375,7 +1375,7 @@ button:focus-visible {
 
 .selected-log-summary {
   display: grid;
-  grid-template-columns: minmax(150px, 0.55fr) repeat(4, minmax(170px, 1fr));
+  grid-template-columns: minmax(150px, 0.55fr) repeat(3, minmax(210px, 1fr));
   gap: 0;
   overflow: hidden;
   margin-top: 18px;

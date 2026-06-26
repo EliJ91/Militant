@@ -46,10 +46,6 @@ export function buildLootLogEvents(text) {
     player: event.player || '',
     quantity: event.quantity || 0,
     timestamp: cleanTimestamp(event.timestamp),
-    emvEach: event.emvEach ?? null,
-    emvPricedAt: event.emvPricedAt || '',
-    emvSourceCity: event.emvSourceCity || '',
-    emvTotal: event.emvTotal ?? null,
   }));
 
   return { events, parsed };
@@ -87,21 +83,17 @@ export function aggregateLootLogEvents(events) {
       itemId: event.itemId,
       enchantment: event.enchantment || 0,
       lost: 0,
-      lostEmv: 0,
       lostTo: [],
       looted: 0,
-      lootedEmv: 0,
       player: event.player,
       timestamps: [],
     };
 
     if (event.eventType === 'lost') {
       current.lost += event.quantity || 0;
-      current.lostEmv += Number(event.emvTotal) || 0;
       if (event.lostTo) current.lostTo.push(event.lostTo);
     } else {
       current.looted += event.quantity || 0;
-      current.lootedEmv += Number(event.emvTotal) || 0;
     }
 
     current.alliance.push(event.alliance);
@@ -127,7 +119,6 @@ export function aggregateLootLogEvents(events) {
     rows,
     totals: {
       eventRows: events.length,
-      emvTotal: rows.reduce((sum, row) => sum + row.lootedEmv, 0),
       keptQuantity: rows.reduce((sum, row) => sum + row.kept, 0),
       lostQuantity: rows.reduce((sum, row) => sum + row.lost, 0),
       lootedQuantity: rows.reduce((sum, row) => sum + row.looted, 0),

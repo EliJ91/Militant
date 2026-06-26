@@ -35,10 +35,6 @@ const storedEvents = [
   {
     alliance: 'CHAIR',
     enchantment: 3,
-    emvEach: 100,
-    emvPricedAt: '2026-06-26T00:00:00.000Z',
-    emvSourceCity: 'Albion West Global',
-    emvTotal: 200,
     eventType: 'looted',
     guild: 'Militant',
     item: "Adept's Lymhurst Cape",
@@ -51,10 +47,6 @@ const storedEvents = [
   {
     alliance: 'CHAIR',
     enchantment: 3,
-    emvEach: 100,
-    emvPricedAt: '2026-06-26T00:00:00.000Z',
-    emvSourceCity: 'Albion West Global',
-    emvTotal: 100,
     eventType: 'lost',
     guild: 'Militant',
     item: "Adept's Lymhurst Cape",
@@ -79,7 +71,7 @@ function createBundle(overrides = {}) {
     lootLogText: lootText,
     startAt: '2026-06-18T18:33:00.000Z',
     submissions: [{ id: 'submission-1', submittedBy: 'Manual' }],
-    summary: { totals: { emvTotal: 200, keptQuantity: 0, lootedQuantity: 2, players: 1 } },
+    summary: { totals: { keptQuantity: 0, lootedQuantity: 2, players: 1 } },
     ...overrides,
   };
 }
@@ -243,7 +235,7 @@ describe('LootMonitor', () => {
 
     expect(await screen.findByText('No chest log assigned')).toBeInTheDocument();
     expect(screen.getByText(/Windyyyzz/)).toBeInTheDocument();
-    expect(await screen.findByText('EMV $200')).toBeInTheDocument();
+    expect(await screen.findByText('EMV $230')).toBeInTheDocument();
     const statusLabel = screen.getByText('Status');
     fireEvent.click(statusLabel.nextElementSibling.querySelector('summary'));
     expect(screen.getByRole('button', { name: 'Kept' })).toBeDisabled();
