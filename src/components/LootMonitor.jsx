@@ -1728,17 +1728,6 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
             role="dialog"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <header className="raw-log-modal-heading">
-              <button
-                aria-label="Close raw logs"
-                className="raw-log-modal-close"
-                title="Close"
-                type="button"
-                onClick={() => setRawModalOpen(false)}
-              >
-                Close
-              </button>
-            </header>
             <div className="raw-log-modal-body">
               <section>
                 <h3>Loot Log</h3>
