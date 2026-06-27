@@ -1657,7 +1657,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
       <section className="dashboard-heading loot-monitor-heading" aria-labelledby="loot-monitor-title">
         <div>
           <p className="eyebrow">Tool</p>
-          <h1 id="loot-monitor-title">Loot Log Details</h1>
+          <h1 id="loot-monitor-title">View Loot Log</h1>
         </div>
         <div className="loot-monitor-heading-actions">
           <button
@@ -1691,14 +1691,11 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
             <small>Loot Log</small>
             <strong>{selectedBundle.lootFileName || 'Loot Log'}</strong>
           </div>
-          <div className={hasChestLog ? 'selected-log-file linked' : 'selected-log-file'}>
-            <small>Chest Log</small>
-            <strong>{hasChestLog ? selectedBundle.chestFileName : 'No chest log assigned'}</strong>
-          </div>
           <div className="selected-log-file selected-log-loggers">
             <small>Loot Loggers</small>
             <strong>{lootLoggers.length > 0 ? lootLoggers.join(', ') : 'Unknown'}</strong>
           </div>
+          <StatusLegend className="selected-log-legend" />
         </section>
       ) : null}
 
