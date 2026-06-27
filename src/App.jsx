@@ -56,7 +56,7 @@ function LandingPage() {
           <p>Hold the line.</p>
         </div>
         <div className="landing-actions">
-          <button className="primary-button" type="button" onClick={() => navigateTo('#dashboard')}>
+          <button className="primary-button" title="Enter dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Enter
           </button>
         </div>
@@ -71,7 +71,7 @@ function DashboardPage() {
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
-          <button className="navigation-button" type="button" onClick={() => navigateTo('#')}>
+          <button className="navigation-button" title="Exit" type="button" onClick={() => navigateTo('#')}>
             Exit
           </button>
         </div>
@@ -84,12 +84,12 @@ function DashboardPage() {
         </section>
 
         <section className="tool-board" aria-label="Dashboard tools">
-          <button className="tool-card tool-card-button" type="button" onClick={() => navigateTo('#loot-logs')}>
+          <button className="tool-card tool-card-button" title="View loot logs" type="button" onClick={() => navigateTo('#loot-logs')}>
             <span className="tool-card-kicker">Tools</span>
             <h2>View Loot Logs</h2>
             <p>Browse uploaded CTA loot and chest logs.</p>
           </button>
-          <button className="tool-card tool-card-button" type="button" onClick={() => navigateTo('#siphoned-energy')}>
+          <button className="tool-card tool-card-button" title="Open tracker" type="button" onClick={() => navigateTo('#siphoned-energy')}>
             <span className="tool-card-kicker">Tools</span>
             <h2>Siphoned Energy Tracker</h2>
             <p>Track deposits, withdrawals, and outstanding member balances.</p>
@@ -106,10 +106,10 @@ function LootMonitorPage({ bundleId }) {
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
-          <button className="navigation-button" type="button" onClick={() => navigateTo('#dashboard')}>
+          <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Dashboard
           </button>
-          <button className="navigation-button" type="button" onClick={() => navigateTo('#')}>
+          <button className="navigation-button" title="Sign out" type="button" onClick={() => navigateTo('#')}>
             Sign Out
           </button>
         </div>
@@ -125,10 +125,10 @@ function LootLogsPage({ onViewBundle }) {
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
-          <button className="navigation-button" type="button" onClick={() => navigateTo('#dashboard')}>
+          <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Dashboard
           </button>
-          <button className="navigation-button" type="button" onClick={() => navigateTo('#')}>
+          <button className="navigation-button" title="Sign out" type="button" onClick={() => navigateTo('#')}>
             Sign Out
           </button>
         </div>
@@ -144,10 +144,10 @@ function SiphonedEnergyPage() {
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
-          <button className="navigation-button" type="button" onClick={() => navigateTo('#dashboard')}>
+          <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Dashboard
           </button>
-          <button className="navigation-button" type="button" onClick={() => navigateTo('#')}>
+          <button className="navigation-button" title="Sign out" type="button" onClick={() => navigateTo('#')}>
             Sign Out
           </button>
         </div>

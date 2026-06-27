@@ -679,6 +679,7 @@ function MultiSelectDropdown({ allLabel, getLabel, label, onChange, options, sel
         <div className="filter-menu">
           <button
             className={allSelected ? 'filter-all-button disable-all' : 'filter-all-button enable-all'}
+            title={allSelected ? 'Deselect all' : 'Select all'}
             type="button"
             onClick={toggleAll}
           >
@@ -697,6 +698,7 @@ function MultiSelectDropdown({ allLabel, getLabel, label, onChange, options, sel
                     option.missing ? 'missing-option' : '',
                   ].filter(Boolean).join(' ')}
                   key={option.value}
+                  title={option.label}
                   type="button"
                   onClick={() => toggleValue(option.value)}
                 >
@@ -759,6 +761,7 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
         <div className="filter-menu single-select-menu">
           <button
             className={allSelected ? 'filter-all-button disable-all' : 'filter-all-button enable-all'}
+            title={allSelected ? 'Deselect all' : 'Select all'}
             type="button"
             onClick={() => onChange(allSelected ? [NONE_SELECTED_VALUE] : [])}
           >
@@ -782,6 +785,7 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
                     tooltip ? 'disabled-option' : '',
                   ].filter(Boolean).join(' ')}
                   disabled={Boolean(tooltip)}
+                  title={tooltip || option.label}
                   type="button"
                   onClick={() => {
                     const next = allSelected || noneSelected
@@ -886,6 +890,7 @@ function FileUploadButton({
   multiple = false,
   onFile,
   onFiles,
+  title,
 }) {
   const inputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -925,8 +930,10 @@ function FileUploadButton({
         }}
       />
       <button
+        aria-label={title || label}
         className={`${className}${isDragging ? ' drag-over' : ''}`}
         disabled={disabled}
+        title={title || label}
         type="button"
         onDragEnter={(event) => {
           if (!enableDrop || disabled) return;
@@ -1061,6 +1068,7 @@ function LootLogBundleList({
                           label="Add Loot Log"
                           loadingLabel="Uploading..."
                           multiple
+                          title="Add loot log"
                           onFiles={(files) => onUploadLoot(files, bundle)}
                         />
                       ) : null}
@@ -1090,6 +1098,7 @@ function LootLogBundleList({
                             label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
                             loadingLabel="Uploading..."
                             multiple
+                            title="Add chest log"
                             onFiles={(files) => onUploadChest(bundle, files)}
                           />
                         ) : null}
@@ -1120,6 +1129,7 @@ function LootLogBundleList({
                               || !editValues.lootFileName.trim()
                               || updatingBundleId === bundle.id
                             }
+                            title="Save changes"
                             type="button"
                             onClick={() => onSaveEdit(bundle)}
                           >
@@ -1128,6 +1138,7 @@ function LootLogBundleList({
                           <button
                             className="saved-log-cancel-button"
                             disabled={updatingBundleId === bundle.id}
+                            title="Cancel edit"
                             type="button"
                             onClick={onCancelEdit}
                           >
@@ -1136,12 +1147,13 @@ function LootLogBundleList({
                         </>
                       ) : (
                         <>
-                          <button className="saved-log-edit-button" type="button" onClick={() => onEdit(bundle)}>
+                          <button className="saved-log-edit-button" title="Edit log" type="button" onClick={() => onEdit(bundle)}>
                             <span>Edit</span>
                           </button>
                           <button
                             className="saved-log-download-button"
                             disabled={downloadingBundleId === bundle.id}
+                            title="Download log"
                             type="button"
                             onClick={() => onDownload(bundle)}
                           >
@@ -1150,12 +1162,13 @@ function LootLogBundleList({
                           <button
                             className="saved-log-delete-button"
                             disabled={deletingBundleId === bundle.id}
+                            title="Delete log"
                             type="button"
                             onClick={() => onDelete(bundle)}
                           >
                             <span>{deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}</span>
                           </button>
-                          <button className="saved-log-view-button" type="button" onClick={() => onView(bundle.id)}>
+                          <button className="saved-log-view-button" title="View log" type="button" onClick={() => onView(bundle.id)}>
                             <span>View</span>
                           </button>
                         </>
@@ -1430,6 +1443,7 @@ export function LootLogArchive({ onView = () => {} }) {
             label="Upload"
             loadingLabel="Uploading"
             multiple
+            title="Upload log"
             onFiles={uploadLootLogs}
           />
           <button
@@ -1648,6 +1662,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
         <div className="loot-monitor-heading-actions">
           <button
             className="view-logs-button"
+            title="View logs"
             type="button"
             onClick={onViewLogs}
           >
@@ -1656,6 +1671,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
           <button
             className="view-logs-button"
             disabled={!selectedBundle?.id || shareStatus.state === 'copying'}
+            title="Share log"
             type="button"
             onClick={shareBundleLink}
           >
@@ -1757,6 +1773,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
             <button
               className="board-copy-button"
               disabled={visiblePlayers.length === 0 || screenshotStatus.state === 'copying'}
+              title="Copy board"
               type="button"
               onClick={copyBoardScreenshot}
             >

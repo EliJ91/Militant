@@ -1215,7 +1215,7 @@ button:focus-visible {
 .saved-log-chest-status {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   justify-content: flex-start;
   min-width: 0;
 }
@@ -1392,8 +1392,14 @@ button:focus-visible {
 }
 
 .saved-log-chest-status {
-  width: min(100%, 185px);
+  width: max-content;
+  max-width: 100%;
   min-width: 0;
+}
+
+.saved-log-chest-status span {
+  width: auto;
+  flex: 0 1 auto;
 }
 
 .saved-log-users .saved-log-inline-button {
@@ -1425,21 +1431,21 @@ button:focus-visible {
   align-items: center;
   flex: 0 0 auto;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  min-height: 30px;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
   padding: 0;
   overflow: hidden;
   color: transparent;
   font-size: 0;
+  line-height: 1;
 }
 
 .saved-log-title-upload::before {
   content: "+";
   color: var(--green-hot);
-  font-size: 1.25rem;
+  font-size: 0.9rem;
   line-height: 1;
-  transform: translateY(-1px);
 }
 
 .saved-log-title-upload:hover:not(:disabled)::before {
