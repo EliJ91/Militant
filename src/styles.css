@@ -2362,7 +2362,7 @@ button:focus-visible {
 
 .raw-log-modal-body {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   overflow: auto;
 }
@@ -2376,7 +2376,7 @@ button:focus-visible {
 }
 
 .raw-log-modal-body section + section {
-  border-left: 1px solid rgba(247, 250, 245, 0.1);
+  border-top: 1px solid rgba(247, 250, 245, 0.1);
 }
 
 .raw-log-modal-body h3 {
