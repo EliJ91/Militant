@@ -1527,9 +1527,14 @@ button:focus-visible {
 }
 
 .saved-log-edit-button {
+  order: 2;
   border-color: rgba(255, 176, 0, 0.55);
   background: rgba(255, 176, 0, 0.08);
   color: #ffcf68;
+}
+
+.saved-log-download-button {
+  order: 1;
 }
 
 .saved-log-edit-button:hover:not(:disabled) {
@@ -1562,9 +1567,14 @@ button:focus-visible {
 }
 
 .saved-log-delete-button {
+  order: 4;
   border-color: rgba(255, 82, 98, 0.55);
   background: rgba(255, 82, 98, 0.1);
   color: #ff9ba4;
+}
+
+.saved-log-view-button {
+  order: 3;
 }
 
 .saved-log-delete-button:hover:not(:disabled) {
