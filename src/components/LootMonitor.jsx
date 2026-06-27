@@ -1075,10 +1075,6 @@ function LootLogBundleList({
                     )}
                     <span>Uploaded by <strong>{submitters}</strong></span>
                   </div>
-                  <div className="saved-log-totals">
-                    <span><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
-                    <span><strong>{formatNumber(totals.lootedQuantity)}</strong><small>items</small></span>
-                  </div>
                   <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
                     <div className="saved-log-chest-status">
                       <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
@@ -1101,6 +1097,10 @@ function LootLogBundleList({
                     ) : (
                       <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
                     )}
+                  </div>
+                  <div className="saved-log-totals">
+                    <span><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
+                    <span><strong>{formatNumber(totals.lootedQuantity)}</strong><small>items</small></span>
                   </div>
                     <div className={`saved-log-actions${isEditing ? ' editing' : ''}`}>
                       {isEditing ? (
