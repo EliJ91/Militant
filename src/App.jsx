@@ -178,7 +178,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.title = route === 'loot-logs' ? 'View Loot Logs'
+    document.title = route === 'loot-logs' ? 'Loot Logs'
       : route === 'loot-monitor' ? 'View Loot Log'
       : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
       : route === 'dashboard' ? 'Militant Dashboard'

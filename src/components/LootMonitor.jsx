@@ -1003,7 +1003,7 @@ function LootLogBundleList({
   return (
     <section className="saved-log-section" aria-label="Saved combined loot logs">
       <header className="saved-log-header">
-        <h2>View Loot Logs</h2>
+        <h2>Loot Logs</h2>
         <strong>{status.state === 'loading' ? 'Loading' : `${formatNumber(bundles.length)} logs`}</strong>
       </header>
       {status.message ? (
@@ -1436,7 +1436,7 @@ export function LootLogArchive({ onView = () => {} }) {
       <section className="dashboard-heading loot-monitor-heading" aria-labelledby="view-logs-title">
         <div>
           <p className="eyebrow">Tool</p>
-          <h1 id="view-logs-title">View Loot Logs</h1>
+          <h1 id="view-logs-title">Loot Logs</h1>
         </div>
         <div className="loot-monitor-heading-actions">
           <FileUploadButton
