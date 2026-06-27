@@ -1443,18 +1443,32 @@ button:focus-visible {
 }
 
 .saved-log-title-upload::before {
-  content: "+";
+  content: "";
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--green-hot);
-  font-size: 0.9rem;
-  line-height: 1;
+  top: 50%;
+  left: 50%;
+  width: 9px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--green-hot);
+  transform: translate(-50%, -50%);
 }
 
-.saved-log-title-upload:hover:not(:disabled)::before {
-  color: var(--black);
+.saved-log-title-upload::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--green-hot);
+  transform: translate(-50%, -50%);
+}
+
+.saved-log-title-upload:hover:not(:disabled)::before,
+.saved-log-title-upload:hover:not(:disabled)::after {
+  background: var(--black);
 }
 
 .saved-log-actions .saved-log-edit-button,
