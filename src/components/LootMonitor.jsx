@@ -1092,10 +1092,10 @@ function LootLogBundleList({
                     ) : (
                       <strong>{bundle.lootFileName || 'Loot Log'}</strong>
                     )}
-                    <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
-                      <div className="saved-log-chest-status">
-                        <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
-                        {!isEditing ? (
+                    {!isEditing ? (
+                      <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
+                        <div className="saved-log-chest-status">
+                          <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
                           <FileUploadButton
                             accept=".txt,.tsv,text/plain,text/tab-separated-values"
                             className="saved-log-title-upload"
@@ -1106,16 +1106,10 @@ function LootLogBundleList({
                             title="Add chest log"
                             onFiles={(files) => onUploadChest(bundle, files)}
                           />
-                        ) : null}
-                      </div>
-                      {isEditing && bundle.hasChestLog ? (
-                        <div className="saved-log-name-editor" aria-label="Chest Log Name">
-                          <span className="saved-log-name-readonly">{editValues.lootFileName}</span>
                         </div>
-                      ) : (
                         <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
-                      )}
-                    </div>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="saved-log-submitters">
                     <span>Uploaded by <strong>{submitters}</strong></span>
