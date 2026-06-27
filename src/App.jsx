@@ -106,6 +106,9 @@ function LootMonitorPage({ bundleId }) {
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
+          <button className="navigation-button" title="Loot logs" type="button" onClick={() => navigateTo('#loot-logs')}>
+            Loot Logs
+          </button>
           <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Dashboard
           </button>

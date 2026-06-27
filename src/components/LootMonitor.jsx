@@ -1678,14 +1678,6 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
         <div className="loot-monitor-heading-actions">
           <button
             className="view-logs-button"
-            title="View logs"
-            type="button"
-            onClick={onViewLogs}
-          >
-            Loot Logs
-          </button>
-          <button
-            className="view-logs-button"
             disabled={!selectedBundle?.id}
             title="View raw logs"
             type="button"
