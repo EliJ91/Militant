@@ -698,6 +698,13 @@ export async function getLootLogBundle(bundleId) {
       submissions: (lootSubmissionsResult.data || []).map((submission) => ({
         createdAt: submission.created_at,
         id: submission.id,
+        rawLogText: submission.raw_log_text || '',
+        submittedBy: normalizeSubmitterName(submission.submitted_by),
+      })),
+      chestSubmissions: chestLogs.map((submission) => ({
+        createdAt: submission.created_at,
+        id: submission.id,
+        rawLogText: submission.raw_log_text || '',
         submittedBy: normalizeSubmitterName(submission.submitted_by),
       })),
       summary,

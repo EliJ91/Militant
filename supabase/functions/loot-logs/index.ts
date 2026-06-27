@@ -663,6 +663,13 @@ Deno.serve(async (request) => {
             submissions: (submissionsResult.data || []).map((submission: any) => ({
               createdAt: submission.created_at,
               id: submission.id,
+              rawLogText: submission.raw_log_text || '',
+              submittedBy: submission.submitted_by === 'manual-web-upload' ? 'Manual' : submission.submitted_by,
+            })),
+            chestSubmissions: chestLogs.map((submission: any) => ({
+              createdAt: submission.created_at,
+              id: submission.id,
+              rawLogText: submission.raw_log_text || '',
               submittedBy: submission.submitted_by === 'manual-web-upload' ? 'Manual' : submission.submitted_by,
             })),
             summary,

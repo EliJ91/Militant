@@ -1494,6 +1494,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
   const [marketPrices, setMarketPrices] = useState({});
   const [marketPriceError, setMarketPriceError] = useState('');
+  const [rawModalOpen, setRawModalOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState({ message: '', state: 'idle' });
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
   const [selectedBundle, setSelectedBundle] = useState(null);
@@ -1550,6 +1551,22 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
   const lootLoggers = useMemo(() => uniqueStrings(
     (selectedBundle?.submissions || []).map((submission) => submission.submittedBy),
   ), [selectedBundle?.submissions]);
+  const rawLootLogText = useMemo(() => {
+    const rawSubmissions = (selectedBundle?.submissions || [])
+      .map((submission) => submission.rawLogText || '')
+      .filter(Boolean);
+    return rawSubmissions.length > 0
+      ? rawSubmissions.join('\n\n--- NEXT LOOT LOG ---\n\n')
+      : selectedBundle?.lootLogText || '';
+  }, [selectedBundle]);
+  const rawChestLogText = useMemo(() => {
+    const rawSubmissions = (selectedBundle?.chestSubmissions || [])
+      .map((submission) => submission.rawLogText || '')
+      .filter(Boolean);
+    return rawSubmissions.length > 0
+      ? rawSubmissions.join('\n\n--- NEXT CHEST LOG ---\n\n')
+      : selectedBundle?.chestLogText || '';
+  }, [selectedBundle]);
   const activeFilters = filters;
 
   const filterOptions = useMemo(() => {
@@ -1665,7 +1682,16 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
             type="button"
             onClick={onViewLogs}
           >
-            View Loot Logs
+            Loot Logs
+          </button>
+          <button
+            className="view-logs-button"
+            disabled={!selectedBundle?.id}
+            title="View raw logs"
+            type="button"
+            onClick={() => setRawModalOpen(true)}
+          >
+            View Raw
           </button>
           <button
             className="view-logs-button"
@@ -1701,6 +1727,40 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {marketPriceError && <p className="loot-message error">{marketPriceError}</p>}
       <StatusToasts messages={[shareStatus, screenshotStatus]} />
+      {rawModalOpen ? (
+        <div className="raw-log-modal-backdrop" role="presentation" onMouseDown={() => setRawModalOpen(false)}>
+          <section
+            aria-labelledby="raw-log-title"
+            aria-modal="true"
+            className="raw-log-modal"
+            role="dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="raw-log-modal-heading">
+              <h2 id="raw-log-title">Raw Logs</h2>
+              <button
+                aria-label="Close raw logs"
+                className="raw-log-modal-close"
+                title="Close"
+                type="button"
+                onClick={() => setRawModalOpen(false)}
+              >
+                Close
+              </button>
+            </header>
+            <div className="raw-log-modal-body">
+              <section>
+                <h3>Loot Log</h3>
+                <pre>{rawLootLogText || 'No raw loot log data.'}</pre>
+              </section>
+              <section>
+                <h3>Chest Log</h3>
+                <pre>{rawChestLogText || 'No raw chest log data.'}</pre>
+              </section>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {!report ? (
         <section className="loot-empty-state">
