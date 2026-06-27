@@ -1053,8 +1053,8 @@ button:focus-visible {
 }
 
 .saved-log-row {
-  min-width: 1160px;
-  padding: 20px 22px;
+  min-width: 1220px;
+  padding: 20px 18px;
 }
 
 .saved-log-row + .saved-log-row {
@@ -1104,13 +1104,14 @@ button:focus-visible {
 
 .saved-log-card-main {
   display: grid;
-  grid-template-columns: minmax(150px, 0.72fr) minmax(230px, 1.2fr) minmax(250px, 1.28fr) minmax(170px, 0.72fr) minmax(220px, 0.86fr);
+  grid-template-columns: minmax(170px, 0.78fr) minmax(285px, 1.32fr) minmax(320px, 1.48fr) minmax(190px, 0.86fr) minmax(220px, 0.92fr);
   gap: 0;
   align-items: stretch;
   min-width: 0;
 }
 
 .saved-log-users,
+.saved-log-submitters,
 .saved-log-chest,
 .saved-log-time,
 .saved-log-totals,
@@ -1131,6 +1132,7 @@ button:focus-visible {
 
 .saved-log-time,
 .saved-log-users,
+.saved-log-submitters,
 .saved-log-chest {
   display: grid;
   align-content: center;
@@ -1138,7 +1140,8 @@ button:focus-visible {
 }
 
 .saved-log-time strong,
-.saved-log-users strong {
+.saved-log-users strong,
+.saved-log-submitters strong {
   overflow: hidden;
   color: var(--white);
   text-overflow: ellipsis;
@@ -1164,6 +1167,24 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+.saved-log-submitters span {
+  width: max-content;
+  max-width: 100%;
+  padding: 5px 7px;
+  overflow: hidden;
+  background: rgba(87, 216, 120, 0.08);
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-log-submitters strong {
+  color: var(--green-hot);
+  font-size: inherit;
+}
+
 .saved-log-time small,
 .saved-log-users small,
 .saved-log-chest small {
@@ -1182,6 +1203,14 @@ button:focus-visible {
   color: var(--green-hot);
   font-size: 0.74rem;
   letter-spacing: 0.06em;
+}
+
+.saved-log-users .saved-log-chest {
+  min-height: auto;
+  padding: 0;
+  border-left: 0;
+  align-content: start;
+  gap: 4px;
 }
 
 .saved-log-title-line,
@@ -1365,7 +1394,10 @@ button:focus-visible {
 }
 
 .saved-log-chest-status {
+  width: min(100%, 185px);
   min-width: 0;
+  padding: 3px 5px;
+  background: rgba(87, 216, 120, 0.07);
 }
 
 .saved-log-users .saved-log-inline-button {
@@ -2571,6 +2603,7 @@ button:focus-visible {
   }
 
   .saved-log-users,
+  .saved-log-submitters,
   .saved-log-chest,
   .saved-log-time,
   .saved-log-totals,
@@ -2586,8 +2619,14 @@ button:focus-visible {
     border-top: 0;
   }
 
+  .saved-log-users .saved-log-chest {
+    padding: 0;
+    border-top: 0;
+  }
+
   .saved-log-users strong,
   .saved-log-users > span,
+  .saved-log-submitters span,
   .saved-log-chest small {
     text-overflow: initial;
     white-space: normal;

@@ -233,6 +233,8 @@ function sanitizeFilters(value = {}) {
   const statusValues = new Set(STATUS_OPTIONS.filter((option) => option.value !== 'all').map((option) => option.value));
   const sortValues = new Set(SORT_OPTIONS.map((option) => option.value));
   const migratedStatus = value.status === 'deposited' ? 'donated' : value.status;
+  const rawStatuses = Array.isArray(migratedStatus) ? migratedStatus : [migratedStatus];
+  const noneStatusSelected = rawStatuses.includes(NONE_SELECTED_VALUE);
   const selectedStatuses = Array.isArray(migratedStatus)
     ? uniqueStrings(migratedStatus).filter((status) => statusValues.has(status))
     : statusValues.has(migratedStatus) ? [migratedStatus] : [];
@@ -241,7 +243,7 @@ function sanitizeFilters(value = {}) {
     alliances: sanitizeStringArray(value.alliances ?? (value.alliance ? [value.alliance] : [])),
     guilds: sanitizeStringArray(value.guilds ?? (value.guild ? [value.guild] : [])),
     sortDirection: sortValues.has(value.sortDirection) ? value.sortDirection : DEFAULT_FILTERS.sortDirection,
-    status: selectedStatuses.length === statusValues.size ? [] : selectedStatuses,
+    status: noneStatusSelected ? [NONE_SELECTED_VALUE] : (selectedStatuses.length === statusValues.size ? [] : selectedStatuses),
     tierFilters: sanitizeOptionArray(value.tierFilters ?? migrateOldTierFilters(value), TIER_OPTIONS),
     typeFilters: sanitizeOptionArray(value.typeFilters ?? migrateOldTypeFilters(value), TYPE_OPTIONS),
   };
@@ -714,12 +716,16 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
   const [isOpen, setIsOpen] = useState(false);
   const statusOptions = options.filter((option) => option.value !== 'all');
   const optionValues = statusOptions.map((option) => option.value);
-  const allSelected = selectedValues.length === 0
-    || optionValues.every((optionValue) => selectedValues.includes(optionValue));
+  const noneSelected = selectedValues.includes(NONE_SELECTED_VALUE);
+  const allSelected = !noneSelected && (
+    selectedValues.length === 0
+    || optionValues.every((optionValue) => selectedValues.includes(optionValue))
+  );
   const selectedLabels = statusOptions
     .filter((option) => selectedValues.includes(option.value))
     .map((option) => option.label);
   const summary = allSelected ? 'All'
+    : noneSelected ? 'None selected'
     : selectedLabels.length === 1 ? selectedLabels[0]
       : `${selectedLabels.length} selected`;
 
@@ -752,15 +758,15 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
         </summary>
         <div className="filter-menu single-select-menu">
           <button
-            className={allSelected ? 'filter-option selected-option' : 'filter-option unselected-option'}
+            className={allSelected ? 'filter-all-button disable-all' : 'filter-all-button enable-all'}
             type="button"
-            onClick={() => onChange([])}
+            onClick={() => onChange(allSelected ? [NONE_SELECTED_VALUE] : [])}
           >
-            All
+            {allSelected ? 'Deselect All' : 'Select All'}
           </button>
           {statusOptions.map((option) => {
             const tooltip = disabledOptions[option.value];
-            const isSelected = allSelected || selectedValues.includes(option.value);
+            const isSelected = allSelected || (!noneSelected && selectedValues.includes(option.value));
             return (
               <div
                 className={tooltip ? 'filter-option-tooltip' : undefined}
@@ -778,12 +784,12 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
                   disabled={Boolean(tooltip)}
                   type="button"
                   onClick={() => {
-                    const next = allSelected
+                    const next = allSelected || noneSelected
                       ? optionValues.filter((value) => value !== option.value)
                       : selectedValues.includes(option.value)
                         ? selectedValues.filter((value) => value !== option.value)
                         : [...selectedValues, option.value];
-                    onChange(optionValues.every((value) => next.includes(value)) ? [] : next);
+                    onChange(optionValues.every((value) => next.includes(value)) ? [] : (next.length === 0 ? [NONE_SELECTED_VALUE] : next));
                   }}
                 >
                   {option.label}
@@ -1073,30 +1079,32 @@ function LootLogBundleList({
                     ) : (
                       <strong>{bundle.lootFileName || 'Loot Log'}</strong>
                     )}
-                    <span>Uploaded by <strong>{submitters}</strong></span>
-                  </div>
-                  <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
-                    <div className="saved-log-chest-status">
-                      <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
-                      {!isEditing ? (
-                        <FileUploadButton
-                          accept=".txt,.tsv,text/plain,text/tab-separated-values"
-                          className="saved-log-title-upload"
-                          disabled={uploadingBundleId === bundle.id}
-                          label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
-                          loadingLabel="Uploading..."
-                          multiple
-                          onFiles={(files) => onUploadChest(bundle, files)}
-                        />
-                      ) : null}
-                    </div>
-                    {isEditing && bundle.hasChestLog ? (
-                      <div className="saved-log-name-editor" aria-label="Chest Log Name">
-                        <span className="saved-log-name-readonly">{editValues.lootFileName}</span>
+                    <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
+                      <div className="saved-log-chest-status">
+                        <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
+                        {!isEditing ? (
+                          <FileUploadButton
+                            accept=".txt,.tsv,text/plain,text/tab-separated-values"
+                            className="saved-log-title-upload"
+                            disabled={uploadingBundleId === bundle.id}
+                            label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
+                            loadingLabel="Uploading..."
+                            multiple
+                            onFiles={(files) => onUploadChest(bundle, files)}
+                          />
+                        ) : null}
                       </div>
-                    ) : (
-                      <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
-                    )}
+                      {isEditing && bundle.hasChestLog ? (
+                        <div className="saved-log-name-editor" aria-label="Chest Log Name">
+                          <span className="saved-log-name-readonly">{editValues.lootFileName}</span>
+                        </div>
+                      ) : (
+                        <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
+                      )}
+                    </div>
+                  </div>
+                  <div className="saved-log-submitters">
+                    <span>Uploaded by <strong>{submitters}</strong></span>
                   </div>
                   <div className="saved-log-totals">
                     <span><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
