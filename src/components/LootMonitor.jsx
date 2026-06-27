@@ -11,6 +11,7 @@ import {
 } from '../services/lootLogApi';
 import {
   buildLootMonitorReportFromEvents,
+  combineChestLogTexts,
 } from '../utils/lootMonitor';
 import { warmItemImageCache } from '../utils/itemImageCache';
 
@@ -1563,9 +1564,9 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
     const rawSubmissions = (selectedBundle?.chestSubmissions || [])
       .map((submission) => submission.rawLogText || '')
       .filter(Boolean);
-    return rawSubmissions.length > 0
-      ? rawSubmissions.join('\n\n--- NEXT CHEST LOG ---\n\n')
-      : selectedBundle?.chestLogText || '';
+    return combineChestLogTexts(rawSubmissions.length > 0
+      ? rawSubmissions
+      : [selectedBundle?.chestLogText || '']);
   }, [selectedBundle]);
   const activeFilters = filters;
 

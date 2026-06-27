@@ -52,6 +52,21 @@ describe('loot monitor parsing', () => {
       '"06/17/2026 00:42:31"\t"Late"\t"Battle Memento"\t"0"\t"1"\t"1"',
     ].join('\n'));
   });
+
+  it('removes duplicate chest headers inside a single combined log', () => {
+    const chestText = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:42:31"\t"Late"\t"Battle Memento"\t"0"\t"1"\t"1"',
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:41:56"\t"Early"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+    ].join('\n');
+
+    expect(combineChestLogTexts([chestText])).toBe([
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:41:56"\t"Early"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+      '"06/17/2026 00:42:31"\t"Late"\t"Battle Memento"\t"0"\t"1"\t"1"',
+    ].join('\n'));
+  });
 });
 
 describe('loot monitor report', () => {
