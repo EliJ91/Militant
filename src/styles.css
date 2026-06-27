@@ -1427,6 +1427,7 @@ button:focus-visible {
 }
 
 .saved-log-title-upload {
+  position: relative;
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
@@ -1443,6 +1444,10 @@ button:focus-visible {
 
 .saved-log-title-upload::before {
   content: "+";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
   color: var(--green-hot);
   font-size: 0.9rem;
   line-height: 1;
