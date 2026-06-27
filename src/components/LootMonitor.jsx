@@ -1001,7 +1001,6 @@ function LootLogBundleList({
             const submitters = bundle.submitters?.length ? bundle.submitters.join(', ') : 'Manual';
             const retention = getRetentionStatus(bundle.startAt);
             const isEditing = editingBundleId === bundle.id;
-            const logEntryCount = totals.eventRows || totals.lootedQuantity || 0;
 
             return (
               <article className={`saved-log-row${isEditing ? ' editing' : ''}`} key={bundle.id}>
@@ -1035,8 +1034,8 @@ function LootLogBundleList({
                         </div>
                       ) : (
                         <>
-                          <strong>{formatUtcDate(bundle.startAt)}</strong>
-                          <span>{bundle.ctaTimer || '-- UTC'} CTA</span>
+                          <strong>Uploaded</strong>
+                          <small>{formatUtcDateTime(bundle.updatedAt || bundle.startAt)}</small>
                         </>
                       )}
                       {!isEditing && retention ? (
@@ -1130,7 +1129,7 @@ function LootLogBundleList({
                       ) : (
                         <>
                           <button className="saved-log-edit-button" type="button" onClick={() => onEdit(bundle)}>
-                            Edit
+                            <span>Edit</span>
                           </button>
                           <button
                             className="saved-log-download-button"
@@ -1138,7 +1137,7 @@ function LootLogBundleList({
                             type="button"
                             onClick={() => onDownload(bundle)}
                           >
-                            {downloadingBundleId === bundle.id ? 'Packing...' : 'Download'}
+                            <span>{downloadingBundleId === bundle.id ? 'Packing...' : 'Download'}</span>
                           </button>
                           <button
                             className="saved-log-delete-button"
@@ -1146,19 +1145,14 @@ function LootLogBundleList({
                             type="button"
                             onClick={() => onDelete(bundle)}
                           >
-                            {deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}
+                            <span>{deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}</span>
                           </button>
                           <button className="saved-log-view-button" type="button" onClick={() => onView(bundle.id)}>
-                            View
+                            <span>View</span>
                           </button>
                         </>
                       )}
                     </div>
-                  </div>
-                  <div className="saved-log-card-footer">
-                    <span><strong>{formatNumber(logEntryCount)}</strong><small>Items</small></span>
-                    <span><strong>{bundle.ctaTimer || '-- UTC'}</strong><small>Time</small></span>
-                    <span><strong>Uploaded</strong><small>{formatUtcDateTime(bundle.updatedAt || bundle.startAt)}</small></span>
                   </div>
                 </div>
               </article>
