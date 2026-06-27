@@ -788,11 +788,16 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
                   title={tooltip || option.label}
                   type="button"
                   onClick={() => {
-                    const next = allSelected || noneSelected
-                      ? optionValues.filter((value) => value !== option.value)
-                      : selectedValues.includes(option.value)
+                    let next;
+                    if (noneSelected) {
+                      next = [option.value];
+                    } else if (allSelected) {
+                      next = optionValues.filter((value) => value !== option.value);
+                    } else {
+                      next = selectedValues.includes(option.value)
                         ? selectedValues.filter((value) => value !== option.value)
                         : [...selectedValues, option.value];
+                    }
                     onChange(optionValues.every((value) => next.includes(value)) ? [] : (next.length === 0 ? [NONE_SELECTED_VALUE] : next));
                   }}
                 >
