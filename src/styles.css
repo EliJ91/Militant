@@ -2363,15 +2363,18 @@ button:focus-visible {
 .raw-log-modal-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .raw-log-modal-body section {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
   padding: 16px;
 }
 
@@ -2380,15 +2383,15 @@ button:focus-visible {
 }
 
 .raw-log-modal-body h3 {
-  margin: 0 0 10px;
+  margin: 0;
   color: var(--green-hot);
   font-size: 0.82rem;
   text-transform: uppercase;
 }
 
 .raw-log-modal-body pre {
-  min-height: 360px;
-  max-height: 620px;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
   margin: 0;
   padding: 12px;

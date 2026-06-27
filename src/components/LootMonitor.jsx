@@ -1722,14 +1722,13 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
       {rawModalOpen ? (
         <div className="raw-log-modal-backdrop" role="presentation" onMouseDown={() => setRawModalOpen(false)}>
           <section
-            aria-labelledby="raw-log-title"
+            aria-label="Raw logs"
             aria-modal="true"
             className="raw-log-modal"
             role="dialog"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="raw-log-modal-heading">
-              <h2 id="raw-log-title">Raw Logs</h2>
               <button
                 aria-label="Close raw logs"
                 className="raw-log-modal-close"
