@@ -1170,9 +1170,7 @@ button:focus-visible {
 .saved-log-submitters span {
   width: max-content;
   max-width: 100%;
-  padding: 5px 7px;
   overflow: hidden;
-  background: rgba(87, 216, 120, 0.08);
   color: var(--muted);
   font-size: 0.86rem;
   font-weight: 800;
@@ -1396,8 +1394,6 @@ button:focus-visible {
 .saved-log-chest-status {
   width: min(100%, 185px);
   min-width: 0;
-  padding: 3px 5px;
-  background: rgba(87, 216, 120, 0.07);
 }
 
 .saved-log-users .saved-log-inline-button {
