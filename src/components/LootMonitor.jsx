@@ -1636,7 +1636,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
     if (!selectedBundle?.id || shareStatus.state === 'copying') return;
 
     const shareUrl = new URL(window.location.href);
-    shareUrl.hash = `loot-monitor/${encodeURIComponent(selectedBundle.id)}`;
+    shareUrl.hash = `shared-log/${encodeURIComponent(selectedBundle.id)}`;
     setShareStatus({ message: 'Copying...', state: 'copying' });
 
     try {

@@ -3,18 +3,21 @@ import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
 
 const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
+const AUTH_STORAGE_KEY = 'militant.authenticated';
+const APP_PASSWORD = 'militant#1';
 
 function getRoute() {
   const route = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '').toLowerCase();
 
   if (route === 'loot-logs') return 'loot-logs';
   if (route === 'loot-monitor' || route.startsWith('loot-monitor/')) return 'loot-monitor';
+  if (route === 'shared-log' || route.startsWith('shared-log/')) return 'shared-log';
   if (route === 'siphoned-energy') return 'siphoned-energy';
   return route === 'dashboard' ? 'dashboard' : 'landing';
 }
 
-function getLootMonitorBundleId() {
-  const match = window.location.hash.match(/^#\/?loot-monitor\/([^/?#]+)/i);
+function getLootBundleId() {
+  const match = window.location.hash.match(/^#\/?(?:loot-monitor|shared-log)\/([^/?#]+)/i);
   return match ? decodeURIComponent(match[1]) : '';
 }
 
@@ -39,7 +42,26 @@ function BrandLockup({ compact = false }) {
   );
 }
 
-function LandingPage() {
+function LandingPage({ isAuthenticated = false, onLogin = () => {} }) {
+  const [loginError, setLoginError] = useState('');
+
+  function enterApp() {
+    if (isAuthenticated) {
+      navigateTo('#dashboard');
+      return;
+    }
+
+    const password = window.prompt('Enter password');
+    if (password === APP_PASSWORD) {
+      setLoginError('');
+      onLogin();
+      navigateTo('#dashboard');
+      return;
+    }
+
+    if (password !== null) setLoginError('Incorrect password.');
+  }
+
   return (
     <main
       className="landing-page"
@@ -56,22 +78,23 @@ function LandingPage() {
           <p>Hold the line.</p>
         </div>
         <div className="landing-actions">
-          <button className="primary-button" title="Enter dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
+          <button className="primary-button" title="Enter dashboard" type="button" onClick={enterApp}>
             Enter
           </button>
+          {loginError ? <p className="loot-message error">{loginError}</p> : null}
         </div>
       </section>
     </main>
   );
 }
 
-function DashboardPage() {
+function DashboardPage({ onSignOut = () => {} }) {
   return (
     <>
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
-          <button className="navigation-button" title="Exit" type="button" onClick={() => navigateTo('#')}>
+          <button className="navigation-button" title="Exit" type="button" onClick={onSignOut}>
             Exit
           </button>
         </div>
@@ -100,7 +123,7 @@ function DashboardPage() {
   );
 }
 
-function LootMonitorPage({ bundleId }) {
+function LootMonitorPage({ bundleId, onSignOut = () => {} }) {
   return (
     <>
       <header className="topbar">
@@ -112,7 +135,7 @@ function LootMonitorPage({ bundleId }) {
           <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Dashboard
           </button>
-          <button className="navigation-button" title="Sign out" type="button" onClick={() => navigateTo('#')}>
+          <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
             Sign Out
           </button>
         </div>
@@ -122,7 +145,11 @@ function LootMonitorPage({ bundleId }) {
   );
 }
 
-function LootLogsPage({ onViewBundle }) {
+function SharedLootMonitorPage({ bundleId }) {
+  return <LootMonitor bundleId={bundleId} />;
+}
+
+function LootLogsPage({ onSignOut = () => {}, onViewBundle }) {
   return (
     <>
       <header className="topbar">
@@ -131,7 +158,7 @@ function LootLogsPage({ onViewBundle }) {
           <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Dashboard
           </button>
-          <button className="navigation-button" title="Sign out" type="button" onClick={() => navigateTo('#')}>
+          <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
             Sign Out
           </button>
         </div>
@@ -141,7 +168,7 @@ function LootLogsPage({ onViewBundle }) {
   );
 }
 
-function SiphonedEnergyPage() {
+function SiphonedEnergyPage({ onSignOut = () => {} }) {
   return (
     <>
       <header className="topbar">
@@ -150,7 +177,7 @@ function SiphonedEnergyPage() {
           <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Dashboard
           </button>
-          <button className="navigation-button" title="Sign out" type="button" onClick={() => navigateTo('#')}>
+          <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
             Sign Out
           </button>
         </div>
@@ -162,12 +189,15 @@ function SiphonedEnergyPage() {
 
 export default function App() {
   const [route, setRoute] = useState(getRoute);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => (
+    window.localStorage.getItem(AUTH_STORAGE_KEY) === 'true'
+  ));
   const [selectedBundleId, setSelectedBundleId] = useState('');
 
   useEffect(() => {
     const updateRoute = () => {
       setRoute(getRoute());
-      setSelectedBundleId(getLootMonitorBundleId());
+      setSelectedBundleId(getLootBundleId());
     };
 
     window.addEventListener('hashchange', updateRoute);
@@ -182,34 +212,50 @@ export default function App() {
 
   useEffect(() => {
     document.title = route === 'loot-logs' ? 'Loot Logs'
-      : route === 'loot-monitor' ? 'View Loot Log'
+      : route === 'loot-monitor' || route === 'shared-log' ? 'View Loot Log'
       : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);
 
   useEffect(() => {
-    if (route === 'loot-monitor') {
-      setSelectedBundleId(getLootMonitorBundleId());
+    if (route === 'loot-monitor' || route === 'shared-log') {
+      setSelectedBundleId(getLootBundleId());
     } else {
       setSelectedBundleId('');
     }
   }, [route]);
+
+  function handleLogin() {
+    window.localStorage.setItem(AUTH_STORAGE_KEY, 'true');
+    setIsAuthenticated(true);
+  }
+
+  function handleSignOut() {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    setIsAuthenticated(false);
+    navigateTo('#');
+  }
 
   function viewLootLogBundle(bundleId) {
     setSelectedBundleId(bundleId);
     navigateTo(`#loot-monitor/${encodeURIComponent(bundleId)}`);
   }
 
-  if (route === 'dashboard') return <DashboardPage />;
+  if (route === 'shared-log') return <SharedLootMonitorPage bundleId={selectedBundleId} />;
+  if (!isAuthenticated && route !== 'landing') {
+    return <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
+  }
+  if (route === 'dashboard') return <DashboardPage onSignOut={handleSignOut} />;
   if (route === 'loot-logs') {
     return (
       <LootLogsPage
+        onSignOut={handleSignOut}
         onViewBundle={viewLootLogBundle}
       />
     );
   }
-  if (route === 'loot-monitor') return <LootMonitorPage bundleId={selectedBundleId} />;
-  if (route === 'siphoned-energy') return <SiphonedEnergyPage />;
-  return <LandingPage />;
+  if (route === 'loot-monitor') return <LootMonitorPage bundleId={selectedBundleId} onSignOut={handleSignOut} />;
+  if (route === 'siphoned-energy') return <SiphonedEnergyPage onSignOut={handleSignOut} />;
+  return <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
 }

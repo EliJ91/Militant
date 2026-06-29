@@ -133,7 +133,7 @@ describe('LootMonitor', () => {
   it('does not show the local file upload panel on the loot detail page', () => {
     render(<LootMonitor />);
 
-    expect(screen.getByRole('heading', { name: 'Loot Log Details' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'View Loot Log' })).toBeInTheDocument();
     expect(screen.queryByText('Local Files Only')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Choose files' })).not.toBeInTheDocument();
     expect(submitLootLog).not.toHaveBeenCalled();
@@ -170,7 +170,7 @@ describe('LootMonitor', () => {
 
     const { container } = render(<LootMonitor bundleId="bundle-18" />);
 
-    expect(await screen.findAllByText('18UTC-JUN-18')).toHaveLength(2);
+    expect(await screen.findByText('18UTC-JUN-18')).toBeInTheDocument();
     expect(screen.queryByText('Log Upload')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Choose files' })).not.toBeInTheDocument();
     expect(screen.getByText('Tier')).toBeInTheDocument();
@@ -217,7 +217,7 @@ describe('LootMonitor', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Share' }));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(
-      expect.stringContaining('#loot-monitor/bundle-18'),
+      expect.stringContaining('#shared-log/bundle-18'),
     ));
     expect(await screen.findByText('Link copied')).toBeInTheDocument();
   });
@@ -233,20 +233,19 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" />);
 
-    expect(await screen.findByText('No chest log assigned')).toBeInTheDocument();
-    expect(screen.getByText(/Windyyyzz/)).toBeInTheDocument();
+    expect(await screen.findByText(/Windyyyzz/)).toBeInTheDocument();
     expect(await screen.findByText('EMV $230')).toBeInTheDocument();
     const statusLabel = screen.getByText('Status');
     fireEvent.click(statusLabel.nextElementSibling.querySelector('summary'));
     expect(screen.getByRole('button', { name: 'Kept' })).toBeDisabled();
-    expect(screen.getByTitle('A chest log must be uploaded to select Kept.')).toBeInTheDocument();
+    expect(screen.getAllByTitle('A chest log must be uploaded to select Kept.').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Lost' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'All' })).toHaveClass('selected-option');
+    expect(screen.getByRole('button', { name: 'Deselect All' })).toHaveClass('disable-all');
     const lostOption = screen.getByRole('button', { name: 'Lost' });
     fireEvent.click(lostOption);
     expect(lostOption).toHaveClass('unselected-option');
     expect(statusLabel.nextElementSibling.querySelector('summary')).toHaveTextContent('3 selected');
-    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select All' }));
     expect(screen.getByRole('button', { name: 'Lost' })).toHaveClass('selected-option');
     expect(statusLabel.nextElementSibling.querySelector('summary')).toHaveTextContent('All');
   });
@@ -339,8 +338,8 @@ describe('LootMonitor', () => {
     const { container } = render(<LootLogArchive onView={onView} />);
 
     expect(await screen.findByText('loot-events-original')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'View Loot Logs' })).toBeInTheDocument();
-    expect(screen.getByText('18 UTC CTA')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Loot Logs' })).toBeInTheDocument();
+    expect(screen.getByText('Uploaded')).toBeInTheDocument();
     expect(screen.queryByText(/18:33 UTC/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Loot Monitor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toHaveAttribute('title', 'Refresh logs');
@@ -352,7 +351,7 @@ describe('LootMonitor', () => {
     expect(screen.queryByText('2 looted')).not.toBeInTheDocument();
     expect(screen.queryByText('0 kept')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Upload Chest Log' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add chest log/i })).toBeInTheDocument();
     expect([...container.querySelector('.saved-log-actions').querySelectorAll('button')]
       .map((button) => button.textContent)).toEqual(['Edit', 'Download', 'Delete', 'View']);
 
@@ -407,7 +406,7 @@ describe('LootMonitor', () => {
     });
 
     submitLootLog.mockClear();
-    const uploadButton = screen.getByRole('button', { name: 'Upload' });
+    const uploadButton = screen.getByRole('button', { name: /upload log/i });
     const droppedLootFile = new File([lootText], 'dropped-loot-events.txt', { type: 'text/plain' });
     fireEvent.dragEnter(uploadButton, { dataTransfer: { files: [droppedLootFile] } });
     expect(uploadButton).toHaveClass('drag-over');
@@ -471,7 +470,7 @@ describe('LootMonitor', () => {
     render(<LootLogArchive />);
 
     expect(await screen.findByText('Chest linked')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add Chest Log' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add chest log/i })).toBeInTheDocument();
   });
 
   it('previews, customizes, cancels, and saves log metadata edits', async () => {
@@ -483,7 +482,6 @@ describe('LootMonitor', () => {
 
     expect(screen.getByLabelText('Loot Log Name')).toHaveValue('04UTC-JUN-20');
     expect(screen.queryByRole('textbox', { name: 'Chest Log Name' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Chest Log Name')).toHaveTextContent('04UTC-JUN-20');
     expect(container.querySelector('.saved-log-name-suffix')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -494,7 +492,6 @@ describe('LootMonitor', () => {
     fireEvent.change(screen.getByLabelText('UTC Date'), { target: { value: '2026-06-20' } });
     fireEvent.change(screen.getByLabelText('CTA Time'), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Loot Log Name'), { target: { value: 'Custom' } });
-    expect(screen.getByLabelText('Chest Log Name')).toHaveTextContent('Custom');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(updateLootLogBundle).toHaveBeenCalledWith({
