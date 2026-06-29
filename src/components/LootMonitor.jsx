@@ -1489,7 +1489,7 @@ export function LootLogArchive({ onView = () => {} }) {
   );
 }
 
-export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
+export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, showShare = true }) {
   const boardRef = useRef(null);
   const [filters, setFilters] = useState(loadSavedFilters);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
@@ -1686,15 +1686,17 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {} }) {
           >
             View Raw
           </button>
-          <button
-            className="view-logs-button"
-            disabled={!selectedBundle?.id || shareStatus.state === 'copying'}
-            title="Share log"
-            type="button"
-            onClick={shareBundleLink}
-          >
-            {shareStatus.state === 'copying' ? 'Copying...' : 'Share'}
-          </button>
+          {showShare ? (
+            <button
+              className="view-logs-button"
+              disabled={!selectedBundle?.id || shareStatus.state === 'copying'}
+              title="Share log"
+              type="button"
+              onClick={shareBundleLink}
+            >
+              {shareStatus.state === 'copying' ? 'Copying...' : 'Share'}
+            </button>
+          ) : null}
         </div>
       </section>
 

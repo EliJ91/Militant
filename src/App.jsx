@@ -146,7 +146,7 @@ function LootMonitorPage({ bundleId, onSignOut = () => {} }) {
 }
 
 function SharedLootMonitorPage({ bundleId }) {
-  return <LootMonitor bundleId={bundleId} />;
+  return <LootMonitor bundleId={bundleId} showShare={false} />;
 }
 
 function LootLogsPage({ onSignOut = () => {}, onViewBundle }) {

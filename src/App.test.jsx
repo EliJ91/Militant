@@ -114,6 +114,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'View Loot Log' })).toBeInTheDocument();
     expect(container.querySelector('.topbar')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Share' })).not.toBeInTheDocument();
     expect(window.localStorage.getItem('militant.authenticated')).toBeNull();
   });
 });
