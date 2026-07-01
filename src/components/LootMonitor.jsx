@@ -1446,24 +1446,51 @@ export function LootLogArchive({ onView = () => {} }) {
       if (bundle.hasChestLog && chestSubmitter !== editValues.originalChestSubmitter) {
         submitterUpdates.chest = chestSubmitter;
       }
+      const editedBaseName = editValues.lootFileName.trim();
+      const editedFileNames = {
+        baseName: editedBaseName,
+        chest: appendLogSuffix(editValues.lootFileName, 'Chest Log'),
+        loot: appendLogSuffix(editValues.lootFileName, 'Loot Log'),
+      };
 
       const result = await updateLootLogBundle({
         bundleId: bundle.id,
         ctaHour: editValues.ctaHour,
         dateUtc: editValues.dateUtc,
-        fileNames: {
-          baseName: editValues.lootFileName.trim(),
-          chest: appendLogSuffix(editValues.lootFileName, 'Chest Log'),
-          loot: appendLogSuffix(editValues.lootFileName, 'Loot Log'),
-        },
+        fileNames: editedFileNames,
         submitters: Object.keys(submitterUpdates).length ? submitterUpdates : undefined,
       });
+      setSavedLogBundles((current) => current.map((savedBundle) => {
+        if (savedBundle.id !== bundle.id) return savedBundle;
+
+        return {
+          ...savedBundle,
+          chestFileName: result.fileNames?.chest || editedFileNames.chest,
+          chestSubmissions: submitterUpdates.chest
+            ? (savedBundle.chestSubmissions || []).map((submission) => ({ ...submission, submittedBy: chestSubmitter }))
+            : savedBundle.chestSubmissions,
+          chestSubmitters: submitterUpdates.chest ? [chestSubmitter] : savedBundle.chestSubmitters,
+          ctaTimer: result.ctaTimer || savedBundle.ctaTimer,
+          endAt: result.bundle?.end_at || savedBundle.endAt,
+          lootFileName: result.displayLootFileName || result.fileNames?.baseName || editedBaseName,
+          startAt: result.bundle?.start_at || savedBundle.startAt,
+          submissions: submitterUpdates.loot
+            ? (savedBundle.submissions || []).map((submission) => ({ ...submission, submittedBy: lootSubmitter }))
+            : savedBundle.submissions,
+          submitters: submitterUpdates.loot ? [lootSubmitter] : savedBundle.submitters,
+          summary: {
+            ...(savedBundle.summary || {}),
+            displayLootFileName: result.displayLootFileName || result.fileNames?.baseName || editedBaseName,
+            fileNames: result.fileNames || editedFileNames,
+          },
+          updatedAt: result.bundle?.updated_at || new Date().toISOString(),
+        };
+      }));
       setActionStatus({
         message: `${result.displayLootFileName || result.fileNames?.baseName || 'Loot log'} updated.`,
         state: 'success',
       });
       cancelEditBundle();
-      await loadSavedLogs();
     } catch (updateError) {
       setActionStatus({
         message: updateError.message || 'Could not update the loot log.',

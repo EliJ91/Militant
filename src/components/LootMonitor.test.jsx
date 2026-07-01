@@ -518,6 +518,8 @@ describe('LootMonitor', () => {
       },
     }));
     expect(await screen.findByText('Custom updated.')).toBeInTheDocument();
+    expect(screen.getByText('Onslawt')).toBeInTheDocument();
+    expect(screen.getByText('Banker')).toBeInTheDocument();
   });
 
   it('shows retention countdowns and downloads older logs as a zip archive', async () => {
