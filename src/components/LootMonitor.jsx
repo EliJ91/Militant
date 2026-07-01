@@ -1040,9 +1040,22 @@ function LootLogBundleList({
               : 'No chest log';
             const retention = getRetentionStatus(bundle.startAt);
             const isEditing = editingBundleId === bundle.id;
+            const editSaveDisabled = !editValues.dateUtc
+              || !editValues.lootFileName.trim()
+              || !editValues.lootSubmitter.trim()
+              || (bundle.hasChestLog && !editValues.chestSubmitter.trim())
+              || updatingBundleId === bundle.id;
 
             return (
-              <article className={`saved-log-row${isEditing ? ' editing' : ''}`} key={bundle.id}>
+              <article
+                className={`saved-log-row${isEditing ? ' editing' : ''}`}
+                key={bundle.id}
+                onKeyDown={(event) => {
+                  if (!isEditing || event.key !== 'Enter' || editSaveDisabled) return;
+                  event.preventDefault();
+                  onSaveEdit(bundle);
+                }}
+              >
                 <div className="saved-log-card">
                   <div className="saved-log-card-main">
                     <div className="saved-log-time">
@@ -1174,13 +1187,7 @@ function LootLogBundleList({
                         <>
                           <button
                             className="saved-log-save-button"
-                            disabled={
-                              !editValues.dateUtc
-                              || !editValues.lootFileName.trim()
-                              || !editValues.lootSubmitter.trim()
-                              || (bundle.hasChestLog && !editValues.chestSubmitter.trim())
-                              || updatingBundleId === bundle.id
-                            }
+                            disabled={editSaveDisabled}
                             title="Save changes"
                             type="button"
                             onClick={() => onSaveEdit(bundle)}
@@ -1661,8 +1668,10 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
 
   const hasChestLog = Boolean(selectedBundle?.hasChestLog && selectedBundle?.chestLogText);
   const lootLoggers = useMemo(() => uniqueStrings(
-    (selectedBundle?.submissions || []).map((submission) => submission.submittedBy),
-  ), [selectedBundle?.submissions]);
+    selectedBundle?.submitters?.length
+      ? selectedBundle.submitters
+      : (selectedBundle?.submissions || []).map((submission) => submission.submittedBy),
+  ), [selectedBundle?.submissions, selectedBundle?.submitters]);
   const rawLootLogText = useMemo(() => {
     const rawSubmissions = (selectedBundle?.submissions || [])
       .map((submission) => submission.rawLogText || '')

@@ -151,6 +151,7 @@ describe('LootMonitor', () => {
           { id: 'submission-2', submittedBy: 'Manual' },
           { id: 'submission-3', submittedBy: 'Onslawt' },
         ],
+        submitters: ['Onslawt', 'Manual'],
       }),
     });
 
@@ -501,7 +502,7 @@ describe('LootMonitor', () => {
     fireEvent.change(screen.getByLabelText('Loot Log Name'), { target: { value: 'Custom' } });
     fireEvent.change(screen.getByLabelText('Loot Log Uploaded By'), { target: { value: 'Onslawt' } });
     fireEvent.change(screen.getByLabelText('Chest Log Uploaded By'), { target: { value: 'Banker' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.keyDown(screen.getByLabelText('Chest Log Uploaded By'), { key: 'Enter' });
 
     await waitFor(() => expect(updateLootLogBundle).toHaveBeenCalledWith({
       bundleId: 'bundle-18',

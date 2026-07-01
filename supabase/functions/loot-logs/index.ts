@@ -127,6 +127,17 @@ function normalize(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizeSubmitterName(name: unknown) {
+  const clean = String(name || '').trim();
+  return clean === 'manual-web-upload' ? 'Manual' : clean;
+}
+
+function cleanEditedSubmitterName(name: unknown) {
+  const clean = String(name || '').trim();
+  if (!clean || clean.length > 80 || /[\r\n]/.test(clean)) return '';
+  return clean;
+}
+
 function formatCtaTimer(hour: number) {
   return `${String(hour).padStart(2, '0')} UTC`;
 }
@@ -547,9 +558,17 @@ Deno.serve(async (request) => {
 
       const range = buildEditedBundleRange(bundle, body.dateUtc, body.ctaHour);
       const fileNames = getEditedFileNames(body.fileNames, range.startAt);
+      const lootSubmitter = cleanEditedSubmitterName(body.submitters?.loot);
+      const chestSubmitter = cleanEditedSubmitterName(body.submitters?.chest);
+      const displaySubmitters = {
+        ...(bundle.combined_loot_summary?.displaySubmitters || {}),
+        ...(lootSubmitter ? { loot: lootSubmitter } : {}),
+        ...(chestSubmitter ? { chest: chestSubmitter } : {}),
+      };
       const combinedSummary = {
         ...(bundle.combined_loot_summary || {}),
         displayLootFileName: fileNames.baseName,
+        displaySubmitters,
         fileNames,
       };
       const { data: updatedBundle, error: updateError } = await supabase
@@ -586,7 +605,6 @@ Deno.serve(async (request) => {
           if (error) throw error;
         }));
 
-      const lootSubmitter = String(body.submitters?.loot || '').trim();
       if (lootSubmitter) {
         const { error } = await supabase
           .from('loot_log_submissions')
@@ -596,7 +614,6 @@ Deno.serve(async (request) => {
         if (error) throw error;
       }
 
-      const chestSubmitter = String(body.submitters?.chest || '').trim();
       if (chestSubmitter) {
         const { error } = await supabase
           .from('chest_log_submissions')
@@ -666,6 +683,15 @@ Deno.serve(async (request) => {
         const chestLogs = chestResult.data || [];
         const chestLog = chestLogs[chestLogs.length - 1] || null;
         const primaryLootLog = submissionsResult.data?.[0] || null;
+        const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
+        const submitters = displaySubmitters.loot
+          ? [displaySubmitters.loot]
+          : [...new Set((submissionsResult.data || [])
+            .map((submission: any) => normalizeSubmitterName(submission.submitted_by))
+            .filter(Boolean))];
+        const chestSubmitters = displaySubmitters.chest
+          ? [displaySubmitters.chest]
+          : [...new Set(chestLogs.map((submission: any) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
         const fileNames = getBundleFileNames(bundle);
 
         return jsonResponse(200, {
@@ -684,14 +710,16 @@ Deno.serve(async (request) => {
               createdAt: submission.created_at,
               id: submission.id,
               rawLogText: submission.raw_log_text || '',
-              submittedBy: submission.submitted_by === 'manual-web-upload' ? 'Manual' : submission.submitted_by,
+              submittedBy: normalizeSubmitterName(submission.submitted_by),
             })),
+            submitters,
             chestSubmissions: chestLogs.map((submission: any) => ({
               createdAt: submission.created_at,
               id: submission.id,
               rawLogText: submission.raw_log_text || '',
-              submittedBy: submission.submitted_by === 'manual-web-upload' ? 'Manual' : submission.submitted_by,
+              submittedBy: normalizeSubmitterName(submission.submitted_by),
             })),
+            chestSubmitters,
             summary,
             updatedAt: bundle.updated_at,
           },
@@ -727,14 +755,13 @@ Deno.serve(async (request) => {
         bundles: (data || []).map((bundle: any) => {
           const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
           const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
-          const submitters = [...new Set(submissions.map((submission: any) => {
-            const submittedBy = String(submission.submitted_by || '').trim();
-            return submittedBy === 'manual-web-upload' ? 'Manual' : submittedBy;
-          }).filter(Boolean))];
-          const chestSubmitters = [...new Set(chestLogs.map((submission: any) => {
-            const submittedBy = String(submission.submitted_by || '').trim();
-            return submittedBy === 'manual-web-upload' ? 'Manual' : submittedBy;
-          }).filter(Boolean))];
+          const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
+          const submitters = displaySubmitters.loot
+            ? [displaySubmitters.loot]
+            : [...new Set(submissions.map((submission: any) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
+          const chestSubmitters = displaySubmitters.chest
+            ? [displaySubmitters.chest]
+            : [...new Set(chestLogs.map((submission: any) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
           const fileNames = getBundleFileNames(bundle);
 
           return {
@@ -749,12 +776,12 @@ Deno.serve(async (request) => {
             submissions: submissions.map((submission: any) => ({
               createdAt: submission.created_at,
               id: submission.id,
-              submittedBy: submission.submitted_by === 'manual-web-upload' ? 'Manual' : submission.submitted_by,
+              submittedBy: normalizeSubmitterName(submission.submitted_by),
             })),
             chestSubmissions: chestLogs.map((submission: any) => ({
               createdAt: submission.created_at,
               id: submission.id,
-              submittedBy: submission.submitted_by === 'manual-web-upload' ? 'Manual' : submission.submitted_by,
+              submittedBy: normalizeSubmitterName(submission.submitted_by),
             })),
             chestSubmitters,
             submitters,

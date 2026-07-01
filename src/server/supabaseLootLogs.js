@@ -215,11 +215,22 @@ function normalizeSubmitterName(name) {
   return clean === 'manual-web-upload' ? 'Manual' : clean;
 }
 
+function cleanEditedSubmitterName(name) {
+  const clean = String(name || '').trim();
+  if (!clean || clean.length > 80 || /[\r\n]/.test(clean)) return '';
+  return clean;
+}
+
 function mapBundleListRow(bundle) {
   const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
   const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
-  const submitters = [...new Set(submissions.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
-  const chestSubmitters = [...new Set(chestLogs.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
+  const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
+  const submitters = displaySubmitters.loot
+    ? [displaySubmitters.loot]
+    : [...new Set(submissions.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
+  const chestSubmitters = displaySubmitters.chest
+    ? [displaySubmitters.chest]
+    : [...new Set(chestLogs.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
   const startAt = bundle.start_at;
   const endAt = bundle.end_at;
   const fileNames = getBundleFileNames(bundle, startAt);
@@ -608,9 +619,17 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
 
   const range = buildEditedBundleRange(bundle, dateUtc, ctaHour);
   const fileNames = getEditedFileNames(editedFileNames, range.startAt);
+  const lootSubmitter = cleanEditedSubmitterName(submitters.loot);
+  const chestSubmitter = cleanEditedSubmitterName(submitters.chest);
+  const displaySubmitters = {
+    ...(bundle.combined_loot_summary?.displaySubmitters || {}),
+    ...(lootSubmitter ? { loot: lootSubmitter } : {}),
+    ...(chestSubmitter ? { chest: chestSubmitter } : {}),
+  };
   const combinedSummary = {
     ...(bundle.combined_loot_summary || {}),
     displayLootFileName: fileNames.baseName,
+    displaySubmitters,
     fileNames,
   };
   const { data: updatedBundle, error: updateError } = await supabase
@@ -647,7 +666,6 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
     if (error) throw error;
   }));
 
-  const lootSubmitter = String(submitters.loot || '').trim();
   if (lootSubmitter) {
     const { error } = await supabase
       .from('loot_log_submissions')
@@ -657,7 +675,6 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
     if (error) throw error;
   }
 
-  const chestSubmitter = String(submitters.chest || '').trim();
   if (chestSubmitter) {
     const { error } = await supabase
       .from('chest_log_submissions')
@@ -707,6 +724,15 @@ export async function getLootLogBundle(bundleId) {
   const chestLogs = chestResult.data || [];
   const rawChestLogTexts = chestLogs.map((log) => log.raw_log_text || '').filter(Boolean);
   const primaryLootLog = lootSubmissionsResult.data?.[0] || null;
+  const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
+  const submitters = displaySubmitters.loot
+    ? [displaySubmitters.loot]
+    : [...new Set((lootSubmissionsResult.data || [])
+      .map((submission) => normalizeSubmitterName(submission.submitted_by))
+      .filter(Boolean))];
+  const chestSubmitters = displaySubmitters.chest
+    ? [displaySubmitters.chest]
+    : [...new Set(chestLogs.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
   const fileNames = getBundleFileNames(bundle);
 
   return {
@@ -728,12 +754,14 @@ export async function getLootLogBundle(bundleId) {
         rawLogText: submission.raw_log_text || '',
         submittedBy: normalizeSubmitterName(submission.submitted_by),
       })),
+      submitters,
       chestSubmissions: chestLogs.map((submission) => ({
         createdAt: submission.created_at,
         id: submission.id,
         rawLogText: submission.raw_log_text || '',
         submittedBy: normalizeSubmitterName(submission.submitted_by),
       })),
+      chestSubmitters,
       summary,
       updatedAt: bundle.updated_at,
     },
