@@ -53,9 +53,10 @@ describe('SiphonedEnergyTracker', () => {
     render(<SiphonedEnergyTracker />);
 
     expect(await screen.findAllByText('Bhrennoh')).toHaveLength(2);
-    expect(screen.getAllByText('-110')).toHaveLength(2);
+    expect(screen.getAllByText('-110')).toHaveLength(3);
     expect(screen.getByText('Dyathix')).toBeInTheDocument();
     expect(screen.getByText('+6')).toBeInTheDocument();
+    expect(document.querySelector('.energy-negative-total')).toHaveTextContent('-110');
     expect(document.querySelector('.energy-flag-count')).toHaveTextContent('1 flagged');
     expect(document.querySelectorAll('.energy-debt-column')).toHaveLength(1);
     expect(screen.queryByRole('dialog', { name: 'Update Energy Log' })).not.toBeInTheDocument();

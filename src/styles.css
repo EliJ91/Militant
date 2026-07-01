@@ -2194,6 +2194,20 @@ button:focus-visible {
   letter-spacing: 0;
 }
 
+.energy-debt-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  min-width: 0;
+}
+
+.energy-negative-total {
+  color: #ff6573;
+  font-size: 1.08rem;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
 .energy-import-actions {
   align-items: center;
   display: flex;

@@ -99,6 +99,9 @@ export default function SiphonedEnergyTracker() {
     calculateSiphonedEnergyBalances(transactions)
       .filter((player) => player.amount <= NEGATIVE_THRESHOLD)
   ), [transactions]);
+  const totalNegativeEnergy = useMemo(() => (
+    negativePlayers.reduce((total, player) => total + player.amount, 0)
+  ), [negativePlayers]);
   const starredPlayerKeys = useMemo(() => (
     new Set(starredPlayers.map(playerKey))
   ), [starredPlayers]);
@@ -221,7 +224,10 @@ export default function SiphonedEnergyTracker() {
         <div className="energy-section-heading">
           <div>
             <p className="eyebrow">Negative Tracker</p>
-            <h2 id="energy-debt-title">Outstanding Energy</h2>
+            <div className="energy-debt-title-row">
+              <h2 id="energy-debt-title">Outstanding Energy</h2>
+              <strong className="energy-negative-total">{formatAmount(totalNegativeEnergy, false)}</strong>
+            </div>
           </div>
           <strong className="energy-flag-count">
             <span>{negativePlayers.length}</span> flagged
