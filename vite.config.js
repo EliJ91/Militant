@@ -177,6 +177,7 @@ function siphonedEnergyApi() {
       const {
         importSiphonedEnergyTransactions,
         listSiphonedEnergyTransactions,
+        updateSiphonedEnergyPlayerStar,
       } = await import('./src/server/supabaseSiphonedEnergy.js');
 
       if (req.method === 'GET') {
@@ -187,6 +188,15 @@ function siphonedEnergyApi() {
       if (req.method === 'POST') {
         const body = await readJsonBody(req);
         sendJson(res, 200, await importSiphonedEnergyTransactions(body.logText));
+        return;
+      }
+
+      if (req.method === 'PATCH') {
+        const body = await readJsonBody(req);
+        sendJson(res, 200, await updateSiphonedEnergyPlayerStar({
+          player: body.player,
+          starred: body.starred,
+        }));
         return;
       }
 

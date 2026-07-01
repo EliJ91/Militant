@@ -2488,6 +2488,46 @@ button:focus-visible {
   text-overflow: ellipsis;
 }
 
+.energy-debt-card .energy-debt-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.energy-debt-player > span {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.energy-star-button {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(247, 250, 245, 0.18);
+  border-radius: 999px;
+  background: rgba(247, 250, 245, 0.04);
+  color: rgba(247, 250, 245, 0.34);
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.energy-star-button:hover,
+.energy-star-button.starred {
+  border-color: rgba(255, 196, 65, 0.64);
+  background: rgba(255, 196, 65, 0.12);
+  color: #ffc441;
+}
+
+.energy-star-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .energy-debt-card strong,
 .energy-negative {
   color: #ff6573;

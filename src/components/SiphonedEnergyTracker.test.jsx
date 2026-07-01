@@ -2,12 +2,14 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchSiphonedEnergyTransactions,
+  updateSiphonedEnergyPlayerStar,
   updateSiphonedEnergyTransactions,
 } from '../services/siphonedEnergyApi';
 import SiphonedEnergyTracker from './SiphonedEnergyTracker';
 
 vi.mock('../services/siphonedEnergyApi', () => ({
   fetchSiphonedEnergyTransactions: vi.fn(),
+  updateSiphonedEnergyPlayerStar: vi.fn(),
   updateSiphonedEnergyTransactions: vi.fn(),
 }));
 
@@ -31,11 +33,13 @@ const transactions = [
 describe('SiphonedEnergyTracker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchSiphonedEnergyTransactions.mockResolvedValue({ transactions });
+    fetchSiphonedEnergyTransactions.mockResolvedValue({ starredPlayers: [], transactions });
+    updateSiphonedEnergyPlayerStar.mockResolvedValue({ starredPlayers: ['Bhrennoh'] });
     updateSiphonedEnergyTransactions.mockResolvedValue({
       duplicateRows: 1,
       insertedRows: 2,
       skippedRows: [],
+      starredPlayers: [],
       transactions,
     });
   });
@@ -55,6 +59,19 @@ describe('SiphonedEnergyTracker', () => {
     expect(document.querySelector('.energy-flag-count')).toHaveTextContent('1 flagged');
     expect(document.querySelectorAll('.energy-debt-column')).toHaveLength(1);
     expect(screen.queryByRole('dialog', { name: 'Update Energy Log' })).not.toBeInTheDocument();
+  });
+
+  it('toggles and persists stars for negative tracker players', async () => {
+    render(<SiphonedEnergyTracker />);
+
+    const starButton = await screen.findByRole('button', { name: 'Star Bhrennoh' });
+    fireEvent.click(starButton);
+
+    await waitFor(() => expect(updateSiphonedEnergyPlayerStar).toHaveBeenCalledWith({
+      player: 'Bhrennoh',
+      starred: true,
+    }));
+    expect(await screen.findByRole('button', { name: 'Unstar Bhrennoh' })).toBeInTheDocument();
   });
 
   it('shows the last updated transaction date and omits zero time parts', async () => {

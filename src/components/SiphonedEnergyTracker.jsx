@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchSiphonedEnergyTransactions,
+  updateSiphonedEnergyPlayerStar,
   updateSiphonedEnergyTransactions,
 } from '../services/siphonedEnergyApi';
 import { calculateSiphonedEnergyBalances } from '../utils/siphonedEnergy';
@@ -53,9 +54,15 @@ function getLastTransactionDate(transactions) {
   }, 0);
 }
 
+function playerKey(player) {
+  return String(player || '').trim().toLowerCase();
+}
+
 export default function SiphonedEnergyTracker() {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [logText, setLogText] = useState('');
+  const [starredPlayers, setStarredPlayers] = useState([]);
+  const [starUpdatingPlayer, setStarUpdatingPlayer] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
   const [updateStatus, setUpdateStatus] = useState({ message: '', state: 'idle' });
@@ -66,6 +73,7 @@ export default function SiphonedEnergyTracker() {
     fetchSiphonedEnergyTransactions()
       .then((result) => {
         if (!active) return;
+        setStarredPlayers(result.starredPlayers || []);
         setTransactions(result.transactions || []);
         setLoadStatus({ message: '', state: 'ready' });
       })
@@ -91,6 +99,9 @@ export default function SiphonedEnergyTracker() {
     calculateSiphonedEnergyBalances(transactions)
       .filter((player) => player.amount <= NEGATIVE_THRESHOLD)
   ), [transactions]);
+  const starredPlayerKeys = useMemo(() => (
+    new Set(starredPlayers.map(playerKey))
+  ), [starredPlayers]);
   const negativePlayerColumns = useMemo(() => {
     if (negativePlayers.length === 0) return [];
     const columnCount = Math.min(5, Math.ceil(negativePlayers.length / 4));
@@ -132,6 +143,7 @@ export default function SiphonedEnergyTracker() {
 
     try {
       const result = await updateSiphonedEnergyTransactions(logText);
+      setStarredPlayers(result.starredPlayers || []);
       setTransactions(result.transactions || []);
       setLogText('');
       const parts = [`${result.insertedRows || 0} new transactions added`];
@@ -141,6 +153,33 @@ export default function SiphonedEnergyTracker() {
       setIsUpdateOpen(false);
     } catch (error) {
       setUpdateStatus({ message: error.message, state: 'error' });
+    }
+  }
+
+  async function togglePlayerStar(player) {
+    const key = playerKey(player);
+    if (!key || starUpdatingPlayer) return;
+
+    const nextStarred = !starredPlayerKeys.has(key);
+    setStarUpdatingPlayer(key);
+    setStarredPlayers((current) => (
+      nextStarred
+        ? [...current, player]
+        : current.filter((starredPlayer) => playerKey(starredPlayer) !== key)
+    ));
+
+    try {
+      const result = await updateSiphonedEnergyPlayerStar({ player, starred: nextStarred });
+      setStarredPlayers(result.starredPlayers || []);
+    } catch (error) {
+      setStarredPlayers((current) => (
+        nextStarred
+          ? current.filter((starredPlayer) => playerKey(starredPlayer) !== key)
+          : [...current, player]
+      ));
+      setUpdateStatus({ message: error.message, state: 'error' });
+    } finally {
+      setStarUpdatingPlayer('');
     }
   }
 
@@ -197,7 +236,19 @@ export default function SiphonedEnergyTracker() {
               <div className="energy-debt-column" key={column[0].player.toLowerCase()}>
                 {column.map((player) => (
                   <div className="energy-debt-card" key={player.player.toLowerCase()}>
-                    <span>{player.player}</span>
+                    <span className="energy-debt-player">
+                      <span>{player.player}</span>
+                      <button
+                        aria-label={`${starredPlayerKeys.has(playerKey(player.player)) ? 'Unstar' : 'Star'} ${player.player}`}
+                        className={starredPlayerKeys.has(playerKey(player.player)) ? 'energy-star-button starred' : 'energy-star-button'}
+                        disabled={starUpdatingPlayer === playerKey(player.player)}
+                        title={starredPlayerKeys.has(playerKey(player.player)) ? 'Remove star' : 'Add star'}
+                        type="button"
+                        onClick={() => togglePlayerStar(player.player)}
+                      >
+                        ★
+                      </button>
+                    </span>
                     <strong>{formatAmount(player.amount, false)}</strong>
                   </div>
                 ))}

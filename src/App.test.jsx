@@ -14,6 +14,7 @@ vi.mock('./services/lootLogApi', () => ({
 
 vi.mock('./services/siphonedEnergyApi', () => ({
   fetchSiphonedEnergyTransactions: vi.fn().mockResolvedValue({ transactions: [] }),
+  updateSiphonedEnergyPlayerStar: vi.fn(),
   updateSiphonedEnergyTransactions: vi.fn(),
 }));
 

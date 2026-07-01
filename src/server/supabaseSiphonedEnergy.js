@@ -32,6 +32,21 @@ function mapTransaction(row) {
   };
 }
 
+function normalizePlayerName(value) {
+  return String(value || '').trim();
+}
+
+async function listStarredPlayers(supabase) {
+  const { data, error } = await supabase
+    .from('siphoned_energy_starred_players')
+    .select('player_name')
+    .eq('starred', true)
+    .order('player_name');
+
+  if (error) throw error;
+  return (data || []).map((row) => row.player_name);
+}
+
 export async function listSiphonedEnergyTransactions() {
   const supabase = createSupabaseAdmin();
   const transactions = [];
@@ -48,7 +63,33 @@ export async function listSiphonedEnergyTransactions() {
     if (!data || data.length < PAGE_SIZE) break;
   }
 
-  return { transactions };
+  return {
+    starredPlayers: await listStarredPlayers(supabase),
+    transactions,
+  };
+}
+
+export async function updateSiphonedEnergyPlayerStar({ player, starred }) {
+  const playerName = normalizePlayerName(player);
+  if (!playerName) throw new Error('player is required.');
+
+  const supabase = createSupabaseAdmin();
+  const { error } = await supabase
+    .from('siphoned_energy_starred_players')
+    .upsert({
+      player_name: playerName,
+      player_key: playerName.toLowerCase(),
+      starred: Boolean(starred),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'player_key' });
+
+  if (error) throw error;
+
+  return {
+    player: playerName,
+    starred: Boolean(starred),
+    starredPlayers: await listStarredPlayers(supabase),
+  };
 }
 
 export async function importSiphonedEnergyTransactions(logText) {

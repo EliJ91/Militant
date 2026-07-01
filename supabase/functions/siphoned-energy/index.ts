@@ -4,7 +4,7 @@ const PAGE_SIZE = 1000;
 const INSERT_SIZE = 500;
 const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
   'Access-Control-Allow-Origin': '*',
 };
 
@@ -126,6 +126,21 @@ function mapTransaction(row: any) {
   };
 }
 
+function normalizePlayerName(value: unknown) {
+  return String(value || '').trim();
+}
+
+async function listStarredPlayers(supabase: any) {
+  const { data, error } = await supabase
+    .from('siphoned_energy_starred_players')
+    .select('player_name')
+    .eq('starred', true)
+    .order('player_name');
+
+  if (error) throw error;
+  return (data || []).map((row: any) => row.player_name);
+}
+
 async function listTransactions(supabase: any) {
   const transactions: any[] = [];
   for (let from = 0; ; from += PAGE_SIZE) {
@@ -144,7 +159,7 @@ async function listTransactions(supabase: any) {
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders, status: 204 });
-  if (request.method !== 'GET' && request.method !== 'POST') {
+  if (!['GET', 'POST', 'PATCH'].includes(request.method)) {
     return jsonResponse(405, { error: 'Method not allowed.' });
   }
 
@@ -155,7 +170,33 @@ Deno.serve(async (request) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
     if (request.method === 'GET') {
-      return jsonResponse(200, { transactions: await listTransactions(supabase) });
+      return jsonResponse(200, {
+        starredPlayers: await listStarredPlayers(supabase),
+        transactions: await listTransactions(supabase),
+      });
+    }
+
+    if (request.method === 'PATCH') {
+      const body = await request.json();
+      const playerName = normalizePlayerName(body.player);
+      if (!playerName) throw new Error('player is required.');
+
+      const { error } = await supabase
+        .from('siphoned_energy_starred_players')
+        .upsert({
+          player_name: playerName,
+          player_key: playerName.toLowerCase(),
+          starred: Boolean(body.starred),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'player_key' });
+
+      if (error) throw error;
+
+      return jsonResponse(200, {
+        player: playerName,
+        starred: Boolean(body.starred),
+        starredPlayers: await listStarredPlayers(supabase),
+      });
     }
 
     const body = await request.json();
@@ -194,6 +235,7 @@ Deno.serve(async (request) => {
       duplicateRows: uniqueRows.length - insertedRows,
       insertedRows,
       skippedRows: parsed.skippedRows,
+      starredPlayers: await listStarredPlayers(supabase),
       transactions: await listTransactions(supabase),
     });
   } catch (error) {
