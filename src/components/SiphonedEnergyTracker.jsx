@@ -22,6 +22,37 @@ function formatLogDate(value) {
   return `${month}/${day}/${year} ${hour}:${minute}:${second}`;
 }
 
+function pluralize(value, unit) {
+  return `${value} ${unit}${value === 1 ? '' : 's'}`;
+}
+
+function elapsedSince(value, now = new Date()) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  let remainingDays = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 86400000));
+  if (remainingDays === 0) return 'today';
+
+  const months = Math.floor(remainingDays / 30);
+  remainingDays %= 30;
+  const weeks = Math.floor(remainingDays / 7);
+  const days = remainingDays % 7;
+  const parts = [];
+
+  if (months > 0) parts.push(pluralize(months, 'month'));
+  if (weeks > 0) parts.push(pluralize(weeks, 'week'));
+  if (days > 0) parts.push(pluralize(days, 'day'));
+
+  return `${parts.join(' ')} ago`;
+}
+
+function getLastTransactionDate(transactions) {
+  return transactions.reduce((latest, transaction) => {
+    const time = new Date(transaction.occurredAt).getTime();
+    return Number.isFinite(time) && time > latest ? time : latest;
+  }, 0);
+}
+
 export default function SiphonedEnergyTracker() {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [logText, setLogText] = useState('');
@@ -68,6 +99,11 @@ export default function SiphonedEnergyTracker() {
       negativePlayers.slice(index * rowsPerColumn, (index + 1) * rowsPerColumn)
     )).filter((column) => column.length > 0);
   }, [negativePlayers]);
+  const lastTransactionTime = useMemo(() => getLastTransactionDate(transactions), [transactions]);
+  const lastUpdated = lastTransactionTime ? {
+    elapsed: elapsedSince(lastTransactionTime),
+    label: formatLogDate(new Date(lastTransactionTime).toISOString()),
+  } : null;
 
   async function pasteClipboard() {
     if (!navigator.clipboard?.readText) {
@@ -119,6 +155,11 @@ export default function SiphonedEnergyTracker() {
           <div className="energy-total">
             <small>Transactions</small>
             <strong>{new Intl.NumberFormat('en-US').format(transactions.length)}</strong>
+          </div>
+          <div className="energy-total energy-last-updated">
+            <small>Last Updated</small>
+            <strong>{lastUpdated?.label || 'None'}</strong>
+            {lastUpdated?.elapsed ? <span>{lastUpdated.elapsed}</span> : null}
           </div>
           <button
             className="view-logs-button energy-open-update"

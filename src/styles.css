@@ -2162,6 +2162,21 @@ button:focus-visible {
   font-size: 1.35rem;
 }
 
+.energy-last-updated {
+  min-width: 220px;
+}
+
+.energy-last-updated strong {
+  font-size: 0.95rem;
+}
+
+.energy-last-updated span {
+  color: var(--green-hot);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .energy-debt-section,
 .energy-log-section {
   margin-top: 18px;

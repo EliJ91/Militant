@@ -40,7 +40,10 @@ describe('SiphonedEnergyTracker', () => {
     });
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
   it('shows flagged balances and the complete transaction log', async () => {
     render(<SiphonedEnergyTracker />);
@@ -52,6 +55,27 @@ describe('SiphonedEnergyTracker', () => {
     expect(document.querySelector('.energy-flag-count')).toHaveTextContent('1 flagged');
     expect(document.querySelectorAll('.energy-debt-column')).toHaveLength(1);
     expect(screen.queryByRole('dialog', { name: 'Update Energy Log' })).not.toBeInTheDocument();
+  });
+
+  it('shows the last updated transaction date and omits zero time parts', async () => {
+    const lastUpdate = new Date(Date.now() - (11 * 24 * 60 * 60 * 1000));
+    const lastUpdateIso = lastUpdate.toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const lastUpdateLabel = `${String(lastUpdate.getUTCMonth() + 1).padStart(2, '0')}/${String(lastUpdate.getUTCDate()).padStart(2, '0')}/${lastUpdate.getUTCFullYear()} ${String(lastUpdate.getUTCHours()).padStart(2, '0')}:${String(lastUpdate.getUTCMinutes()).padStart(2, '0')}:${String(lastUpdate.getUTCSeconds()).padStart(2, '0')}`;
+    fetchSiphonedEnergyTransactions.mockResolvedValue({
+      transactions: [
+        { ...transactions[0], occurredAt: '2026-01-01T00:00:00' },
+        { ...transactions[1], occurredAt: lastUpdateIso },
+      ],
+    });
+
+    render(<SiphonedEnergyTracker />);
+
+    expect(await screen.findAllByText(lastUpdateLabel)).toHaveLength(2);
+    const lastUpdated = document.querySelector('.energy-last-updated');
+    expect(lastUpdated).toHaveTextContent('Last Updated');
+    expect(lastUpdated).toHaveTextContent(lastUpdateLabel);
+    expect(lastUpdated).toHaveTextContent('1 week 4 days ago');
+    expect(lastUpdated).not.toHaveTextContent('0 months');
   });
 
   it('submits pasted text and refreshes the tracker', async () => {
