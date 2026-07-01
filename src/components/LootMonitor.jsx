@@ -1248,6 +1248,8 @@ export function LootLogArchive({ onView = () => {} }) {
     dateUtc: '',
     lootFileName: '',
     lootSubmitter: '',
+    originalChestSubmitter: '',
+    originalLootSubmitter: '',
   });
   const [savedLogBundles, setSavedLogBundles] = useState([]);
   const [savedLogStatus, setSavedLogStatus] = useState({ message: '', state: 'loading' });
@@ -1401,12 +1403,22 @@ export function LootLogArchive({ onView = () => {} }) {
       dateUtc: formatUtcDateInput(bundle.startAt),
       lootFileName: stripLogSuffix(bundle.lootFileName, 'Loot Log'),
       lootSubmitter: formatSubmitterList(lootSubmitters),
+      originalChestSubmitter: bundle.hasChestLog ? formatSubmitterList(chestSubmitters) : '',
+      originalLootSubmitter: formatSubmitterList(lootSubmitters),
     });
   }
 
   function cancelEditBundle() {
     setEditingBundleId('');
-    setEditValues({ chestSubmitter: '', ctaHour: 0, dateUtc: '', lootFileName: '', lootSubmitter: '' });
+    setEditValues({
+      chestSubmitter: '',
+      ctaHour: 0,
+      dateUtc: '',
+      lootFileName: '',
+      lootSubmitter: '',
+      originalChestSubmitter: '',
+      originalLootSubmitter: '',
+    });
   }
 
   function updateEditValue(key, value) {
@@ -1427,6 +1439,14 @@ export function LootLogArchive({ onView = () => {} }) {
     setActionStatus({ message: `Updating ${bundle.lootFileName || 'loot log'}...`, state: 'loading' });
 
     try {
+      const submitterUpdates = {};
+      const lootSubmitter = editValues.lootSubmitter.trim();
+      const chestSubmitter = editValues.chestSubmitter.trim();
+      if (lootSubmitter !== editValues.originalLootSubmitter) submitterUpdates.loot = lootSubmitter;
+      if (bundle.hasChestLog && chestSubmitter !== editValues.originalChestSubmitter) {
+        submitterUpdates.chest = chestSubmitter;
+      }
+
       const result = await updateLootLogBundle({
         bundleId: bundle.id,
         ctaHour: editValues.ctaHour,
@@ -1436,10 +1456,7 @@ export function LootLogArchive({ onView = () => {} }) {
           chest: appendLogSuffix(editValues.lootFileName, 'Chest Log'),
           loot: appendLogSuffix(editValues.lootFileName, 'Loot Log'),
         },
-        submitters: {
-          chest: editValues.chestSubmitter.trim(),
-          loot: editValues.lootSubmitter.trim(),
-        },
+        submitters: Object.keys(submitterUpdates).length ? submitterUpdates : undefined,
       });
       setActionStatus({
         message: `${result.displayLootFileName || result.fileNames?.baseName || 'Loot log'} updated.`,
