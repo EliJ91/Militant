@@ -70,7 +70,10 @@ function createBundle(overrides = {}) {
     lootFileName: '18UTC-JUN-18',
     lootLogText: lootText,
     startAt: '2026-06-18T18:33:00.000Z',
+    chestSubmissions: [{ id: 'chest-submission-1', submittedBy: 'Manual' }],
+    chestSubmitters: ['Manual'],
     submissions: [{ id: 'submission-1', submittedBy: 'Manual' }],
+    submitters: ['Manual'],
     summary: { totals: { keptQuantity: 0, lootedQuantity: 2, players: 1 } },
     ...overrides,
   };
@@ -343,6 +346,8 @@ describe('LootMonitor', () => {
     expect(screen.queryByText(/18:33 UTC/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Loot Monitor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toHaveAttribute('title', 'Refresh logs');
+    expect(screen.getByText('Loot Log Uploaded by')).toBeInTheDocument();
+    expect(screen.getByText('Chest Log Uploaded by')).toBeInTheDocument();
     const stats = container.querySelector('.saved-log-totals');
     expect(within(stats).getByText('1')).toBeInTheDocument();
     expect(within(stats).getByText('player')).toBeInTheDocument();
@@ -481,6 +486,8 @@ describe('LootMonitor', () => {
     fireEvent.change(screen.getByLabelText('CTA Time'), { target: { value: '4' } });
 
     expect(screen.getByLabelText('Loot Log Name')).toHaveValue('04UTC-JUN-20');
+    expect(screen.getByLabelText('Loot Log Uploaded By')).toHaveValue('Manual');
+    expect(screen.getByLabelText('Chest Log Uploaded By')).toHaveValue('Manual');
     expect(screen.queryByRole('textbox', { name: 'Chest Log Name' })).not.toBeInTheDocument();
     expect(container.querySelector('.saved-log-name-suffix')).not.toBeInTheDocument();
 
@@ -492,6 +499,8 @@ describe('LootMonitor', () => {
     fireEvent.change(screen.getByLabelText('UTC Date'), { target: { value: '2026-06-20' } });
     fireEvent.change(screen.getByLabelText('CTA Time'), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Loot Log Name'), { target: { value: 'Custom' } });
+    fireEvent.change(screen.getByLabelText('Loot Log Uploaded By'), { target: { value: 'Onslawt' } });
+    fireEvent.change(screen.getByLabelText('Chest Log Uploaded By'), { target: { value: 'Banker' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(updateLootLogBundle).toHaveBeenCalledWith({
@@ -502,6 +511,10 @@ describe('LootMonitor', () => {
         baseName: 'Custom',
         chest: 'Custom Chest Log',
         loot: 'Custom Loot Log',
+      },
+      submitters: {
+        chest: 'Banker',
+        loot: 'Onslawt',
       },
     }));
     expect(await screen.findByText('Custom updated.')).toBeInTheDocument();

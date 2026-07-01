@@ -980,6 +980,17 @@ function StatusToasts({ messages }) {
   );
 }
 
+function formatSubmitterList(submitters, fallback = 'Manual') {
+  const names = [...new Set((submitters || [])
+    .map((submitter) => String(submitter || '').trim())
+    .filter(Boolean))];
+  return names.length ? names.join(', ') : fallback;
+}
+
+function submitterNamesFromSubmissions(submissions = []) {
+  return submissions.map((submission) => submission.submittedBy);
+}
+
 function LootLogBundleList({
   bundles,
   deletingBundleId,
@@ -1017,7 +1028,16 @@ function LootLogBundleList({
         <div className="saved-log-list">
           {bundles.map((bundle) => {
             const totals = bundle.summary?.totals || {};
-            const submitters = bundle.submitters?.length ? bundle.submitters.join(', ') : 'Manual';
+            const lootSubmitters = bundle.submitters?.length
+              ? bundle.submitters
+              : submitterNamesFromSubmissions(bundle.submissions);
+            const chestSubmitters = bundle.chestSubmitters?.length
+              ? bundle.chestSubmitters
+              : submitterNamesFromSubmissions(bundle.chestSubmissions);
+            const lootSubmittersText = formatSubmitterList(lootSubmitters);
+            const chestSubmittersText = bundle.hasChestLog
+              ? formatSubmitterList(chestSubmitters)
+              : 'No chest log';
             const retention = getRetentionStatus(bundle.startAt);
             const isEditing = editingBundleId === bundle.id;
 
@@ -1113,7 +1133,37 @@ function LootLogBundleList({
                     ) : null}
                   </div>
                   <div className="saved-log-submitters">
-                    <span>Uploaded by <strong>{submitters}</strong></span>
+                    <div className="saved-log-uploader-block">
+                      <span>Loot Log Uploaded by</span>
+                      {isEditing ? (
+                        <input
+                          aria-label="Loot Log Uploaded By"
+                          className="saved-log-name-input"
+                          maxLength={80}
+                          type="text"
+                          value={editValues.lootSubmitter}
+                          onChange={(event) => onEditValue('lootSubmitter', event.target.value)}
+                        />
+                      ) : (
+                        <strong>{lootSubmittersText}</strong>
+                      )}
+                    </div>
+                    <div className="saved-log-uploader-block">
+                      <span>Chest Log Uploaded by</span>
+                      {isEditing ? (
+                        <input
+                          aria-label="Chest Log Uploaded By"
+                          className="saved-log-name-input"
+                          disabled={!bundle.hasChestLog}
+                          maxLength={80}
+                          type="text"
+                          value={editValues.chestSubmitter}
+                          onChange={(event) => onEditValue('chestSubmitter', event.target.value)}
+                        />
+                      ) : (
+                        <strong>{chestSubmittersText}</strong>
+                      )}
+                    </div>
                   </div>
                   <div className="saved-log-totals">
                     <span><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
@@ -1127,6 +1177,8 @@ function LootLogBundleList({
                             disabled={
                               !editValues.dateUtc
                               || !editValues.lootFileName.trim()
+                              || !editValues.lootSubmitter.trim()
+                              || (bundle.hasChestLog && !editValues.chestSubmitter.trim())
                               || updatingBundleId === bundle.id
                             }
                             title="Save changes"
@@ -1191,9 +1243,11 @@ export function LootLogArchive({ onView = () => {} }) {
   const [downloadingBundleId, setDownloadingBundleId] = useState('');
   const [editingBundleId, setEditingBundleId] = useState('');
   const [editValues, setEditValues] = useState({
+    chestSubmitter: '',
     ctaHour: 0,
     dateUtc: '',
     lootFileName: '',
+    lootSubmitter: '',
   });
   const [savedLogBundles, setSavedLogBundles] = useState([]);
   const [savedLogStatus, setSavedLogStatus] = useState({ message: '', state: 'loading' });
@@ -1333,17 +1387,26 @@ export function LootLogArchive({ onView = () => {} }) {
   }
 
   function editBundle(bundle) {
+    const lootSubmitters = bundle.submitters?.length
+      ? bundle.submitters
+      : submitterNamesFromSubmissions(bundle.submissions);
+    const chestSubmitters = bundle.chestSubmitters?.length
+      ? bundle.chestSubmitters
+      : submitterNamesFromSubmissions(bundle.chestSubmissions);
+
     setEditingBundleId(bundle.id);
     setEditValues({
+      chestSubmitter: bundle.hasChestLog ? formatSubmitterList(chestSubmitters) : '',
       ctaHour: Number.parseInt(bundle.ctaTimer, 10) || 0,
       dateUtc: formatUtcDateInput(bundle.startAt),
       lootFileName: stripLogSuffix(bundle.lootFileName, 'Loot Log'),
+      lootSubmitter: formatSubmitterList(lootSubmitters),
     });
   }
 
   function cancelEditBundle() {
     setEditingBundleId('');
-    setEditValues({ ctaHour: 0, dateUtc: '', lootFileName: '' });
+    setEditValues({ chestSubmitter: '', ctaHour: 0, dateUtc: '', lootFileName: '', lootSubmitter: '' });
   }
 
   function updateEditValue(key, value) {
@@ -1372,6 +1435,10 @@ export function LootLogArchive({ onView = () => {} }) {
           baseName: editValues.lootFileName.trim(),
           chest: appendLogSuffix(editValues.lootFileName, 'Chest Log'),
           loot: appendLogSuffix(editValues.lootFileName, 'Loot Log'),
+        },
+        submitters: {
+          chest: editValues.chestSubmitter.trim(),
+          loot: editValues.lootSubmitter.trim(),
         },
       });
       setActionStatus({

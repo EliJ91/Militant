@@ -219,6 +219,7 @@ function mapBundleListRow(bundle) {
   const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
   const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
   const submitters = [...new Set(submissions.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
+  const chestSubmitters = [...new Set(chestLogs.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
   const startAt = bundle.start_at;
   const endAt = bundle.end_at;
   const fileNames = getBundleFileNames(bundle, startAt);
@@ -237,6 +238,12 @@ function mapBundleListRow(bundle) {
       id: submission.id,
       submittedBy: normalizeSubmitterName(submission.submitted_by),
     })),
+    chestSubmissions: chestLogs.map((submission) => ({
+      createdAt: submission.created_at,
+      id: submission.id,
+      submittedBy: normalizeSubmitterName(submission.submitted_by),
+    })),
+    chestSubmitters,
     submitters,
     summary: bundle.combined_loot_summary,
     updatedAt: bundle.updated_at,
@@ -587,7 +594,7 @@ export async function deleteExpiredLootLogBundles() {
   };
 }
 
-export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileNames: editedFileNames }) {
+export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileNames: editedFileNames, submitters = {} }) {
   if (!bundleId) throw new Error('bundleId is required.');
 
   const supabase = createSupabaseAdmin();
@@ -639,6 +646,26 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
 
     if (error) throw error;
   }));
+
+  const lootSubmitter = String(submitters.loot || '').trim();
+  if (lootSubmitter) {
+    const { error } = await supabase
+      .from('loot_log_submissions')
+      .update({ submitted_by: lootSubmitter })
+      .eq('bundle_id', bundleId);
+
+    if (error) throw error;
+  }
+
+  const chestSubmitter = String(submitters.chest || '').trim();
+  if (chestSubmitter) {
+    const { error } = await supabase
+      .from('chest_log_submissions')
+      .update({ submitted_by: chestSubmitter })
+      .eq('bundle_id', bundleId);
+
+    if (error) throw error;
+  }
 
   return {
     bundle: updatedBundle,
@@ -730,7 +757,9 @@ export async function listLootLogBundles() {
         created_at
       ),
       chest_log_submissions (
-        id
+        id,
+        submitted_by,
+        created_at
       )
     `)
     .order('start_at', { ascending: false });

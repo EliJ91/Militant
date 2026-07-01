@@ -63,9 +63,9 @@ export async function deleteLootLogBundle(bundleId) {
   return result;
 }
 
-export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileNames }) {
+export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileNames, submitters }) {
   const response = await fetch(getLootLogApiUrl(), {
-    body: JSON.stringify({ bundleId, ctaHour, dateUtc, fileNames }),
+    body: JSON.stringify({ bundleId, ctaHour, dateUtc, fileNames, submitters }),
     headers: { 'Content-Type': 'application/json' },
     method: 'PATCH',
   });

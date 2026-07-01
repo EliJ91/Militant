@@ -1168,19 +1168,34 @@ button:focus-visible {
 }
 
 .saved-log-submitters span {
-  width: max-content;
-  max-width: 100%;
   overflow: hidden;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.68rem;
   font-weight: 800;
+  letter-spacing: 0.06em;
   text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .saved-log-submitters strong {
+  overflow: hidden;
   color: var(--green-hot);
-  font-size: inherit;
+  font-size: 0.86rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-log-uploader-block {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 6px;
+  padding: 10px 0;
+}
+
+.saved-log-uploader-block + .saved-log-uploader-block {
+  border-top: 1px solid rgba(247, 250, 245, 0.12);
 }
 
 .saved-log-time small,
@@ -1327,6 +1342,12 @@ button:focus-visible {
 .saved-log-name-input:focus {
   border-color: var(--green-hot);
   box-shadow: 0 0 0 2px rgba(87, 216, 120, 0.13);
+}
+
+.saved-log-name-input:disabled {
+  border-color: rgba(247, 250, 245, 0.16);
+  color: var(--muted);
+  opacity: 0.74;
 }
 
 .saved-log-totals {

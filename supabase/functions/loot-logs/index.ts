@@ -583,8 +583,28 @@ Deno.serve(async (request) => {
           })
           .eq('id', chestLog.id);
 
+          if (error) throw error;
+        }));
+
+      const lootSubmitter = String(body.submitters?.loot || '').trim();
+      if (lootSubmitter) {
+        const { error } = await supabase
+          .from('loot_log_submissions')
+          .update({ submitted_by: lootSubmitter })
+          .eq('bundle_id', bundleId);
+
         if (error) throw error;
-      }));
+      }
+
+      const chestSubmitter = String(body.submitters?.chest || '').trim();
+      if (chestSubmitter) {
+        const { error } = await supabase
+          .from('chest_log_submissions')
+          .update({ submitted_by: chestSubmitter })
+          .eq('bundle_id', bundleId);
+
+        if (error) throw error;
+      }
 
       return jsonResponse(200, {
         bundle: updatedBundle,
@@ -694,7 +714,9 @@ Deno.serve(async (request) => {
             created_at
           ),
           chest_log_submissions (
-            id
+            id,
+            submitted_by,
+            created_at
           )
         `)
         .order('start_at', { ascending: false });
@@ -706,6 +728,10 @@ Deno.serve(async (request) => {
           const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
           const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
           const submitters = [...new Set(submissions.map((submission: any) => {
+            const submittedBy = String(submission.submitted_by || '').trim();
+            return submittedBy === 'manual-web-upload' ? 'Manual' : submittedBy;
+          }).filter(Boolean))];
+          const chestSubmitters = [...new Set(chestLogs.map((submission: any) => {
             const submittedBy = String(submission.submitted_by || '').trim();
             return submittedBy === 'manual-web-upload' ? 'Manual' : submittedBy;
           }).filter(Boolean))];
@@ -725,6 +751,12 @@ Deno.serve(async (request) => {
               id: submission.id,
               submittedBy: submission.submitted_by === 'manual-web-upload' ? 'Manual' : submission.submitted_by,
             })),
+            chestSubmissions: chestLogs.map((submission: any) => ({
+              createdAt: submission.created_at,
+              id: submission.id,
+              submittedBy: submission.submitted_by === 'manual-web-upload' ? 'Manual' : submission.submitted_by,
+            })),
+            chestSubmitters,
             submitters,
             summary: bundle.combined_loot_summary,
             updatedAt: bundle.updated_at,

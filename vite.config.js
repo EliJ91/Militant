@@ -111,6 +111,7 @@ function lootLogApi() {
           ctaHour: body.ctaHour,
           dateUtc: body.dateUtc,
           fileNames: body.fileNames,
+          submitters: body.submitters,
         });
         sendJson(res, 200, result);
       } catch (error) {
