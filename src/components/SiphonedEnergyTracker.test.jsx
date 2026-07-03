@@ -22,6 +22,13 @@ const transactions = [
     reason: 'Withdrawal',
   },
   {
+    amount: -200,
+    id: 'out',
+    occurredAt: '2026-06-20T18:27:12',
+    player: 'xSarge',
+    reason: 'Withdrawal',
+  },
+  {
     amount: 6,
     id: 'two',
     occurredAt: '2026-06-20T20:40:07',
@@ -33,10 +40,18 @@ const transactions = [
 describe('SiphonedEnergyTracker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchSiphonedEnergyTransactions.mockResolvedValue({ starredPlayers: [], transactions });
-    updateSiphonedEnergyPlayerStar.mockResolvedValue({ starredPlayers: ['Bhrennoh'] });
+    fetchSiphonedEnergyTransactions.mockResolvedValue({
+      guildMemberPlayers: ['Bhrennoh', 'Dyathix'],
+      starredPlayers: [],
+      transactions,
+    });
+    updateSiphonedEnergyPlayerStar.mockImplementation(({ starred }) => Promise.resolve({
+      guildMemberPlayers: ['Bhrennoh', 'Dyathix'],
+      starredPlayers: starred ? ['Bhrennoh'] : [],
+    }));
     updateSiphonedEnergyTransactions.mockResolvedValue({
       duplicateRows: 1,
+      guildMemberPlayers: ['Bhrennoh', 'Dyathix'],
       insertedRows: 2,
       skippedRows: [],
       starredPlayers: [],
@@ -57,7 +72,8 @@ describe('SiphonedEnergyTracker', () => {
     expect(screen.getByText('Dyathix')).toBeInTheDocument();
     expect(screen.getByText('+6')).toBeInTheDocument();
     expect(document.querySelector('.energy-negative-total')).toHaveTextContent('-110');
-    expect(document.querySelector('.energy-flag-count')).toHaveTextContent('1 flagged');
+    expect(screen.getByRole('button', { name: 'Starred' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Out of Guild' })).toBeInTheDocument();
     expect(document.querySelectorAll('.energy-debt-column')).toHaveLength(1);
     expect(screen.queryByRole('dialog', { name: 'Update Energy Log' })).not.toBeInTheDocument();
   });
@@ -69,16 +85,21 @@ describe('SiphonedEnergyTracker', () => {
     expect(screen.queryByLabelText('Bhrennoh starred')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /star bhrennoh/i })).not.toBeInTheDocument();
 
-    fireEvent.click(negativePlayerName);
+    const starredPlayerName = screen.getByRole('region', { name: /outstanding energy/i })
+      .querySelector('.energy-debt-player > span');
+    fireEvent.click(starredPlayerName);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Star' }));
 
     await waitFor(() => expect(updateSiphonedEnergyPlayerStar).toHaveBeenCalledWith({
       player: 'Bhrennoh',
       starred: true,
     }));
+    fireEvent.click(screen.getByRole('button', { name: 'Starred' }));
     expect(await screen.findByLabelText('Bhrennoh starred')).toBeInTheDocument();
 
-    fireEvent.click(negativePlayerName);
+    const starredPlayerInFilteredList = screen.getByRole('region', { name: /outstanding energy/i })
+      .querySelector('.energy-debt-player > span');
+    fireEvent.click(starredPlayerInFilteredList);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Remove Star' }));
     await waitFor(() => expect(updateSiphonedEnergyPlayerStar).toHaveBeenLastCalledWith({
       player: 'Bhrennoh',
@@ -86,11 +107,37 @@ describe('SiphonedEnergyTracker', () => {
     }));
   });
 
+  it('filters the negative tracker by starred and out of guild players', async () => {
+    fetchSiphonedEnergyTransactions.mockResolvedValue({
+      guildMemberPlayers: ['Bhrennoh', 'Dyathix'],
+      starredPlayers: ['Bhrennoh'],
+      transactions,
+    });
+
+    render(<SiphonedEnergyTracker />);
+
+    const debtSection = await screen.findByRole('region', { name: /outstanding energy/i });
+    expect(debtSection).not.toHaveTextContent('Bhrennoh');
+    expect(debtSection).not.toHaveTextContent('xSarge');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Starred' }));
+    expect(screen.getByRole('button', { name: 'In Guild' })).toBeInTheDocument();
+    expect(debtSection).toHaveTextContent('Bhrennoh');
+    expect(document.querySelector('.energy-negative-total')).toHaveTextContent('-110');
+
+    fireEvent.click(screen.getByRole('button', { name: 'In Guild' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Out of Guild' }));
+    expect(debtSection).toHaveTextContent('xSarge');
+    expect(debtSection).not.toHaveTextContent('Bhrennoh');
+    expect(document.querySelector('.energy-negative-total')).toHaveTextContent('-200');
+  });
+
   it('shows the last updated transaction date and omits zero time parts', async () => {
     const lastUpdate = new Date(Date.now() - (11 * 24 * 60 * 60 * 1000));
     const lastUpdateIso = lastUpdate.toISOString().replace(/\.\d{3}Z$/, 'Z');
     const lastUpdateLabel = `${String(lastUpdate.getUTCMonth() + 1).padStart(2, '0')}/${String(lastUpdate.getUTCDate()).padStart(2, '0')}/${lastUpdate.getUTCFullYear()} ${String(lastUpdate.getUTCHours()).padStart(2, '0')}:${String(lastUpdate.getUTCMinutes()).padStart(2, '0')}:${String(lastUpdate.getUTCSeconds()).padStart(2, '0')}`;
     fetchSiphonedEnergyTransactions.mockResolvedValue({
+      guildMemberPlayers: ['Bhrennoh', 'Dyathix'],
       transactions: [
         { ...transactions[0], occurredAt: '2026-01-01T00:00:00' },
         { ...transactions[1], occurredAt: lastUpdateIso },

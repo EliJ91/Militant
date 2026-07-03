@@ -7,6 +7,11 @@ import {
 import { calculateSiphonedEnergyBalances } from '../utils/siphonedEnergy';
 
 const NEGATIVE_THRESHOLD = -100;
+const TRACKER_FILTERS = {
+  IN_GUILD: 'inGuild',
+  OUT_OF_GUILD: 'outOfGuild',
+  STARRED: 'starred',
+};
 
 function formatAmount(value, includeSign = true) {
   const amount = Number(value || 0);
@@ -62,6 +67,8 @@ export default function SiphonedEnergyTracker() {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [logText, setLogText] = useState('');
   const [starMenu, setStarMenu] = useState(null);
+  const [trackerFilter, setTrackerFilter] = useState(TRACKER_FILTERS.IN_GUILD);
+  const [guildMemberPlayers, setGuildMemberPlayers] = useState([]);
   const [starredPlayers, setStarredPlayers] = useState([]);
   const [starUpdatingPlayer, setStarUpdatingPlayer] = useState('');
   const [transactions, setTransactions] = useState([]);
@@ -74,6 +81,7 @@ export default function SiphonedEnergyTracker() {
     fetchSiphonedEnergyTransactions()
       .then((result) => {
         if (!active) return;
+        setGuildMemberPlayers(result.guildMemberPlayers || []);
         setStarredPlayers(result.starredPlayers || []);
         setTransactions(result.transactions || []);
         setLoadStatus({ message: '', state: 'ready' });
@@ -108,16 +116,25 @@ export default function SiphonedEnergyTracker() {
     };
   }, [starMenu]);
 
-  const negativePlayers = useMemo(() => (
+  const allNegativePlayers = useMemo(() => (
     calculateSiphonedEnergyBalances(transactions)
       .filter((player) => player.amount <= NEGATIVE_THRESHOLD)
   ), [transactions]);
-  const totalNegativeEnergy = useMemo(() => (
-    negativePlayers.reduce((total, player) => total + player.amount, 0)
-  ), [negativePlayers]);
+  const guildMemberKeys = useMemo(() => (
+    new Set(guildMemberPlayers.map(playerKey))
+  ), [guildMemberPlayers]);
   const starredPlayerKeys = useMemo(() => (
     new Set(starredPlayers.map(playerKey))
   ), [starredPlayers]);
+  const negativePlayers = useMemo(() => allNegativePlayers.filter((player) => {
+    const key = playerKey(player.player);
+    if (trackerFilter === TRACKER_FILTERS.STARRED) return starredPlayerKeys.has(key);
+    if (trackerFilter === TRACKER_FILTERS.OUT_OF_GUILD) return !guildMemberKeys.has(key);
+    return guildMemberKeys.has(key) && !starredPlayerKeys.has(key);
+  }), [allNegativePlayers, guildMemberKeys, starredPlayerKeys, trackerFilter]);
+  const totalNegativeEnergy = useMemo(() => (
+    negativePlayers.reduce((total, player) => total + player.amount, 0)
+  ), [negativePlayers]);
   const negativePlayerColumns = useMemo(() => {
     if (negativePlayers.length === 0) return [];
     const columnCount = Math.min(5, Math.ceil(negativePlayers.length / 4));
@@ -159,6 +176,7 @@ export default function SiphonedEnergyTracker() {
 
     try {
       const result = await updateSiphonedEnergyTransactions(logText);
+      setGuildMemberPlayers(result.guildMemberPlayers || []);
       setStarredPlayers(result.starredPlayers || []);
       setTransactions(result.transactions || []);
       setLogText('');
@@ -244,7 +262,24 @@ export default function SiphonedEnergyTracker() {
             </div>
           </div>
           <strong className="energy-flag-count">
-            <span>{negativePlayers.length}</span> flagged
+            <button
+              className={trackerFilter === TRACKER_FILTERS.STARRED ? 'energy-filter-button active' : 'energy-filter-button'}
+              type="button"
+              onClick={() => setTrackerFilter((current) => (
+                current === TRACKER_FILTERS.STARRED ? TRACKER_FILTERS.IN_GUILD : TRACKER_FILTERS.STARRED
+              ))}
+            >
+              {trackerFilter === TRACKER_FILTERS.STARRED ? 'In Guild' : 'Starred'}
+            </button>
+            <button
+              className={trackerFilter === TRACKER_FILTERS.OUT_OF_GUILD ? 'energy-filter-button active' : 'energy-filter-button'}
+              type="button"
+              onClick={() => setTrackerFilter((current) => (
+                current === TRACKER_FILTERS.OUT_OF_GUILD ? TRACKER_FILTERS.IN_GUILD : TRACKER_FILTERS.OUT_OF_GUILD
+              ))}
+            >
+              {trackerFilter === TRACKER_FILTERS.OUT_OF_GUILD ? 'In Guild' : 'Out of Guild'}
+            </button>
           </strong>
         </div>
         {negativePlayers.length > 0 ? (
