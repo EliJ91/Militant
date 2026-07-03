@@ -258,8 +258,7 @@ export default function SiphonedEnergyTracker() {
                   <div className="energy-debt-card" key={player.player.toLowerCase()}>
                     <span
                       className="energy-debt-player"
-                      onContextMenu={(event) => {
-                        event.preventDefault();
+                      onClick={(event) => {
                         setStarMenu({
                           player: player.player,
                           x: event.clientX,

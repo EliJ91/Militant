@@ -69,7 +69,7 @@ describe('SiphonedEnergyTracker', () => {
     expect(screen.queryByLabelText('Bhrennoh starred')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /star bhrennoh/i })).not.toBeInTheDocument();
 
-    fireEvent.contextMenu(negativePlayerName);
+    fireEvent.click(negativePlayerName);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Star' }));
 
     await waitFor(() => expect(updateSiphonedEnergyPlayerStar).toHaveBeenCalledWith({
@@ -78,7 +78,7 @@ describe('SiphonedEnergyTracker', () => {
     }));
     expect(await screen.findByLabelText('Bhrennoh starred')).toBeInTheDocument();
 
-    fireEvent.contextMenu(negativePlayerName);
+    fireEvent.click(negativePlayerName);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Remove Star' }));
     await waitFor(() => expect(updateSiphonedEnergyPlayerStar).toHaveBeenLastCalledWith({
       player: 'Bhrennoh',

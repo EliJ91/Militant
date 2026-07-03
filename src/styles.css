@@ -2507,6 +2507,7 @@ button:focus-visible {
   align-items: center;
   gap: 7px;
   min-width: 0;
+  cursor: pointer;
 }
 
 .energy-debt-player > span {
