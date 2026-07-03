@@ -263,22 +263,26 @@ export default function SiphonedEnergyTracker() {
           </div>
           <strong className="energy-flag-count">
             <button
-              className={trackerFilter === TRACKER_FILTERS.STARRED ? 'energy-filter-button active' : 'energy-filter-button'}
+              className={trackerFilter === TRACKER_FILTERS.IN_GUILD ? 'energy-filter-button active' : 'energy-filter-button'}
               type="button"
-              onClick={() => setTrackerFilter((current) => (
-                current === TRACKER_FILTERS.STARRED ? TRACKER_FILTERS.IN_GUILD : TRACKER_FILTERS.STARRED
-              ))}
+              onClick={() => setTrackerFilter(TRACKER_FILTERS.IN_GUILD)}
             >
-              {trackerFilter === TRACKER_FILTERS.STARRED ? 'In Guild' : 'Starred'}
+              Guild
             </button>
             <button
               className={trackerFilter === TRACKER_FILTERS.OUT_OF_GUILD ? 'energy-filter-button active' : 'energy-filter-button'}
               type="button"
-              onClick={() => setTrackerFilter((current) => (
-                current === TRACKER_FILTERS.OUT_OF_GUILD ? TRACKER_FILTERS.IN_GUILD : TRACKER_FILTERS.OUT_OF_GUILD
-              ))}
+              onClick={() => setTrackerFilter(TRACKER_FILTERS.OUT_OF_GUILD)}
             >
-              {trackerFilter === TRACKER_FILTERS.OUT_OF_GUILD ? 'In Guild' : 'Out of Guild'}
+              Non-Guild
+            </button>
+            <button
+              aria-label="Starred"
+              className={trackerFilter === TRACKER_FILTERS.STARRED ? 'energy-filter-button energy-filter-star active' : 'energy-filter-button energy-filter-star'}
+              type="button"
+              onClick={() => setTrackerFilter(TRACKER_FILTERS.STARRED)}
+            >
+              <span aria-hidden="true">&#9733;</span>
             </button>
           </strong>
         </div>

@@ -2170,6 +2170,17 @@ button:focus-visible {
   color: var(--green-hot);
 }
 
+.energy-filter-star {
+  min-width: 38px;
+  color: #c6ccd0;
+  font-size: 0.9rem;
+}
+
+.energy-filter-star:hover,
+.energy-filter-star.active {
+  color: #dfe3e6;
+}
+
 .energy-total strong {
   color: var(--white);
   font-size: 1.35rem;

@@ -72,8 +72,9 @@ describe('SiphonedEnergyTracker', () => {
     expect(screen.getByText('Dyathix')).toBeInTheDocument();
     expect(screen.getByText('+6')).toBeInTheDocument();
     expect(document.querySelector('.energy-negative-total')).toHaveTextContent('-110');
+    expect(screen.getByRole('button', { name: 'Guild' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Non-Guild' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Starred' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Out of Guild' })).toBeInTheDocument();
     expect(document.querySelectorAll('.energy-debt-column')).toHaveLength(1);
     expect(screen.queryByRole('dialog', { name: 'Update Energy Log' })).not.toBeInTheDocument();
   });
@@ -121,15 +122,20 @@ describe('SiphonedEnergyTracker', () => {
     expect(debtSection).not.toHaveTextContent('xSarge');
 
     fireEvent.click(screen.getByRole('button', { name: 'Starred' }));
-    expect(screen.getByRole('button', { name: 'In Guild' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guild' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Non-Guild' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Starred' })).toBeInTheDocument();
     expect(debtSection).toHaveTextContent('Bhrennoh');
     expect(document.querySelector('.energy-negative-total')).toHaveTextContent('-110');
 
-    fireEvent.click(screen.getByRole('button', { name: 'In Guild' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Out of Guild' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Non-Guild' }));
     expect(debtSection).toHaveTextContent('xSarge');
     expect(debtSection).not.toHaveTextContent('Bhrennoh');
     expect(document.querySelector('.energy-negative-total')).toHaveTextContent('-200');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guild' }));
+    expect(debtSection).not.toHaveTextContent('Bhrennoh');
+    expect(debtSection).not.toHaveTextContent('xSarge');
   });
 
   it('shows the last updated transaction date and omits zero time parts', async () => {
