@@ -108,6 +108,14 @@ describe('SiphonedEnergyTracker', () => {
     }));
   });
 
+  it('hides update controls when updates are disabled', async () => {
+    render(<SiphonedEnergyTracker canUpdate={false} />);
+
+    expect(await screen.findByRole('heading', { name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Update Log' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Update Energy Log' })).not.toBeInTheDocument();
+  });
+
   it('filters the negative tracker by starred and out of guild players', async () => {
     fetchSiphonedEnergyTransactions.mockResolvedValue({
       guildMemberPlayers: ['Bhrennoh', 'Dyathix'],

@@ -63,7 +63,7 @@ function playerKey(player) {
   return String(player || '').trim().toLowerCase();
 }
 
-export default function SiphonedEnergyTracker() {
+export default function SiphonedEnergyTracker({ canUpdate = true }) {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [logText, setLogText] = useState('');
   const [starMenu, setStarMenu] = useState(null);
@@ -235,16 +235,18 @@ export default function SiphonedEnergyTracker() {
             <strong>{lastUpdated?.label || 'None'}</strong>
             {lastUpdated?.elapsed ? <span>{lastUpdated.elapsed}</span> : null}
           </div>
-          <button
-            className="view-logs-button energy-open-update"
-            type="button"
-            onClick={() => {
-              setUpdateStatus({ message: '', state: 'idle' });
-              setIsUpdateOpen(true);
-            }}
-          >
-            Update Log
-          </button>
+          {canUpdate ? (
+            <button
+              className="view-logs-button energy-open-update"
+              type="button"
+              onClick={() => {
+                setUpdateStatus({ message: '', state: 'idle' });
+                setIsUpdateOpen(true);
+              }}
+            >
+              Update Log
+            </button>
+          ) : null}
         </div>
       </section>
 

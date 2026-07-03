@@ -168,21 +168,23 @@ function LootLogsPage({ onSignOut = () => {}, onViewBundle }) {
   );
 }
 
-function SiphonedEnergyPage({ onSignOut = () => {} }) {
+function SiphonedEnergyPage({ isAuthenticated = false, onSignOut = () => {} }) {
   return (
     <>
       <header className="topbar">
         <BrandLockup compact />
-        <div className="topbar-actions">
-          <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
-            Dashboard
-          </button>
-          <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
-            Sign Out
-          </button>
-        </div>
+        {isAuthenticated ? (
+          <div className="topbar-actions">
+            <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
+              Dashboard
+            </button>
+            <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
+              Sign Out
+            </button>
+          </div>
+        ) : null}
       </header>
-      <SiphonedEnergyTracker />
+      <SiphonedEnergyTracker canUpdate={isAuthenticated} />
     </>
   );
 }
@@ -243,6 +245,9 @@ export default function App() {
   }
 
   if (route === 'shared-log') return <SharedLootMonitorPage bundleId={selectedBundleId} />;
+  if (route === 'siphoned-energy') {
+    return <SiphonedEnergyPage isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />;
+  }
   if (!isAuthenticated && route !== 'landing') {
     return <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
   }
@@ -256,6 +261,5 @@ export default function App() {
     );
   }
   if (route === 'loot-monitor') return <LootMonitorPage bundleId={selectedBundleId} onSignOut={handleSignOut} />;
-  if (route === 'siphoned-energy') return <SiphonedEnergyPage onSignOut={handleSignOut} />;
   return <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
 }

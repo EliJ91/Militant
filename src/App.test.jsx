@@ -68,6 +68,17 @@ describe('App', () => {
     expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
   });
 
+  it('opens the Siphoned Energy Tracker without login but hides protected controls', () => {
+    window.location.hash = '#siphoned-energy';
+    const { container } = render(<App />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
+    expect(withinTopbar(container, 'Dashboard')).toBeUndefined();
+    expect(withinTopbar(container, 'Sign Out')).toBeUndefined();
+    expect(screen.queryByRole('button', { name: 'Update Log' })).not.toBeInTheDocument();
+    expect(window.localStorage.getItem('militant.authenticated')).toBeNull();
+  });
+
   it('does not restore a previously selected loot log after a refresh', () => {
     window.localStorage.setItem('militant.authenticated', 'true');
     window.sessionStorage.setItem('militant.selectedLootLogBundle', 'stale-bundle');

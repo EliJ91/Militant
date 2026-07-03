@@ -2150,6 +2150,7 @@ button:focus-visible {
 }
 
 .energy-filter-button {
+  align-items: center;
   min-height: 34px;
   padding: 7px 12px;
   border: 1px solid rgba(87, 216, 120, 0.44);
@@ -2157,9 +2158,11 @@ button:focus-visible {
   background: rgba(87, 216, 120, 0.08);
   color: var(--white);
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
   font-size: 0.68rem;
   font-weight: 900;
+  justify-content: center;
   text-transform: uppercase;
 }
 
@@ -2171,9 +2174,12 @@ button:focus-visible {
 }
 
 .energy-filter-star {
+  width: 38px;
   min-width: 38px;
+  padding: 0;
   color: #c6ccd0;
-  font-size: 0.9rem;
+  font-size: 1.55rem;
+  line-height: 1;
 }
 
 .energy-filter-star:hover,
