@@ -259,6 +259,7 @@ export default function SiphonedEnergyTracker() {
                     <span
                       className="energy-debt-player"
                       onClick={(event) => {
+                        event.stopPropagation();
                         setStarMenu({
                           player: player.player,
                           x: event.clientX,
@@ -282,27 +283,28 @@ export default function SiphonedEnergyTracker() {
         ) : (
           <p className="energy-empty-inline">No player is negative 100 Energy or more.</p>
         )}
-        {starMenu ? (
-          <div
-            className="energy-star-menu"
-            role="menu"
-            style={{ left: starMenu.x, top: starMenu.y }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              disabled={starUpdatingPlayer === playerKey(starMenu.player)}
-              role="menuitem"
-              type="button"
-              onClick={() => togglePlayerStar(
-                starMenu.player,
-                !starredPlayerKeys.has(playerKey(starMenu.player)),
-              )}
-            >
-              {starredPlayerKeys.has(playerKey(starMenu.player)) ? 'Remove Star' : 'Star'}
-            </button>
-          </div>
-        ) : null}
       </section>
+
+      {starMenu ? (
+        <div
+          className="energy-star-menu"
+          role="menu"
+          style={{ left: starMenu.x, top: starMenu.y }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            disabled={starUpdatingPlayer === playerKey(starMenu.player)}
+            role="menuitem"
+            type="button"
+            onClick={() => togglePlayerStar(
+              starMenu.player,
+              !starredPlayerKeys.has(playerKey(starMenu.player)),
+            )}
+          >
+            {starredPlayerKeys.has(playerKey(starMenu.player)) ? 'Remove Star' : 'Star'}
+          </button>
+        </div>
+      ) : null}
 
       <section className="energy-log-section" aria-labelledby="energy-log-title">
         <div className="energy-section-heading">
