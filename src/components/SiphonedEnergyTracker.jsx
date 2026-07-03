@@ -61,6 +61,7 @@ function playerKey(player) {
 export default function SiphonedEnergyTracker() {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [logText, setLogText] = useState('');
+  const [starMenu, setStarMenu] = useState(null);
   const [starredPlayers, setStarredPlayers] = useState([]);
   const [starUpdatingPlayer, setStarUpdatingPlayer] = useState('');
   const [transactions, setTransactions] = useState([]);
@@ -94,6 +95,18 @@ export default function SiphonedEnergyTracker() {
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [isUpdateOpen, updateStatus.state]);
+
+  useEffect(() => {
+    if (!starMenu) return undefined;
+
+    const closeMenu = () => setStarMenu(null);
+    window.addEventListener('click', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+    return () => {
+      window.removeEventListener('click', closeMenu);
+      window.removeEventListener('scroll', closeMenu, true);
+    };
+  }, [starMenu]);
 
   const negativePlayers = useMemo(() => (
     calculateSiphonedEnergyBalances(transactions)
@@ -159,12 +172,13 @@ export default function SiphonedEnergyTracker() {
     }
   }
 
-  async function togglePlayerStar(player) {
+  async function togglePlayerStar(player, forcedStarred = null) {
     const key = playerKey(player);
     if (!key || starUpdatingPlayer) return;
 
-    const nextStarred = !starredPlayerKeys.has(key);
+    const nextStarred = forcedStarred ?? !starredPlayerKeys.has(key);
     setStarUpdatingPlayer(key);
+    setStarMenu(null);
     setStarredPlayers((current) => (
       nextStarred
         ? [...current, player]
@@ -242,18 +256,23 @@ export default function SiphonedEnergyTracker() {
               <div className="energy-debt-column" key={column[0].player.toLowerCase()}>
                 {column.map((player) => (
                   <div className="energy-debt-card" key={player.player.toLowerCase()}>
-                    <span className="energy-debt-player">
+                    <span
+                      className="energy-debt-player"
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        setStarMenu({
+                          player: player.player,
+                          x: event.clientX,
+                          y: event.clientY,
+                        });
+                      }}
+                    >
                       <span>{player.player}</span>
-                      <button
-                        aria-label={`${starredPlayerKeys.has(playerKey(player.player)) ? 'Unstar' : 'Star'} ${player.player}`}
-                        className={starredPlayerKeys.has(playerKey(player.player)) ? 'energy-star-button starred' : 'energy-star-button'}
-                        disabled={starUpdatingPlayer === playerKey(player.player)}
-                        title={starredPlayerKeys.has(playerKey(player.player)) ? 'Remove star' : 'Add star'}
-                        type="button"
-                        onClick={() => togglePlayerStar(player.player)}
-                      >
-                        ★
-                      </button>
+                      {starredPlayerKeys.has(playerKey(player.player)) ? (
+                        <span aria-label={`${player.player} starred`} className="energy-star-icon" role="img">
+                          ★
+                        </span>
+                      ) : null}
                     </span>
                     <strong>{formatAmount(player.amount, false)}</strong>
                   </div>
@@ -264,6 +283,26 @@ export default function SiphonedEnergyTracker() {
         ) : (
           <p className="energy-empty-inline">No player is negative 100 Energy or more.</p>
         )}
+        {starMenu ? (
+          <div
+            className="energy-star-menu"
+            role="menu"
+            style={{ left: starMenu.x, top: starMenu.y }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              disabled={starUpdatingPlayer === playerKey(starMenu.player)}
+              role="menuitem"
+              type="button"
+              onClick={() => togglePlayerStar(
+                starMenu.player,
+                !starredPlayerKeys.has(playerKey(starMenu.player)),
+              )}
+            >
+              {starredPlayerKeys.has(playerKey(starMenu.player)) ? 'Remove Star' : 'Star'}
+            </button>
+          </div>
+        ) : null}
       </section>
 
       <section className="energy-log-section" aria-labelledby="energy-log-title">
@@ -346,7 +385,7 @@ export default function SiphonedEnergyTracker() {
             <textarea
               ref={logInputRef}
               aria-label="Siphoned Energy log"
-              placeholder={'Paste the copied log here\n\nDate    Player    Reason    Amount'}
+              placeholder="Paste the copied log here"
               spellCheck="false"
               value={logText}
               onChange={(event) => setLogText(event.target.value)}

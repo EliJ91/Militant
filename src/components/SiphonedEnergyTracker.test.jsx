@@ -65,14 +65,25 @@ describe('SiphonedEnergyTracker', () => {
   it('toggles and persists stars for negative tracker players', async () => {
     render(<SiphonedEnergyTracker />);
 
-    const starButton = await screen.findByRole('button', { name: 'Star Bhrennoh' });
-    fireEvent.click(starButton);
+    const [negativePlayerName] = await screen.findAllByText('Bhrennoh');
+    expect(screen.queryByLabelText('Bhrennoh starred')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /star bhrennoh/i })).not.toBeInTheDocument();
+
+    fireEvent.contextMenu(negativePlayerName);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Star' }));
 
     await waitFor(() => expect(updateSiphonedEnergyPlayerStar).toHaveBeenCalledWith({
       player: 'Bhrennoh',
       starred: true,
     }));
-    expect(await screen.findByRole('button', { name: 'Unstar Bhrennoh' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Bhrennoh starred')).toBeInTheDocument();
+
+    fireEvent.contextMenu(negativePlayerName);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove Star' }));
+    await waitFor(() => expect(updateSiphonedEnergyPlayerStar).toHaveBeenLastCalledWith({
+      player: 'Bhrennoh',
+      starred: false,
+    }));
   });
 
   it('shows the last updated transaction date and omits zero time parts', async () => {
@@ -102,6 +113,8 @@ describe('SiphonedEnergyTracker', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Update Log' }));
     expect(screen.getByRole('dialog', { name: 'Update Energy Log' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Paste the copied log here')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Date\\s+Player\\s+Reason\\s+Amount/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Siphoned Energy log'), {
       target: { value: 'copied game log' },
     });
