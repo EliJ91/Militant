@@ -177,14 +177,16 @@ describe('loot monitor report', () => {
   it('deduplicates identical loot events within five seconds', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-07-05T01:23:41.0038688Z;;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;1;;Militant;Frankisrmt",
+      "2026-07-05T01:23:37.5307431Z;CHAIR;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;1;;Militant;Frankisrmt",
       "2026-07-05T01:23:39.923Z;CHAIR;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;1;;;@MOB_T5",
-      "2026-07-05T01:23:44.803Z;CHAIR;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;1;;;@MOB_T5",
     ].join('\n');
 
     const report = buildLootMonitorReport(lootText, '');
     const hood = report.rows.find((row) => row.player === 'Onslawht');
 
     expect(hood).toMatchObject({
+      alliance: 'CHAIR',
       kept: 1,
       looted: 1,
     });

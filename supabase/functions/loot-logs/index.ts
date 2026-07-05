@@ -329,10 +329,12 @@ function nearbyDuplicateKey(event: LootEvent) {
     normalize(event.itemId),
     normalize(event.item),
     String(event.enchantment || 0),
-    normalize(event.alliance),
-    normalize(event.guild),
     normalize(event.lostTo),
   ].join('|');
+}
+
+function bestDuplicateValue(entries: Array<{ event: LootEvent }>, field: keyof LootEvent) {
+  return String(entries.map(({ event }) => event[field]).find((value) => String(value || '').trim()) || '');
 }
 
 function dedupeNearbyEvents(events: LootEvent[]) {
@@ -375,6 +377,9 @@ function dedupeNearbyEvents(events: LootEvent[]) {
       const first = cluster.entries[0];
       deduped.push({
         ...first.event,
+        alliance: bestDuplicateValue(cluster.entries, 'alliance'),
+        guild: bestDuplicateValue(cluster.entries, 'guild'),
+        lostTo: bestDuplicateValue(cluster.entries, 'lostTo'),
         quantity: Math.max(...cluster.entries.map(({ event }) => event.quantity || 0)),
       });
     });
