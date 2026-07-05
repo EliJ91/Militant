@@ -169,6 +169,7 @@ describe('loot monitor report', () => {
       kept: 2,
       status: 'kept',
     });
+    expect(cape.custodyChains).toContain('Looted by Windyyyzz');
     expect(report.totals.lootedQuantity).toBe(2);
     expect(report.totals.depositedQuantity).toBe(0);
   });

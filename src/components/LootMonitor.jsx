@@ -213,25 +213,31 @@ function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
   <title>${title}</title>
   <style>
     :root { color: #f7faf5; background: #05080d; font-family: Inter, Arial, sans-serif; }
-    body { margin: 0; padding: 24px; background: #05080d; }
-    main { display: grid; gap: 18px; max-width: 1400px; margin: 0 auto; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; overflow: hidden; padding: 24px; background: #05080d; }
+    main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 16px; height: 100%; max-width: 1400px; margin: 0 auto; min-height: 0; }
     h1 { margin: 0; font-size: 2rem; }
-    section { display: grid; gap: 10px; min-width: 0; }
+    .raw-log-body { display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); min-height: 0; overflow: hidden; border: 1px solid rgba(87,216,120,.38); border-radius: 8px; background: #071008; }
+    section { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; min-width: 0; min-height: 0; overflow: hidden; padding: 16px; }
+    section + section { border-top: 1px solid rgba(247,250,245,.1); }
     h2 { margin: 0; color: #57d878; font-size: 0.86rem; text-transform: uppercase; }
-    pre { min-height: 280px; overflow: auto; margin: 0; padding: 14px; border: 1px solid rgba(247,250,245,.14); border-radius: 7px; background: #020403; color: #dfe8dc; font: 0.78rem/1.55 Consolas, "Liberation Mono", monospace; white-space: pre; }
+    pre { min-height: 0; overflow: auto; margin: 0; padding: 14px; border: 1px solid rgba(247,250,245,.14); border-radius: 7px; background: #020403; color: #dfe8dc; font: 0.78rem/1.55 Consolas, "Liberation Mono", monospace; white-space: pre; }
   </style>
 </head>
 <body>
   <main>
     <h1>${title}</h1>
-    <section>
-      <h2>Loot Log</h2>
-      <pre>${escapeHtml(lootLogText || 'No raw loot log data.')}</pre>
-    </section>
-    <section>
-      <h2>Chest Log</h2>
-      <pre>${escapeHtml(chestLogText || 'No raw chest log data.')}</pre>
-    </section>
+    <div class="raw-log-body">
+      <section>
+        <h2>Loot Log</h2>
+        <pre>${escapeHtml(lootLogText || 'No raw loot log data.')}</pre>
+      </section>
+      <section>
+        <h2>Chest Log</h2>
+        <pre>${escapeHtml(chestLogText || 'No raw chest log data.')}</pre>
+      </section>
+    </div>
   </main>
 </body>
 </html>`;
@@ -526,6 +532,7 @@ function buildItemTiles(row, filters) {
     imageUrl: itemImageUrl(row.itemId),
     item: row.item,
     itemId: row.itemId,
+    custodyChains: row.custodyChains,
     lostTo: row.lostTo,
     player: row.player,
   }));
@@ -862,6 +869,9 @@ function LootItemTile({ tile }) {
   const statusLabel = TILE_STATUS_LABELS[tile.status] || tile.status;
   const label = `${tile.player} ${statusLabel} ${tile.quantity} ${tile.item}`;
   const itemDetail = tile.itemId ? `${tile.item} (${tile.itemId})` : `${tile.item} (missing item id)`;
+  const custodyDetail = tile.status === 'kept' && tile.custodyChains
+    ? `\nCustody chain:\n${tile.custodyChains}`
+    : '';
   const imageSrc = imageAttempt > 0 ? `${tile.imageUrl}&retry=${imageAttempt}` : tile.imageUrl;
   const itemInitials = String(tile.item || '?')
     .split(/\s+/)
@@ -888,7 +898,7 @@ function LootItemTile({ tile }) {
     <figure
       aria-label={label}
       className={`loot-item-tile ${tile.status}-tile`}
-      title={tile.lostTo ? `${itemDetail} - ${statusLabel} to ${tile.lostTo}` : `${itemDetail} - ${statusLabel}`}
+      title={`${tile.lostTo ? `${itemDetail} - ${statusLabel} to ${tile.lostTo}` : `${itemDetail} - ${statusLabel}`}${custodyDetail}`}
     >
       {tile.imageUrl && !imageFailed ? (
         <img

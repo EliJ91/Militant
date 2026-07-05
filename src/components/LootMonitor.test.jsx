@@ -209,6 +209,25 @@ describe('LootMonitor', () => {
     });
   });
 
+  it('shows custody chain in kept item tooltips', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        events: [storedEvents[0]],
+        hasChestLog: false,
+      }),
+    });
+
+    const { container } = render(<LootMonitor bundleId="bundle-18" />);
+
+    expect(await screen.findByText('Windyyyzz')).toBeInTheDocument();
+    const renderedTile = container.querySelector('.loot-item-tile.kept-tile');
+    expect(renderedTile).toHaveAttribute('title', expect.stringContaining('Custody chain'));
+    expect(renderedTile).toHaveAttribute('title', expect.stringContaining('Looted by Windyyyzz'));
+  });
+
   it('copies a share link for the selected bundle', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
@@ -243,6 +262,7 @@ describe('LootMonitor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open New Tab' }));
 
     expect(openSpy).toHaveBeenCalledWith('', '_blank');
+    expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('raw-log-body'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Loot Log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Chest Log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Windyyyzz'));

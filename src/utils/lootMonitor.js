@@ -474,6 +474,7 @@ function createReportRow(rowMap, source) {
     deposited: 0,
     donated: 0,
     donatedEmv: 0,
+    custodyChains: [],
     enchantment: source.enchantment || 0,
     emvEach: source.emvEach ?? null,
     emvPricedAt: source.emvPricedAt || '',
@@ -521,6 +522,16 @@ function addReportQuantity(rowMap, source, field, quantity, extra = {}) {
   if (field === 'accounted' || field === 'donated') row.deposited += quantity;
   pushUnique(row.qualities, extra.quality ? `Q${extra.quality}` : '');
   pushUnique(row.lostTo, extra.lostTo);
+  pushUnique(row.custodyChains, extra.custodyChain);
+}
+
+function formatCustodyTime(row) {
+  return row.date || row.timestamp || '';
+}
+
+function custodyStep(action, row, player = row.player) {
+  const time = formatCustodyTime(row);
+  return `${action} by ${player || 'Unknown'}${time ? ` at ${time}` : ''}`;
 }
 
 function makeLot(row, quantity, { tracked = true } = {}) {
@@ -539,6 +550,7 @@ function makeLot(row, quantity, { tracked = true } = {}) {
     emvTotal: Number.isFinite(Number(row.emvEach)) ? Number(row.emvEach) * quantity : null,
     sourceLooter: row.sourceLooter || row.player || '',
     tracked,
+    custodyChain: tracked ? [custodyStep('Looted', row)] : [],
   };
 }
 
@@ -706,6 +718,7 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
       const { consumed, missing } = consumePoolLots(chestLots, itemKey, Math.abs(row.amount));
       addLots(holderLots, row.player, itemKey, consumed.map((lot) => ({
         ...lot,
+        custodyChain: [...(lot.custodyChain || []), custodyStep('Withdrawn', row)],
         player: row.player,
       })));
       if (missing > 0) addLots(holderLots, row.player, itemKey, [makeLot(itemRow, missing, { tracked: false })]);
@@ -724,7 +737,12 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
         player: row.player,
         sourceLooter: row.player,
       }
-    )));
+    )).map((lot) => ({
+      ...lot,
+      custodyChain: isTrackedLot(lot)
+        ? [...(lot.custodyChain || []), custodyStep('Deposited', row)]
+        : lot.custodyChain,
+    })));
     if (tradedDeposit.missing > 0) {
       if (row.isFinalChest) {
         addReportQuantity(rowMap, itemRow, 'donated', tradedDeposit.missing, { quality: row.quality });
@@ -747,7 +765,9 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
   holderLots.forEach((lots) => {
     lots
       .filter(isTrackedLot)
-      .forEach((lot) => addReportQuantity(rowMap, lot, 'kept', lot.quantity));
+      .forEach((lot) => addReportQuantity(rowMap, lot, 'kept', lot.quantity, {
+        custodyChain: (lot.custodyChain || []).join(' -> '),
+      }));
   });
 
   const rows = [...rowMap.values()].map((row) => {
@@ -766,6 +786,7 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
       alliance: row.alliance.join(', '),
       guild: row.guild.join(', '),
       kept,
+      custodyChains: row.custodyChains.join('\n'),
       lostTo: row.lostTo.join(', '),
       qualities: row.qualities.join(', '),
       sourceLooters: row.sourceLooters.join(', '),
