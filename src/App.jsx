@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
+import packageJson from '../package.json';
 
 const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
 const AUTH_STORAGE_KEY = 'militant.authenticated';
 const APP_PASSWORD = 'militant#1';
+const APP_VERSION = packageJson.version;
 
 function getRoute() {
   const route = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '').toLowerCase();
@@ -39,6 +41,14 @@ function BrandLockup({ compact = false }) {
         alt="Militant"
       />
     </div>
+  );
+}
+
+function VersionFooter() {
+  return (
+    <footer className="app-version-footer" aria-label="Application version">
+      v{APP_VERSION}
+    </footer>
   );
 }
 
@@ -244,22 +254,32 @@ export default function App() {
     navigateTo(`#loot-monitor/${encodeURIComponent(bundleId)}`);
   }
 
-  if (route === 'shared-log') return <SharedLootMonitorPage bundleId={selectedBundleId} />;
-  if (route === 'siphoned-energy') {
-    return <SiphonedEnergyPage isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />;
-  }
-  if (!isAuthenticated && route !== 'landing') {
-    return <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
-  }
-  if (route === 'dashboard') return <DashboardPage onSignOut={handleSignOut} />;
-  if (route === 'loot-logs') {
-    return (
+  let page;
+  if (route === 'shared-log') {
+    page = <SharedLootMonitorPage bundleId={selectedBundleId} />;
+  } else if (route === 'siphoned-energy') {
+    page = <SiphonedEnergyPage isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />;
+  } else if (!isAuthenticated && route !== 'landing') {
+    page = <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
+  } else if (route === 'dashboard') {
+    page = <DashboardPage onSignOut={handleSignOut} />;
+  } else if (route === 'loot-logs') {
+    page = (
       <LootLogsPage
         onSignOut={handleSignOut}
         onViewBundle={viewLootLogBundle}
       />
     );
+  } else if (route === 'loot-monitor') {
+    page = <LootMonitorPage bundleId={selectedBundleId} onSignOut={handleSignOut} />;
+  } else {
+    page = <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
   }
-  if (route === 'loot-monitor') return <LootMonitorPage bundleId={selectedBundleId} onSignOut={handleSignOut} />;
-  return <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
+
+  return (
+    <>
+      {page}
+      <VersionFooter />
+    </>
+  );
 }
