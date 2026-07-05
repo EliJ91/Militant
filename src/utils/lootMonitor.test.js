@@ -174,22 +174,30 @@ describe('loot monitor report', () => {
     expect(report.totals.depositedQuantity).toBe(0);
   });
 
-  it('deduplicates identical loot events within five seconds', () => {
+  it('deduplicates nearby identical loot events', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
       "2026-07-05T01:23:41.0038688Z;;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;1;;Militant;Frankisrmt",
       "2026-07-05T01:23:37.5307431Z;CHAIR;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;1;;Militant;Frankisrmt",
-      "2026-07-05T01:23:39.923Z;CHAIR;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;1;;;@MOB_T5",
+      "2026-07-05T01:23:39.923Z;CHAIR;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;2;;;@MOB_T5",
+    ].join('\n');
+    const chestText = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"07/05/2026 01:25:00"\t"Onslawht"\t"Expert\'s Mercenary Hood"\t"3"\t"4"\t"1"',
     ].join('\n');
 
-    const report = buildLootMonitorReport(lootText, '');
+    const report = buildLootMonitorReport(lootText, chestText);
     const hood = report.rows.find((row) => row.player === 'Onslawht');
 
     expect(hood).toMatchObject({
+      accounted: 1,
       alliance: 'CHAIR',
-      kept: 1,
+      kept: 0,
       looted: 1,
+      status: 'resolved',
     });
+    expect(report.totals.accountedQuantity).toBe(1);
+    expect(report.totals.keptQuantity).toBe(0);
     expect(report.totals.lootedQuantity).toBe(1);
   });
 

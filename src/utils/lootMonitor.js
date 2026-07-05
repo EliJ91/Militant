@@ -1,7 +1,7 @@
 import albionItemLookup from '../data/albion_item_lookup.json' with { type: 'json' };
 
 const DEFAULT_CUSTODY_GUILD = 'Militant';
-const NEARBY_DUPLICATE_MS = 5000;
+const NEARBY_DUPLICATE_MS = 30000;
 
 export function parseDelimited(text, delimiter) {
   const rows = [];
@@ -140,15 +140,33 @@ function nearbyDuplicateKey(event) {
   return [
     event.eventType || 'looted',
     normalize(event.player),
+    normalize(event.guild),
     normalize(event.itemId),
     normalize(event.item),
     String(event.enchantment || 0),
-    normalize(event.lostTo),
   ].join('|');
 }
 
 function bestDuplicateValue(entries, field) {
   return entries.map(({ event }) => event[field]).find((value) => String(value || '').trim()) || '';
+}
+
+function duplicateQuantity(entries) {
+  const quantities = entries
+    .map(({ event }) => Number(event.quantity) || 0)
+    .filter((quantity) => quantity > 0);
+  if (!quantities.length) return 0;
+
+  const counts = new Map();
+  quantities.forEach((quantity) => counts.set(quantity, (counts.get(quantity) || 0) + 1));
+
+  return quantities.reduce((best, quantity) => {
+    const quantityCount = counts.get(quantity) || 0;
+    const bestCount = counts.get(best) || 0;
+    return quantityCount > bestCount || (quantityCount === bestCount && quantity < best)
+      ? quantity
+      : best;
+  }, quantities[0]);
 }
 
 function dedupeNearbyEvents(events) {
@@ -194,7 +212,7 @@ function dedupeNearbyEvents(events) {
         alliance: bestDuplicateValue(cluster.entries, 'alliance'),
         guild: bestDuplicateValue(cluster.entries, 'guild'),
         lostTo: bestDuplicateValue(cluster.entries, 'lostTo'),
-        quantity: Math.max(...cluster.entries.map(({ event }) => event.quantity || 0)),
+        quantity: duplicateQuantity(cluster.entries),
       });
     });
   });

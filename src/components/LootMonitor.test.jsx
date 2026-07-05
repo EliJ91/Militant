@@ -268,6 +268,16 @@ describe('LootMonitor', () => {
     expect(within(chestSearch.closest('section')).getByText('1 match')).toBeInTheDocument();
     expect(lootSearch.closest('section').querySelectorAll('mark')).toHaveLength(2);
     expect(chestSearch.closest('section').querySelectorAll('mark')).toHaveLength(1);
+    expect(lootSearch.closest('section').querySelectorAll('mark.active-match')).toHaveLength(1);
+
+    const previousLootMatch = screen.getByRole('button', { name: 'Previous loot log match' });
+    const nextLootMatch = screen.getByRole('button', { name: 'Next loot log match' });
+    expect(previousLootMatch).toBeEnabled();
+    expect(nextLootMatch).toBeEnabled();
+    fireEvent.click(nextLootMatch);
+    const lootMatches = lootSearch.closest('section').querySelectorAll('mark');
+    expect(lootMatches[0]).not.toHaveClass('active-match');
+    expect(lootMatches[1]).toHaveClass('active-match');
 
     fireEvent.click(screen.getByRole('button', { name: 'Open New Tab' }));
 
@@ -275,6 +285,8 @@ describe('LootMonitor', () => {
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('raw-log-body'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Search loot log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Search chest log'));
+    expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Previous loot log match'));
+    expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Next chest log match'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Loot Log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Chest Log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Windyyyzz'));

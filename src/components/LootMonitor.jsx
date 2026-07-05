@@ -252,10 +252,13 @@ function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
     section { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 10px; min-width: 0; min-height: 0; overflow: hidden; padding: 16px; }
     section + section { border-top: 1px solid rgba(247,250,245,.1); }
     h2 { margin: 0; color: #57d878; font-size: 0.86rem; text-transform: uppercase; }
-    label { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; color: #a8b8a8; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+    .search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 8px; color: #a8b8a8; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
     input { width: 100%; min-height: 34px; border: 1px solid rgba(247,250,245,.14); border-radius: 7px; background: #020403; color: #f7faf5; padding: 7px 10px; font: inherit; text-transform: none; }
     span { white-space: nowrap; }
+    button { min-height: 34px; min-width: 34px; border: 1px solid rgba(87,216,120,.44); border-radius: 7px; background: rgba(87,216,120,.12); color: #f7faf5; cursor: pointer; font: inherit; font-weight: 900; }
+    button:disabled { opacity: .42; cursor: default; }
     mark { background: #ffd43b; color: #020403; }
+    mark.active-match { outline: 2px solid #57d878; outline-offset: 1px; }
     pre { min-height: 0; overflow: auto; margin: 0; padding: 14px; border: 1px solid rgba(247,250,245,.14); border-radius: 7px; background: #020403; color: #dfe8dc; font: 0.78rem/1.55 Consolas, "Liberation Mono", monospace; white-space: pre; }
   </style>
 </head>
@@ -265,12 +268,12 @@ function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
     <div class="raw-log-body">
       <section>
         <h2>Loot Log</h2>
-        <label><input type="search" placeholder="Search loot log" aria-label="Search loot log" /><span>0 matches</span></label>
+        <div class="search-row"><input type="search" placeholder="Search loot log" aria-label="Search loot log" /><span>0 matches</span><button type="button" data-direction="-1" aria-label="Previous loot log match" disabled>&lt;</button><button type="button" data-direction="1" aria-label="Next loot log match" disabled>&gt;</button></div>
         <pre>${escapeHtml(lootLogText || 'No raw loot log data.')}</pre>
       </section>
       <section>
         <h2>Chest Log</h2>
-        <label><input type="search" placeholder="Search chest log" aria-label="Search chest log" /><span>0 matches</span></label>
+        <div class="search-row"><input type="search" placeholder="Search chest log" aria-label="Search chest log" /><span>0 matches</span><button type="button" data-direction="-1" aria-label="Previous chest log match" disabled>&lt;</button><button type="button" data-direction="1" aria-label="Next chest log match" disabled>&gt;</button></div>
         <pre>${escapeHtml(chestLogText || 'No raw chest log data.')}</pre>
       </section>
     </div>
@@ -283,13 +286,23 @@ function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
     document.querySelectorAll('section').forEach((section) => {
       const input = section.querySelector('input');
       const counter = section.querySelector('span');
+      const buttons = [...section.querySelectorAll('button')];
       const pre = section.querySelector('pre');
       const source = pre.textContent;
-      input.addEventListener('input', () => {
+      let activeIndex = 0;
+      const setActiveMatch = (nextIndex) => {
+        const marks = [...pre.querySelectorAll('mark')];
+        if (marks.length === 0) return;
+        activeIndex = ((nextIndex % marks.length) + marks.length) % marks.length;
+        marks.forEach((mark, index) => mark.classList.toggle('active-match', index === activeIndex));
+        marks[activeIndex].scrollIntoView({ block: 'center', inline: 'nearest' });
+      };
+      const updateSearch = () => {
         const query = input.value;
         if (!query) {
           pre.textContent = source;
           counter.textContent = '0 matches';
+          buttons.forEach((button) => { button.disabled = true; });
           return;
         }
         const matcher = new RegExp(escapeRegExp(query), 'gi');
@@ -299,6 +312,12 @@ function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
           return '<mark>' + escapeHtml(match) + '</mark>';
         });
         counter.textContent = count + (count === 1 ? ' match' : ' matches');
+        buttons.forEach((button) => { button.disabled = count === 0; });
+        if (count > 0) setActiveMatch(0);
+      };
+      input.addEventListener('input', updateSearch);
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => setActiveMatch(activeIndex + Number(button.dataset.direction || 1)));
       });
     });
   </script>
@@ -724,29 +743,79 @@ function StatusLegend({ className = '' }) {
 
 function RawLogViewerSection({ label, placeholder, text }) {
   const [search, setSearch] = useState('');
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const matchRefs = useRef([]);
   const sourceText = text || `No raw ${label.toLowerCase()} data.`;
   const matches = useMemo(() => countTextMatches(sourceText, search), [search, sourceText]);
   const highlightedText = useMemo(() => splitHighlightedText(sourceText, search), [search, sourceText]);
+  const searchLabel = label.toLowerCase();
+
+  useEffect(() => {
+    setActiveMatchIndex(0);
+  }, [search, sourceText]);
+
+  useEffect(() => {
+    if (matches === 0) return;
+    const activeMatch = matchRefs.current[activeMatchIndex];
+    activeMatch?.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+  }, [activeMatchIndex, matches]);
+
+  function moveActiveMatch(direction) {
+    if (matches === 0) return;
+    setActiveMatchIndex((current) => (current + direction + matches) % matches);
+  }
+
+  matchRefs.current = [];
+  let renderedMatchIndex = 0;
 
   return (
     <section>
       <h3>{label}</h3>
-      <label className="raw-log-search">
+      <div className="raw-log-search">
         <input
-          aria-label={`Search ${label.toLowerCase()}`}
+          aria-label={`Search ${searchLabel}`}
           placeholder={placeholder}
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
         <span>{formatNumber(matches)} {matches === 1 ? 'match' : 'matches'}</span>
-      </label>
+        <button
+          aria-label={`Previous ${searchLabel} match`}
+          disabled={matches === 0}
+          type="button"
+          onClick={() => moveActiveMatch(-1)}
+        >
+          &lt;
+        </button>
+        <button
+          aria-label={`Next ${searchLabel} match`}
+          disabled={matches === 0}
+          type="button"
+          onClick={() => moveActiveMatch(1)}
+        >
+          &gt;
+        </button>
+      </div>
       <pre>
-        {highlightedText.map((part, index) => (
-          typeof part === 'string'
-            ? part
-            : <mark key={`${part.match}-${index}`}>{part.match}</mark>
-        ))}
+        {highlightedText.map((part, index) => {
+          if (typeof part === 'string') return part;
+
+          const matchIndex = renderedMatchIndex;
+          renderedMatchIndex += 1;
+
+          return (
+            <mark
+              key={`${part.match}-${index}`}
+              ref={(element) => {
+                if (element) matchRefs.current[matchIndex] = element;
+              }}
+              className={matchIndex === activeMatchIndex ? 'active-match' : undefined}
+            >
+              {part.match}
+            </mark>
+          );
+        })}
       </pre>
     </section>
   );

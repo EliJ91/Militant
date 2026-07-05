@@ -2495,7 +2495,7 @@ button:focus-visible {
 
 .raw-log-search {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 8px;
 }
@@ -2517,6 +2517,24 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+.raw-log-search button {
+  display: inline-grid;
+  min-width: 34px;
+  min-height: 34px;
+  place-items: center;
+  border: 1px solid rgba(87, 216, 120, 0.44);
+  border-radius: 7px;
+  background: rgba(87, 216, 120, 0.12);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.raw-log-search button:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
 .raw-log-modal-body pre {
   min-height: 0;
   max-height: none;
@@ -2534,6 +2552,11 @@ button:focus-visible {
 .raw-log-modal-body mark {
   background: #ffd43b;
   color: #020403;
+}
+
+.raw-log-modal-body mark.active-match {
+  outline: 2px solid var(--green-hot);
+  outline-offset: 1px;
 }
 
 .energy-section-heading {

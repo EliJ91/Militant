@@ -1,7 +1,7 @@
 import { parseLootEvents } from './lootMonitor.js';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
-const NEARBY_DUPLICATE_MS = 5000;
+const NEARBY_DUPLICATE_MS = 30000;
 
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
@@ -39,15 +39,33 @@ function nearbyDuplicateKey(event) {
   return [
     event.eventType,
     normalize(event.player),
+    normalize(event.guild),
     normalize(event.itemId),
     normalize(event.item),
     String(event.enchantment || 0),
-    normalize(event.lostTo),
   ].join('|');
 }
 
 function bestDuplicateValue(entries, field) {
   return entries.map(({ event }) => event[field]).find((value) => String(value || '').trim()) || '';
+}
+
+function duplicateQuantity(entries) {
+  const quantities = entries
+    .map(({ event }) => Number(event.quantity) || 0)
+    .filter((quantity) => quantity > 0);
+  if (!quantities.length) return 0;
+
+  const counts = new Map();
+  quantities.forEach((quantity) => counts.set(quantity, (counts.get(quantity) || 0) + 1));
+
+  return quantities.reduce((best, quantity) => {
+    const quantityCount = counts.get(quantity) || 0;
+    const bestCount = counts.get(best) || 0;
+    return quantityCount > bestCount || (quantityCount === bestCount && quantity < best)
+      ? quantity
+      : best;
+  }, quantities[0]);
 }
 
 export function dedupeNearbyLootLogEvents(events) {
@@ -89,13 +107,12 @@ export function dedupeNearbyLootLogEvents(events) {
 
     clusters.forEach((cluster) => {
       const first = cluster.entries[0];
-      const maxQuantity = Math.max(...cluster.entries.map(({ event }) => event.quantity || 0));
       deduped.push({
         ...first.event,
         alliance: bestDuplicateValue(cluster.entries, 'alliance'),
         guild: bestDuplicateValue(cluster.entries, 'guild'),
         lostTo: bestDuplicateValue(cluster.entries, 'lostTo'),
-        quantity: maxQuantity,
+        quantity: duplicateQuantity(cluster.entries),
       });
     });
   });

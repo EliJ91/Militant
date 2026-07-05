@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
-const NEARBY_DUPLICATE_MS = 5000;
+const NEARBY_DUPLICATE_MS = 30000;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 const HASH_LOOKUP_BATCH_SIZE = 40;
 const INSERT_BATCH_SIZE = 250;
@@ -326,15 +326,33 @@ function nearbyDuplicateKey(event: LootEvent) {
   return [
     event.eventType,
     normalize(event.player),
+    normalize(event.guild),
     normalize(event.itemId),
     normalize(event.item),
     String(event.enchantment || 0),
-    normalize(event.lostTo),
   ].join('|');
 }
 
 function bestDuplicateValue(entries: Array<{ event: LootEvent }>, field: keyof LootEvent) {
   return String(entries.map(({ event }) => event[field]).find((value) => String(value || '').trim()) || '');
+}
+
+function duplicateQuantity(entries: Array<{ event: LootEvent }>) {
+  const quantities = entries
+    .map(({ event }) => Number(event.quantity) || 0)
+    .filter((quantity) => quantity > 0);
+  if (!quantities.length) return 0;
+
+  const counts = new Map<number, number>();
+  quantities.forEach((quantity) => counts.set(quantity, (counts.get(quantity) || 0) + 1));
+
+  return quantities.reduce((best, quantity) => {
+    const quantityCount = counts.get(quantity) || 0;
+    const bestCount = counts.get(best) || 0;
+    return quantityCount > bestCount || (quantityCount === bestCount && quantity < best)
+      ? quantity
+      : best;
+  }, quantities[0]);
 }
 
 function dedupeNearbyEvents(events: LootEvent[]) {
@@ -380,7 +398,7 @@ function dedupeNearbyEvents(events: LootEvent[]) {
         alliance: bestDuplicateValue(cluster.entries, 'alliance'),
         guild: bestDuplicateValue(cluster.entries, 'guild'),
         lostTo: bestDuplicateValue(cluster.entries, 'lostTo'),
-        quantity: Math.max(...cluster.entries.map(({ event }) => event.quantity || 0)),
+        quantity: duplicateQuantity(cluster.entries),
       });
     });
   });
