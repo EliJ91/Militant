@@ -2398,7 +2398,7 @@ button:focus-visible {
 
 .raw-log-modal {
   display: grid;
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   width: min(1180px, 100%);
   max-height: min(820px, calc(100vh - 48px));
   overflow: hidden;
@@ -2421,6 +2421,13 @@ button:focus-visible {
   margin: 0;
   color: var(--white);
   font-size: 1.1rem;
+}
+
+.raw-log-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .raw-log-modal-close {

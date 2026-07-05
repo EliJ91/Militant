@@ -226,6 +226,29 @@ describe('LootMonitor', () => {
     expect(await screen.findByText('Link copied')).toBeInTheDocument();
   });
 
+  it('opens raw logs in a new tab', async () => {
+    const rawWindow = {
+      document: {
+        close: vi.fn(),
+        open: vi.fn(),
+        write: vi.fn(),
+      },
+      focus: vi.fn(),
+    };
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(rawWindow);
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View Raw' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open New Tab' }));
+
+    expect(openSpy).toHaveBeenCalledWith('', '_blank');
+    expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Loot Log'));
+    expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Chest Log'));
+    expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Windyyyzz'));
+    expect(rawWindow.document.close).toHaveBeenCalled();
+  });
+
   it('only disables Kept status when no chest log is loaded', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({

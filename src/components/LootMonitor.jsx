@@ -194,6 +194,49 @@ function safeDownloadName(value, fallback) {
   return cleaned || fallback;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
+  const title = escapeHtml(`${lootFileName || 'Loot Log'} Raw Logs`);
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <style>
+    :root { color: #f7faf5; background: #05080d; font-family: Inter, Arial, sans-serif; }
+    body { margin: 0; padding: 24px; background: #05080d; }
+    main { display: grid; gap: 18px; max-width: 1400px; margin: 0 auto; }
+    h1 { margin: 0; font-size: 2rem; }
+    section { display: grid; gap: 10px; min-width: 0; }
+    h2 { margin: 0; color: #57d878; font-size: 0.86rem; text-transform: uppercase; }
+    pre { min-height: 280px; overflow: auto; margin: 0; padding: 14px; border: 1px solid rgba(247,250,245,.14); border-radius: 7px; background: #020403; color: #dfe8dc; font: 0.78rem/1.55 Consolas, "Liberation Mono", monospace; white-space: pre; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>${title}</h1>
+    <section>
+      <h2>Loot Log</h2>
+      <pre>${escapeHtml(lootLogText || 'No raw loot log data.')}</pre>
+    </section>
+    <section>
+      <h2>Chest Log</h2>
+      <pre>${escapeHtml(chestLogText || 'No raw chest log data.')}</pre>
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
 function compareText(left, right) {
   return String(left || '').localeCompare(String(right || ''));
 }
@@ -1789,6 +1832,20 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
     }
   }
 
+  function openRawLogsInNewWindow() {
+    const rawWindow = window.open('', '_blank');
+    if (!rawWindow) return;
+
+    rawWindow.document.open();
+    rawWindow.document.write(buildRawLogWindowHtml({
+      chestLogText: rawChestLogText,
+      lootFileName: selectedBundle?.lootFileName,
+      lootLogText: rawLootLogText,
+    }));
+    rawWindow.document.close();
+    rawWindow.focus?.();
+  }
+
   return (
     <main className="dashboard-shell loot-monitor-shell">
       <section className="dashboard-heading loot-monitor-heading" aria-labelledby="loot-monitor-title">
@@ -1851,6 +1908,17 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
             role="dialog"
             onMouseDown={(event) => event.stopPropagation()}
           >
+            <div className="raw-log-modal-heading">
+              <h2>Raw Logs</h2>
+              <div className="raw-log-modal-actions">
+                <button className="raw-log-modal-close" type="button" onClick={openRawLogsInNewWindow}>
+                  Open New Tab
+                </button>
+                <button className="raw-log-modal-close" type="button" onClick={() => setRawModalOpen(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
             <div className="raw-log-modal-body">
               <section>
                 <h3>Loot Log</h3>
