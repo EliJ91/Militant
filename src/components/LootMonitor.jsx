@@ -25,6 +25,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DOWNLOAD_AGE_DAYS = 60;
 const RETENTION_DAYS = 90;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
+const LOOT_TOOLTIP_OPEN_EVENT = 'militant:loot-tooltip-open';
 
 const TIER_OPTIONS = [
   { label: 'T4', value: 'tier4' },
@@ -1102,6 +1103,42 @@ function LootItemTile({ tile }) {
     });
   }
 
+  function closeCustodyTooltip() {
+    setCustodyTooltip((current) => ({ ...current, pinned: false, visible: false }));
+  }
+
+  useEffect(() => {
+    if (!hasCustodyTooltip) return undefined;
+
+    function closePinnedTooltip() {
+      setCustodyTooltip((current) => (
+        current.pinned ? { ...current, pinned: false, visible: false } : current
+      ));
+    }
+
+    function handleAwayPress(event) {
+      if (!usesMobileTooltipClick() || tileRef.current?.contains(event.target)) return;
+      closePinnedTooltip();
+    }
+
+    function handleTooltipOpen(event) {
+      if (event.detail?.id === tooltipId) return;
+      closePinnedTooltip();
+    }
+
+    document.addEventListener('click', handleAwayPress, true);
+    document.addEventListener('pointerdown', handleAwayPress, true);
+    window.addEventListener('scroll', closePinnedTooltip, true);
+    window.addEventListener(LOOT_TOOLTIP_OPEN_EVENT, handleTooltipOpen);
+
+    return () => {
+      document.removeEventListener('click', handleAwayPress, true);
+      document.removeEventListener('pointerdown', handleAwayPress, true);
+      window.removeEventListener('scroll', closePinnedTooltip, true);
+      window.removeEventListener(LOOT_TOOLTIP_OPEN_EVENT, handleTooltipOpen);
+    };
+  }, [hasCustodyTooltip, tooltipId]);
+
   function hideCustodyTooltip() {
     setCustodyTooltip((current) => (
       current.pinned ? current : { ...current, visible: false }
@@ -1116,6 +1153,7 @@ function LootItemTile({ tile }) {
       return;
     }
 
+    window.dispatchEvent(new CustomEvent(LOOT_TOOLTIP_OPEN_EVENT, { detail: { id: tooltipId } }));
     showCustodyTooltip(true);
   }
 
@@ -1126,7 +1164,7 @@ function LootItemTile({ tile }) {
       event.preventDefault();
       toggleCustodyTooltip();
     } else if (event.key === 'Escape') {
-      setCustodyTooltip((current) => ({ ...current, pinned: false, visible: false }));
+      closeCustodyTooltip();
     }
   }
 
@@ -1138,7 +1176,7 @@ function LootItemTile({ tile }) {
         aria-label={label}
         className={`loot-item-tile ${tile.status}-tile ${hasCustodyTooltip ? 'has-custody-tooltip' : ''}`}
         title={title}
-        onBlur={() => setCustodyTooltip((current) => ({ ...current, pinned: false, visible: false }))}
+        onBlur={closeCustodyTooltip}
         onClick={toggleCustodyTooltip}
         onKeyDown={handleTileKeyDown}
         onMouseEnter={() => showCustodyTooltip(false)}

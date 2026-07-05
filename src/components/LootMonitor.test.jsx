@@ -216,7 +216,16 @@ describe('LootMonitor', () => {
         chestLogText: '',
         chestSubmissions: [],
         chestSubmitters: [],
-        events: [storedEvents[0]],
+        events: [
+          storedEvents[0],
+          {
+            ...storedEvents[0],
+            item: "Journeyman's Bag",
+            itemId: 'T3_BAG',
+            player: 'Bagholder',
+            timestamp: '2026-06-18T18:34:30.420Z',
+          },
+        ],
         hasChestLog: false,
       }),
     });
@@ -224,7 +233,9 @@ describe('LootMonitor', () => {
     const { container } = render(<LootMonitor bundleId="bundle-18" />);
 
     expect(await screen.findByText('Windyyyzz')).toBeInTheDocument();
-    const renderedTile = container.querySelector('.loot-item-tile.kept-tile');
+    const tiles = [...container.querySelectorAll('.loot-item-tile.kept-tile')];
+    const renderedTile = tiles.find((tile) => tile.getAttribute('title').includes("Adept's Lymhurst Cape"));
+    const secondTile = tiles.find((tile) => tile.getAttribute('title').includes("Journeyman's Bag"));
     expect(renderedTile).toHaveAttribute('title', expect.stringContaining('Looted by Windyyyzz'));
     expect(renderedTile).toHaveAttribute('title', expect.stringContaining("Adept's Lymhurst Cape"));
     expect(renderedTile.getAttribute('title')).not.toContain('Kept');
@@ -241,6 +252,24 @@ describe('LootMonitor', () => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
     fireEvent.click(renderedTile);
     expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
+    fireEvent.click(renderedTile);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+    fireEvent.click(renderedTile);
+    expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
+    fireEvent.click(document.body);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+    fireEvent.click(renderedTile);
+    expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
+    fireEvent.scroll(window);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+    fireEvent.click(renderedTile);
+    expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
+    fireEvent.click(secondTile);
+    expect(screen.getByRole('tooltip')).toHaveTextContent("Journeyman's Bag");
+    expect(screen.getByRole('tooltip')).not.toHaveTextContent("Adept's Lymhurst Cape");
   });
 
   it('copies a share link for the selected bundle', async () => {
