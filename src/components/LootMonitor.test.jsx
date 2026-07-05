@@ -272,6 +272,75 @@ describe('LootMonitor', () => {
     expect(screen.getByRole('tooltip')).not.toHaveTextContent("Adept's Lymhurst Cape");
   });
 
+  it('keeps custody tooltips inside the viewport', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        events: [storedEvents[0]],
+        hasChestLog: false,
+      }),
+    });
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 800 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 600 });
+    const boundsSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function getBounds() {
+      if (this.classList?.contains('loot-item-custody-tooltip')) {
+        return {
+          bottom: 0,
+          height: 120,
+          left: 0,
+          right: 360,
+          top: 0,
+          width: 360,
+          x: 0,
+          y: 0,
+          toJSON: () => {},
+        };
+      }
+
+      if (this.classList?.contains('loot-item-tile')) {
+        return {
+          bottom: 558,
+          height: 58,
+          left: 760,
+          right: 818,
+          top: 500,
+          width: 58,
+          x: 760,
+          y: 500,
+          toJSON: () => {},
+        };
+      }
+
+      return {
+        bottom: 0,
+        height: 0,
+        left: 0,
+        right: 0,
+        top: 0,
+        width: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      };
+    });
+
+    const { container } = render(<LootMonitor bundleId="bundle-18" />);
+
+    expect(await screen.findByText('Windyyyzz')).toBeInTheDocument();
+    fireEvent.mouseEnter(container.querySelector('.loot-item-tile.kept-tile'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('tooltip')).toHaveStyle({
+        left: '428px',
+        top: '372px',
+      });
+    });
+
+    boundsSpy.mockRestore();
+  });
+
   it('copies a share link for the selected bundle', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {

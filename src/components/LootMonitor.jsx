@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
 import { fetchWestAveragePrices } from '../services/albionMarket';
@@ -417,6 +417,10 @@ function loadInitialFilters() {
 function usesMobileTooltipClick() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
   return window.matchMedia('(hover: none), (pointer: coarse)').matches;
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function splitAffiliations(value) {
@@ -1054,6 +1058,7 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
 function LootItemTile({ tile }) {
   const tooltipId = useId();
   const tileRef = useRef(null);
+  const tooltipRef = useRef(null);
   const [imageAttempt, setImageAttempt] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
   const [custodyTooltip, setCustodyTooltip] = useState({
@@ -1061,6 +1066,9 @@ function LootItemTile({ tile }) {
     pinned: false,
     top: 0,
     visible: false,
+    x: 0,
+    yBottom: 0,
+    yTop: 0,
   });
   const statusLabel = TILE_STATUS_LABELS[tile.status] || tile.status;
   const label = `${tile.player} ${statusLabel} ${tile.quantity} ${tile.item}`;
@@ -1100,12 +1108,42 @@ function LootItemTile({ tile }) {
       pinned,
       top: bounds.bottom + 8,
       visible: true,
+      x: bounds.left + (bounds.width / 2),
+      yBottom: bounds.bottom,
+      yTop: bounds.top,
     });
   }
 
   function closeCustodyTooltip() {
     setCustodyTooltip((current) => ({ ...current, pinned: false, visible: false }));
   }
+
+  useLayoutEffect(() => {
+    if (!custodyTooltip.visible || !tooltipRef.current || typeof window === 'undefined') return;
+
+    const margin = 12;
+    const gap = 8;
+    const bounds = tooltipRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    const maxLeft = Math.max(margin, viewportWidth - bounds.width - margin);
+    const maxTop = Math.max(margin, viewportHeight - bounds.height - margin);
+    const nextLeft = clampNumber(custodyTooltip.x - (bounds.width / 2), margin, maxLeft);
+    let nextTop = custodyTooltip.yBottom + gap;
+
+    if (nextTop + bounds.height > viewportHeight - margin) {
+      const aboveTop = custodyTooltip.yTop - bounds.height - gap;
+      nextTop = aboveTop >= margin ? aboveTop : clampNumber(nextTop, margin, maxTop);
+    }
+
+    if (Math.abs(nextLeft - custodyTooltip.left) > 0.5 || Math.abs(nextTop - custodyTooltip.top) > 0.5) {
+      setCustodyTooltip((current) => ({
+        ...current,
+        left: nextLeft,
+        top: nextTop,
+      }));
+    }
+  }, [custodyTooltip.left, custodyTooltip.top, custodyTooltip.visible, custodyTooltip.x, custodyTooltip.yBottom, custodyTooltip.yTop]);
 
   useEffect(() => {
     if (!hasCustodyTooltip) return undefined;
@@ -1199,6 +1237,7 @@ function LootItemTile({ tile }) {
       </figure>
       {hasCustodyTooltip && custodyTooltip.visible && typeof document !== 'undefined' ? createPortal(
         <div
+          ref={tooltipRef}
           className="loot-item-custody-tooltip"
           id={tooltipId}
           role="tooltip"
