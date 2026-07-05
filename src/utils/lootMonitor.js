@@ -1,7 +1,7 @@
 import albionItemLookup from '../data/albion_item_lookup.json' with { type: 'json' };
 
 const DEFAULT_CUSTODY_GUILD = 'Militant';
-const NEARBY_DUPLICATE_MS = 1000;
+const NEARBY_DUPLICATE_MS = 5000;
 
 export function parseDelimited(text, delimiter) {
   const rows = [];

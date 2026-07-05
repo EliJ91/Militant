@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
-const NEARBY_DUPLICATE_MS = 1000;
+const NEARBY_DUPLICATE_MS = 5000;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 const HASH_LOOKUP_BATCH_SIZE = 40;
 const INSERT_BATCH_SIZE = 250;

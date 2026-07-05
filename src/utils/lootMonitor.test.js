@@ -174,11 +174,11 @@ describe('loot monitor report', () => {
     expect(report.totals.depositedQuantity).toBe(0);
   });
 
-  it('deduplicates identical loot events within one second', () => {
+  it('deduplicates identical loot events within five seconds', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
       "2026-07-05T01:23:39.923Z;CHAIR;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;1;;;@MOB_T5",
-      "2026-07-05T01:23:40.803Z;CHAIR;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;1;;;@MOB_T5",
+      "2026-07-05T01:23:44.803Z;CHAIR;Militant;Onslawht;T5_HEAD_LEATHER_SET1@3;Expert's Mercenary Hood;1;;;@MOB_T5",
     ].join('\n');
 
     const report = buildLootMonitorReport(lootText, '');

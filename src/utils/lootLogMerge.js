@@ -1,7 +1,7 @@
 import { parseLootEvents } from './lootMonitor.js';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
-const NEARBY_DUPLICATE_MS = 1000;
+const NEARBY_DUPLICATE_MS = 5000;
 
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
