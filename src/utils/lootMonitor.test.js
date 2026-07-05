@@ -193,6 +193,60 @@ describe('loot monitor report', () => {
     });
   });
 
+  it('keeps untracked chest deposits donated instead of resolved', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+    ].join('\n');
+    const firstChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:05:00"\t"Donor"\t"Expert\'s Bag"\t"1"\t"2"\t"1"',
+    ].join('\n');
+    const finalChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:10:00"\t"Banker"\t"Major Gigantify Potion"\t"0"\t"1"\t"1"',
+    ].join('\n');
+
+    const report = buildLootMonitorReport(lootText, `${firstChest}\n${finalChest}`);
+    const donor = report.rows.find((row) => row.player === 'Donor' && row.item === "Expert's Bag");
+
+    expect(donor).toMatchObject({
+      accounted: 0,
+      donated: 1,
+      looted: 0,
+      status: 'donated',
+    });
+    expect(report.totals.accountedQuantity).toBe(0);
+    expect(report.totals.donatedQuantity).toBe(2);
+  });
+
+  it('prefers tracked looted custody over untracked chest inventory', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-06-17T00:02:00.000Z;CHAIR;Militant;PlayerA;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;1;;;@MOB_T5",
+    ].join('\n');
+    const firstChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:01:00"\t"PlayerA"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"-1"',
+    ].join('\n');
+    const finalChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"06/17/2026 00:10:00"\t"PlayerA"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+    ].join('\n');
+
+    const report = buildLootMonitorReport(lootText, `${firstChest}\n${finalChest}`);
+    const player = report.rows.find((row) => row.player === 'PlayerA');
+
+    expect(player).toMatchObject({
+      accounted: 1,
+      donated: 0,
+      kept: 0,
+      looted: 1,
+      status: 'resolved',
+    });
+    expect(report.totals.accountedQuantity).toBe(1);
+    expect(report.totals.keptQuantity).toBe(0);
+  });
+
   it('tracks custody across multiple chest logs and uses the final chest as accounted', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',

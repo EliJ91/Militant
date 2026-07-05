@@ -523,7 +523,7 @@ function addReportQuantity(rowMap, source, field, quantity, extra = {}) {
   pushUnique(row.lostTo, extra.lostTo);
 }
 
-function makeLot(row, quantity) {
+function makeLot(row, quantity, { tracked = true } = {}) {
   return {
     alliance: row.alliance || '',
     enchantment: row.enchantment || 0,
@@ -531,12 +531,14 @@ function makeLot(row, quantity) {
     item: row.item || '',
     itemId: row.itemId || '',
     player: row.player || '',
+    quality: row.quality || 0,
     quantity,
     emvEach: row.emvEach ?? null,
     emvPricedAt: row.emvPricedAt || '',
     emvSourceCity: row.emvSourceCity || '',
     emvTotal: Number.isFinite(Number(row.emvEach)) ? Number(row.emvEach) * quantity : null,
     sourceLooter: row.sourceLooter || row.player || '',
+    tracked,
   };
 }
 
@@ -547,6 +549,33 @@ function consumeLotSlice(lot, quantity) {
     quantity,
     emvTotal: Number.isFinite(emvEach) ? emvEach * quantity : null,
   };
+}
+
+function isTrackedLot(lot) {
+  return lot.tracked !== false;
+}
+
+function consumeLotArray(lots, quantity, predicate = () => true) {
+  const consumed = [];
+  let remaining = quantity;
+
+  [true, false].forEach((tracked) => {
+    for (let index = 0; remaining > 0 && index < lots.length; index += 1) {
+      const lot = lots[index];
+      if (isTrackedLot(lot) !== tracked || !predicate(lot)) continue;
+
+      const used = Math.min(remaining, lot.quantity);
+      consumed.push(consumeLotSlice(lot, used));
+      lot.quantity -= used;
+      remaining -= used;
+      if (lot.quantity <= 0) {
+        lots.splice(index, 1);
+        index -= 1;
+      }
+    }
+  });
+
+  return { consumed, missing: remaining };
 }
 
 function custodyKey(player, itemKey) {
@@ -563,17 +592,7 @@ function addLots(store, player, itemKey, lots) {
 function consumeLots(store, player, itemKey, quantity) {
   const key = custodyKey(player, itemKey);
   const lots = store.get(key) || [];
-  const consumed = [];
-  let remaining = quantity;
-
-  while (remaining > 0 && lots.length > 0) {
-    const lot = lots[0];
-    const used = Math.min(remaining, lot.quantity);
-    consumed.push(consumeLotSlice(lot, used));
-    lot.quantity -= used;
-    remaining -= used;
-    if (lot.quantity <= 0) lots.shift();
-  }
+  const { consumed, missing } = consumeLotArray(lots, quantity);
 
   if (lots.length > 0) {
     store.set(key, lots);
@@ -581,7 +600,7 @@ function consumeLots(store, player, itemKey, quantity) {
     store.delete(key);
   }
 
-  return { consumed, missing: remaining };
+  return { consumed, missing };
 }
 
 function consumeAnyLots(store, itemKey, quantity, guildScope = '') {
@@ -596,16 +615,13 @@ function consumeAnyLots(store, itemKey, quantity, guildScope = '') {
     if (!key.endsWith(`::${itemKey}`)) continue;
 
     const lots = store.get(key) || [];
-    while (remaining > 0 && lots.length > 0) {
-      const lot = lots[0];
-      if (normalize(lot.guild) !== normalizedGuildScope) break;
-
-      const used = Math.min(remaining, lot.quantity);
-      consumed.push(consumeLotSlice(lot, used));
-      lot.quantity -= used;
-      remaining -= used;
-      if (lot.quantity <= 0) lots.shift();
-    }
+    const result = consumeLotArray(
+      lots,
+      remaining,
+      (lot) => normalize(lot.guild) === normalizedGuildScope,
+    );
+    consumed.push(...result.consumed);
+    remaining = result.missing;
 
     if (lots.length > 0) {
       store.set(key, lots);
@@ -625,17 +641,7 @@ function addLotsToPool(pool, itemKey, lots) {
 
 function consumePoolLots(pool, itemKey, quantity) {
   const lots = pool.get(itemKey) || [];
-  const consumed = [];
-  let remaining = quantity;
-
-  while (remaining > 0 && lots.length > 0) {
-    const lot = lots[0];
-    const used = Math.min(remaining, lot.quantity);
-    consumed.push(consumeLotSlice(lot, used));
-    lot.quantity -= used;
-    remaining -= used;
-    if (lot.quantity <= 0) lots.shift();
-  }
+  const { consumed, missing } = consumeLotArray(lots, quantity);
 
   if (lots.length > 0) {
     pool.set(itemKey, lots);
@@ -643,7 +649,7 @@ function consumePoolLots(pool, itemKey, quantity) {
     pool.delete(itemKey);
   }
 
-  return { consumed, missing: remaining };
+  return { consumed, missing };
 }
 
 function buildLootMonitorReportFromParsedLoot(loot, chestText) {
@@ -702,7 +708,7 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
         ...lot,
         player: row.player,
       })));
-      if (missing > 0) addLots(holderLots, row.player, itemKey, [makeLot(itemRow, missing)]);
+      if (missing > 0) addLots(holderLots, row.player, itemKey, [makeLot(itemRow, missing, { tracked: false })]);
       return;
     }
 
@@ -710,22 +716,38 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
     const tradedDeposit = ownDeposit.missing > 0
       ? consumeAnyLots(holderLots, itemKey, ownDeposit.missing, itemRow.guild)
       : { consumed: [], missing: 0 };
-    addLotsToPool(chestLots, itemKey, [...ownDeposit.consumed, ...tradedDeposit.consumed]);
+    addLotsToPool(chestLots, itemKey, [...ownDeposit.consumed, ...tradedDeposit.consumed].map((lot) => (
+      isTrackedLot(lot) ? lot : {
+        ...lot,
+        alliance: itemRow.alliance,
+        guild: itemRow.guild,
+        player: row.player,
+        sourceLooter: row.player,
+      }
+    )));
     if (tradedDeposit.missing > 0) {
       if (row.isFinalChest) {
         addReportQuantity(rowMap, itemRow, 'donated', tradedDeposit.missing, { quality: row.quality });
       } else {
-        addLotsToPool(chestLots, itemKey, [makeLot(itemRow, tradedDeposit.missing)]);
+        addLotsToPool(chestLots, itemKey, [makeLot(itemRow, tradedDeposit.missing, { tracked: false })]);
       }
     }
   });
 
   chestLots.forEach((lots) => {
-    lots.forEach((lot) => addReportQuantity(rowMap, lot, 'accounted', lot.quantity));
+    lots.forEach((lot) => addReportQuantity(
+      rowMap,
+      lot,
+      isTrackedLot(lot) ? 'accounted' : 'donated',
+      lot.quantity,
+      { quality: lot.quality },
+    ));
   });
 
   holderLots.forEach((lots) => {
-    lots.forEach((lot) => addReportQuantity(rowMap, lot, 'kept', lot.quantity));
+    lots
+      .filter(isTrackedLot)
+      .forEach((lot) => addReportQuantity(rowMap, lot, 'kept', lot.quantity));
   });
 
   const rows = [...rowMap.values()].map((row) => {
