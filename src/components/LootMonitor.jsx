@@ -203,6 +203,36 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function countTextMatches(text, query) {
+  const search = String(query || '');
+  if (!search) return 0;
+  return [...String(text || '').matchAll(new RegExp(escapeRegExp(search), 'gi'))].length;
+}
+
+function splitHighlightedText(text, query) {
+  const source = String(text || '');
+  const search = String(query || '');
+  if (!search) return [source];
+
+  const matcher = new RegExp(escapeRegExp(search), 'gi');
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = matcher.exec(source)) !== null) {
+    if (match.index > lastIndex) parts.push(source.slice(lastIndex, match.index));
+    parts.push({ match: match[0] });
+    lastIndex = matcher.lastIndex;
+  }
+
+  if (lastIndex < source.length) parts.push(source.slice(lastIndex));
+  return parts.length ? parts : [source];
+}
+
 function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
   const title = escapeHtml(`${lootFileName || 'Loot Log'} Raw Logs`);
   return `<!doctype html>
@@ -219,9 +249,13 @@ function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
     main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 16px; height: 100%; max-width: 1400px; margin: 0 auto; min-height: 0; }
     h1 { margin: 0; font-size: 2rem; }
     .raw-log-body { display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); min-height: 0; overflow: hidden; border: 1px solid rgba(87,216,120,.38); border-radius: 8px; background: #071008; }
-    section { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; min-width: 0; min-height: 0; overflow: hidden; padding: 16px; }
+    section { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 10px; min-width: 0; min-height: 0; overflow: hidden; padding: 16px; }
     section + section { border-top: 1px solid rgba(247,250,245,.1); }
     h2 { margin: 0; color: #57d878; font-size: 0.86rem; text-transform: uppercase; }
+    label { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; color: #a8b8a8; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+    input { width: 100%; min-height: 34px; border: 1px solid rgba(247,250,245,.14); border-radius: 7px; background: #020403; color: #f7faf5; padding: 7px 10px; font: inherit; text-transform: none; }
+    span { white-space: nowrap; }
+    mark { background: #ffd43b; color: #020403; }
     pre { min-height: 0; overflow: auto; margin: 0; padding: 14px; border: 1px solid rgba(247,250,245,.14); border-radius: 7px; background: #020403; color: #dfe8dc; font: 0.78rem/1.55 Consolas, "Liberation Mono", monospace; white-space: pre; }
   </style>
 </head>
@@ -231,14 +265,43 @@ function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
     <div class="raw-log-body">
       <section>
         <h2>Loot Log</h2>
+        <label><input type="search" placeholder="Search loot log" aria-label="Search loot log" /><span>0 matches</span></label>
         <pre>${escapeHtml(lootLogText || 'No raw loot log data.')}</pre>
       </section>
       <section>
         <h2>Chest Log</h2>
+        <label><input type="search" placeholder="Search chest log" aria-label="Search chest log" /><span>0 matches</span></label>
         <pre>${escapeHtml(chestLogText || 'No raw chest log data.')}</pre>
       </section>
     </div>
   </main>
+  <script>
+    const escapeHtml = (value) => value.replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
+    const escapeRegExp = (value) => value.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
+    document.querySelectorAll('section').forEach((section) => {
+      const input = section.querySelector('input');
+      const counter = section.querySelector('span');
+      const pre = section.querySelector('pre');
+      const source = pre.textContent;
+      input.addEventListener('input', () => {
+        const query = input.value;
+        if (!query) {
+          pre.textContent = source;
+          counter.textContent = '0 matches';
+          return;
+        }
+        const matcher = new RegExp(escapeRegExp(query), 'gi');
+        let count = 0;
+        pre.innerHTML = escapeHtml(source).replace(matcher, (match) => {
+          count += 1;
+          return '<mark>' + escapeHtml(match) + '</mark>';
+        });
+        counter.textContent = count + (count === 1 ? ' match' : ' matches');
+      });
+    });
+  </script>
 </body>
 </html>`;
 }
@@ -656,6 +719,36 @@ function StatusLegend({ className = '' }) {
       <span className="legend-resolved">Resolved</span>
       <span className="legend-lost">Lost</span>
     </div>
+  );
+}
+
+function RawLogViewerSection({ label, placeholder, text }) {
+  const [search, setSearch] = useState('');
+  const sourceText = text || `No raw ${label.toLowerCase()} data.`;
+  const matches = useMemo(() => countTextMatches(sourceText, search), [search, sourceText]);
+  const highlightedText = useMemo(() => splitHighlightedText(sourceText, search), [search, sourceText]);
+
+  return (
+    <section>
+      <h3>{label}</h3>
+      <label className="raw-log-search">
+        <input
+          aria-label={`Search ${label.toLowerCase()}`}
+          placeholder={placeholder}
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <span>{formatNumber(matches)} {matches === 1 ? 'match' : 'matches'}</span>
+      </label>
+      <pre>
+        {highlightedText.map((part, index) => (
+          typeof part === 'string'
+            ? part
+            : <mark key={`${part.match}-${index}`}>{part.match}</mark>
+        ))}
+      </pre>
+    </section>
   );
 }
 
@@ -1930,14 +2023,8 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
               </div>
             </div>
             <div className="raw-log-modal-body">
-              <section>
-                <h3>Loot Log</h3>
-                <pre>{rawLootLogText || 'No raw loot log data.'}</pre>
-              </section>
-              <section>
-                <h3>Chest Log</h3>
-                <pre>{rawChestLogText || 'No raw chest log data.'}</pre>
-              </section>
+              <RawLogViewerSection label="Loot Log" placeholder="Search loot log" text={rawLootLogText} />
+              <RawLogViewerSection label="Chest Log" placeholder="Search chest log" text={rawChestLogText} />
             </div>
           </section>
         </div>

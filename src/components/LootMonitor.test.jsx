@@ -260,10 +260,21 @@ describe('LootMonitor', () => {
     render(<LootMonitor bundleId="bundle-18" />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'View Raw' }));
+    const lootSearch = screen.getByRole('searchbox', { name: 'Search loot log' });
+    const chestSearch = screen.getByRole('searchbox', { name: 'Search chest log' });
+    fireEvent.change(lootSearch, { target: { value: 'Enemy' } });
+    fireEvent.change(chestSearch, { target: { value: '06/18' } });
+    expect(within(lootSearch.closest('section')).getByText('2 matches')).toBeInTheDocument();
+    expect(within(chestSearch.closest('section')).getByText('1 match')).toBeInTheDocument();
+    expect(lootSearch.closest('section').querySelectorAll('mark')).toHaveLength(2);
+    expect(chestSearch.closest('section').querySelectorAll('mark')).toHaveLength(1);
+
     fireEvent.click(screen.getByRole('button', { name: 'Open New Tab' }));
 
     expect(openSpy).toHaveBeenCalledWith('', '_blank');
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('raw-log-body'));
+    expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Search loot log'));
+    expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Search chest log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Loot Log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Chest Log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Windyyyzz'));

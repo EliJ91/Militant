@@ -2474,7 +2474,7 @@ button:focus-visible {
 
 .raw-log-modal-body section {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
   min-width: 0;
   min-height: 0;
@@ -2493,6 +2493,30 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+.raw-log-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.raw-log-search input {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(247, 250, 245, 0.12);
+  border-radius: 7px;
+  background: #020403;
+}
+
+.raw-log-search span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
 .raw-log-modal-body pre {
   min-height: 0;
   max-height: none;
@@ -2505,6 +2529,11 @@ button:focus-visible {
   color: #dfe8dc;
   font: 0.74rem/1.55 Consolas, "Liberation Mono", monospace;
   white-space: pre;
+}
+
+.raw-log-modal-body mark {
+  background: #ffd43b;
+  color: #020403;
 }
 
 .energy-section-heading {
