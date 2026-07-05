@@ -2061,6 +2061,39 @@ button:focus-visible {
   filter: saturate(1.08) contrast(1.04);
 }
 
+.loot-item-custody-tooltip {
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  gap: 4px;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border: 1px solid rgba(247, 250, 245, 0.52);
+  border-radius: 4px;
+  background: #020403;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.48);
+  color: var(--white);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.loot-item-custody-tooltip strong {
+  color: var(--white);
+  font-size: 0.8rem;
+}
+
+.loot-item-custody-tooltip span {
+  color: #dfe8dc;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .loot-item-tile.has-custody-tooltip {
+    cursor: pointer;
+  }
+}
+
 .resolved-tile,
 .deposited-tile {
   opacity: 0.62;

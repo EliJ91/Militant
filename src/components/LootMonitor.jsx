@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
 import { fetchWestAveragePrices } from '../services/albionMarket';
 import {
@@ -391,6 +392,30 @@ function loadSavedFilters() {
   } catch {
     return DEFAULT_FILTERS;
   }
+}
+
+function getSharedFiltersFromHash() {
+  if (typeof window === 'undefined') return null;
+
+  const queryStart = window.location.hash.indexOf('?');
+  if (queryStart === -1) return null;
+
+  try {
+    const params = new URLSearchParams(window.location.hash.slice(queryStart + 1));
+    const filters = params.get('filters');
+    return filters ? sanitizeFilters(JSON.parse(filters)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function loadInitialFilters() {
+  return getSharedFiltersFromHash() || loadSavedFilters();
+}
+
+function usesMobileTooltipClick() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia('(hover: none), (pointer: coarse)').matches;
 }
 
 function splitAffiliations(value) {
@@ -1026,13 +1051,22 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
 }
 
 function LootItemTile({ tile }) {
+  const tooltipId = useId();
+  const tileRef = useRef(null);
   const [imageAttempt, setImageAttempt] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
+  const [custodyTooltip, setCustodyTooltip] = useState({
+    left: 0,
+    pinned: false,
+    top: 0,
+    visible: false,
+  });
   const statusLabel = TILE_STATUS_LABELS[tile.status] || tile.status;
   const label = `${tile.player} ${statusLabel} ${tile.quantity} ${tile.item}`;
   const itemDetail = tile.itemId ? `${tile.item} (${tile.itemId})` : `${tile.item} (missing item id)`;
-  const title = tile.status === 'kept' && tile.custodyChains
-    ? tile.custodyChains
+  const hasCustodyTooltip = tile.status === 'kept' && tile.custodyChains;
+  const title = hasCustodyTooltip
+    ? `${tile.item}\n${tile.custodyChains}`
     : tile.lostTo ? `${itemDetail} - ${statusLabel} to ${tile.lostTo}` : `${itemDetail} - ${statusLabel}`;
   const imageSrc = imageAttempt > 0 ? `${tile.imageUrl}&retry=${imageAttempt}` : tile.imageUrl;
   const itemInitials = String(tile.item || '?')
@@ -1056,27 +1090,93 @@ function LootItemTile({ tile }) {
     setImageFailed(true);
   }
 
+  function showCustodyTooltip(pinned = false) {
+    if (!hasCustodyTooltip || !tileRef.current) return;
+
+    const bounds = tileRef.current.getBoundingClientRect();
+    setCustodyTooltip({
+      left: bounds.left + (bounds.width / 2),
+      pinned,
+      top: bounds.bottom + 8,
+      visible: true,
+    });
+  }
+
+  function hideCustodyTooltip() {
+    setCustodyTooltip((current) => (
+      current.pinned ? current : { ...current, visible: false }
+    ));
+  }
+
+  function toggleCustodyTooltip() {
+    if (!hasCustodyTooltip || !usesMobileTooltipClick()) return;
+
+    if (custodyTooltip.visible && custodyTooltip.pinned) {
+      setCustodyTooltip((current) => ({ ...current, pinned: false, visible: false }));
+      return;
+    }
+
+    showCustodyTooltip(true);
+  }
+
+  function handleTileKeyDown(event) {
+    if (!hasCustodyTooltip || !usesMobileTooltipClick()) return;
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleCustodyTooltip();
+    } else if (event.key === 'Escape') {
+      setCustodyTooltip((current) => ({ ...current, pinned: false, visible: false }));
+    }
+  }
+
   return (
-    <figure
-      aria-label={label}
-      className={`loot-item-tile ${tile.status}-tile`}
-      title={title}
-    >
-      {tile.imageUrl && !imageFailed ? (
-        <img
-          alt=""
-          crossOrigin="anonymous"
-          decoding="async"
-          loading="lazy"
-          src={imageSrc}
-          onError={handleImageError}
-          onLoad={() => setImageFailed(false)}
-        />
-      ) : (
-        <span className="loot-item-fallback">{itemInitials}</span>
-      )}
-      <figcaption>{formatNumber(tile.quantity)}</figcaption>
-    </figure>
+    <>
+      <figure
+        ref={tileRef}
+        aria-describedby={hasCustodyTooltip && custodyTooltip.visible ? tooltipId : undefined}
+        aria-label={label}
+        className={`loot-item-tile ${tile.status}-tile ${hasCustodyTooltip ? 'has-custody-tooltip' : ''}`}
+        title={title}
+        onBlur={() => setCustodyTooltip((current) => ({ ...current, pinned: false, visible: false }))}
+        onClick={toggleCustodyTooltip}
+        onKeyDown={handleTileKeyDown}
+        onMouseEnter={() => showCustodyTooltip(false)}
+        onMouseLeave={hideCustodyTooltip}
+      >
+        {tile.imageUrl && !imageFailed ? (
+          <img
+            alt=""
+            crossOrigin="anonymous"
+            decoding="async"
+            loading="lazy"
+            src={imageSrc}
+            onError={handleImageError}
+            onLoad={() => setImageFailed(false)}
+          />
+        ) : (
+          <span className="loot-item-fallback">{itemInitials}</span>
+        )}
+        <figcaption>{formatNumber(tile.quantity)}</figcaption>
+      </figure>
+      {hasCustodyTooltip && custodyTooltip.visible && typeof document !== 'undefined' ? createPortal(
+        <div
+          className="loot-item-custody-tooltip"
+          id={tooltipId}
+          role="tooltip"
+          style={{
+            left: `${custodyTooltip.left}px`,
+            top: `${custodyTooltip.top}px`,
+          }}
+        >
+          <strong>{tile.item}</strong>
+          {tile.custodyChains.split('\n').map((entry, index) => (
+            <span key={`${entry}-${index}`}>{entry}</span>
+          ))}
+        </div>,
+        document.body,
+      ) : null}
+    </>
   );
 }
 
@@ -1824,7 +1924,7 @@ export function LootLogArchive({ onView = () => {} }) {
 
 export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, showShare = true }) {
   const boardRef = useRef(null);
-  const [filters, setFilters] = useState(loadSavedFilters);
+  const [filters, setFilters] = useState(loadInitialFilters);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
   const [marketPrices, setMarketPrices] = useState({});
   const [marketPriceError, setMarketPriceError] = useState('');
@@ -1863,6 +1963,11 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
     return () => {
       cancelled = true;
     };
+  }, [bundleId]);
+
+  useEffect(() => {
+    const sharedFilters = getSharedFiltersFromHash();
+    if (sharedFilters) setFilters(sharedFilters);
   }, [bundleId]);
 
   useEffect(() => {
@@ -1971,7 +2076,8 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
     if (!selectedBundle?.id || shareStatus.state === 'copying') return;
 
     const shareUrl = new URL(window.location.href);
-    shareUrl.hash = `shared-log/${encodeURIComponent(selectedBundle.id)}`;
+    const sharedFilters = encodeURIComponent(JSON.stringify(sanitizeFilters(filters)));
+    shareUrl.hash = `shared-log/${encodeURIComponent(selectedBundle.id)}?filters=${sharedFilters}`;
     setShareStatus({ message: 'Copying...', state: 'copying' });
 
     try {

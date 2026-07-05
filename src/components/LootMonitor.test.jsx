@@ -110,6 +110,7 @@ function stubMarketPrices() {
 
 describe('LootMonitor', () => {
   beforeEach(() => {
+    window.location.hash = '';
     window.localStorage.clear();
     vi.clearAllMocks();
     stubMarketPrices();
@@ -225,8 +226,21 @@ describe('LootMonitor', () => {
     expect(await screen.findByText('Windyyyzz')).toBeInTheDocument();
     const renderedTile = container.querySelector('.loot-item-tile.kept-tile');
     expect(renderedTile).toHaveAttribute('title', expect.stringContaining('Looted by Windyyyzz'));
-    expect(renderedTile.getAttribute('title')).not.toContain('Adept');
+    expect(renderedTile).toHaveAttribute('title', expect.stringContaining("Adept's Lymhurst Cape"));
     expect(renderedTile.getAttribute('title')).not.toContain('Kept');
+
+    fireEvent.mouseEnter(renderedTile);
+    expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Looted by Windyyyzz');
+    fireEvent.mouseLeave(renderedTile);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+    fireEvent.click(renderedTile);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+    fireEvent.click(renderedTile);
+    expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
   });
 
   it('copies a share link for the selected bundle', async () => {
@@ -235,6 +249,14 @@ describe('LootMonitor', () => {
       configurable: true,
       value: { writeText },
     });
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      alliances: ['CHAIR'],
+      guilds: ['Militant'],
+      sortDirection: 'asc',
+      status: ['kept'],
+      tierFilters: ['tier4'],
+      typeFilters: ['cape'],
+    }));
 
     render(<LootMonitor bundleId="bundle-18" />);
 
@@ -243,7 +265,42 @@ describe('LootMonitor', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(
       expect.stringContaining('#shared-log/bundle-18'),
     ));
+    const sharedUrl = new URL(writeText.mock.calls[0][0]);
+    const sharedParams = new URLSearchParams(sharedUrl.hash.split('?')[1]);
+    expect(JSON.parse(sharedParams.get('filters'))).toMatchObject({
+      alliances: ['CHAIR'],
+      guilds: ['Militant'],
+      sortDirection: 'asc',
+      status: ['kept'],
+      tierFilters: ['tier4'],
+      typeFilters: ['cape'],
+    });
     expect(await screen.findByText('Link copied')).toBeInTheDocument();
+  });
+
+  it('loads filters from a shared loot log link', async () => {
+    const previousHash = window.location.hash;
+    window.location.hash = `#shared-log/bundle-18?filters=${encodeURIComponent(JSON.stringify({
+      alliances: ['CHAIR'],
+      guilds: ['Militant'],
+      sortDirection: 'asc',
+      status: ['kept'],
+      tierFilters: ['tier4'],
+      typeFilters: ['cape'],
+    }))}`;
+
+    render(<LootMonitor bundleId="bundle-18" showShare={false} />);
+
+    expect(await screen.findByText('18UTC-JUN-18')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Least to most')).toBeInTheDocument();
+    const statusControl = screen.getByText('Status').closest('.filter-dropdown-control');
+    expect(statusControl.querySelector('summary')).toHaveTextContent('Kept');
+    const tierControl = screen.getByText('Tier').closest('.filter-dropdown-control');
+    expect(tierControl.querySelector('summary')).toHaveTextContent('T4');
+    const typeControl = screen.getByText('Item Type').closest('.filter-dropdown-control');
+    expect(typeControl.querySelector('summary')).toHaveTextContent('Cape');
+
+    window.location.hash = previousHash;
   });
 
   it('opens raw logs in a new tab', async () => {
