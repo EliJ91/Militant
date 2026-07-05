@@ -1,6 +1,7 @@
 import albionItemLookup from '../data/albion_item_lookup.json' with { type: 'json' };
 
 const DEFAULT_CUSTODY_GUILD = 'Militant';
+const NEARBY_DUPLICATE_MS = 1000;
 
 export function parseDelimited(text, delimiter) {
   const rows = [];
@@ -130,6 +131,76 @@ function timestampMs(value) {
   return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
 }
 
+function duplicateEventTimestampMs(event) {
+  const time = new Date(event.timestamp).getTime();
+  return Number.isFinite(time) ? time : Number.NaN;
+}
+
+function nearbyDuplicateKey(event) {
+  return [
+    event.eventType || 'looted',
+    normalize(event.player),
+    normalize(event.itemId),
+    normalize(event.item),
+    String(event.enchantment || 0),
+    normalize(event.alliance),
+    normalize(event.guild),
+    normalize(event.lostTo),
+  ].join('|');
+}
+
+function dedupeNearbyEvents(events) {
+  const groups = new Map();
+
+  (events || []).forEach((event, index) => {
+    const key = nearbyDuplicateKey(event);
+    const group = groups.get(key) || [];
+    group.push({ event, index, time: duplicateEventTimestampMs(event) });
+    groups.set(key, group);
+  });
+
+  const deduped = [];
+  groups.forEach((group) => {
+    const clusters = [];
+    group
+      .sort((left, right) => (
+        (Number.isNaN(left.time) ? Number.POSITIVE_INFINITY : left.time)
+        - (Number.isNaN(right.time) ? Number.POSITIVE_INFINITY : right.time)
+        || left.index - right.index
+      ))
+      .forEach((entry) => {
+        if (Number.isNaN(entry.time)) {
+          clusters.push({ entries: [entry], lastTime: Number.NaN });
+          return;
+        }
+
+        const cluster = clusters.find((current) => (
+          Number.isFinite(current.lastTime) && entry.time - current.lastTime <= NEARBY_DUPLICATE_MS
+        ));
+        if (cluster) {
+          cluster.entries.push(entry);
+          cluster.lastTime = Math.max(cluster.lastTime, entry.time);
+        } else {
+          clusters.push({ entries: [entry], lastTime: entry.time });
+        }
+      });
+
+    clusters.forEach((cluster) => {
+      const first = cluster.entries[0];
+      deduped.push({
+        ...first.event,
+        quantity: Math.max(...cluster.entries.map(({ event }) => event.quantity || 0)),
+      });
+    });
+  });
+
+  return deduped.sort((left, right) => (
+    (Number.isNaN(duplicateEventTimestampMs(left)) ? Number.POSITIVE_INFINITY : duplicateEventTimestampMs(left))
+    - (Number.isNaN(duplicateEventTimestampMs(right)) ? Number.POSITIVE_INFINITY : duplicateEventTimestampMs(right))
+    || nearbyDuplicateKey(left).localeCompare(nearbyDuplicateKey(right))
+  ));
+}
+
 function escapeTabCell(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
@@ -189,7 +260,20 @@ export function parseLootEvents(text) {
     }];
   });
 
-  return { lostRows, rows, skippedRows };
+  const deduped = dedupeNearbyEvents([
+    ...rows.map((row) => ({ ...row, eventType: 'looted', lostTo: '' })),
+    ...lostRows.map((row) => ({ ...row, eventType: 'lost' })),
+  ]);
+
+  return {
+    lostRows: deduped
+      .filter((row) => row.eventType === 'lost')
+      .map(({ eventType, ...row }) => row),
+    rows: deduped
+      .filter((row) => row.eventType !== 'lost')
+      .map(({ eventType, lostTo, ...row }) => row),
+    skippedRows,
+  };
 }
 
 export function parseChestLog(text) {
@@ -835,7 +919,7 @@ export function buildLootMonitorReportFromEvents(events, chestText) {
     skippedRows: [],
   };
 
-  (events || []).forEach((event) => {
+  dedupeNearbyEvents(events || []).forEach((event) => {
     const row = {
       alliance: event.alliance || '',
       enchantment: event.enchantment || 0,

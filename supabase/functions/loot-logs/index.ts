@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const NEARBY_DUPLICATE_MS = 1000;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 const HASH_LOOKUP_BATCH_SIZE = 40;
 const INSERT_BATCH_SIZE = 250;
@@ -316,6 +317,76 @@ function eventIdentityKey(event: LootEvent) {
   ].join('|');
 }
 
+function duplicateEventTimestampMs(event: LootEvent) {
+  const time = new Date(event.timestamp).getTime();
+  return Number.isFinite(time) ? time : Number.NaN;
+}
+
+function nearbyDuplicateKey(event: LootEvent) {
+  return [
+    event.eventType,
+    normalize(event.player),
+    normalize(event.itemId),
+    normalize(event.item),
+    String(event.enchantment || 0),
+    normalize(event.alliance),
+    normalize(event.guild),
+    normalize(event.lostTo),
+  ].join('|');
+}
+
+function dedupeNearbyEvents(events: LootEvent[]) {
+  const groups = new Map<string, Array<{ event: LootEvent; index: number; time: number }>>();
+
+  (events || []).forEach((event, index) => {
+    const key = nearbyDuplicateKey(event);
+    const group = groups.get(key) || [];
+    group.push({ event, index, time: duplicateEventTimestampMs(event) });
+    groups.set(key, group);
+  });
+
+  const deduped: LootEvent[] = [];
+  groups.forEach((group) => {
+    const clusters: Array<{ entries: Array<{ event: LootEvent; index: number; time: number }>; lastTime: number }> = [];
+    group
+      .sort((left, right) => (
+        (Number.isNaN(left.time) ? Number.POSITIVE_INFINITY : left.time)
+        - (Number.isNaN(right.time) ? Number.POSITIVE_INFINITY : right.time)
+        || left.index - right.index
+      ))
+      .forEach((entry) => {
+        if (Number.isNaN(entry.time)) {
+          clusters.push({ entries: [entry], lastTime: Number.NaN });
+          return;
+        }
+
+        const cluster = clusters.find((current) => (
+          Number.isFinite(current.lastTime) && entry.time - current.lastTime <= NEARBY_DUPLICATE_MS
+        ));
+        if (cluster) {
+          cluster.entries.push(entry);
+          cluster.lastTime = Math.max(cluster.lastTime, entry.time);
+        } else {
+          clusters.push({ entries: [entry], lastTime: entry.time });
+        }
+      });
+
+    clusters.forEach((cluster) => {
+      const first = cluster.entries[0];
+      deduped.push({
+        ...first.event,
+        quantity: Math.max(...cluster.entries.map(({ event }) => event.quantity || 0)),
+      });
+    });
+  });
+
+  return deduped.sort((left, right) => (
+    (Number.isNaN(duplicateEventTimestampMs(left)) ? Number.POSITIVE_INFINITY : duplicateEventTimestampMs(left))
+    - (Number.isNaN(duplicateEventTimestampMs(right)) ? Number.POSITIVE_INFINITY : duplicateEventTimestampMs(right))
+    || nearbyDuplicateKey(left).localeCompare(nearbyDuplicateKey(right))
+  ));
+}
+
 async function sha256Hex(value: string) {
   const bytes = new TextEncoder().encode(value);
   const hash = await crypto.subtle.digest('SHA-256', bytes);
@@ -387,7 +458,7 @@ function parseLootEvents(text: string) {
   });
 
   return {
-    events: rows.map((event) => {
+    events: dedupeNearbyEvents(rows).map((event) => {
       const dedupeKey = eventIdentityKey(event);
       return { ...event, dedupeKey };
     }),
@@ -431,7 +502,7 @@ function parseChestLog(text: string) {
 }
 
 function getLootLogTimeRange(events: LootEvent[]) {
-  const timestamps = events
+  const timestamps = dedupeNearbyEvents(events)
     .map((event) => new Date(event.timestamp).getTime())
     .filter((time) => Number.isFinite(time));
 
@@ -452,7 +523,7 @@ function unique(values: unknown[]) {
 function aggregateLootLogEvents(events: LootEvent[]) {
   const byKey = new Map<string, any>();
 
-  events.forEach((event) => {
+  dedupeNearbyEvents(events).forEach((event) => {
     const key = [
       normalize(event.player),
       normalize(event.itemId),

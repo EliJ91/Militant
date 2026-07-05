@@ -224,8 +224,9 @@ describe('LootMonitor', () => {
 
     expect(await screen.findByText('Windyyyzz')).toBeInTheDocument();
     const renderedTile = container.querySelector('.loot-item-tile.kept-tile');
-    expect(renderedTile).toHaveAttribute('title', expect.stringContaining('Custody chain'));
     expect(renderedTile).toHaveAttribute('title', expect.stringContaining('Looted by Windyyyzz'));
+    expect(renderedTile.getAttribute('title')).not.toContain('Adept');
+    expect(renderedTile.getAttribute('title')).not.toContain('Kept');
   });
 
   it('copies a share link for the selected bundle', async () => {

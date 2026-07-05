@@ -869,9 +869,9 @@ function LootItemTile({ tile }) {
   const statusLabel = TILE_STATUS_LABELS[tile.status] || tile.status;
   const label = `${tile.player} ${statusLabel} ${tile.quantity} ${tile.item}`;
   const itemDetail = tile.itemId ? `${tile.item} (${tile.itemId})` : `${tile.item} (missing item id)`;
-  const custodyDetail = tile.status === 'kept' && tile.custodyChains
-    ? `\nCustody chain:\n${tile.custodyChains}`
-    : '';
+  const title = tile.status === 'kept' && tile.custodyChains
+    ? tile.custodyChains
+    : tile.lostTo ? `${itemDetail} - ${statusLabel} to ${tile.lostTo}` : `${itemDetail} - ${statusLabel}`;
   const imageSrc = imageAttempt > 0 ? `${tile.imageUrl}&retry=${imageAttempt}` : tile.imageUrl;
   const itemInitials = String(tile.item || '?')
     .split(/\s+/)
@@ -898,7 +898,7 @@ function LootItemTile({ tile }) {
     <figure
       aria-label={label}
       className={`loot-item-tile ${tile.status}-tile`}
-      title={`${tile.lostTo ? `${itemDetail} - ${statusLabel} to ${tile.lostTo}` : `${itemDetail} - ${statusLabel}`}${custodyDetail}`}
+      title={title}
     >
       {tile.imageUrl && !imageFailed ? (
         <img
