@@ -2212,12 +2212,7 @@ button:focus-visible {
 .energy-update-actions {
   align-items: stretch;
   display: flex;
-  gap: 0;
-}
-
-.energy-update-actions .energy-open-update {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
+  gap: 8px;
 }
 
 .energy-total {
@@ -2295,8 +2290,7 @@ button:focus-visible {
   border-color: rgba(255, 82, 98, 0.5);
   border-style: solid;
   border-width: 1px;
-  border-left: 0;
-  border-radius: 0 7px 7px 0;
+  border-radius: 7px;
   background: rgba(255, 82, 98, 0.08);
   color: #ffb7be;
   font-size: 1.05rem;
