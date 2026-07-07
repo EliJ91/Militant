@@ -41,3 +41,12 @@ export async function updateSiphonedEnergyPlayerStar({ player, starred }) {
   });
   return readResult(response, 'Could not update player star.');
 }
+
+export async function purgeSiphonedEnergyTransactions({ date }) {
+  const response = await fetch(getSiphonedEnergyApiUrl(), {
+    body: JSON.stringify({ date }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'DELETE',
+  });
+  return readResult(response, 'Could not purge Siphoned Energy transactions.');
+}

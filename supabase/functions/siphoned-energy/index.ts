@@ -7,7 +7,7 @@ const GUILD_REFRESH_MS = 72 * 60 * 60 * 1000;
 const GUILD_MEMBERS_URL = `https://gameinfo.albiononline.com/api/gameinfo/guilds/${MILITANT_GUILD_ID}/members`;
 const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+  'Access-Control-Allow-Methods': 'DELETE, GET, POST, PATCH, OPTIONS',
   'Access-Control-Allow-Origin': '*',
 };
 
@@ -133,6 +133,21 @@ function normalizePlayerName(value: unknown) {
   return String(value || '').trim();
 }
 
+function parsePurgeDate(value: unknown) {
+  const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error('A valid purge date is required.');
+
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const valid = date.getUTCFullYear() === Number(year)
+    && date.getUTCMonth() === Number(month) - 1
+    && date.getUTCDate() === Number(day);
+  if (!valid) throw new Error('A valid purge date is required.');
+
+  const cutoff = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) + 1));
+  return cutoff.toISOString().slice(0, 19);
+}
+
 async function listStarredPlayers(supabase: any) {
   const { data, error } = await supabase
     .from('siphoned_energy_starred_players')
@@ -219,7 +234,7 @@ async function listTransactions(supabase: any) {
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders, status: 204 });
-  if (!['GET', 'POST', 'PATCH'].includes(request.method)) {
+  if (!['DELETE', 'GET', 'POST', 'PATCH'].includes(request.method)) {
     return jsonResponse(405, { error: 'Method not allowed.' });
   }
 
@@ -258,6 +273,27 @@ Deno.serve(async (request) => {
         player: playerName,
         starred: Boolean(body.starred),
         starredPlayers: await listStarredPlayers(supabase),
+      });
+    }
+
+    if (request.method === 'DELETE') {
+      const body = await request.json();
+      const purgeDate = String(body.date || '');
+      const cutoff = parsePurgeDate(purgeDate);
+      const { count, data, error } = await supabase
+        .from('siphoned_energy_transactions')
+        .delete({ count: 'exact' })
+        .lt('occurred_at', cutoff)
+        .select('id');
+
+      if (error) throw error;
+
+      return jsonResponse(200, {
+        deletedRows: count ?? data?.length ?? 0,
+        guildMemberPlayers: await listGuildMemberPlayers(supabase),
+        purgeDate,
+        starredPlayers: await listStarredPlayers(supabase),
+        transactions: await listTransactions(supabase),
       });
     }
 

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchSiphonedEnergyTransactions,
+  purgeSiphonedEnergyTransactions,
   updateSiphonedEnergyPlayerStar,
   updateSiphonedEnergyTransactions,
 } from '../services/siphonedEnergyApi';
@@ -9,6 +10,7 @@ import SiphonedEnergyTracker from './SiphonedEnergyTracker';
 
 vi.mock('../services/siphonedEnergyApi', () => ({
   fetchSiphonedEnergyTransactions: vi.fn(),
+  purgeSiphonedEnergyTransactions: vi.fn(),
   updateSiphonedEnergyPlayerStar: vi.fn(),
   updateSiphonedEnergyTransactions: vi.fn(),
 }));
@@ -56,6 +58,13 @@ describe('SiphonedEnergyTracker', () => {
       skippedRows: [],
       starredPlayers: [],
       transactions,
+    });
+    purgeSiphonedEnergyTransactions.mockResolvedValue({
+      deletedRows: 2,
+      guildMemberPlayers: ['Bhrennoh', 'Dyathix'],
+      purgeDate: '2026-06-20',
+      starredPlayers: [],
+      transactions: [transactions[2]],
     });
   });
 
@@ -192,6 +201,25 @@ describe('SiphonedEnergyTracker', () => {
     await waitFor(() => expect(updateSiphonedEnergyTransactions).toHaveBeenCalledWith('copied game log'));
     expect(await screen.findByText('2 new transactions added, 1 already stored.')).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Update Energy Log' })).not.toBeInTheDocument();
+  });
+
+  it('purges transactions through the selected date', async () => {
+    render(<SiphonedEnergyTracker />);
+    await screen.findAllByText('Bhrennoh');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Purge' }));
+    const dialog = screen.getByRole('dialog', { name: 'Purge Siphoned Energy' });
+    expect(dialog).toHaveTextContent('This is irreversible');
+    expect(within(dialog).getByLabelText('Month')).toHaveValue('06');
+    expect(within(dialog).getByLabelText('Day')).toHaveValue('20');
+    expect(within(dialog).getByLabelText('Year')).toHaveValue('2026');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Purge' }));
+
+    await waitFor(() => expect(purgeSiphonedEnergyTransactions).toHaveBeenCalledWith({
+      date: '2026-06-20',
+    }));
+    expect(await screen.findByText('Purged 2 transactions through 06/20/2026.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Purge Siphoned Energy' })).not.toBeInTheDocument();
   });
 
   it('closes the update dialog without submitting', async () => {

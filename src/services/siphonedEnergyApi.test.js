@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchSiphonedEnergyTransactions,
+  purgeSiphonedEnergyTransactions,
   PRODUCTION_API_URL,
 } from './siphonedEnergyApi';
 
@@ -21,5 +22,21 @@ describe('Siphoned Energy API', () => {
 
     await expect(fetchSiphonedEnergyTransactions())
       .rejects.toThrow('Could not load Siphoned Energy transactions.');
+  });
+
+  it('purges Siphoned Energy transactions with a selected date', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      headers: { get: () => 'application/json' },
+      json: () => Promise.resolve({ deletedRows: 3 }),
+      ok: true,
+    }));
+
+    await expect(purgeSiphonedEnergyTransactions({ date: '2026-06-20' }))
+      .resolves.toEqual({ deletedRows: 3 });
+    expect(fetch).toHaveBeenCalledWith(PRODUCTION_API_URL, {
+      body: JSON.stringify({ date: '2026-06-20' }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'DELETE',
+    });
   });
 });

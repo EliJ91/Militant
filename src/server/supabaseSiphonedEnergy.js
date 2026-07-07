@@ -39,6 +39,21 @@ function normalizePlayerName(value) {
   return String(value || '').trim();
 }
 
+function parsePurgeDate(value) {
+  const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error('A valid purge date is required.');
+
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const valid = date.getUTCFullYear() === Number(year)
+    && date.getUTCMonth() === Number(month) - 1
+    && date.getUTCDate() === Number(day);
+  if (!valid) throw new Error('A valid purge date is required.');
+
+  const cutoff = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) + 1));
+  return cutoff.toISOString().slice(0, 19);
+}
+
 async function listStarredPlayers(supabase) {
   const { data, error } = await supabase
     .from('siphoned_energy_starred_players')
@@ -151,6 +166,24 @@ export async function updateSiphonedEnergyPlayerStar({ player, starred }) {
     starred: Boolean(starred),
     guildMemberPlayers: await listGuildMemberPlayers(supabase),
     starredPlayers: await listStarredPlayers(supabase),
+  };
+}
+
+export async function purgeSiphonedEnergyTransactions(date) {
+  const cutoff = parsePurgeDate(date);
+  const supabase = createSupabaseAdmin();
+  const { count, data, error } = await supabase
+    .from('siphoned_energy_transactions')
+    .delete({ count: 'exact' })
+    .lt('occurred_at', cutoff)
+    .select('id');
+
+  if (error) throw error;
+
+  return {
+    ...(await listSiphonedEnergyTransactions()),
+    deletedRows: count ?? data?.length ?? 0,
+    purgeDate: String(date || ''),
   };
 }
 

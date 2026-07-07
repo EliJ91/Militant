@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchSiphonedEnergyTransactions,
+  purgeSiphonedEnergyTransactions,
   updateSiphonedEnergyPlayerStar,
   updateSiphonedEnergyTransactions,
 } from '../services/siphonedEnergyApi';
@@ -63,10 +64,41 @@ function playerKey(player) {
   return String(player || '').trim().toLowerCase();
 }
 
+function pad2(value) {
+  return String(value).padStart(2, '0');
+}
+
+function daysInMonth(year, month) {
+  return new Date(Number(year), Number(month), 0).getDate();
+}
+
+function datePartsFromTransaction(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return { day: match[3], month: match[2], year: match[1] };
+
+  const date = new Date();
+  return {
+    day: pad2(date.getDate()),
+    month: pad2(date.getMonth() + 1),
+    year: String(date.getFullYear()),
+  };
+}
+
+function formatPurgeDisplayDate({ day, month, year }) {
+  return `${month}/${day}/${year}`;
+}
+
+function purgeDateValue({ day, month, year }) {
+  return `${year}-${month}-${day}`;
+}
+
 export default function SiphonedEnergyTracker({ canUpdate = true }) {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
+  const [isPurgeOpen, setIsPurgeOpen] = useState(false);
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [logText, setLogText] = useState('');
+  const [purgeDate, setPurgeDate] = useState(() => datePartsFromTransaction());
+  const [purgeStatus, setPurgeStatus] = useState({ message: '', state: 'idle' });
   const [starMenu, setStarMenu] = useState(null);
   const [trackerFilter, setTrackerFilter] = useState(TRACKER_FILTERS.IN_GUILD);
   const [guildMemberPlayers, setGuildMemberPlayers] = useState([]);
@@ -104,6 +136,16 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [isUpdateOpen, updateStatus.state]);
+
+  useEffect(() => {
+    if (!isPurgeOpen) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape' && purgeStatus.state !== 'purging') setIsPurgeOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isPurgeOpen, purgeStatus.state]);
 
   useEffect(() => {
     if (!starMenu) return undefined;
@@ -152,6 +194,16 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
       String(transaction.player || '').toLowerCase().includes(search)
     ));
   }, [ledgerSearch, transactions]);
+  const purgeYearOptions = useMemo(() => {
+    const years = new Set(transactions.map((transaction) => (
+      String(transaction.occurredAt || '').slice(0, 4)
+    )).filter((year) => /^\d{4}$/.test(year)));
+    years.add(String(new Date().getFullYear()));
+    return [...years].sort((left, right) => Number(right) - Number(left));
+  }, [transactions]);
+  const purgeDayOptions = useMemo(() => (
+    Array.from({ length: daysInMonth(purgeDate.year, purgeDate.month) }, (_, index) => pad2(index + 1))
+  ), [purgeDate.month, purgeDate.year]);
   const lastUpdated = lastTransactionTime ? {
     elapsed: elapsedSince(lastTransactionTime),
     label: formatLogDate(new Date(lastTransactionTime).toISOString()),
@@ -226,6 +278,44 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
     }
   }
 
+  function openPurgeDialog() {
+    setPurgeDate(datePartsFromTransaction(transactions[0]?.occurredAt));
+    setPurgeStatus({ message: '', state: 'idle' });
+    setIsPurgeOpen(true);
+  }
+
+  function updatePurgeDate(part, value) {
+    setPurgeDate((current) => {
+      const next = { ...current, [part]: value };
+      const maxDay = daysInMonth(next.year, next.month);
+      if (Number(next.day) > maxDay) next.day = pad2(maxDay);
+      return next;
+    });
+  }
+
+  async function purgeTransactions() {
+    if (purgeStatus.state === 'purging') return;
+    setPurgeStatus({ message: 'Purging...', state: 'purging' });
+
+    try {
+      const result = await purgeSiphonedEnergyTransactions({ date: purgeDateValue(purgeDate) });
+      setGuildMemberPlayers(result.guildMemberPlayers || []);
+      setStarredPlayers(result.starredPlayers || []);
+      setTransactions(result.transactions || []);
+      setPurgeStatus({ message: '', state: 'idle' });
+      setUpdateStatus({
+        message: `Purged ${result.deletedRows || 0} transactions through ${formatPurgeDisplayDate(purgeDate)}.`,
+        state: 'success',
+      });
+      setIsPurgeOpen(false);
+    } catch (error) {
+      setPurgeStatus({
+        message: error.message || 'Could not purge Siphoned Energy transactions.',
+        state: 'error',
+      });
+    }
+  }
+
   return (
     <main className="dashboard-shell siphoned-energy-shell">
       <section className="dashboard-heading siphoned-energy-heading" aria-labelledby="siphoned-energy-title">
@@ -244,16 +334,25 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
             {lastUpdated?.elapsed ? <span>{lastUpdated.elapsed}</span> : null}
           </div>
           {canUpdate ? (
-            <button
-              className="view-logs-button energy-open-update"
-              type="button"
-              onClick={() => {
-                setUpdateStatus({ message: '', state: 'idle' });
-                setIsUpdateOpen(true);
-              }}
-            >
-              Update Log
-            </button>
+            <>
+              <button
+                className="view-logs-button energy-open-update"
+                type="button"
+                onClick={() => {
+                  setUpdateStatus({ message: '', state: 'idle' });
+                  setIsUpdateOpen(true);
+                }}
+              >
+                Update Log
+              </button>
+              <button
+                className="view-logs-button energy-purge-button"
+                type="button"
+                onClick={openPurgeDialog}
+              >
+                Purge
+              </button>
+            </>
           ) : null}
         </div>
       </section>
@@ -467,6 +566,100 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
                 onClick={updateLog}
               >
                 {updateStatus.state === 'updating' ? 'Updating...' : 'Update'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {isPurgeOpen ? (
+        <div
+          className="energy-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && purgeStatus.state !== 'purging') {
+              setIsPurgeOpen(false);
+            }
+          }}
+        >
+          <section
+            aria-labelledby="energy-purge-title"
+            aria-modal="true"
+            className="energy-import-modal energy-purge-modal"
+            role="dialog"
+          >
+            <div className="energy-modal-heading">
+              <div>
+                <p className="eyebrow">Purge Data</p>
+                <h2 id="energy-purge-title">Purge Siphoned Energy</h2>
+              </div>
+              <button
+                aria-label="Close purge dialog"
+                className="energy-modal-close"
+                disabled={purgeStatus.state === 'purging'}
+                type="button"
+                onClick={() => setIsPurgeOpen(false)}
+              >
+                &times;
+              </button>
+            </div>
+            <p className="energy-purge-warning">
+              This is irreversible. All Siphoned Energy transactions from the selected date and before will be permanently deleted.
+            </p>
+            <div className="energy-purge-date-row">
+              <label>
+                <span>Month</span>
+                <select
+                  value={purgeDate.month}
+                  onChange={(event) => updatePurgeDate('month', event.target.value)}
+                >
+                  {Array.from({ length: 12 }, (_, index) => pad2(index + 1)).map((month) => (
+                    <option key={month} value={month}>{month}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Day</span>
+                <select
+                  value={purgeDate.day}
+                  onChange={(event) => updatePurgeDate('day', event.target.value)}
+                >
+                  {purgeDayOptions.map((day) => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Year</span>
+                <select
+                  value={purgeDate.year}
+                  onChange={(event) => updatePurgeDate('year', event.target.value)}
+                >
+                  {purgeYearOptions.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {purgeStatus.message ? (
+              <p className={`energy-message ${purgeStatus.state}`}>{purgeStatus.message}</p>
+            ) : null}
+            <div className="energy-import-actions">
+              <button
+                className="primary-button energy-purge-confirm"
+                disabled={purgeStatus.state === 'purging'}
+                type="button"
+                onClick={purgeTransactions}
+              >
+                {purgeStatus.state === 'purging' ? 'Purging...' : 'Purge'}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={purgeStatus.state === 'purging'}
+                type="button"
+                onClick={() => setIsPurgeOpen(false)}
+              >
+                Cancel
               </button>
             </div>
           </section>

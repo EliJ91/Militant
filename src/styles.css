@@ -2236,6 +2236,17 @@ button:focus-visible {
   color: #dfe3e6;
 }
 
+.energy-purge-button {
+  border-color: rgba(255, 82, 98, 0.5);
+  background: rgba(255, 82, 98, 0.08);
+}
+
+.energy-purge-button:hover {
+  border-color: #ff6573;
+  background: rgba(255, 82, 98, 0.18);
+  color: #ffb7be;
+}
+
 .energy-total strong {
   color: var(--white);
   font-size: 1.35rem;
@@ -2294,8 +2305,62 @@ button:focus-visible {
   justify-content: flex-end;
 }
 
+.energy-purge-modal {
+  max-width: 560px;
+}
+
+.energy-purge-warning {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 82, 98, 0.45);
+  border-radius: 7px;
+  background: rgba(255, 82, 98, 0.1);
+  color: #ffb7be;
+  font-size: 0.84rem;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.energy-purge-date-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.energy-purge-date-row label {
+  display: grid;
+  gap: 6px;
+}
+
+.energy-purge-date-row span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.energy-purge-date-row select {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid rgba(247, 250, 245, 0.14);
+  border-radius: 7px;
+  background: #020403;
+  color: var(--white);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.energy-purge-confirm {
+  border-color: rgba(255, 82, 98, 0.66);
+  background: rgba(255, 82, 98, 0.16);
+  color: #ffd3d7;
+}
+
 .secondary-button,
-.energy-update-button {
+.energy-update-button,
+.energy-purge-confirm {
   min-width: 142px;
   min-height: 42px;
   padding: 9px 16px;
@@ -2921,8 +2986,13 @@ button:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .energy-purge-date-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .secondary-button,
-  .energy-update-button {
+  .energy-update-button,
+  .energy-purge-confirm {
     min-width: 0;
     width: 100%;
   }

@@ -177,6 +177,7 @@ function siphonedEnergyApi() {
       const {
         importSiphonedEnergyTransactions,
         listSiphonedEnergyTransactions,
+        purgeSiphonedEnergyTransactions,
         updateSiphonedEnergyPlayerStar,
       } = await import('./src/server/supabaseSiphonedEnergy.js');
 
@@ -197,6 +198,12 @@ function siphonedEnergyApi() {
           player: body.player,
           starred: body.starred,
         }));
+        return;
+      }
+
+      if (req.method === 'DELETE') {
+        const body = await readJsonBody(req);
+        sendJson(res, 200, await purgeSiphonedEnergyTransactions(body.date));
         return;
       }
 
