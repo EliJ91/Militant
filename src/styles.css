@@ -1628,7 +1628,7 @@ button:focus-visible {
 
 .selected-log-summary {
   display: grid;
-  grid-template-columns: minmax(150px, 0.55fr) repeat(3, minmax(210px, 1fr));
+  grid-template-columns: minmax(150px, 0.55fr) minmax(210px, 1fr) minmax(260px, 1fr) minmax(180px, 0.72fr) minmax(210px, 1fr);
   gap: 0;
   overflow: hidden;
   margin-top: 18px;
@@ -1639,6 +1639,7 @@ button:focus-visible {
 
 .selected-log-cta,
 .selected-log-file,
+.selected-log-totals,
 .selected-log-legend {
   min-width: 0;
   min-height: 104px;
@@ -1653,6 +1654,7 @@ button:focus-visible {
 }
 
 .selected-log-file,
+.selected-log-totals,
 .selected-log-legend {
   border-left: 1px solid rgba(247, 250, 245, 0.1);
 }
@@ -1680,6 +1682,39 @@ button:focus-visible {
   line-height: 1.45;
   text-overflow: clip;
   white-space: normal;
+}
+
+.selected-log-totals {
+  align-content: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+
+.selected-log-totals span {
+  align-items: center;
+  display: grid;
+  gap: 7px;
+  justify-items: center;
+  min-width: 0;
+}
+
+.selected-log-totals span + span {
+  border-left: 1px solid rgba(247, 250, 245, 0.1);
+}
+
+.selected-log-totals strong {
+  color: var(--white);
+  font-size: 1.28rem;
+  line-height: 1;
+}
+
+.selected-log-totals small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .selected-log-cta span,
@@ -3140,11 +3175,13 @@ button:focus-visible {
 
   .selected-log-cta,
   .selected-log-file,
+  .selected-log-totals,
   .selected-log-legend {
     min-height: 82px;
   }
 
   .selected-log-file,
+  .selected-log-totals,
   .selected-log-legend {
     border-top: 1px solid rgba(247, 250, 245, 0.1);
     border-left: 0;

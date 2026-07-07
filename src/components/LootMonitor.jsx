@@ -2085,6 +2085,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
       ? rawSubmissions
       : [selectedBundle?.chestLogText || '']);
   }, [selectedBundle]);
+  const selectedTotals = selectedBundle?.summary?.totals || {};
   const activeFilters = filters;
 
   const filterOptions = useMemo(() => {
@@ -2246,6 +2247,10 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
           <div className="selected-log-file selected-log-loggers">
             <small>Loot Loggers</small>
             <strong>{lootLoggers.length > 0 ? lootLoggers.join(', ') : 'Unknown'}</strong>
+          </div>
+          <div className="selected-log-totals">
+            <span><strong>{formatNumber(selectedTotals.players)}</strong><small>{selectedTotals.players === 1 ? 'player' : 'players'}</small></span>
+            <span><strong>{formatNumber(selectedTotals.lootedQuantity)}</strong><small>items</small></span>
           </div>
           <StatusLegend className="selected-log-legend" />
         </section>
