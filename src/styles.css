@@ -2298,7 +2298,7 @@ button:focus-visible {
 }
 
 .energy-purge-button[aria-disabled="true"] {
-  cursor: wait;
+  cursor: pointer;
 }
 
 .energy-purge-button:hover,
