@@ -2293,7 +2293,14 @@ button:focus-visible {
   border-radius: 7px;
   background: rgba(255, 82, 98, 0.08);
   color: #ffb7be;
-  font-size: 1.05rem;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.energy-purge-button span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
 }
 
