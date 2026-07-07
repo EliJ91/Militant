@@ -97,6 +97,8 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
   const [isPurgeOpen, setIsPurgeOpen] = useState(false);
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [logText, setLogText] = useState('');
+  const [purgeConfirming, setPurgeConfirming] = useState(false);
+  const [purgeConfirmSeconds, setPurgeConfirmSeconds] = useState(3);
   const [purgeDate, setPurgeDate] = useState(() => datePartsFromTransaction());
   const [purgeStatus, setPurgeStatus] = useState({ message: '', state: 'idle' });
   const [starMenu, setStarMenu] = useState(null);
@@ -146,6 +148,15 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [isPurgeOpen, purgeStatus.state]);
+
+  useEffect(() => {
+    if (!isPurgeOpen || !purgeConfirming || purgeConfirmSeconds <= 0) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setPurgeConfirmSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [isPurgeOpen, purgeConfirming, purgeConfirmSeconds]);
 
   useEffect(() => {
     if (!starMenu) return undefined;
@@ -280,11 +291,15 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
 
   function openPurgeDialog() {
     setPurgeDate(datePartsFromTransaction(transactions[0]?.occurredAt));
+    setPurgeConfirming(false);
+    setPurgeConfirmSeconds(3);
     setPurgeStatus({ message: '', state: 'idle' });
     setIsPurgeOpen(true);
   }
 
   function updatePurgeDate(part, value) {
+    setPurgeConfirming(false);
+    setPurgeConfirmSeconds(3);
     setPurgeDate((current) => {
       const next = { ...current, [part]: value };
       const maxDay = daysInMonth(next.year, next.month);
@@ -293,8 +308,15 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
     });
   }
 
-  async function purgeTransactions() {
+  function startPurgeConfirmation() {
     if (purgeStatus.state === 'purging') return;
+    setPurgeConfirming(true);
+    setPurgeConfirmSeconds(3);
+    setPurgeStatus({ message: '', state: 'idle' });
+  }
+
+  async function purgeTransactions() {
+    if (purgeStatus.state === 'purging' || !purgeConfirming || purgeConfirmSeconds > 0) return;
     setPurgeStatus({ message: 'Purging...', state: 'purging' });
 
     try {
@@ -346,11 +368,13 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
                 Update Log
               </button>
               <button
-                className="view-logs-button energy-purge-button"
+                aria-label="Purge data"
+                className="energy-purge-button"
+                title="Purge data"
                 type="button"
                 onClick={openPurgeDialog}
               >
-                Purge
+                <span aria-hidden="true">&#128465;</span>
               </button>
             </>
           ) : null}
@@ -644,22 +668,38 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
             {purgeStatus.message ? (
               <p className={`energy-message ${purgeStatus.state}`}>{purgeStatus.message}</p>
             ) : null}
+            {purgeConfirming ? (
+              <p className="energy-purge-final-warning">
+                Confirm permanent deletion through {formatPurgeDisplayDate(purgeDate)}.
+              </p>
+            ) : null}
             <div className="energy-import-actions">
               <button
                 className="primary-button energy-purge-confirm"
-                disabled={purgeStatus.state === 'purging'}
+                disabled={purgeStatus.state === 'purging' || (purgeConfirming && purgeConfirmSeconds > 0)}
                 type="button"
-                onClick={purgeTransactions}
+                onClick={purgeConfirming ? purgeTransactions : startPurgeConfirmation}
               >
-                {purgeStatus.state === 'purging' ? 'Purging...' : 'Purge'}
+                {purgeStatus.state === 'purging'
+                  ? 'Purging...'
+                  : purgeConfirming
+                    ? purgeConfirmSeconds > 0 ? `Confirm (${purgeConfirmSeconds})` : 'Confirm'
+                    : 'Purge'}
               </button>
               <button
                 className="secondary-button"
                 disabled={purgeStatus.state === 'purging'}
                 type="button"
-                onClick={() => setIsPurgeOpen(false)}
+                onClick={() => {
+                  if (purgeConfirming) {
+                    setPurgeConfirming(false);
+                    setPurgeConfirmSeconds(3);
+                    return;
+                  }
+                  setIsPurgeOpen(false);
+                }}
               >
-                Cancel
+                {purgeConfirming ? 'Back' : 'Cancel'}
               </button>
             </div>
           </section>
