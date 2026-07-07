@@ -100,6 +100,9 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
   const [purgeConfirming, setPurgeConfirming] = useState(false);
   const [purgeConfirmSeconds, setPurgeConfirmSeconds] = useState(3);
   const [purgeDate, setPurgeDate] = useState(() => datePartsFromTransaction());
+  const [purgeHoverActive, setPurgeHoverActive] = useState(false);
+  const [purgeHoverSeconds, setPurgeHoverSeconds] = useState(3);
+  const [purgeButtonArmed, setPurgeButtonArmed] = useState(false);
   const [purgeStatus, setPurgeStatus] = useState({ message: '', state: 'idle' });
   const [starMenu, setStarMenu] = useState(null);
   const [trackerFilter, setTrackerFilter] = useState(TRACKER_FILTERS.IN_GUILD);
@@ -157,6 +160,19 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
     }, 1000);
     return () => window.clearTimeout(timer);
   }, [isPurgeOpen, purgeConfirming, purgeConfirmSeconds]);
+
+  useEffect(() => {
+    if (!purgeHoverActive) return undefined;
+    if (purgeHoverSeconds <= 0) {
+      setPurgeButtonArmed(true);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setPurgeHoverSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [purgeHoverActive, purgeHoverSeconds]);
 
   useEffect(() => {
     if (!starMenu) return undefined;
@@ -297,6 +313,24 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
     setIsPurgeOpen(true);
   }
 
+  function startPurgeHover() {
+    setPurgeHoverActive(true);
+    setPurgeHoverSeconds(3);
+    setPurgeButtonArmed(false);
+  }
+
+  function resetPurgeHover() {
+    setPurgeHoverActive(false);
+    setPurgeHoverSeconds(3);
+    setPurgeButtonArmed(false);
+  }
+
+  function openArmedPurgeDialog() {
+    if (!purgeButtonArmed) return;
+    resetPurgeHover();
+    openPurgeDialog();
+  }
+
   function updatePurgeDate(part, value) {
     setPurgeConfirming(false);
     setPurgeConfirmSeconds(3);
@@ -356,7 +390,7 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
             {lastUpdated?.elapsed ? <span>{lastUpdated.elapsed}</span> : null}
           </div>
           {canUpdate ? (
-            <>
+            <div className="energy-update-actions">
               <button
                 className="view-logs-button energy-open-update"
                 type="button"
@@ -369,14 +403,17 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
               </button>
               <button
                 aria-label="Purge data"
-                className="energy-purge-button"
-                title="Purge data"
+                aria-disabled={!purgeButtonArmed}
+                className={purgeButtonArmed ? 'energy-purge-button ready' : 'energy-purge-button'}
+                title={purgeButtonArmed ? 'Purge data' : 'Hover to unlock'}
                 type="button"
-                onClick={openPurgeDialog}
+                onClick={openArmedPurgeDialog}
+                onMouseEnter={startPurgeHover}
+                onMouseLeave={resetPurgeHover}
               >
-                <span aria-hidden="true">&#128465;</span>
+                <span aria-hidden="true">{purgeHoverActive && !purgeButtonArmed ? purgeHoverSeconds : '\u{1F5D1}'}</span>
               </button>
-            </>
+            </div>
           ) : null}
         </div>
       </section>
