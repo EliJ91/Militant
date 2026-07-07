@@ -65,6 +65,7 @@ function playerKey(player) {
 
 export default function SiphonedEnergyTracker({ canUpdate = true }) {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
+  const [ledgerSearch, setLedgerSearch] = useState('');
   const [logText, setLogText] = useState('');
   const [starMenu, setStarMenu] = useState(null);
   const [trackerFilter, setTrackerFilter] = useState(TRACKER_FILTERS.IN_GUILD);
@@ -144,6 +145,13 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
     )).filter((column) => column.length > 0);
   }, [negativePlayers]);
   const lastTransactionTime = useMemo(() => getLastTransactionDate(transactions), [transactions]);
+  const filteredTransactions = useMemo(() => {
+    const search = ledgerSearch.trim().toLowerCase();
+    if (!search) return transactions;
+    return transactions.filter((transaction) => (
+      String(transaction.player || '').toLowerCase().includes(search)
+    ));
+  }, [ledgerSearch, transactions]);
   const lastUpdated = lastTransactionTime ? {
     elapsed: elapsedSince(lastTransactionTime),
     label: formatLogDate(new Date(lastTransactionTime).toISOString()),
@@ -353,6 +361,16 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
             <p className="eyebrow">Ledger</p>
             <h2 id="energy-log-title">Transaction Log</h2>
           </div>
+          <label className="energy-log-search">
+            <span>Search Username</span>
+            <input
+              aria-label="Search transaction usernames"
+              placeholder="Search username"
+              type="search"
+              value={ledgerSearch}
+              onChange={(event) => setLedgerSearch(event.target.value)}
+            />
+          </label>
         </div>
 
         {loadStatus.state === 'loading' ? <p className="energy-empty-inline">Loading transactions...</p> : null}
@@ -360,7 +378,10 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
         {loadStatus.state === 'ready' && transactions.length === 0 ? (
           <p className="energy-empty-inline">No Siphoned Energy transactions have been uploaded.</p>
         ) : null}
-        {transactions.length > 0 ? (
+        {loadStatus.state === 'ready' && transactions.length > 0 && filteredTransactions.length === 0 ? (
+          <p className="energy-empty-inline">No transactions match that username.</p>
+        ) : null}
+        {filteredTransactions.length > 0 ? (
           <div className="energy-table-wrap">
             <table className="energy-table">
               <thead>
@@ -372,7 +393,7 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((transaction) => (
+                {filteredTransactions.map((transaction) => (
                   <tr key={transaction.id || `${transaction.occurredAt}-${transaction.player}-${transaction.amount}`}>
                     <td>{formatLogDate(transaction.occurredAt)}</td>
                     <td><strong>{transaction.player}</strong></td>

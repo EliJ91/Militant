@@ -42,7 +42,7 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /open tool/i })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
     expect(screen.getByText('Track deposits, withdrawals, and outstanding member balances.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.1.0');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.2.0');
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: /view loot logs/i }));

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchSiphonedEnergyTransactions,
@@ -77,6 +77,14 @@ describe('SiphonedEnergyTracker', () => {
     expect(screen.getByRole('button', { name: 'Starred' })).toBeInTheDocument();
     expect(document.querySelectorAll('.energy-debt-column')).toHaveLength(1);
     expect(screen.queryByRole('dialog', { name: 'Update Energy Log' })).not.toBeInTheDocument();
+
+    const logSection = screen.getByRole('region', { name: /transaction log/i });
+    const search = within(logSection).getByRole('searchbox', { name: 'Search transaction usernames' });
+    fireEvent.change(search, { target: { value: 'xsar' } });
+    expect(within(logSection).getByText('xSarge')).toBeInTheDocument();
+    expect(within(logSection).queryByText('Dyathix')).not.toBeInTheDocument();
+    fireEvent.change(search, { target: { value: 'missing' } });
+    expect(within(logSection).getByText('No transactions match that username.')).toBeInTheDocument();
   });
 
   it('toggles and persists stars for negative tracker players', async () => {
