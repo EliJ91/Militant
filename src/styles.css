@@ -2308,6 +2308,11 @@ button:focus-visible {
   color: #ffb7be;
 }
 
+.energy-purge-button.ready {
+  background: #ff5262;
+  color: var(--black);
+}
+
 .energy-total strong {
   color: var(--white);
   font-size: 1.35rem;
