@@ -395,6 +395,30 @@ function loadSavedFilters() {
   }
 }
 
+const SHARED_FILTER_PARAMS = {
+  alliances: 'a',
+  guilds: 'g',
+  status: 's',
+  tierFilters: 't',
+  typeFilters: 'y',
+};
+
+function encodeSharedFilters(filters) {
+  const sanitized = sanitizeFilters(filters);
+  const params = new URLSearchParams();
+
+  Object.entries(SHARED_FILTER_PARAMS).forEach(([filterKey, paramKey]) => {
+    sanitized[filterKey].forEach((value) => params.append(paramKey, value));
+  });
+
+  if (sanitized.sortDirection !== DEFAULT_FILTERS.sortDirection) {
+    params.set('o', sanitized.sortDirection);
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}
+
 function getSharedFiltersFromHash() {
   if (typeof window === 'undefined') return null;
 
@@ -404,7 +428,16 @@ function getSharedFiltersFromHash() {
   try {
     const params = new URLSearchParams(window.location.hash.slice(queryStart + 1));
     const filters = params.get('filters');
-    return filters ? sanitizeFilters(JSON.parse(filters)) : null;
+    if (filters) return sanitizeFilters(JSON.parse(filters));
+
+    const sharedFilters = {};
+    Object.entries(SHARED_FILTER_PARAMS).forEach(([filterKey, paramKey]) => {
+      const values = params.getAll(paramKey);
+      if (values.length > 0) sharedFilters[filterKey] = values;
+    });
+    if (params.has('o')) sharedFilters.sortDirection = params.get('o');
+
+    return Object.keys(sharedFilters).length > 0 ? sanitizeFilters(sharedFilters) : null;
   } catch {
     return null;
   }
@@ -2154,8 +2187,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
     if (!selectedBundle?.id || shareStatus.state === 'copying') return;
 
     const shareUrl = new URL(window.location.href);
-    const sharedFilters = encodeURIComponent(JSON.stringify(sanitizeFilters(filters)));
-    shareUrl.hash = `shared-log/${encodeURIComponent(selectedBundle.id)}?filters=${sharedFilters}`;
+    shareUrl.hash = `shared-log/${encodeURIComponent(selectedBundle.id)}${encodeSharedFilters(filters)}`;
     setShareStatus({ message: 'Copying...', state: 'copying' });
 
     try {

@@ -365,27 +365,20 @@ describe('LootMonitor', () => {
     ));
     const sharedUrl = new URL(writeText.mock.calls[0][0]);
     const sharedParams = new URLSearchParams(sharedUrl.hash.split('?')[1]);
-    expect(JSON.parse(sharedParams.get('filters'))).toMatchObject({
-      alliances: ['CHAIR'],
-      guilds: ['Militant'],
-      sortDirection: 'asc',
-      status: ['kept'],
-      tierFilters: ['tier4'],
-      typeFilters: ['cape'],
-    });
+    expect(sharedParams.has('filters')).toBe(false);
+    expect(sharedUrl.hash).toBe('#shared-log/bundle-18?a=CHAIR&g=Militant&s=kept&t=tier4&y=cape&o=asc');
+    expect(sharedParams.getAll('a')).toEqual(['CHAIR']);
+    expect(sharedParams.getAll('g')).toEqual(['Militant']);
+    expect(sharedParams.getAll('s')).toEqual(['kept']);
+    expect(sharedParams.getAll('t')).toEqual(['tier4']);
+    expect(sharedParams.getAll('y')).toEqual(['cape']);
+    expect(sharedParams.get('o')).toBe('asc');
     expect(await screen.findByText('Link copied')).toBeInTheDocument();
   });
 
   it('loads filters from a shared loot log link', async () => {
     const previousHash = window.location.hash;
-    window.location.hash = `#shared-log/bundle-18?filters=${encodeURIComponent(JSON.stringify({
-      alliances: ['CHAIR'],
-      guilds: ['Militant'],
-      sortDirection: 'asc',
-      status: ['kept'],
-      tierFilters: ['tier4'],
-      typeFilters: ['cape'],
-    }))}`;
+    window.location.hash = '#shared-log/bundle-18?a=CHAIR&g=Militant&s=kept&t=tier4&y=cape&o=asc';
 
     render(<LootMonitor bundleId="bundle-18" showShare={false} />);
 

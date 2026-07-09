@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchSiphonedEnergyTransactions,
@@ -206,14 +207,25 @@ describe('SiphonedEnergyTracker', () => {
   it('purges transactions through the selected date', async () => {
     render(<SiphonedEnergyTracker />);
     await screen.findAllByText('Bhrennoh');
+    vi.useFakeTimers();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Purge' }));
+    const purgeButton = screen.getByRole('button', { name: 'Purge data' });
+    fireEvent.mouseEnter(purgeButton);
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    fireEvent.click(purgeButton);
     const dialog = screen.getByRole('dialog', { name: 'Purge Siphoned Energy' });
     expect(dialog).toHaveTextContent('This is irreversible');
     expect(within(dialog).getByLabelText('Month')).toHaveValue('06');
     expect(within(dialog).getByLabelText('Day')).toHaveValue('20');
     expect(within(dialog).getByLabelText('Year')).toHaveValue('2026');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Purge' }));
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+    vi.useRealTimers();
 
     await waitFor(() => expect(purgeSiphonedEnergyTransactions).toHaveBeenCalledWith({
       date: '2026-06-20',
