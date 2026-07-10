@@ -116,7 +116,7 @@ create table if not exists public.siphoned_energy_starred_players (
 create index if not exists siphoned_energy_starred_players_starred_idx
   on public.siphoned_energy_starred_players (starred, player_name);
 
-create table if not exists public.siphoned_energy_guild_members (
+create table if not exists public.guild_members (
   id uuid primary key default gen_random_uuid(),
   guild_id text not null,
   player_name text not null,
@@ -132,10 +132,10 @@ create table if not exists public.siphoned_energy_guild_members (
   unique (guild_id, player_key)
 );
 
-create index if not exists siphoned_energy_guild_members_guild_idx
-  on public.siphoned_energy_guild_members (guild_id, refreshed_at);
+create index if not exists guild_members_guild_idx
+  on public.guild_members (guild_id, refreshed_at);
 
-create index if not exists siphoned_energy_guild_members_player_id_idx
-  on public.siphoned_energy_guild_members (player_id);
+create index if not exists guild_members_player_id_idx
+  on public.guild_members (player_id);
 
 alter table public.siphoned_energy_transactions enable row level security;

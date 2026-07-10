@@ -368,29 +368,6 @@ function timestampDateKey(value) {
   return Number.isNaN(timestamp.getTime()) ? '' : timestamp.toISOString().slice(0, 10);
 }
 
-function deathMatchesKeptItemDate(death, item) {
-  if (item.lootDateKey) return timestampDateKey(deathTimestamp(death)) === item.lootDateKey;
-
-  const lootDateKeys = (Array.isArray(item.lootTimestamps) ? item.lootTimestamps : [])
-    .map(timestampDateKey)
-    .filter(Boolean);
-  if (lootDateKeys.length === 0) return true;
-
-  const deathDateKey = timestampDateKey(deathTimestamp(death));
-  return !!deathDateKey && lootDateKeys.includes(deathDateKey);
-}
-
-function deathMatchesAnyKeptItemDate(death, keptItems) {
-  return keptItems.some((item) => deathMatchesKeptItemDate(death, item));
-}
-
-function keptItemDateKeys(item) {
-  if (item.lootDateKey) return [item.lootDateKey];
-  return (Array.isArray(item.lootTimestamps) ? item.lootTimestamps : [])
-    .map(timestampDateKey)
-    .filter(Boolean);
-}
-
 function matchDeathInventory(death, keptItems) {
   const inventory = Array.isArray(death?.Victim?.Inventory) ? death.Victim.Inventory : [];
   const quantities = new Map();
@@ -402,8 +379,7 @@ function matchDeathInventory(death, keptItems) {
     quantities.set(itemId, (quantities.get(itemId) || 0) + quantity);
   });
 
-  return keptItems.flatMap(({ itemId, lootDateKey, lootTimestamps, quantity }) => {
-    if (!deathMatchesKeptItemDate(death, { itemId, lootDateKey, lootTimestamps, quantity })) return [];
+  return keptItems.flatMap(({ itemId, quantity }) => {
     const matchedQuantity = Math.min(quantity, quantities.get(itemId) || 0);
     return matchedQuantity > 0 ? [{ itemId, quantity: matchedQuantity }] : [];
   });
@@ -440,26 +416,20 @@ function summarizeDeathForDebug(death, bundle, trackedItems, playerId) {
   const deathDateKey = timestampDateKey(timestamp);
   const inventoryQuantities = deathInventoryQuantities(death);
   const timeWindowMatch = deathMatchesBundle(death, bundle);
-  const itemDateMatch = deathMatchesAnyKeptItemDate(death, trackedItems);
-  const victimMatch = !victimId || victimId === playerId;
+  const victimMatch = !!victimId && victimId === playerId;
   const matchingItems = trackedItems.map((item) => {
-    const allowedLootDates = keptItemDateKeys(item);
-    const dateMatch = deathMatchesKeptItemDate(death, item);
     const inventoryQuantity = inventoryQuantities.get(item.itemId) || 0;
     return {
-      allowedLootDates,
-      dateMatch,
       expectedItemId: item.itemId,
       inventoryQuantity,
-      matchedQuantity: dateMatch ? Math.min(item.quantity, inventoryQuantity) : 0,
+      matchedQuantity: Math.min(item.quantity, inventoryQuantity),
       requiredQuantity: item.quantity,
     };
   });
 
   return {
     checks: {
-      includedAsCandidateBeforeInventoryMatch: timeWindowMatch && itemDateMatch && victimMatch,
-      itemDateMatch,
+      includedAsCandidateBeforeInventoryMatch: timeWindowMatch && victimMatch,
       timeWindowMatch,
       victimMatch,
     },
@@ -521,7 +491,7 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
       .eq('id', cleanBundleId)
       .single(),
     supabase
-      .from('siphoned_energy_guild_members')
+      .from('guild_members')
       .select('player_id,player_name')
       .eq('guild_id', MILITANT_GUILD_ID)
       .eq('player_key', playerKey)
@@ -550,12 +520,10 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
     deathApiUrl,
     filtersAppliedInOrder: [
       '1. Load bundle start_at/end_at from loot_log_bundles.',
-      '2. Load stored player_id from siphoned_energy_guild_members by player_key.',
+      '2. Load the player_id from guild_members by player_key.',
       '3. Fetch Albion deaths URL.',
-      '4. Keep deaths whose TimeStamp is between bundle start_at and end_at.',
-      '5. Keep deaths whose calendar date matches the kept loot item date.',
-      '6. Keep deaths whose Victim.Id is blank or equals the stored player_id.',
-      '7. Match kept item IDs against Victim.Inventory Type and Count.',
+      '4. Keep deaths whose timestamp and date are between bundle start_at and end_at, with a non-blank Victim.Id matching the stored player_id.',
+      '5. Match kept item IDs against that death event Victim.Inventory Type and Count.',
     ],
     player: {
       inputName: playerName,
@@ -575,10 +543,9 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
     const debugDeaths = deathRows.map((death) => summarizeDeathForDebug(death, bundle, trackedItems, playerId));
     const candidates = (Array.isArray(deaths) ? deaths : [])
       .filter((death) => deathMatchesBundle(death, bundle))
-      .filter((death) => deathMatchesAnyKeptItemDate(death, trackedItems))
       .filter((death) => {
         const victimId = String(death?.Victim?.Id || '').trim();
-        return !victimId || victimId === playerId;
+        return !!victimId && victimId === playerId;
       })
       .map((death) => ({ death, matchedItems: matchDeathInventory(death, trackedItems) }));
     const match = candidates.find((candidate) => candidate.matchedItems.length > 0);
@@ -596,7 +563,6 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
       candidateCounts: {
         fetchedDeaths: deathRows.length,
         matchedInventory: candidates.filter((candidate) => candidate.matchedItems.length > 0).length,
-        passedDateFilter: debugDeaths.filter((death) => death.checks.itemDateMatch).length,
         passedTimeWindow: debugDeaths.filter((death) => death.checks.timeWindowMatch).length,
         passedVictimFilter: debugDeaths.filter((death) => death.checks.victimMatch).length,
         usableCandidatesBeforeInventory: candidates.length,

@@ -216,7 +216,7 @@ async function fetchGuildMembers() {
 
 async function readCachedGuildMembers(supabase: any) {
   const { data: cachedRows, error: cacheError } = await supabase
-    .from('siphoned_energy_guild_members')
+    .from('guild_members')
     .select(GUILD_MEMBER_SELECT)
     .eq('guild_id', MILITANT_GUILD_ID)
     .order('player_name');
@@ -252,7 +252,7 @@ async function listGuildMembers(supabase: any) {
 
   if (members.length > 0) {
     const { error: upsertError } = await supabase
-      .from('siphoned_energy_guild_members')
+      .from('guild_members')
       .upsert(members.map((member: any) => ({
         death_fame: member.deathFame,
         guild_id: MILITANT_GUILD_ID,
@@ -270,7 +270,7 @@ async function listGuildMembers(supabase: any) {
 
   if (staleIds.length > 0) {
     const { error: deleteError } = await supabase
-      .from('siphoned_energy_guild_members')
+      .from('guild_members')
       .delete()
       .in('id', staleIds);
     if (deleteError) throw deleteError;

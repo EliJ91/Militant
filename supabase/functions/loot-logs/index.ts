@@ -703,29 +703,6 @@ function timestampDateKey(value: unknown) {
   return Number.isNaN(timestamp.getTime()) ? '' : timestamp.toISOString().slice(0, 10);
 }
 
-function deathMatchesKeptItemDate(death: any, item: { lootDateKey?: string; lootTimestamps?: string[] }) {
-  if (item.lootDateKey) return timestampDateKey(deathTimestamp(death)) === item.lootDateKey;
-
-  const lootDateKeys = (Array.isArray(item.lootTimestamps) ? item.lootTimestamps : [])
-    .map(timestampDateKey)
-    .filter(Boolean);
-  if (lootDateKeys.length === 0) return true;
-
-  const deathDateKey = timestampDateKey(deathTimestamp(death));
-  return !!deathDateKey && lootDateKeys.includes(deathDateKey);
-}
-
-function deathMatchesAnyKeptItemDate(death: any, keptItems: Array<{ lootDateKey?: string; lootTimestamps?: string[] }>) {
-  return keptItems.some((item) => deathMatchesKeptItemDate(death, item));
-}
-
-function keptItemDateKeys(item: { lootDateKey?: string; lootTimestamps?: string[] }) {
-  if (item.lootDateKey) return [item.lootDateKey];
-  return (Array.isArray(item.lootTimestamps) ? item.lootTimestamps : [])
-    .map(timestampDateKey)
-    .filter(Boolean);
-}
-
 function matchDeathInventory(death: any, keptItems: Array<{ itemId: string; lootDateKey?: string; lootTimestamps?: string[]; quantity: number }>) {
   const inventory = Array.isArray(death?.Victim?.Inventory) ? death.Victim.Inventory : [];
   const quantities = new Map<string, number>();
@@ -737,9 +714,7 @@ function matchDeathInventory(death: any, keptItems: Array<{ itemId: string; loot
     quantities.set(itemId, (quantities.get(itemId) || 0) + quantity);
   });
 
-  return keptItems.flatMap(({ itemId, lootDateKey, lootTimestamps, quantity }) => {
-    const keptItem = { itemId, lootDateKey, lootTimestamps, quantity };
-    if (!deathMatchesKeptItemDate(death, keptItem)) return [];
+  return keptItems.flatMap(({ itemId, quantity }) => {
     const matchedQuantity = Math.min(quantity, quantities.get(itemId) || 0);
     return matchedQuantity > 0 ? [{ itemId, quantity: matchedQuantity }] : [];
   });
@@ -776,26 +751,20 @@ function summarizeDeathForDebug(death: any, bundle: any, trackedItems: Array<{ i
   const deathDateKey = timestampDateKey(timestamp);
   const inventoryQuantities = deathInventoryQuantities(death);
   const timeWindowMatch = deathMatchesBundle(death, bundle);
-  const itemDateMatch = deathMatchesAnyKeptItemDate(death, trackedItems);
-  const victimMatch = !victimId || victimId === playerId;
+  const victimMatch = !!victimId && victimId === playerId;
   const matchingItems = trackedItems.map((item) => {
-    const allowedLootDates = keptItemDateKeys(item);
-    const dateMatch = deathMatchesKeptItemDate(death, item);
     const inventoryQuantity = inventoryQuantities.get(item.itemId) || 0;
     return {
-      allowedLootDates,
-      dateMatch,
       expectedItemId: item.itemId,
       inventoryQuantity,
-      matchedQuantity: dateMatch ? Math.min(item.quantity, inventoryQuantity) : 0,
+      matchedQuantity: Math.min(item.quantity, inventoryQuantity),
       requiredQuantity: item.quantity,
     };
   });
 
   return {
     checks: {
-      includedAsCandidateBeforeInventoryMatch: timeWindowMatch && itemDateMatch && victimMatch,
-      itemDateMatch,
+      includedAsCandidateBeforeInventoryMatch: timeWindowMatch && victimMatch,
       timeWindowMatch,
       victimMatch,
     },
@@ -856,7 +825,7 @@ async function checkLootLogDeath(supabase: any, body: any) {
       .eq('id', bundleId)
       .single(),
     supabase
-      .from('siphoned_energy_guild_members')
+      .from('guild_members')
       .select('player_id,player_name')
       .eq('guild_id', MILITANT_GUILD_ID)
       .eq('player_key', playerKey)
@@ -885,12 +854,10 @@ async function checkLootLogDeath(supabase: any, body: any) {
     deathApiUrl,
     filtersAppliedInOrder: [
       '1. Load bundle start_at/end_at from loot_log_bundles.',
-      '2. Load stored player_id from siphoned_energy_guild_members by player_key.',
+      '2. Load the player_id from guild_members by player_key.',
       '3. Fetch Albion deaths URL.',
-      '4. Keep deaths whose TimeStamp is between bundle start_at and end_at.',
-      '5. Keep deaths whose calendar date matches the kept loot item date.',
-      '6. Keep deaths whose Victim.Id is blank or equals the stored player_id.',
-      '7. Match kept item IDs against Victim.Inventory Type and Count.',
+      '4. Keep deaths whose timestamp and date are between bundle start_at and end_at, with a non-blank Victim.Id matching the stored player_id.',
+      '5. Match kept item IDs against that death event Victim.Inventory Type and Count.',
     ],
     player: {
       inputName: playerName,
@@ -910,10 +877,9 @@ async function checkLootLogDeath(supabase: any, body: any) {
     const debugDeaths = deathRows.map((death: any) => summarizeDeathForDebug(death, bundle, trackedItems, playerId));
     const candidates = (Array.isArray(deaths) ? deaths : [])
       .filter((death: any) => deathMatchesBundle(death, bundle))
-      .filter((death: any) => deathMatchesAnyKeptItemDate(death, trackedItems))
       .filter((death: any) => {
         const victimId = String(death?.Victim?.Id || '').trim();
-        return !victimId || victimId === playerId;
+        return !!victimId && victimId === playerId;
       })
       .map((death: any) => ({ death, matchedItems: matchDeathInventory(death, trackedItems) }));
     const match = candidates.find((candidate: any) => candidate.matchedItems.length > 0);
@@ -931,7 +897,6 @@ async function checkLootLogDeath(supabase: any, body: any) {
       candidateCounts: {
         fetchedDeaths: deathRows.length,
         matchedInventory: candidates.filter((candidate: any) => candidate.matchedItems.length > 0).length,
-        passedDateFilter: debugDeaths.filter((death: any) => death.checks.itemDateMatch).length,
         passedTimeWindow: debugDeaths.filter((death: any) => death.checks.timeWindowMatch).length,
         passedVictimFilter: debugDeaths.filter((death: any) => death.checks.victimMatch).length,
         usableCandidatesBeforeInventory: candidates.length,
