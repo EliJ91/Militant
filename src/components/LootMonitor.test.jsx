@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   checkLootLogDeath,
+  clearLootLogDeath,
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
@@ -13,6 +14,7 @@ import LootMonitor, { LootLogArchive } from './LootMonitor';
 
 vi.mock('../services/lootLogApi', () => ({
   checkLootLogDeath: vi.fn(),
+  clearLootLogDeath: vi.fn(),
   deleteLootLogBundle: vi.fn(),
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
@@ -131,6 +133,7 @@ describe('LootMonitor', () => {
       },
     });
     checkLootLogDeath.mockResolvedValue({ deathCheck: { eventId: '1413963963', matchedItems: [], playerName: 'Windyyyzz', status: 'found' } });
+    clearLootLogDeath.mockResolvedValue({ ok: true });
   });
 
   afterEach(() => {
@@ -303,6 +306,7 @@ describe('LootMonitor', () => {
       bundleId: 'bundle-18',
       keptItems: [{
         itemId: 'T4_CAPEITEM_FW_LYMHURST@3',
+        lootDateQuantities: { '2026-06-18': 2 },
         lootTimestamps: ['2026-06-18T18:33:30.420Z'],
         quantity: 2,
       }],
@@ -314,6 +318,34 @@ describe('LootMonitor', () => {
     );
     expect(container.querySelector('.loot-item-tile.accounted-tile')).toBeInTheDocument();
     expect(container.querySelector('.loot-item-tile.kept-tile')).not.toBeInTheDocument();
+  });
+
+  it('removes a saved death check so it can be checked again', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        deathChecks: [{
+          eventId: '1413963963',
+          matchedItems: [{ itemId: 'T4_CAPEITEM_FW_LYMHURST@3', quantity: 2 }],
+          playerName: 'Windyyyzz',
+          status: 'found',
+        }],
+        events: [storedEvents[0]],
+        hasChestLog: false,
+      }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+
+    await waitFor(() => expect(clearLootLogDeath).toHaveBeenCalledWith({
+      bundleId: 'bundle-18',
+      player: 'Windyyyzz',
+    }));
+    expect(await screen.findByRole('button', { name: 'Check Death' })).toBeInTheDocument();
   });
 
   it('keeps custody tooltips inside the viewport', async () => {

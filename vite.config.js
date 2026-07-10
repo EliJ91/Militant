@@ -126,12 +126,22 @@ function lootLogApi() {
     }
 
     try {
-      const { checkLootLogDeath, submitChestLog, submitLootLog } = await import('./src/server/supabaseLootLogs.js');
+      const {
+        checkLootLogDeath,
+        clearLootLogDeath,
+        submitChestLog,
+        submitLootLog,
+      } = await import('./src/server/supabaseLootLogs.js');
       const body = await readJsonBody(req);
       const result = body.action === 'death-check'
         ? await checkLootLogDeath({
           bundleId: body.bundleId,
           keptItems: body.keptItems,
+          player: body.player,
+        })
+        : body.action === 'clear-death-check'
+        ? await clearLootLogDeath({
+          bundleId: body.bundleId,
           player: body.player,
         })
         : body.action === 'chest'

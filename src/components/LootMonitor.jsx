@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import { fetchWestAveragePrices } from '../services/albionMarket';
 import {
   checkLootLogDeath,
+  clearLootLogDeath,
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
@@ -1330,23 +1331,47 @@ function PlayerEmv({ emv }) {
   );
 }
 
-function PlayerDeathControl({ deathCheck, isChecking, onCheck, showCheck }) {
+function PlayerDeathControl({ deathCheck, isChecking, isClearing, onCheck, onClear, showCheck }) {
   if (deathCheck?.status === 'found' && deathCheck.eventId) {
     return (
-      <a
-        className="player-death-control death-link"
-        href={`https://killboard-1.com/us/event/${encodeURIComponent(deathCheck.eventId)}`}
-        rel="noreferrer"
-        target="_blank"
-        title="Open death record"
-      >
-        Death
-      </a>
+      <span className="player-death-actions">
+        <a
+          className="player-death-control death-link"
+          href={`https://killboard-1.com/us/event/${encodeURIComponent(deathCheck.eventId)}`}
+          rel="noreferrer"
+          target="_blank"
+          title="Open death record"
+        >
+          Death
+        </a>
+        <button
+          className="player-death-control player-death-clear"
+          disabled={isClearing}
+          title="Remove saved death check"
+          type="button"
+          onClick={onClear}
+        >
+          {isClearing ? 'Removing...' : 'Remove'}
+        </button>
+      </span>
     );
   }
 
   if (deathCheck?.status === 'found') {
-    return <span className="player-death-result">Death Found</span>;
+    return (
+      <span className="player-death-actions">
+        <span className="player-death-result">Death Found</span>
+        <button
+          className="player-death-control player-death-clear"
+          disabled={isClearing}
+          title="Remove saved death check"
+          type="button"
+          onClick={onClear}
+        >
+          {isClearing ? 'Removing...' : 'Remove'}
+        </button>
+      </span>
+    );
   }
 
   if (deathCheck?.status === 'not_found') {
@@ -2408,7 +2433,12 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
     const playerKey = String(player.player || '').trim().toLowerCase();
     const keptItems = (report?.rows || [])
       .filter((row) => String(row.player || '').trim().toLowerCase() === playerKey && row.kept > 0)
-      .map((row) => ({ itemId: row.itemId, lootTimestamps: row.lootTimestamps || [], quantity: row.kept }))
+      .map((row) => ({
+        itemId: row.itemId,
+        lootDateQuantities: row.lootDateQuantities || {},
+        lootTimestamps: row.lootTimestamps || [],
+        quantity: row.kept,
+      }))
       .filter((tile) => tile.itemId && tile.quantity > 0);
     if (!playerKey || keptItems.length === 0) return;
 
@@ -2436,6 +2466,36 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
       return;
     }
     setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'loaded' }));
+  }
+
+  async function clearPlayerDeath(player) {
+    if (!selectedBundle?.id) return;
+
+    const playerKey = String(player.player || '').trim().toLowerCase();
+    if (!playerKey) return;
+
+    setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'clearing' }));
+    try {
+      await clearLootLogDeath({
+        bundleId: selectedBundle.id,
+        player: player.player,
+      });
+      setSelectedBundle((current) => {
+        if (!current) return current;
+        const currentChecks = current.deathChecks || [];
+        return {
+          ...current,
+          deathChecks: currentChecks.filter((check) => (
+            String(check.playerName || check.player || '').trim().toLowerCase() !== playerKey
+          )),
+        };
+      });
+    } catch (error) {
+      setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'error' }));
+      setMarketPriceError(error.message || 'Could not remove the saved death check.');
+      return;
+    }
+    setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'idle' }));
   }
 
   async function shareBundleLink() {
@@ -2678,6 +2738,8 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
                       <PlayerDeathControl
                         deathCheck={deathChecksByPlayer.get(player.player.toLowerCase())}
                         isChecking={deathCheckStatus[player.player.toLowerCase()] === 'loading'}
+                        isClearing={deathCheckStatus[player.player.toLowerCase()] === 'clearing'}
+                        onClear={() => clearPlayerDeath(player)}
                         showCheck={player.keptQuantity > 0}
                         onCheck={() => checkPlayerDeath(player)}
                       />

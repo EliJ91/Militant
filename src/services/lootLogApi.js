@@ -68,6 +68,25 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
   return result;
 }
 
+export async function clearLootLogDeath({ bundleId, player }) {
+  const response = await fetch(getLootLogApiUrl(), {
+    body: JSON.stringify({
+      action: 'clear-death-check',
+      bundleId,
+      player,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not remove the saved death check.');
+  }
+
+  return result;
+}
+
 export async function deleteLootLogBundle(bundleId) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({ bundleId }),

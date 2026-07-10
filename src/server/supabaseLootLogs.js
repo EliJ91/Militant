@@ -290,21 +290,50 @@ function normalizeDeathKey(value) {
 function normalizeKeptItems(items) {
   const quantities = new Map();
 
+  function addItem(itemId, quantity, lootDateKey = '', lootTimestamps = []) {
+    if (!itemId || quantity <= 0) return;
+    const key = `${itemId}::${lootDateKey}`;
+    const current = quantities.get(key) || {
+      itemId,
+      lootDateKey,
+      lootTimestamps: new Set(),
+      quantity: 0,
+    };
+    current.quantity += quantity;
+    lootTimestamps.forEach((timestamp) => {
+      const value = String(timestamp || '').trim();
+      if (value) current.lootTimestamps.add(value);
+    });
+    quantities.set(key, current);
+  }
+
   (Array.isArray(items) ? items : []).forEach((item) => {
     const itemId = String(item?.itemId || '').trim().toUpperCase();
     const quantity = Math.max(0, Math.trunc(Number(item?.quantity) || 0));
     if (!itemId || quantity <= 0) return;
-    const current = quantities.get(itemId) || { lootTimestamps: new Set(), quantity: 0 };
-    current.quantity += quantity;
-    (Array.isArray(item?.lootTimestamps) ? item.lootTimestamps : []).forEach((timestamp) => {
-      const value = String(timestamp || '').trim();
-      if (value) current.lootTimestamps.add(value);
-    });
-    quantities.set(itemId, current);
+    const lootTimestamps = (Array.isArray(item?.lootTimestamps) ? item.lootTimestamps : [])
+      .map((timestamp) => String(timestamp || '').trim())
+      .filter(Boolean);
+    const dateQuantities = item?.lootDateQuantities && typeof item.lootDateQuantities === 'object'
+      ? Object.entries(item.lootDateQuantities)
+      : [];
+
+    if (dateQuantities.length > 0) {
+      dateQuantities.forEach(([dateKey, dateQuantity]) => {
+        const cleanDateKey = timestampDateKey(dateKey);
+        const cleanQuantity = Math.max(0, Math.trunc(Number(dateQuantity) || 0));
+        const matchingTimestamps = lootTimestamps.filter((timestamp) => timestampDateKey(timestamp) === cleanDateKey);
+        addItem(itemId, cleanQuantity, cleanDateKey, matchingTimestamps);
+      });
+      return;
+    }
+
+    addItem(itemId, quantity, '', lootTimestamps);
   });
 
-  return [...quantities.entries()].map(([itemId, item]) => ({
-    itemId,
+  return [...quantities.values()].map((item) => ({
+    itemId: item.itemId,
+    lootDateKey: item.lootDateKey,
     lootTimestamps: [...item.lootTimestamps],
     quantity: item.quantity,
   }));
@@ -335,6 +364,8 @@ function timestampDateKey(value) {
 }
 
 function deathMatchesKeptItemDate(death, item) {
+  if (item.lootDateKey) return timestampDateKey(deathTimestamp(death)) === item.lootDateKey;
+
   const lootDateKeys = (Array.isArray(item.lootTimestamps) ? item.lootTimestamps : [])
     .map(timestampDateKey)
     .filter(Boolean);
@@ -359,8 +390,8 @@ function matchDeathInventory(death, keptItems) {
     quantities.set(itemId, (quantities.get(itemId) || 0) + quantity);
   });
 
-  return keptItems.flatMap(({ itemId, lootTimestamps, quantity }) => {
-    if (!deathMatchesKeptItemDate(death, { itemId, lootTimestamps, quantity })) return [];
+  return keptItems.flatMap(({ itemId, lootDateKey, lootTimestamps, quantity }) => {
+    if (!deathMatchesKeptItemDate(death, { itemId, lootDateKey, lootTimestamps, quantity })) return [];
     const matchedQuantity = Math.min(quantity, quantities.get(itemId) || 0);
     return matchedQuantity > 0 ? [{ itemId, quantity: matchedQuantity }] : [];
   });
@@ -464,6 +495,23 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
 
   if (saveError) throw saveError;
   return { deathCheck: mapDeathCheck(savedCheck) };
+}
+
+export async function clearLootLogDeath({ bundleId, player }) {
+  const cleanBundleId = String(bundleId || '').trim();
+  const playerKey = normalizeDeathKey(player);
+  if (!cleanBundleId) throw new Error('bundleId is required.');
+  if (!playerKey) throw new Error('player is required.');
+
+  const supabase = createSupabaseAdmin();
+  const { error } = await supabase
+    .from('loot_log_death_checks')
+    .delete()
+    .eq('bundle_id', cleanBundleId)
+    .eq('player_key', playerKey);
+
+  if (error) throw error;
+  return { playerKey, removed: true };
 }
 
 function collapseEventsByHash(events) {

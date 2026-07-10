@@ -623,23 +623,52 @@ function normalizeDeathKey(value: unknown) {
 }
 
 function normalizeKeptItems(items: unknown) {
-  const quantities = new Map<string, { lootTimestamps: Set<string>; quantity: number }>();
+  const quantities = new Map<string, { itemId: string; lootDateKey: string; lootTimestamps: Set<string>; quantity: number }>();
+
+  function addItem(itemId: string, quantity: number, lootDateKey = '', lootTimestamps: string[] = []) {
+    if (!itemId || quantity <= 0) return;
+    const key = `${itemId}::${lootDateKey}`;
+    const current = quantities.get(key) || {
+      itemId,
+      lootDateKey,
+      lootTimestamps: new Set<string>(),
+      quantity: 0,
+    };
+    current.quantity += quantity;
+    lootTimestamps.forEach((timestamp) => {
+      const value = String(timestamp || '').trim();
+      if (value) current.lootTimestamps.add(value);
+    });
+    quantities.set(key, current);
+  }
 
   (Array.isArray(items) ? items : []).forEach((item: any) => {
     const itemId = String(item?.itemId || '').trim().toUpperCase();
     const quantity = Math.max(0, Math.trunc(Number(item?.quantity) || 0));
     if (!itemId || quantity <= 0) return;
-    const current = quantities.get(itemId) || { lootTimestamps: new Set<string>(), quantity: 0 };
-    current.quantity += quantity;
-    (Array.isArray(item?.lootTimestamps) ? item.lootTimestamps : []).forEach((timestamp: unknown) => {
-      const value = String(timestamp || '').trim();
-      if (value) current.lootTimestamps.add(value);
-    });
-    quantities.set(itemId, current);
+    const lootTimestamps = (Array.isArray(item?.lootTimestamps) ? item.lootTimestamps : [])
+      .map((timestamp: unknown) => String(timestamp || '').trim())
+      .filter(Boolean);
+    const dateQuantities = item?.lootDateQuantities && typeof item.lootDateQuantities === 'object'
+      ? Object.entries(item.lootDateQuantities)
+      : [];
+
+    if (dateQuantities.length > 0) {
+      dateQuantities.forEach(([dateKey, dateQuantity]) => {
+        const cleanDateKey = timestampDateKey(dateKey);
+        const cleanQuantity = Math.max(0, Math.trunc(Number(dateQuantity) || 0));
+        const matchingTimestamps = lootTimestamps.filter((timestamp) => timestampDateKey(timestamp) === cleanDateKey);
+        addItem(itemId, cleanQuantity, cleanDateKey, matchingTimestamps);
+      });
+      return;
+    }
+
+    addItem(itemId, quantity, '', lootTimestamps);
   });
 
-  return [...quantities.entries()].map(([itemId, item]) => ({
-    itemId,
+  return [...quantities.values()].map((item) => ({
+    itemId: item.itemId,
+    lootDateKey: item.lootDateKey,
     lootTimestamps: [...item.lootTimestamps],
     quantity: item.quantity,
   }));
@@ -669,7 +698,9 @@ function timestampDateKey(value: unknown) {
   return Number.isNaN(timestamp.getTime()) ? '' : timestamp.toISOString().slice(0, 10);
 }
 
-function deathMatchesKeptItemDate(death: any, item: { lootTimestamps?: string[] }) {
+function deathMatchesKeptItemDate(death: any, item: { lootDateKey?: string; lootTimestamps?: string[] }) {
+  if (item.lootDateKey) return timestampDateKey(deathTimestamp(death)) === item.lootDateKey;
+
   const lootDateKeys = (Array.isArray(item.lootTimestamps) ? item.lootTimestamps : [])
     .map(timestampDateKey)
     .filter(Boolean);
@@ -679,11 +710,11 @@ function deathMatchesKeptItemDate(death: any, item: { lootTimestamps?: string[] 
   return !!deathDateKey && lootDateKeys.includes(deathDateKey);
 }
 
-function deathMatchesAnyKeptItemDate(death: any, keptItems: Array<{ lootTimestamps?: string[] }>) {
+function deathMatchesAnyKeptItemDate(death: any, keptItems: Array<{ lootDateKey?: string; lootTimestamps?: string[] }>) {
   return keptItems.some((item) => deathMatchesKeptItemDate(death, item));
 }
 
-function matchDeathInventory(death: any, keptItems: Array<{ itemId: string; lootTimestamps?: string[]; quantity: number }>) {
+function matchDeathInventory(death: any, keptItems: Array<{ itemId: string; lootDateKey?: string; lootTimestamps?: string[]; quantity: number }>) {
   const inventory = Array.isArray(death?.Victim?.Inventory) ? death.Victim.Inventory : [];
   const quantities = new Map<string, number>();
 
@@ -694,8 +725,8 @@ function matchDeathInventory(death: any, keptItems: Array<{ itemId: string; loot
     quantities.set(itemId, (quantities.get(itemId) || 0) + quantity);
   });
 
-  return keptItems.flatMap(({ itemId, lootTimestamps, quantity }) => {
-    const keptItem = { itemId, lootTimestamps, quantity };
+  return keptItems.flatMap(({ itemId, lootDateKey, lootTimestamps, quantity }) => {
+    const keptItem = { itemId, lootDateKey, lootTimestamps, quantity };
     if (!deathMatchesKeptItemDate(death, keptItem)) return [];
     const matchedQuantity = Math.min(quantity, quantities.get(itemId) || 0);
     return matchedQuantity > 0 ? [{ itemId, quantity: matchedQuantity }] : [];
@@ -799,6 +830,23 @@ async function checkLootLogDeath(supabase: any, body: any) {
 
   if (saveError) throw saveError;
   return { deathCheck: mapDeathCheck(savedCheck) };
+}
+
+async function clearLootLogDeath(supabase: any, body: any) {
+  const bundleId = String(body.bundleId || '').trim();
+  const playerName = String(body.player || '').trim();
+  const playerKey = normalizeDeathKey(playerName);
+  if (!bundleId) throw new Error('bundleId is required.');
+  if (!playerKey) throw new Error('player is required.');
+
+  const { error } = await supabase
+    .from('loot_log_death_checks')
+    .delete()
+    .eq('bundle_id', bundleId)
+    .eq('player_key', playerKey);
+
+  if (error) throw error;
+  return { playerKey, removed: true };
 }
 
 Deno.serve(async (request) => {
@@ -1088,6 +1136,9 @@ Deno.serve(async (request) => {
 
     if (body.action === 'death-check') {
       return jsonResponse(200, await checkLootLogDeath(supabase, body));
+    }
+    if (body.action === 'clear-death-check') {
+      return jsonResponse(200, await clearLootLogDeath(supabase, body));
     }
 
     if (body.action === 'chest') {

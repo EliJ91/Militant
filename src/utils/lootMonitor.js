@@ -131,6 +131,14 @@ function timestampMs(value) {
   return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
 }
 
+function timestampDateKey(value) {
+  const text = String(value || '').trim();
+  const isoDate = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoDate) return isoDate[1];
+  const parsed = parseTimestamp(text);
+  return parsed ? parsed.slice(0, 10) : '';
+}
+
 function duplicateEventTimestampMs(event) {
   const time = new Date(event.timestamp).getTime();
   return Number.isFinite(time) ? time : Number.NaN;
@@ -591,6 +599,7 @@ function createReportRow(rowMap, source) {
     itemId,
     kept: 0,
     keptEmv: 0,
+    lootDateQuantities: {},
     lootTimestamps: [],
     lost: 0,
     lostEmv: 0,
@@ -632,6 +641,10 @@ function addReportQuantity(rowMap, source, field, quantity, extra = {}) {
   pushUnique(row.lostTo, extra.lostTo);
   pushUnique(row.custodyChains, extra.custodyChain);
   pushUnique(row.lootTimestamps, extra.lootTimestamp);
+  const lootDateKey = timestampDateKey(extra.lootTimestamp);
+  if (field === 'kept' && lootDateKey) {
+    row.lootDateQuantities[lootDateKey] = (row.lootDateQuantities[lootDateKey] || 0) + quantity;
+  }
 }
 
 function formatCustodyTime(row) {
