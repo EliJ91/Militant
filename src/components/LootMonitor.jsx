@@ -2408,7 +2408,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
     const playerKey = String(player.player || '').trim().toLowerCase();
     const keptItems = (report?.rows || [])
       .filter((row) => String(row.player || '').trim().toLowerCase() === playerKey && row.kept > 0)
-      .map((row) => ({ itemId: row.itemId, quantity: row.kept }))
+      .map((row) => ({ itemId: row.itemId, lootTimestamps: row.lootTimestamps || [], quantity: row.kept }))
       .filter((tile) => tile.itemId && tile.quantity > 0);
     if (!playerKey || keptItems.length === 0) return;
 

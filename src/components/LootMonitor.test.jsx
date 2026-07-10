@@ -301,7 +301,11 @@ describe('LootMonitor', () => {
 
     await waitFor(() => expect(checkLootLogDeath).toHaveBeenCalledWith({
       bundleId: 'bundle-18',
-      keptItems: [{ itemId: 'T4_CAPEITEM_FW_LYMHURST@3', quantity: 2 }],
+      keptItems: [{
+        itemId: 'T4_CAPEITEM_FW_LYMHURST@3',
+        lootTimestamps: ['2026-06-18T18:33:30.420Z'],
+        quantity: 2,
+      }],
       player: 'Windyyyzz',
     }));
     expect(await screen.findByRole('link', { name: 'Death' })).toHaveAttribute(

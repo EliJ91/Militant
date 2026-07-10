@@ -591,6 +591,7 @@ function createReportRow(rowMap, source) {
     itemId,
     kept: 0,
     keptEmv: 0,
+    lootTimestamps: [],
     lost: 0,
     lostEmv: 0,
     lostTo: [],
@@ -630,6 +631,7 @@ function addReportQuantity(rowMap, source, field, quantity, extra = {}) {
   pushUnique(row.qualities, extra.quality ? `Q${extra.quality}` : '');
   pushUnique(row.lostTo, extra.lostTo);
   pushUnique(row.custodyChains, extra.custodyChain);
+  pushUnique(row.lootTimestamps, extra.lootTimestamp);
 }
 
 function formatCustodyTime(row) {
@@ -658,6 +660,7 @@ function makeLot(row, quantity, { tracked = true } = {}) {
     sourceLooter: row.sourceLooter || row.player || '',
     tracked,
     custodyChain: tracked ? [custodyStep('Looted', row)] : [],
+    lootTimestamp: row.timestamp || '',
   };
 }
 
@@ -874,6 +877,7 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
       .filter(isTrackedLot)
       .forEach((lot) => addReportQuantity(rowMap, lot, 'kept', lot.quantity, {
         custodyChain: (lot.custodyChain || []).join(' -> '),
+        lootTimestamp: lot.lootTimestamp,
       }));
   });
 

@@ -623,16 +623,26 @@ function normalizeDeathKey(value: unknown) {
 }
 
 function normalizeKeptItems(items: unknown) {
-  const quantities = new Map<string, number>();
+  const quantities = new Map<string, { lootTimestamps: Set<string>; quantity: number }>();
 
   (Array.isArray(items) ? items : []).forEach((item: any) => {
     const itemId = String(item?.itemId || '').trim().toUpperCase();
     const quantity = Math.max(0, Math.trunc(Number(item?.quantity) || 0));
     if (!itemId || quantity <= 0) return;
-    quantities.set(itemId, (quantities.get(itemId) || 0) + quantity);
+    const current = quantities.get(itemId) || { lootTimestamps: new Set<string>(), quantity: 0 };
+    current.quantity += quantity;
+    (Array.isArray(item?.lootTimestamps) ? item.lootTimestamps : []).forEach((timestamp: unknown) => {
+      const value = String(timestamp || '').trim();
+      if (value) current.lootTimestamps.add(value);
+    });
+    quantities.set(itemId, current);
   });
 
-  return [...quantities.entries()].map(([itemId, quantity]) => ({ itemId, quantity }));
+  return [...quantities.entries()].map(([itemId, item]) => ({
+    itemId,
+    lootTimestamps: [...item.lootTimestamps],
+    quantity: item.quantity,
+  }));
 }
 
 function deathTimestamp(death: any) {
@@ -651,7 +661,29 @@ function deathMatchesBundle(death: any, bundle: any) {
     && timestamp <= endAt;
 }
 
-function matchDeathInventory(death: any, keptItems: Array<{ itemId: string; quantity: number }>) {
+function timestampDateKey(value: unknown) {
+  const rawValue = String(value || '').trim();
+  const isoDate = rawValue.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoDate) return isoDate[1];
+  const timestamp = new Date(rawValue);
+  return Number.isNaN(timestamp.getTime()) ? '' : timestamp.toISOString().slice(0, 10);
+}
+
+function deathMatchesKeptItemDate(death: any, item: { lootTimestamps?: string[] }) {
+  const lootDateKeys = (Array.isArray(item.lootTimestamps) ? item.lootTimestamps : [])
+    .map(timestampDateKey)
+    .filter(Boolean);
+  if (lootDateKeys.length === 0) return true;
+
+  const deathDateKey = timestampDateKey(deathTimestamp(death));
+  return !!deathDateKey && lootDateKeys.includes(deathDateKey);
+}
+
+function deathMatchesAnyKeptItemDate(death: any, keptItems: Array<{ lootTimestamps?: string[] }>) {
+  return keptItems.some((item) => deathMatchesKeptItemDate(death, item));
+}
+
+function matchDeathInventory(death: any, keptItems: Array<{ itemId: string; lootTimestamps?: string[]; quantity: number }>) {
   const inventory = Array.isArray(death?.Victim?.Inventory) ? death.Victim.Inventory : [];
   const quantities = new Map<string, number>();
 
@@ -662,7 +694,9 @@ function matchDeathInventory(death: any, keptItems: Array<{ itemId: string; quan
     quantities.set(itemId, (quantities.get(itemId) || 0) + quantity);
   });
 
-  return keptItems.flatMap(({ itemId, quantity }) => {
+  return keptItems.flatMap(({ itemId, lootTimestamps, quantity }) => {
+    const keptItem = { itemId, lootTimestamps, quantity };
+    if (!deathMatchesKeptItemDate(death, keptItem)) return [];
     const matchedQuantity = Math.min(quantity, quantities.get(itemId) || 0);
     return matchedQuantity > 0 ? [{ itemId, quantity: matchedQuantity }] : [];
   });
@@ -729,6 +763,7 @@ async function checkLootLogDeath(supabase: any, body: any) {
     const deaths = await response.json();
     const candidates = (Array.isArray(deaths) ? deaths : [])
       .filter((death: any) => deathMatchesBundle(death, bundle))
+      .filter((death: any) => deathMatchesAnyKeptItemDate(death, trackedItems))
       .filter((death: any) => {
         const victimId = String(death?.Victim?.Id || '').trim();
         return !victimId || victimId === playerId;

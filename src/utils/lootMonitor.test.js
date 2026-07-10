@@ -90,6 +90,7 @@ describe('loot monitor report', () => {
       deathAccounted: 2,
       deathEventId: '1413963963',
       kept: 0,
+      lootTimestamps: ['2026-06-17T00:08:30.420Z'],
       status: 'accounted',
     });
     expect(updated.totals.keptQuantity).toBe(0);
