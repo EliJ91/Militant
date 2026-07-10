@@ -1331,25 +1331,7 @@ function PlayerEmv({ emv }) {
   );
 }
 
-function logDeathCheckDebug(debug) {
-  if (!debug) return;
-
-  const deaths = Array.isArray(debug.deaths) ? debug.deaths : [];
-  console.groupCollapsed('[loot death check] Albion player death lookup');
-  console.log('Albion deaths API URL:', debug.deathApiUrl || '(no player id found)');
-  console.log('Stored player lookup:', debug.player || {});
-  console.log('Loot log date/time frame being checked:', debug.bundle || {});
-  console.log('Kept items being checked against Victim.Inventory:', debug.trackedItems || []);
-  console.log('Filter steps:', debug.filtersAppliedInOrder || []);
-  console.log('Candidate counts:', debug.candidateCounts || {});
-  deaths.forEach((death, index) => {
-    console.log(`Death ${index + 1} of ${deaths.length}`, death);
-  });
-  console.log('Final result:', debug.result || {});
-  console.groupEnd();
-}
-
-function PlayerDeathControl({ deathCheck, isChecking, isClearing, onCheck, onClear, showCheck }) {
+function PlayerDeathControl({ deathCheck, isCheckLocked, isChecking, isClearing, onCheck, onClear, showCheck }) {
   const deathUrl = deathCheck?.deathUrl || (deathCheck?.eventId
     ? `https://killboard-1.com/us/event/${encodeURIComponent(deathCheck.eventId)}`
     : '');
@@ -1368,7 +1350,7 @@ function PlayerDeathControl({ deathCheck, isChecking, isClearing, onCheck, onCle
         </a>
         <button
           className="player-death-control player-death-clear"
-          disabled={isClearing}
+          disabled={isClearing || isCheckLocked}
           title="Reset saved death check"
           type="button"
           onClick={onClear}
@@ -1385,7 +1367,7 @@ function PlayerDeathControl({ deathCheck, isChecking, isClearing, onCheck, onCle
         <span className="player-death-result">Death Found</span>
         <button
           className="player-death-control player-death-clear"
-          disabled={isClearing}
+          disabled={isClearing || isCheckLocked}
           title="Reset saved death check"
           type="button"
           onClick={onClear}
@@ -1402,7 +1384,7 @@ function PlayerDeathControl({ deathCheck, isChecking, isClearing, onCheck, onCle
         <span className="player-death-result">No Death Found</span>
         <button
           className="player-death-control player-death-clear"
-          disabled={isClearing}
+          disabled={isClearing || isCheckLocked}
           title="Reset saved death check"
           type="button"
           onClick={onClear}
@@ -1418,7 +1400,7 @@ function PlayerDeathControl({ deathCheck, isChecking, isClearing, onCheck, onCle
   return (
     <button
       className="player-death-control"
-      disabled={isChecking}
+      disabled={isChecking || isCheckLocked}
       title="Check the player's deaths during this loot log"
       type="button"
       onClick={onCheck}
@@ -2399,6 +2381,9 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
       .filter((check) => check?.playerName || check?.player)
       .map((check) => [String(check.playerName || check.player).trim().toLowerCase(), check]),
   ), [selectedBundle?.deathChecks]);
+  const activeDeathCheckKey = useMemo(() => (
+    Object.entries(deathCheckStatus).find(([, status]) => status === 'loading' || status === 'clearing')?.[0] || ''
+  ), [deathCheckStatus]);
 
   const filterOptions = useMemo(() => {
     if (!report) return { alliances: [], guilds: [] };
@@ -2466,6 +2451,8 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
     if (!selectedBundle?.id || player.keptQuantity <= 0) return;
 
     const playerKey = String(player.player || '').trim().toLowerCase();
+    if (activeDeathCheckKey && activeDeathCheckKey !== playerKey) return;
+    if (deathCheckStatus[playerKey] === 'loading' || deathCheckStatus[playerKey] === 'clearing') return;
     const keptItems = (report?.rows || [])
       .filter((row) => String(row.player || '').trim().toLowerCase() === playerKey && row.kept > 0)
       .map((row) => ({
@@ -2484,7 +2471,6 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
         keptItems,
         player: player.player,
       });
-      logDeathCheckDebug(result.debug);
       const deathCheck = result.deathCheck;
       if (deathCheck) {
         setSelectedBundle((current) => {
@@ -2497,7 +2483,6 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
         });
       }
     } catch (error) {
-      console.log('[loot death check] error', error);
       setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'error' }));
       setMarketPriceError(error.message || 'Could not check the player death log.');
       return;
@@ -2510,13 +2495,11 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
 
     const playerKey = String(player.player || '').trim().toLowerCase();
     if (!playerKey) return;
+    if (activeDeathCheckKey && activeDeathCheckKey !== playerKey) return;
+    if (deathCheckStatus[playerKey] === 'loading' || deathCheckStatus[playerKey] === 'clearing') return;
 
     setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'clearing' }));
     try {
-      console.log('[loot death check] reset', {
-        bundleId: selectedBundle.id,
-        player: player.player,
-      });
       await clearLootLogDeath({
         bundleId: selectedBundle.id,
         player: player.player,
@@ -2778,6 +2761,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
                     <div className="loot-player-actions">
                       <PlayerDeathControl
                         deathCheck={deathChecksByPlayer.get(player.player.toLowerCase())}
+                        isCheckLocked={Boolean(activeDeathCheckKey && activeDeathCheckKey !== player.player.toLowerCase())}
                         isChecking={deathCheckStatus[player.player.toLowerCase()] === 'loading'}
                         isClearing={deathCheckStatus[player.player.toLowerCase()] === 'clearing'}
                         onClear={() => clearPlayerDeath(player)}

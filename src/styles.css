@@ -10,6 +10,11 @@
   --green: #233c1b;
   --green-strong: #2f8e4f;
   --green-hot: #57d878;
+  --status-kept: #f59e0b;
+  --status-donated: #22c55e;
+  --status-accounted: #38bdf8;
+  --status-lost: #f43f5e;
+  --status-resolved: #94a3b8;
   --white: #f7faf5;
   --muted: #a8b8a8;
   --line: rgba(247, 250, 245, 0.16);
@@ -2115,8 +2120,8 @@ button:focus-visible {
 }
 
 .kept-row {
-  border-left-color: var(--green-hot);
-  background: rgba(87, 216, 120, 0.08);
+  border-left-color: var(--status-kept);
+  background: rgba(245, 158, 11, 0.08);
 }
 
 .deposited-row {
@@ -2130,8 +2135,8 @@ button:focus-visible {
 }
 
 .lost-row {
-  border-left-color: #ff5262;
-  background: rgba(255, 82, 98, 0.13);
+  border-left-color: var(--status-lost);
+  background: rgba(244, 63, 94, 0.13);
   color: #ffd6da;
 }
 
@@ -2140,9 +2145,9 @@ button:focus-visible {
 }
 
 .mixed-row {
-  border-left-color: #ff5262;
+  border-left-color: var(--status-lost);
   background:
-    linear-gradient(90deg, rgba(255, 82, 98, 0.15), rgba(87, 216, 120, 0.07));
+    linear-gradient(90deg, rgba(244, 63, 94, 0.15), rgba(245, 158, 11, 0.07));
 }
 
 .loot-board-section {
@@ -2263,24 +2268,24 @@ button:focus-visible {
 }
 
 .legend-kept::before {
-  background: #ffb000;
+  background: var(--status-kept);
 }
 
 .legend-accounted::before {
-  background: #ffd12a;
+  background: var(--status-accounted);
 }
 
 .legend-resolved::before,
 .legend-deposited::before {
-  background: #8a8f8a;
+  background: var(--status-resolved);
 }
 
 .legend-donated::before {
-  background: var(--green-hot);
+  background: var(--status-donated);
 }
 
 .legend-lost::before {
-  background: #ff5262;
+  background: var(--status-lost);
 }
 
 .loot-player-list {
@@ -2400,11 +2405,8 @@ button:focus-visible {
 }
 
 .kept-tile {
-  box-shadow:
-    0 0 0 1px rgba(255, 176, 0, 0.74),
-    0 0 14px rgba(255, 176, 0, 0.18),
-    0 2px 5px rgba(0, 0, 0, 0.55);
-  filter: saturate(1.08) contrast(1.04);
+  border: 2px solid var(--status-kept);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55);
 }
 
 .loot-item-custody-tooltip {
@@ -2441,6 +2443,9 @@ button:focus-visible {
 
 .resolved-tile,
 .deposited-tile {
+  box-shadow:
+    0 0 0 1px rgba(148, 163, 184, 0.78),
+    0 2px 5px rgba(0, 0, 0, 0.55);
   opacity: 0.62;
 }
 
@@ -2450,6 +2455,9 @@ button:focus-visible {
 }
 
 .donated-tile {
+  box-shadow:
+    0 0 0 1px rgba(34, 197, 94, 0.78),
+    0 2px 5px rgba(0, 0, 0, 0.55);
   filter: saturate(1.08) contrast(1.04);
 }
 
@@ -2457,7 +2465,7 @@ button:focus-visible {
   position: absolute;
   inset: 0;
   border-radius: 8px;
-  background: rgba(87, 216, 120, 0.26);
+  background: rgba(34, 197, 94, 0.28);
   content: "";
   mix-blend-mode: color;
   pointer-events: none;
@@ -2465,8 +2473,8 @@ button:focus-visible {
 
 .lost-tile {
   box-shadow:
-    0 0 0 1px rgba(255, 82, 98, 0.8),
-    0 0 14px rgba(255, 82, 98, 0.22),
+    0 0 0 1px rgba(244, 63, 94, 0.82),
+    0 0 14px rgba(244, 63, 94, 0.22),
     0 2px 5px rgba(0, 0, 0, 0.55);
 }
 
@@ -2474,7 +2482,7 @@ button:focus-visible {
   position: absolute;
   inset: 0;
   border-radius: 8px;
-  background: rgba(255, 82, 98, 0.44);
+  background: rgba(244, 63, 94, 0.44);
   content: "";
   mix-blend-mode: color;
   pointer-events: none;
@@ -2486,8 +2494,8 @@ button:focus-visible {
 
 .accounted-tile {
   box-shadow:
-    0 0 0 1px rgba(255, 209, 42, 0.9),
-    0 0 14px rgba(255, 209, 42, 0.24),
+    0 0 0 1px rgba(56, 189, 248, 0.9),
+    0 0 14px rgba(56, 189, 248, 0.24),
     0 2px 5px rgba(0, 0, 0, 0.55);
 }
 
@@ -2495,14 +2503,14 @@ button:focus-visible {
   position: absolute;
   inset: 0;
   border-radius: 8px;
-  background: rgba(255, 209, 42, 0.44);
+  background: rgba(56, 189, 248, 0.42);
   content: "";
   mix-blend-mode: color;
   pointer-events: none;
 }
 
 .accounted-tile img {
-  filter: grayscale(0.25) sepia(0.42) saturate(1.8) hue-rotate(5deg) brightness(1.08);
+  filter: grayscale(0.18) sepia(0.18) saturate(1.7) hue-rotate(155deg) brightness(1.08);
 }
 
 .loot-player-actions {
@@ -2572,8 +2580,9 @@ button:focus-visible {
 }
 
 .player-death-control:disabled {
-  cursor: wait;
-  opacity: 0.64;
+  cursor: not-allowed;
+  filter: grayscale(1);
+  opacity: 0.52;
 }
 
 .death-link {

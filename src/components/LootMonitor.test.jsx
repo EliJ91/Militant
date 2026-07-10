@@ -320,6 +320,37 @@ describe('LootMonitor', () => {
     expect(container.querySelector('.loot-item-tile.kept-tile')).not.toBeInTheDocument();
   });
 
+  it('disables other death checks while one is running', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        events: [
+          storedEvents[0],
+          {
+            ...storedEvents[0],
+            player: 'Kaelys',
+            itemId: 'T5_BAG@1',
+            item: "Expert's Bag",
+            quantity: 1,
+          },
+        ],
+        hasChestLog: false,
+      }),
+    });
+    checkLootLogDeath.mockImplementation(() => new Promise(() => {}));
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    const checkButtons = await screen.findAllByRole('button', { name: 'Check Death' });
+    fireEvent.click(checkButtons[0]);
+
+    await waitFor(() => expect(checkButtons[1]).toBeDisabled());
+    expect(checkButtons[0]).toBeDisabled();
+    expect(checkButtons[0]).toHaveTextContent('Checking...');
+  });
+
   it('removes a saved death check so it can be checked again', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({

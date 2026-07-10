@@ -594,7 +594,6 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
         status,
       },
     };
-    console.log('[loot death check]', JSON.stringify(debugLog));
   } else {
     debugLog = {
       ...debugLog,
@@ -603,7 +602,6 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
         status,
       },
     };
-    console.log('[loot death check]', JSON.stringify(debugLog));
   }
 
   const checkedAt = new Date().toISOString();
@@ -626,7 +624,7 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
     .single();
 
   if (saveError) throw saveError;
-  return { deathCheck: mapDeathCheck(savedCheck), debug: debugLog };
+  return { deathCheck: mapDeathCheck(savedCheck) };
 }
 
 export async function clearLootLogDeath({ bundleId, player }) {

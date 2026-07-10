@@ -928,7 +928,6 @@ async function checkLootLogDeath(supabase: any, body: any) {
         status,
       },
     };
-    console.log('[loot death check]', JSON.stringify(debugLog));
   } else {
     debugLog = {
       ...debugLog,
@@ -937,7 +936,6 @@ async function checkLootLogDeath(supabase: any, body: any) {
         status,
       },
     };
-    console.log('[loot death check]', JSON.stringify(debugLog));
   }
 
   const checkedAt = new Date().toISOString();
@@ -960,7 +958,7 @@ async function checkLootLogDeath(supabase: any, body: any) {
     .single();
 
   if (saveError) throw saveError;
-  return { deathCheck: mapDeathCheck(savedCheck), debug: debugLog };
+  return { deathCheck: mapDeathCheck(savedCheck) };
 }
 
 async function clearLootLogDeath(supabase: any, body: any) {
