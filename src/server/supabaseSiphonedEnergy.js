@@ -7,6 +7,7 @@ const INSERT_SIZE = 500;
 const MILITANT_GUILD_ID = 'HNWzt1KSQMSQ855Q9rLvSA';
 const GUILD_REFRESH_MS = 72 * 60 * 60 * 1000;
 const GUILD_MEMBERS_URL = `https://gameinfo.albiononline.com/api/gameinfo/guilds/${MILITANT_GUILD_ID}/members`;
+const GUILD_MEMBER_SELECT = 'id,player_name,player_key,player_id,pvp_kill_fame,pve_kill_fame,death_fame,pvp_death_fame_ratio,refreshed_at,created_at';
 
 function createSupabaseAdmin() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -67,7 +68,9 @@ function mapGuildApiMember(member) {
 
 function mapGuildMemberRow(row) {
   return {
+    dateAdded: row.created_at,
     deathFame: numberValue(row.death_fame),
+    id: row.id,
     playerId: row.player_id || '',
     playerKey: row.player_key || normalizePlayerName(row.player_name).toLowerCase(),
     playerName: row.player_name,
@@ -117,15 +120,19 @@ async function fetchGuildMembers() {
     .sort((left, right) => left.playerName.localeCompare(right.playerName));
 }
 
-async function listGuildMembers(supabase) {
+async function readCachedGuildMembers(supabase) {
   const { data: cachedRows, error: cacheError } = await supabase
     .from('siphoned_energy_guild_members')
-    .select('player_name,player_key,player_id,pvp_kill_fame,pve_kill_fame,death_fame,pvp_death_fame_ratio,refreshed_at')
+    .select(GUILD_MEMBER_SELECT)
     .eq('guild_id', MILITANT_GUILD_ID)
     .order('player_name');
 
   if (cacheError) throw cacheError;
-  const cachedMembers = (cachedRows || []).map(mapGuildMemberRow);
+  return (cachedRows || []).map(mapGuildMemberRow);
+}
+
+async function listGuildMembers(supabase) {
+  const cachedMembers = await readCachedGuildMembers(supabase);
 
   const latestRefresh = cachedMembers.reduce((latest, row) => {
     const refreshedAt = new Date(row.refreshedAt).getTime();
@@ -142,18 +149,17 @@ async function listGuildMembers(supabase) {
     if (cachedMembers.length) return cachedMembers;
     throw error;
   }
+  if (members.length === 0 && cachedMembers.length) return cachedMembers;
   const refreshedAt = new Date().toISOString();
-
-  const { error: deleteError } = await supabase
-    .from('siphoned_energy_guild_members')
-    .delete()
-    .eq('guild_id', MILITANT_GUILD_ID);
-  if (deleteError) throw deleteError;
+  const memberKeys = new Set(members.map((member) => member.playerKey));
+  const staleIds = cachedMembers
+    .filter((member) => member.id && !memberKeys.has(member.playerKey))
+    .map((member) => member.id);
 
   if (members.length > 0) {
-    const { error: insertError } = await supabase
+    const { error: upsertError } = await supabase
       .from('siphoned_energy_guild_members')
-      .insert(members.map((member) => ({
+      .upsert(members.map((member) => ({
         death_fame: member.deathFame,
         guild_id: MILITANT_GUILD_ID,
         player_id: member.playerId,
@@ -163,11 +169,20 @@ async function listGuildMembers(supabase) {
         pvp_death_fame_ratio: member.pvpDeathFameRatio,
         pvp_kill_fame: member.pvpKillFame,
         refreshed_at: refreshedAt,
-      })));
-    if (insertError) throw insertError;
+        updated_at: refreshedAt,
+      })), { onConflict: 'guild_id,player_key' });
+    if (upsertError) throw upsertError;
   }
 
-  return members.map((member) => ({ ...member, refreshedAt }));
+  if (staleIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('siphoned_energy_guild_members')
+      .delete()
+      .in('id', staleIds);
+    if (deleteError) throw deleteError;
+  }
+
+  return readCachedGuildMembers(supabase);
 }
 
 async function listGuildMemberPlayers(supabase) {

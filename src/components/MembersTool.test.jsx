@@ -9,6 +9,7 @@ vi.mock('../services/siphonedEnergyApi', () => ({
 
 const members = [
   {
+    dateAdded: '2026-07-10T12:00:00.000Z',
     deathFame: 500,
     playerId: 'player-one',
     playerKey: 'onslawht',
@@ -19,6 +20,7 @@ const members = [
     refreshedAt: '2026-07-10T03:23:41.000Z',
   },
   {
+    dateAdded: '2026-07-01T12:00:00.000Z',
     deathFame: 0,
     playerId: 'player-two',
     playerKey: 'dyathix',
@@ -48,10 +50,12 @@ describe('MembersTool', () => {
     expect(screen.getByText('player-two')).toBeInTheDocument();
 
     const table = screen.getByRole('table');
+    expect(within(table).getByText('Date Added')).toBeInTheDocument();
     expect(within(table).getByText('PvP Kill Fame')).toBeInTheDocument();
     expect(within(table).getByText('PvE Kill Fame')).toBeInTheDocument();
     expect(within(table).getByText('Death Fame')).toBeInTheDocument();
     expect(within(table).getByText('PvP/Death')).toBeInTheDocument();
+    expect(within(table).getByText('07/10/2026')).toBeInTheDocument();
     expect(within(table).getByText('1,000')).toBeInTheDocument();
     expect(within(table).getByText('2,000')).toBeInTheDocument();
     expect(within(table).getByText('500')).toBeInTheDocument();
@@ -65,6 +69,12 @@ describe('MembersTool', () => {
 
     expect(await screen.findByText('Onslawht')).toBeInTheDocument();
     let dataRows = screen.getAllByRole('row').slice(1);
+    expect(within(dataRows[0]).getByText('Onslawht')).toBeInTheDocument();
+    expect(dataRows[0]).toHaveClass('members-new-row');
+    expect(screen.getByRole('columnheader', { name: /date added/i })).toHaveTextContent('v');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Username' }));
+    dataRows = screen.getAllByRole('row').slice(1);
     expect(within(dataRows[0]).getByText('Dyathix')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /username/i })).toHaveTextContent('^');
 

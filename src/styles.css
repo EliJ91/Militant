@@ -495,7 +495,7 @@ button:focus-visible {
 
 .members-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1080px;
   border-collapse: collapse;
 }
 
@@ -514,6 +514,14 @@ button:focus-visible {
   color: var(--muted);
   font-size: 0.68rem;
   text-transform: uppercase;
+}
+
+.members-table tr.members-new-row td {
+  color: #9dffb7;
+}
+
+.members-table tr.members-new-row .members-player-id {
+  color: #86eaa0;
 }
 
 .members-sort-button {

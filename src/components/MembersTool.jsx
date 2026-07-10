@@ -4,6 +4,7 @@ import { fetchSiphonedEnergyMembers } from '../services/siphonedEnergyApi';
 const SORT_COLUMNS = [
   { align: 'left', key: 'playerName', label: 'Username', type: 'text' },
   { align: 'left', key: 'playerId', label: 'Player ID', type: 'text' },
+  { key: 'dateAdded', label: 'Date Added', type: 'date' },
   { key: 'pvpKillFame', label: 'PvP Kill Fame', type: 'number' },
   { key: 'pveKillFame', label: 'PvE Kill Fame', type: 'number' },
   { key: 'deathFame', label: 'Death Fame', type: 'number' },
@@ -35,11 +36,27 @@ function formatRefreshTime(value) {
   }).format(date);
 }
 
+function formatDateAdded(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return new Intl.DateTimeFormat('en-US', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
+
+function dateValue(value) {
+  const time = new Date(value || '').getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
 export default function MembersTool() {
   const [members, setMembers] = useState([]);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortState, setSortState] = useState({ direction: 'asc', key: 'playerName' });
+  const [sortState, setSortState] = useState({ direction: 'desc', key: 'dateAdded' });
 
   async function loadMembers() {
     setLoadStatus({ message: '', state: 'loading' });
@@ -73,6 +90,12 @@ export default function MembersTool() {
     return members
       .filter((member) => !query || String(member.playerName || '').toLowerCase().includes(query))
       .sort((left, right) => {
+        if (column.type === 'date') {
+          const difference = dateValue(left[column.key]) - dateValue(right[column.key]);
+          if (difference !== 0) return difference * direction;
+          return String(left.playerName || '').localeCompare(String(right.playerName || ''));
+        }
+
         if (column.type === 'number') {
           const leftValue = Number(left[column.key]) || 0;
           const rightValue = Number(right[column.key]) || 0;
@@ -83,6 +106,11 @@ export default function MembersTool() {
       });
   }, [members, searchQuery, sortState]);
   const refreshedAt = members.find((member) => member.refreshedAt)?.refreshedAt;
+  const newestDateAdded = useMemo(() => Math.max(...members.map((member) => dateValue(member.dateAdded)), 0), [members]);
+  const oldestDateAdded = useMemo(() => Math.min(
+    ...members.map((member) => dateValue(member.dateAdded)).filter((value) => value > 0),
+    newestDateAdded,
+  ), [members, newestDateAdded]);
 
   function updateSort(key) {
     setSortState((current) => ({
@@ -179,9 +207,13 @@ export default function MembersTool() {
               </thead>
               <tbody>
                 {visibleMembers.map((member) => (
-                  <tr key={member.playerId || member.playerKey || member.playerName}>
+                  <tr
+                    className={dateValue(member.dateAdded) === newestDateAdded && newestDateAdded > oldestDateAdded ? 'members-new-row' : ''}
+                    key={member.playerId || member.playerKey || member.playerName}
+                  >
                     <td>{member.playerName}</td>
                     <td className="members-player-id">{member.playerId || '-'}</td>
+                    <td>{formatDateAdded(member.dateAdded)}</td>
                     <td>{formatNumber(member.pvpKillFame)}</td>
                     <td>{formatNumber(member.pveKillFame)}</td>
                     <td>{formatNumber(member.deathFame)}</td>
