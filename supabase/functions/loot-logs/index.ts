@@ -733,6 +733,31 @@ function matchDeathInventory(death: any, keptItems: Array<{ itemId: string; loot
   });
 }
 
+function summarizeDeathInventory(death: any) {
+  const inventory = Array.isArray(death?.Victim?.Inventory) ? death.Victim.Inventory : [];
+  return inventory.map((item: any) => ({
+    count: item?.Count || 0,
+    type: item?.Type || '',
+  }));
+}
+
+function summarizeDeathForDebug(death: any, bundle: any, trackedItems: Array<{ itemId: string; lootDateKey?: string; lootTimestamps?: string[]; quantity: number }>, playerId: string) {
+  const timestamp = deathTimestamp(death);
+  const victimId = String(death?.Victim?.Id || '').trim();
+  return {
+    bundleMatch: deathMatchesBundle(death, bundle),
+    deathDate: timestampDateKey(timestamp),
+    eventId: String(death?.EventId || '').trim(),
+    inventory: summarizeDeathInventory(death),
+    itemDateMatch: deathMatchesAnyKeptItemDate(death, trackedItems),
+    matchedItems: matchDeathInventory(death, trackedItems),
+    rawTimestamp: death?.TimeStamp || death?.timestamp || '',
+    timestamp,
+    victimId,
+    victimMatch: !victimId || victimId === playerId,
+  };
+}
+
 function mapDeathCheck(row: any) {
   return {
     checkedAt: row.checked_at,
@@ -792,6 +817,8 @@ async function checkLootLogDeath(supabase: any, body: any) {
     if (!response.ok) throw new Error('Could not load the player death log.');
 
     const deaths = await response.json();
+    const deathRows = Array.isArray(deaths) ? deaths : [];
+    const debugDeaths = deathRows.map((death: any) => summarizeDeathForDebug(death, bundle, trackedItems, playerId));
     const candidates = (Array.isArray(deaths) ? deaths : [])
       .filter((death: any) => deathMatchesBundle(death, bundle))
       .filter((death: any) => deathMatchesAnyKeptItemDate(death, trackedItems))
@@ -800,7 +827,7 @@ async function checkLootLogDeath(supabase: any, body: any) {
         return !victimId || victimId === playerId;
       })
       .map((death: any) => ({ death, matchedItems: matchDeathInventory(death, trackedItems) }));
-    const match = candidates.find((candidate: any) => candidate.matchedItems.length > 0) || candidates[0];
+    const match = candidates.find((candidate: any) => candidate.matchedItems.length > 0);
 
     if (match) {
       eventId = String(match.death?.EventId || '').trim();
@@ -808,6 +835,44 @@ async function checkLootLogDeath(supabase: any, body: any) {
       matchedItems = match.matchedItems;
       status = 'found';
     }
+
+    console.log('[loot death check]', JSON.stringify({
+      bundle: {
+        endAt: bundle?.end_at || '',
+        endDate: timestampDateKey(bundle?.end_at),
+        id: bundleId,
+        startAt: bundle?.start_at || '',
+        startDate: timestampDateKey(bundle?.start_at),
+      },
+      deathsLoaded: deathRows.length,
+      deaths: debugDeaths,
+      player: {
+        inputName: playerName,
+        playerId,
+        playerKey,
+        storedName: member?.player_name || '',
+      },
+      result: {
+        deathAt,
+        eventId,
+        matchedItems,
+        status,
+      },
+      trackedItems,
+    }));
+  } else {
+    console.log('[loot death check]', JSON.stringify({
+      bundleId,
+      player: {
+        inputName: playerName,
+        playerKey,
+      },
+      result: {
+        reason: 'No stored player id found.',
+        status,
+      },
+      trackedItems,
+    }));
   }
 
   const checkedAt = new Date().toISOString();

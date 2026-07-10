@@ -339,7 +339,7 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Reset' }));
 
     await waitFor(() => expect(clearLootLogDeath).toHaveBeenCalledWith({
       bundleId: 'bundle-18',

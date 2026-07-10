@@ -1347,11 +1347,11 @@ function PlayerDeathControl({ deathCheck, isChecking, isClearing, onCheck, onCle
         <button
           className="player-death-control player-death-clear"
           disabled={isClearing}
-          title="Remove saved death check"
+          title="Reset saved death check"
           type="button"
           onClick={onClear}
         >
-          {isClearing ? 'Removing...' : 'Remove'}
+          {isClearing ? 'Resetting...' : 'Reset'}
         </button>
       </span>
     );
@@ -1364,18 +1364,31 @@ function PlayerDeathControl({ deathCheck, isChecking, isClearing, onCheck, onCle
         <button
           className="player-death-control player-death-clear"
           disabled={isClearing}
-          title="Remove saved death check"
+          title="Reset saved death check"
           type="button"
           onClick={onClear}
         >
-          {isClearing ? 'Removing...' : 'Remove'}
+          {isClearing ? 'Resetting...' : 'Reset'}
         </button>
       </span>
     );
   }
 
   if (deathCheck?.status === 'not_found') {
-    return <span className="player-death-result">No Death Found</span>;
+    return (
+      <span className="player-death-actions">
+        <span className="player-death-result">No Death Found</span>
+        <button
+          className="player-death-control player-death-clear"
+          disabled={isClearing}
+          title="Reset saved death check"
+          type="button"
+          onClick={onClear}
+        >
+          {isClearing ? 'Resetting...' : 'Reset'}
+        </button>
+      </span>
+    );
   }
 
   if (!showCheck) return null;
@@ -2444,11 +2457,17 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
 
     setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'loading' }));
     try {
+      console.log('[loot death check] request', {
+        bundleId: selectedBundle.id,
+        keptItems,
+        player: player.player,
+      });
       const result = await checkLootLogDeath({
         bundleId: selectedBundle.id,
         keptItems,
         player: player.player,
       });
+      console.log('[loot death check] result', result);
       const deathCheck = result.deathCheck;
       if (deathCheck) {
         setSelectedBundle((current) => {
@@ -2461,6 +2480,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
         });
       }
     } catch (error) {
+      console.log('[loot death check] error', error);
       setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'error' }));
       setMarketPriceError(error.message || 'Could not check the player death log.');
       return;
@@ -2476,6 +2496,10 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
 
     setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'clearing' }));
     try {
+      console.log('[loot death check] reset', {
+        bundleId: selectedBundle.id,
+        player: player.player,
+      });
       await clearLootLogDeath({
         bundleId: selectedBundle.id,
         player: player.player,
