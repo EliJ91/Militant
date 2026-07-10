@@ -2568,17 +2568,6 @@ button:focus-visible {
   gap: 6px;
 }
 
-.player-death-clear {
-  border-color: rgba(255, 82, 98, 0.65);
-  background: rgba(255, 82, 98, 0.1);
-  color: #ff9da7;
-}
-
-.player-death-clear:hover:not(:disabled) {
-  background: #ff5262;
-  color: #fff;
-}
-
 .player-death-control:disabled {
   cursor: not-allowed;
   filter: grayscale(1);
