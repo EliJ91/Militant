@@ -2266,6 +2266,10 @@ button:focus-visible {
   background: #ffb000;
 }
 
+.legend-accounted::before {
+  background: #ffd12a;
+}
+
 .legend-resolved::before,
 .legend-deposited::before {
   background: #8a8f8a;
@@ -2480,10 +2484,37 @@ button:focus-visible {
   filter: grayscale(0.25) sepia(0.5) saturate(2.2) hue-rotate(300deg) brightness(1.03);
 }
 
-.loot-player-emv {
+.accounted-tile {
+  box-shadow:
+    0 0 0 1px rgba(255, 209, 42, 0.9),
+    0 0 14px rgba(255, 209, 42, 0.24),
+    0 2px 5px rgba(0, 0, 0, 0.55);
+}
+
+.accounted-tile::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: rgba(255, 209, 42, 0.44);
+  content: "";
+  mix-blend-mode: color;
+  pointer-events: none;
+}
+
+.accounted-tile img {
+  filter: grayscale(0.25) sepia(0.42) saturate(1.8) hue-rotate(5deg) brightness(1.08);
+}
+
+.loot-player-actions {
   position: absolute;
   right: 22px;
   bottom: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.loot-player-emv {
   color: var(--white);
   font-size: 0.82rem;
   font-weight: 900;
@@ -2498,6 +2529,44 @@ button:focus-visible {
 
 .loot-player-emv.missing-price {
   color: #ff5262;
+}
+
+.player-death-control,
+.player-death-result {
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.player-death-control {
+  border: 1px solid rgba(255, 209, 42, 0.68);
+  background: rgba(255, 209, 42, 0.12);
+  color: #fff1a6;
+}
+
+.player-death-control:hover:not(:disabled) {
+  background: #ffd12a;
+  color: var(--black);
+}
+
+.player-death-control:disabled {
+  cursor: wait;
+  opacity: 0.64;
+}
+
+.death-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.player-death-result {
+  color: var(--muted);
 }
 
 .siphoned-energy-shell {
@@ -3603,9 +3672,17 @@ button:focus-visible {
     padding: 14px 14px 38px;
   }
 
-  .loot-player-emv {
+  .loot-player-actions {
     right: 14px;
     bottom: 10px;
+    gap: 7px;
+  }
+
+  .player-death-control,
+  .player-death-result {
+    min-height: 28px;
+    padding: 5px 8px;
+    font-size: 0.62rem;
   }
 
   .loot-item-grid {

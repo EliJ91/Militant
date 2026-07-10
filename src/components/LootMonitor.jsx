@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
 import { fetchWestAveragePrices } from '../services/albionMarket';
 import {
+  checkLootLogDeath,
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
@@ -11,6 +12,7 @@ import {
   updateLootLogBundle,
 } from '../services/lootLogApi';
 import {
+  applyLootDeathChecks,
   buildLootMonitorReportFromEvents,
   combineChestLogTexts,
 } from '../utils/lootMonitor';
@@ -54,6 +56,7 @@ const SORT_OPTIONS = [
 const STATUS_OPTIONS = [
   { label: 'All', value: 'all' },
   { label: 'Kept', value: 'kept' },
+  { label: 'Accounted', value: 'accounted' },
   { label: 'Lost', value: 'lost' },
   { label: 'Donated', value: 'donated' },
   { label: 'Resolved', value: 'resolved' },
@@ -61,12 +64,14 @@ const STATUS_OPTIONS = [
 
 const TILE_STATUS_ORDER = {
   kept: 0,
-  donated: 1,
-  resolved: 2,
-  lost: 3,
+  accounted: 1,
+  donated: 2,
+  resolved: 3,
+  lost: 4,
 };
 
 const TILE_STATUS_LABELS = {
+  accounted: 'Accounted',
   donated: 'Donated',
   kept: 'Kept',
   lost: 'Lost',
@@ -581,6 +586,7 @@ function getVisibleRows(rows, filters) {
   return rows.filter((row) => {
     if (filters.status.length > 0 && !filters.status.some((status) => (
       (status === 'kept' && row.kept > 0)
+      || (status === 'accounted' && row.deathAccounted > 0)
       || (status === 'lost' && row.lost > 0)
       || (status === 'donated' && row.donated > 0)
       || (status === 'resolved' && row.accounted > 0)
@@ -672,6 +678,7 @@ function formatScreenshotError(error) {
 function buildItemTiles(row, filters) {
   return [
     { quantity: row.kept, status: 'kept' },
+    { quantity: row.deathAccounted, status: 'accounted' },
     { quantity: row.donated, status: 'donated' },
     { quantity: row.accounted, status: 'resolved' },
     { quantity: row.lost, status: 'lost' },
@@ -686,6 +693,8 @@ function buildItemTiles(row, filters) {
     item: row.item,
     itemId: row.itemId,
     custodyChains: row.custodyChains,
+    deathAt: row.deathAt,
+    deathEventId: row.deathEventId,
     lostTo: row.lostTo,
     player: row.player,
   }));
@@ -750,6 +759,7 @@ function buildVisiblePlayerGroups(rows, filters) {
     const current = byPlayer.get(key) || {
       alliance: row.alliance,
       donatedQuantity: 0,
+      deathAccountedQuantity: 0,
       guild: row.guild,
       keptQuantity: 0,
       lostQuantity: 0,
@@ -766,6 +776,7 @@ function buildVisiblePlayerGroups(rows, filters) {
       current.tiles.push(tile);
       current.totalQuantity += tile.quantity;
       if (tile.status === 'kept') current.keptQuantity += tile.quantity;
+      if (tile.status === 'accounted') current.deathAccountedQuantity += tile.quantity;
       if (tile.status === 'donated') current.donatedQuantity += tile.quantity;
       if (tile.status === 'resolved') current.resolvedQuantity += tile.quantity;
       if (tile.status === 'lost') current.lostQuantity += tile.quantity;
@@ -805,6 +816,7 @@ function StatusLegend({ className = '' }) {
   return (
     <div className={className ? `loot-status-legend ${className}` : 'loot-status-legend'} aria-label="Loot status legend">
       <span className="legend-kept">Kept</span>
+      <span className="legend-accounted">Accounted</span>
       <span className="legend-donated">Donated</span>
       <span className="legend-resolved">Resolved</span>
       <span className="legend-lost">Lost</span>
@@ -1315,6 +1327,44 @@ function PlayerEmv({ emv }) {
     >
       {emv.pending ? 'EMV loading...' : `EMV ${formatSilver(emv.value)}`}
     </strong>
+  );
+}
+
+function PlayerDeathControl({ deathCheck, isChecking, onCheck, showCheck }) {
+  if (deathCheck?.status === 'found' && deathCheck.eventId) {
+    return (
+      <a
+        className="player-death-control death-link"
+        href={`https://killboard-1.com/us/event/${encodeURIComponent(deathCheck.eventId)}`}
+        rel="noreferrer"
+        target="_blank"
+        title="Open death record"
+      >
+        Death
+      </a>
+    );
+  }
+
+  if (deathCheck?.status === 'found') {
+    return <span className="player-death-result">Death Found</span>;
+  }
+
+  if (deathCheck?.status === 'not_found') {
+    return <span className="player-death-result">No Death Found</span>;
+  }
+
+  if (!showCheck) return null;
+
+  return (
+    <button
+      className="player-death-control"
+      disabled={isChecking}
+      title="Check the player's deaths during this loot log"
+      type="button"
+      onClick={onCheck}
+    >
+      {isChecking ? 'Checking...' : 'Check Death'}
+    </button>
   );
 }
 
@@ -2200,6 +2250,7 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
   const [marketPrices, setMarketPrices] = useState({});
   const [marketPriceError, setMarketPriceError] = useState('');
+  const [deathCheckStatus, setDeathCheckStatus] = useState({});
   const [rawModalOpen, setRawModalOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState({ message: '', state: 'idle' });
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
@@ -2252,10 +2303,11 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
 
   const report = useMemo(() => {
     if (!selectedBundle) return null;
-    return buildLootMonitorReportFromEvents(
+    const baseReport = buildLootMonitorReportFromEvents(
       selectedBundle.events || [],
       selectedBundle.chestLogReportText || selectedBundle.chestLogText || '',
     );
+    return applyLootDeathChecks(baseReport, selectedBundle.deathChecks || []);
   }, [selectedBundle]);
 
   const hasChestLog = Boolean(selectedBundle?.hasChestLog && selectedBundle?.chestLogText);
@@ -2282,6 +2334,11 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
   }, [selectedBundle]);
   const selectedTotals = selectedBundle?.summary?.totals || {};
   const activeFilters = filters;
+  const deathChecksByPlayer = useMemo(() => new Map(
+    (selectedBundle?.deathChecks || [])
+      .filter((check) => check?.playerName || check?.player)
+      .map((check) => [String(check.playerName || check.player).trim().toLowerCase(), check]),
+  ), [selectedBundle?.deathChecks]);
 
   const filterOptions = useMemo(() => {
     if (!report) return { alliances: [], guilds: [] };
@@ -2343,6 +2400,42 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
 
   function updateFilter(key, value) {
     setFilters((current) => sanitizeFilters({ ...current, [key]: value }));
+  }
+
+  async function checkPlayerDeath(player) {
+    if (!selectedBundle?.id || player.keptQuantity <= 0) return;
+
+    const playerKey = String(player.player || '').trim().toLowerCase();
+    const keptItems = (report?.rows || [])
+      .filter((row) => String(row.player || '').trim().toLowerCase() === playerKey && row.kept > 0)
+      .map((row) => ({ itemId: row.itemId, quantity: row.kept }))
+      .filter((tile) => tile.itemId && tile.quantity > 0);
+    if (!playerKey || keptItems.length === 0) return;
+
+    setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'loading' }));
+    try {
+      const result = await checkLootLogDeath({
+        bundleId: selectedBundle.id,
+        keptItems,
+        player: player.player,
+      });
+      const deathCheck = result.deathCheck;
+      if (deathCheck) {
+        setSelectedBundle((current) => {
+          if (!current) return current;
+          const currentChecks = current.deathChecks || [];
+          const nextChecks = currentChecks.filter((check) => (
+            String(check.playerName || check.player || '').trim().toLowerCase() !== playerKey
+          ));
+          return { ...current, deathChecks: [...nextChecks, deathCheck] };
+        });
+      }
+    } catch (error) {
+      setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'error' }));
+      setMarketPriceError(error.message || 'Could not check the player death log.');
+      return;
+    }
+    setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'loaded' }));
   }
 
   async function shareBundleLink() {
@@ -2581,7 +2674,15 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
                         <LootItemTile key={`${tile.status}:${tile.itemId}:${tile.item}:${index}`} tile={tile} />
                       ))}
                     </div>
-                    <PlayerEmv emv={player.emv} />
+                    <div className="loot-player-actions">
+                      <PlayerDeathControl
+                        deathCheck={deathChecksByPlayer.get(player.player.toLowerCase())}
+                        isChecking={deathCheckStatus[player.player.toLowerCase()] === 'loading'}
+                        showCheck={player.keptQuantity > 0}
+                        onCheck={() => checkPlayerDeath(player)}
+                      />
+                      <PlayerEmv emv={player.emv} />
+                    </div>
                   </article>
                 ))}
               </div>

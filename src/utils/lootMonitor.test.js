@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyLootDeathChecks,
   buildLootLogExport,
   buildLootMonitorReport,
   combineChestLogTexts,
@@ -70,6 +71,31 @@ describe('loot monitor parsing', () => {
 });
 
 describe('loot monitor report', () => {
+  it('marks kept inventory found in a checked death as accounted', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-06-17T00:08:30.420Z;CHAIR;Militant;Kaelys;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;2;;;@MOB_T5",
+    ].join('\n');
+    const report = buildLootMonitorReport(lootText, '');
+
+    const updated = applyLootDeathChecks(report, [{
+      deathAt: '2026-06-17T00:12:00.000Z',
+      eventId: '1413963963',
+      matchedItems: [{ itemId: 'T4_CAPEITEM_FW_LYMHURST@3', quantity: 2 }],
+      playerName: 'Kaelys',
+      status: 'found',
+    }]);
+
+    expect(updated.rows[0]).toMatchObject({
+      deathAccounted: 2,
+      deathEventId: '1413963963',
+      kept: 0,
+      status: 'accounted',
+    });
+    expect(updated.totals.keptQuantity).toBe(0);
+    expect(updated.totals.deathAccountedQuantity).toBe(2);
+  });
+
   it('exports deduplicated events in the original loot-log format', () => {
     const events = [
       {

@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  checkLootLogDeath,
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
@@ -11,6 +12,7 @@ import {
 import LootMonitor, { LootLogArchive } from './LootMonitor';
 
 vi.mock('../services/lootLogApi', () => ({
+  checkLootLogDeath: vi.fn(),
   deleteLootLogBundle: vi.fn(),
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
@@ -128,6 +130,7 @@ describe('LootMonitor', () => {
         loot: 'Custom Loot Log',
       },
     });
+    checkLootLogDeath.mockResolvedValue({ deathCheck: { eventId: '1413963963', matchedItems: [], playerName: 'Windyyyzz', status: 'found' } });
   });
 
   afterEach(() => {
@@ -271,6 +274,42 @@ describe('LootMonitor', () => {
     fireEvent.click(secondTile);
     expect(screen.getByRole('tooltip')).toHaveTextContent("Journeyman's Bag");
     expect(screen.getByRole('tooltip')).not.toHaveTextContent("Adept's Lymhurst Cape");
+  });
+
+  it('checks a kept player death and marks matching inventory items accounted', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        events: [storedEvents[0]],
+        hasChestLog: false,
+      }),
+    });
+    checkLootLogDeath.mockResolvedValue({
+      deathCheck: {
+        eventId: '1413963963',
+        matchedItems: [{ itemId: 'T4_CAPEITEM_FW_LYMHURST@3', quantity: 2 }],
+        playerName: 'Windyyyzz',
+        status: 'found',
+      },
+    });
+
+    const { container } = render(<LootMonitor bundleId="bundle-18" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Check Death' }));
+
+    await waitFor(() => expect(checkLootLogDeath).toHaveBeenCalledWith({
+      bundleId: 'bundle-18',
+      keptItems: [{ itemId: 'T4_CAPEITEM_FW_LYMHURST@3', quantity: 2 }],
+      player: 'Windyyyzz',
+    }));
+    expect(await screen.findByRole('link', { name: 'Death' })).toHaveAttribute(
+      'href',
+      'https://killboard-1.com/us/event/1413963963',
+    );
+    expect(container.querySelector('.loot-item-tile.accounted-tile')).toBeInTheDocument();
+    expect(container.querySelector('.loot-item-tile.kept-tile')).not.toBeInTheDocument();
   });
 
   it('keeps custody tooltips inside the viewport', async () => {
@@ -464,7 +503,7 @@ describe('LootMonitor', () => {
     const lostOption = screen.getByRole('button', { name: 'Lost' });
     fireEvent.click(lostOption);
     expect(lostOption).toHaveClass('unselected-option');
-    expect(statusLabel.nextElementSibling.querySelector('summary')).toHaveTextContent('3 selected');
+    expect(statusLabel.nextElementSibling.querySelector('summary')).toHaveTextContent('4 selected');
     fireEvent.click(screen.getByRole('button', { name: 'Select All' }));
     expect(screen.getByRole('button', { name: 'Lost' })).toHaveClass('selected-option');
     expect(statusLabel.nextElementSibling.querySelector('summary')).toHaveTextContent('All');

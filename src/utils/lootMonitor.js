@@ -935,6 +935,76 @@ export function buildLootMonitorReport(lootText, chestText) {
   return buildLootMonitorReportFromParsedLoot(parseLootEvents(lootText), chestText);
 }
 
+function getReportStatus(row) {
+  if (row.lost > 0 && row.kept > 0) return 'mixed';
+  if (row.lost > 0) return 'lost';
+  if (row.kept > 0) return 'kept';
+  if (row.deathAccounted > 0) return 'accounted';
+  if (row.donated > 0 && row.looted === 0) return 'donated';
+  return 'resolved';
+}
+
+export function applyLootDeathChecks(report, deathChecks) {
+  if (!report || !Array.isArray(deathChecks) || deathChecks.length === 0) return report;
+
+  const remainingMatches = new Map();
+  const deathDetails = new Map();
+
+  deathChecks.forEach((check) => {
+    if (check?.status !== 'found') return;
+    const playerKey = normalize(check.playerName || check.player);
+    if (!playerKey) return;
+
+    (Array.isArray(check.matchedItems) ? check.matchedItems : []).forEach((item) => {
+      const itemId = normalize(item?.itemId);
+      const quantity = Math.max(0, Number(item?.quantity) || 0);
+      if (!itemId || quantity <= 0) return;
+
+      const key = `${playerKey}::${itemId}`;
+      remainingMatches.set(key, (remainingMatches.get(key) || 0) + quantity);
+      deathDetails.set(key, {
+        deathAt: check.deathAt || '',
+        deathEventId: check.eventId || '',
+      });
+    });
+  });
+
+  if (remainingMatches.size === 0) return report;
+
+  const rows = report.rows.map((row) => {
+    const key = `${normalize(row.player)}::${normalize(row.itemId)}`;
+    const available = remainingMatches.get(key) || 0;
+    const accountedByDeath = Math.min(Math.max(0, row.kept || 0), available);
+    if (accountedByDeath <= 0) return row;
+
+    remainingMatches.set(key, available - accountedByDeath);
+    const details = deathDetails.get(key) || {};
+    const nextRow = {
+      ...row,
+      deathAccounted: (row.deathAccounted || 0) + accountedByDeath,
+      deathAt: details.deathAt || row.deathAt || '',
+      deathEventId: details.deathEventId || row.deathEventId || '',
+      kept: Math.max(0, row.kept - accountedByDeath),
+    };
+    nextRow.status = getReportStatus(nextRow);
+    return nextRow;
+  });
+
+  const attentionRows = rows.filter((row) => row.kept > 0 || row.lost > 0);
+  return {
+    ...report,
+    players: summarizePlayers(attentionRows),
+    rows,
+    totals: {
+      ...report.totals,
+      deathAccountedQuantity: rows.reduce((sum, row) => sum + (row.deathAccounted || 0), 0),
+      keptQuantity: attentionRows.reduce((sum, row) => sum + row.kept, 0),
+      keptRows: rows.filter((row) => row.kept > 0).length,
+      playersWithAttention: new Set(attentionRows.map((row) => normalize(row.player))).size,
+    },
+  };
+}
+
 export function buildLootMonitorReportFromEvents(events, chestText) {
   const loot = {
     lostRows: [],

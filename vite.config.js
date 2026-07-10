@@ -126,9 +126,15 @@ function lootLogApi() {
     }
 
     try {
-      const { submitChestLog, submitLootLog } = await import('./src/server/supabaseLootLogs.js');
+      const { checkLootLogDeath, submitChestLog, submitLootLog } = await import('./src/server/supabaseLootLogs.js');
       const body = await readJsonBody(req);
-      const result = body.action === 'chest'
+      const result = body.action === 'death-check'
+        ? await checkLootLogDeath({
+          bundleId: body.bundleId,
+          keptItems: body.keptItems,
+          player: body.player,
+        })
+        : body.action === 'chest'
         ? await submitChestLog({
           bundleId: body.bundleId,
           chestLogText: body.chestLogText || body.chestText || body.text,

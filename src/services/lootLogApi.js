@@ -48,6 +48,26 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
   return result;
 }
 
+export async function checkLootLogDeath({ bundleId, keptItems, player }) {
+  const response = await fetch(getLootLogApiUrl(), {
+    body: JSON.stringify({
+      action: 'death-check',
+      bundleId,
+      keptItems,
+      player,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not check the player death log.');
+  }
+
+  return result;
+}
+
 export async function deleteLootLogBundle(bundleId) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({ bundleId }),

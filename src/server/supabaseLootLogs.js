@@ -32,6 +32,8 @@ const UPDATE_BATCH_SIZE = 25;
 const DATABASE_PAGE_SIZE = 1000;
 const RETENTION_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MILITANT_GUILD_ID = 'HNWzt1KSQMSQ855Q9rLvSA';
+const ALBION_DEATHS_URL = 'https://gameinfo.albiononline.com/api/gameinfo/players';
 
 function chunkArray(values, size) {
   const chunks = [];
@@ -281,6 +283,155 @@ function dbEventToMergeEvent(event) {
   };
 }
 
+function normalizeDeathKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeKeptItems(items) {
+  const quantities = new Map();
+
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    const itemId = String(item?.itemId || '').trim().toUpperCase();
+    const quantity = Math.max(0, Math.trunc(Number(item?.quantity) || 0));
+    if (!itemId || quantity <= 0) return;
+    quantities.set(itemId, (quantities.get(itemId) || 0) + quantity);
+  });
+
+  return [...quantities.entries()].map(([itemId, quantity]) => ({ itemId, quantity }));
+}
+
+function deathTimestamp(death) {
+  const timestamp = new Date(death?.TimeStamp || death?.timestamp || '');
+  return Number.isNaN(timestamp.getTime()) ? '' : timestamp.toISOString();
+}
+
+function deathMatchesBundle(death, bundle) {
+  const timestamp = new Date(deathTimestamp(death)).getTime();
+  const startAt = new Date(bundle.start_at).getTime();
+  const endAt = new Date(bundle.end_at).getTime();
+  return Number.isFinite(timestamp)
+    && Number.isFinite(startAt)
+    && Number.isFinite(endAt)
+    && timestamp >= startAt
+    && timestamp <= endAt;
+}
+
+function matchDeathInventory(death, keptItems) {
+  const inventory = Array.isArray(death?.Victim?.Inventory) ? death.Victim.Inventory : [];
+  const quantities = new Map();
+
+  inventory.forEach((item) => {
+    const itemId = String(item?.Type || '').trim().toUpperCase();
+    const quantity = Math.max(0, Math.trunc(Number(item?.Count) || 0));
+    if (!itemId || quantity <= 0) return;
+    quantities.set(itemId, (quantities.get(itemId) || 0) + quantity);
+  });
+
+  return keptItems.flatMap(({ itemId, quantity }) => {
+    const matchedQuantity = Math.min(quantity, quantities.get(itemId) || 0);
+    return matchedQuantity > 0 ? [{ itemId, quantity: matchedQuantity }] : [];
+  });
+}
+
+function mapDeathCheck(row) {
+  return {
+    checkedAt: row.checked_at,
+    deathAt: row.death_at || '',
+    eventId: row.event_id || '',
+    matchedItems: Array.isArray(row.matched_items) ? row.matched_items : [],
+    player: row.player_name,
+    playerId: row.player_id || '',
+    playerName: row.player_name,
+    status: row.status,
+  };
+}
+
+async function clearLootLogDeathChecks(supabase, bundleId) {
+  const { error } = await supabase
+    .from('loot_log_death_checks')
+    .delete()
+    .eq('bundle_id', bundleId);
+
+  if (error) throw error;
+}
+
+export async function checkLootLogDeath({ bundleId, keptItems, player }) {
+  const cleanBundleId = String(bundleId || '').trim();
+  const playerName = String(player || '').trim();
+  const playerKey = normalizeDeathKey(playerName);
+  const trackedItems = normalizeKeptItems(keptItems);
+  if (!cleanBundleId) throw new Error('bundleId is required.');
+  if (!playerName) throw new Error('player is required.');
+  if (trackedItems.length === 0) throw new Error('No kept items are available to check.');
+
+  const supabase = createSupabaseAdmin();
+  const [{ data: bundle, error: bundleError }, { data: member, error: memberError }] = await Promise.all([
+    supabase
+      .from('loot_log_bundles')
+      .select('id,start_at,end_at')
+      .eq('id', cleanBundleId)
+      .single(),
+    supabase
+      .from('siphoned_energy_guild_members')
+      .select('player_id,player_name')
+      .eq('guild_id', MILITANT_GUILD_ID)
+      .eq('player_key', playerKey)
+      .maybeSingle(),
+  ]);
+
+  if (bundleError) throw bundleError;
+  if (memberError) throw memberError;
+
+  let eventId = '';
+  let deathAt = '';
+  let matchedItems = [];
+  let status = 'not_found';
+  const playerId = String(member?.player_id || '').trim();
+
+  if (playerId) {
+    const response = await fetch(`${ALBION_DEATHS_URL}/${encodeURIComponent(playerId)}/deaths`);
+    if (!response.ok) throw new Error('Could not load the player death log.');
+
+    const deaths = await response.json();
+    const candidates = (Array.isArray(deaths) ? deaths : [])
+      .filter((death) => deathMatchesBundle(death, bundle))
+      .filter((death) => {
+        const victimId = String(death?.Victim?.Id || '').trim();
+        return !victimId || victimId === playerId;
+      })
+      .map((death) => ({ death, matchedItems: matchDeathInventory(death, trackedItems) }));
+    const match = candidates.find((candidate) => candidate.matchedItems.length > 0) || candidates[0];
+
+    if (match) {
+      eventId = String(match.death?.EventId || '').trim();
+      deathAt = deathTimestamp(match.death);
+      matchedItems = match.matchedItems;
+      status = 'found';
+    }
+  }
+
+  const checkedAt = new Date().toISOString();
+  const { data: savedCheck, error: saveError } = await supabase
+    .from('loot_log_death_checks')
+    .upsert({
+      bundle_id: cleanBundleId,
+      checked_at: checkedAt,
+      death_at: deathAt || null,
+      event_id: eventId,
+      matched_items: matchedItems,
+      player_id: playerId,
+      player_key: playerKey,
+      player_name: member?.player_name || playerName,
+      status,
+      updated_at: checkedAt,
+    }, { onConflict: 'bundle_id,player_key' })
+    .select('player_name,player_id,status,event_id,death_at,matched_items,checked_at')
+    .single();
+
+  if (saveError) throw saveError;
+  return { deathCheck: mapDeathCheck(savedCheck) };
+}
+
 function collapseEventsByHash(events) {
   const byHash = new Map();
 
@@ -492,6 +643,7 @@ export async function submitLootLog({ bundleId = null, lootLogText, originalFile
   });
 
   const refreshed = await refreshBundleSummary(supabase, bundle, originalFileName);
+  await clearLootLogDeathChecks(supabase, bundle.id);
 
   return {
     bundle: refreshed.bundle,
@@ -563,6 +715,7 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
     .eq('id', bundleId);
 
   if (updateError) throw updateError;
+  await clearLootLogDeathChecks(supabase, bundleId);
 
   return {
     bundleId,
@@ -685,6 +838,8 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
     if (error) throw error;
   }
 
+  await clearLootLogDeathChecks(supabase, bundleId);
+
   return {
     bundle: updatedBundle,
     bundleId,
@@ -700,13 +855,13 @@ export async function getLootLogBundle(bundleId) {
   const supabase = createSupabaseAdmin();
   const { data: bundle, error: bundleError } = await supabase
     .from('loot_log_bundles')
-    .select('id,start_at,end_at,combined_loot_summary,updated_at')
+    .select('id,start_at,end_at,combined_loot_summary,created_at,updated_at')
     .eq('id', bundleId)
     .single();
 
   if (bundleError) throw bundleError;
 
-  const [eventsResult, lootSubmissionsResult, chestResult] = await Promise.all([
+  const [eventsResult, lootSubmissionsResult, chestResult, deathChecksResult] = await Promise.all([
     fetchAllBundleEvents(supabase, bundleId),
     supabase.from('loot_log_submissions')
       .select('id,submitted_by,raw_log_text,created_at')
@@ -716,10 +871,15 @@ export async function getLootLogBundle(bundleId) {
       .select('id,submitted_by,raw_log_text,parsed_chest_summary,created_at')
       .eq('bundle_id', bundleId)
       .order('created_at', { ascending: true }),
+    supabase.from('loot_log_death_checks')
+      .select('player_name,player_id,status,event_id,death_at,matched_items,checked_at')
+      .eq('bundle_id', bundleId)
+      .order('checked_at'),
   ]);
 
   if (lootSubmissionsResult.error) throw lootSubmissionsResult.error;
   if (chestResult.error) throw chestResult.error;
+  if (deathChecksResult.error) throw deathChecksResult.error;
 
   const summary = aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent));
   const chestLogs = chestResult.data || [];
@@ -743,6 +903,7 @@ export async function getLootLogBundle(bundleId) {
       chestLogText: combineChestLogTexts(rawChestLogTexts),
       ctaTimer: getCtaTimer(bundle.start_at),
       createdAt: bundle.created_at,
+      deathChecks: (deathChecksResult.data || []).map(mapDeathCheck),
       endAt: bundle.end_at,
       events: eventsResult.map(dbEventToMergeEvent),
       hasChestLog: chestLogs.length > 0,
