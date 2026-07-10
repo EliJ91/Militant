@@ -24,6 +24,13 @@ export async function fetchSiphonedEnergyTransactions() {
   return readResult(response, 'Could not load Siphoned Energy transactions.');
 }
 
+export async function fetchSiphonedEnergyMembers() {
+  const requestUrl = new URL(getSiphonedEnergyApiUrl(), window.location.href);
+  requestUrl.searchParams.set('resource', 'members');
+  const response = await fetch(requestUrl);
+  return readResult(response, 'Could not load Militant members.');
+}
+
 export async function updateSiphonedEnergyTransactions(logText) {
   const response = await fetch(getSiphonedEnergyApiUrl(), {
     body: JSON.stringify({ logText }),

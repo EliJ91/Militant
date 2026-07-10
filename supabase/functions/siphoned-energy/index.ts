@@ -133,6 +133,47 @@ function normalizePlayerName(value: unknown) {
   return String(value || '').trim();
 }
 
+function numberValue(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : 0;
+}
+
+function fameRatio(pvpKillFame: number, deathFame: number) {
+  if (deathFame <= 0) return null;
+  return Number((pvpKillFame / deathFame).toFixed(2));
+}
+
+function mapGuildApiMember(member: any) {
+  const playerName = normalizePlayerName(member?.Name);
+  const pvpKillFame = numberValue(member?.KillFame);
+  const deathFame = numberValue(member?.DeathFame);
+
+  return {
+    deathFame,
+    playerId: String(member?.Id || '').trim(),
+    playerKey: playerName.toLowerCase(),
+    playerName,
+    pveKillFame: numberValue(member?.LifetimeStatistics?.PvE?.Total),
+    pvpDeathFameRatio: fameRatio(pvpKillFame, deathFame),
+    pvpKillFame,
+  };
+}
+
+function mapGuildMemberRow(row: any) {
+  return {
+    deathFame: numberValue(row.death_fame),
+    playerId: row.player_id || '',
+    playerKey: row.player_key || normalizePlayerName(row.player_name).toLowerCase(),
+    playerName: row.player_name,
+    pveKillFame: numberValue(row.pve_kill_fame),
+    pvpDeathFameRatio: row.pvp_death_fame_ratio === null || row.pvp_death_fame_ratio === undefined
+      ? null
+      : Number(row.pvp_death_fame_ratio),
+    pvpKillFame: numberValue(row.pvp_kill_fame),
+    refreshedAt: row.refreshed_at,
+  };
+}
+
 function parsePurgeDate(value: unknown) {
   const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) throw new Error('A valid purge date is required.');
@@ -159,38 +200,40 @@ async function listStarredPlayers(supabase: any) {
   return (data || []).map((row: any) => row.player_name);
 }
 
-async function fetchGuildMemberNames() {
+async function fetchGuildMembers() {
   const response = await fetch(GUILD_MEMBERS_URL);
   if (!response.ok) throw new Error('Could not load Militant guild members.');
   const members = await response.json();
   return [...new Map((Array.isArray(members) ? members : [])
-    .map((member: any) => normalizePlayerName(member.Name))
-    .filter(Boolean)
-    .map((name: string) => [name.toLowerCase(), name])).values()];
+    .map(mapGuildApiMember)
+    .filter((member: any) => member.playerName)
+    .map((member: any) => [member.playerKey, member])).values()]
+    .sort((left: any, right: any) => left.playerName.localeCompare(right.playerName));
 }
 
-async function listGuildMemberPlayers(supabase: any) {
+async function listGuildMembers(supabase: any) {
   const { data: cachedRows, error: cacheError } = await supabase
     .from('siphoned_energy_guild_members')
-    .select('player_name,refreshed_at')
+    .select('player_name,player_key,player_id,pvp_kill_fame,pve_kill_fame,death_fame,pvp_death_fame_ratio,refreshed_at')
     .eq('guild_id', MILITANT_GUILD_ID)
     .order('player_name');
 
   if (cacheError) throw cacheError;
+  const cachedMembers = (cachedRows || []).map(mapGuildMemberRow);
 
-  const latestRefresh = (cachedRows || []).reduce((latest: number, row: any) => {
-    const refreshedAt = new Date(row.refreshed_at).getTime();
+  const latestRefresh = cachedMembers.reduce((latest: number, row: any) => {
+    const refreshedAt = new Date(row.refreshedAt).getTime();
     return Number.isFinite(refreshedAt) && refreshedAt > latest ? refreshedAt : latest;
   }, 0);
-  if (cachedRows?.length && Date.now() - latestRefresh < GUILD_REFRESH_MS) {
-    return cachedRows.map((row: any) => row.player_name);
+  if (cachedMembers.length && Date.now() - latestRefresh < GUILD_REFRESH_MS) {
+    return cachedMembers;
   }
 
-  let names: string[] = [];
+  let members: any[] = [];
   try {
-    names = await fetchGuildMemberNames();
+    members = await fetchGuildMembers();
   } catch (error) {
-    if (cachedRows?.length) return cachedRows.map((row: any) => row.player_name);
+    if (cachedMembers.length) return cachedMembers;
     throw error;
   }
   const refreshedAt = new Date().toISOString();
@@ -201,19 +244,29 @@ async function listGuildMemberPlayers(supabase: any) {
     .eq('guild_id', MILITANT_GUILD_ID);
   if (deleteError) throw deleteError;
 
-  if (names.length > 0) {
+  if (members.length > 0) {
     const { error: insertError } = await supabase
       .from('siphoned_energy_guild_members')
-      .insert(names.map((name: string) => ({
+      .insert(members.map((member: any) => ({
+        death_fame: member.deathFame,
         guild_id: MILITANT_GUILD_ID,
-        player_key: name.toLowerCase(),
-        player_name: name,
+        player_id: member.playerId,
+        player_key: member.playerKey,
+        player_name: member.playerName,
+        pve_kill_fame: member.pveKillFame,
+        pvp_death_fame_ratio: member.pvpDeathFameRatio,
+        pvp_kill_fame: member.pvpKillFame,
         refreshed_at: refreshedAt,
       })));
     if (insertError) throw insertError;
   }
 
-  return names;
+  return members.map((member: any) => ({ ...member, refreshedAt }));
+}
+
+async function listGuildMemberPlayers(supabase: any) {
+  const members = await listGuildMembers(supabase);
+  return members.map((member: any) => member.playerName);
 }
 
 async function listTransactions(supabase: any) {
@@ -245,6 +298,13 @@ Deno.serve(async (request) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
     if (request.method === 'GET') {
+      const requestUrl = new URL(request.url);
+      if (requestUrl.searchParams.get('resource') === 'members') {
+        return jsonResponse(200, {
+          members: await listGuildMembers(supabase),
+        });
+      }
+
       return jsonResponse(200, {
         guildMemberPlayers: await listGuildMemberPlayers(supabase),
         starredPlayers: await listStarredPlayers(supabase),

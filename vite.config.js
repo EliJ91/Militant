@@ -176,13 +176,18 @@ function siphonedEnergyApi() {
     try {
       const {
         importSiphonedEnergyTransactions,
+        listSiphonedEnergyGuildMembers,
         listSiphonedEnergyTransactions,
         purgeSiphonedEnergyTransactions,
         updateSiphonedEnergyPlayerStar,
       } = await import('./src/server/supabaseSiphonedEnergy.js');
 
       if (req.method === 'GET') {
-        sendJson(res, 200, await listSiphonedEnergyTransactions());
+        const requestUrl = new URL(req.url || '/', 'http://127.0.0.1');
+        const result = requestUrl.searchParams.get('resource') === 'members'
+          ? await listSiphonedEnergyGuildMembers()
+          : await listSiphonedEnergyTransactions();
+        sendJson(res, 200, result);
         return;
       }
 

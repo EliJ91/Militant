@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchSiphonedEnergyMembers,
   fetchSiphonedEnergyTransactions,
   purgeSiphonedEnergyTransactions,
   PRODUCTION_API_URL,
@@ -22,6 +23,19 @@ describe('Siphoned Energy API', () => {
 
     await expect(fetchSiphonedEnergyTransactions())
       .rejects.toThrow('Could not load Siphoned Energy transactions.');
+  });
+
+  it('loads guild members through the Siphoned Energy endpoint', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      headers: { get: () => 'application/json' },
+      json: () => Promise.resolve({ members: [{ playerName: 'Onslawht' }] }),
+      ok: true,
+    }));
+
+    await expect(fetchSiphonedEnergyMembers()).resolves.toEqual({
+      members: [{ playerName: 'Onslawht' }],
+    });
+    expect(fetch).toHaveBeenCalledWith(new URL(`${PRODUCTION_API_URL}?resource=members`));
   });
 
   it('purges Siphoned Energy transactions with a selected date', async () => {

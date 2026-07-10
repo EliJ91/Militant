@@ -13,6 +13,7 @@ vi.mock('./services/lootLogApi', () => ({
 }));
 
 vi.mock('./services/siphonedEnergyApi', () => ({
+  fetchSiphonedEnergyMembers: vi.fn().mockResolvedValue({ members: [] }),
   fetchSiphonedEnergyTransactions: vi.fn().mockResolvedValue({ transactions: [] }),
   purgeSiphonedEnergyTransactions: vi.fn(),
   updateSiphonedEnergyPlayerStar: vi.fn(),
@@ -43,7 +44,9 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /open tool/i })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
     expect(screen.getByText('Track deposits, withdrawals, and outstanding member balances.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.4.0');
+    expect(screen.getByRole('heading', { name: 'Members' })).toBeInTheDocument();
+    expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.5.0');
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: /view loot logs/i }));
@@ -66,6 +69,19 @@ describe('App', () => {
 
     expect(window.location.hash).toBe('#siphoned-energy');
     expect(screen.getByRole('heading', { level: 1, name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
+    expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
+    expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
+  });
+
+  it('opens Members from the dashboard', () => {
+    window.localStorage.setItem('militant.authenticated', 'true');
+    window.location.hash = '#dashboard';
+    const { container } = render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /members/i }));
+
+    expect(window.location.hash).toBe('#members');
+    expect(screen.getByRole('heading', { level: 1, name: 'Members' })).toBeInTheDocument();
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
     expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
   });

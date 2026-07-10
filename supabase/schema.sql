@@ -101,6 +101,11 @@ create table if not exists public.siphoned_energy_guild_members (
   guild_id text not null,
   player_name text not null,
   player_key text not null,
+  player_id text not null default '',
+  pvp_kill_fame bigint not null default 0,
+  pve_kill_fame bigint not null default 0,
+  death_fame bigint not null default 0,
+  pvp_death_fame_ratio numeric,
   refreshed_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -109,5 +114,8 @@ create table if not exists public.siphoned_energy_guild_members (
 
 create index if not exists siphoned_energy_guild_members_guild_idx
   on public.siphoned_energy_guild_members (guild_id, refreshed_at);
+
+create index if not exists siphoned_energy_guild_members_player_id_idx
+  on public.siphoned_energy_guild_members (player_id);
 
 alter table public.siphoned_energy_transactions enable row level security;

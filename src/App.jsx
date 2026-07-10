@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
+import MembersTool from './components/MembersTool';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
 import packageJson from '../package.json';
 
@@ -15,6 +16,7 @@ function getRoute() {
   if (route === 'loot-monitor' || route.startsWith('loot-monitor/')) return 'loot-monitor';
   if (route === 'shared-log' || route.startsWith('shared-log/')) return 'shared-log';
   if (route === 'siphoned-energy') return 'siphoned-energy';
+  if (route === 'members') return 'members';
   return route === 'dashboard' ? 'dashboard' : 'landing';
 }
 
@@ -127,6 +129,11 @@ function DashboardPage({ onSignOut = () => {} }) {
             <h2>Siphoned Energy Tracker</h2>
             <p>Track deposits, withdrawals, and outstanding member balances.</p>
           </button>
+          <button className="tool-card tool-card-button" title="View members" type="button" onClick={() => navigateTo('#members')}>
+            <span className="tool-card-kicker">Tools</span>
+            <h2>Members</h2>
+            <p>View current Militant guild members and fame totals.</p>
+          </button>
         </section>
       </main>
     </>
@@ -199,6 +206,25 @@ function SiphonedEnergyPage({ isAuthenticated = false, onSignOut = () => {} }) {
   );
 }
 
+function MembersPage({ onSignOut = () => {} }) {
+  return (
+    <>
+      <header className="topbar">
+        <BrandLockup compact />
+        <div className="topbar-actions">
+          <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
+            Dashboard
+          </button>
+          <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
+            Sign Out
+          </button>
+        </div>
+      </header>
+      <MembersTool />
+    </>
+  );
+}
+
 export default function App() {
   const [route, setRoute] = useState(getRoute);
   const [isAuthenticated, setIsAuthenticated] = useState(() => (
@@ -226,6 +252,7 @@ export default function App() {
     document.title = route === 'loot-logs' ? 'Loot Logs'
       : route === 'loot-monitor' || route === 'shared-log' ? 'View Loot Log'
       : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
+      : route === 'members' ? 'Members'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);
@@ -263,6 +290,8 @@ export default function App() {
     page = <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
   } else if (route === 'dashboard') {
     page = <DashboardPage onSignOut={handleSignOut} />;
+  } else if (route === 'members') {
+    page = <MembersPage onSignOut={handleSignOut} />;
   } else if (route === 'loot-logs') {
     page = (
       <LootLogsPage

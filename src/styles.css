@@ -393,6 +393,117 @@ button:focus-visible {
   color: var(--black);
 }
 
+.members-shell {
+  width: min(1440px, 100%);
+}
+
+.members-heading {
+  align-items: end;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.members-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.members-summary-card {
+  display: grid;
+  gap: 7px;
+  min-height: 92px;
+  align-content: center;
+  padding: 14px;
+  border: 1px solid rgba(87, 216, 120, 0.32);
+  border-radius: 8px;
+  background: rgba(7, 16, 8, 0.82);
+}
+
+.members-summary-card span,
+.members-table-heading strong {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.members-summary-card strong {
+  color: var(--white);
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.members-table-section {
+  overflow: hidden;
+  margin-top: 18px;
+  border: 1px solid rgba(247, 250, 245, 0.14);
+  border-radius: 8px;
+  background: rgba(7, 16, 8, 0.78);
+}
+
+.members-table-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.12);
+}
+
+.members-table-heading h2 {
+  margin: 3px 0 0;
+  color: var(--white);
+  font-size: 1.2rem;
+  letter-spacing: 0;
+}
+
+.members-table-wrap {
+  overflow: auto;
+}
+
+.members-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+.members-table th,
+.members-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.1);
+  color: var(--white);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.members-table th {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.members-table th:first-child,
+.members-table th:nth-child(2),
+.members-table td:first-child,
+.members-table td:nth-child(2) {
+  text-align: left;
+}
+
+.members-player-id {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.members-empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
+  font-weight: 900;
+}
+
 .loot-monitor-shell {
   width: min(1440px, 100%);
 }
@@ -3151,6 +3262,20 @@ button:focus-visible {
 
   .loot-monitor-heading {
     align-items: stretch;
+    display: grid;
+  }
+
+  .members-heading {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .members-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .members-table-heading {
+    align-items: flex-start;
     display: grid;
   }
 
