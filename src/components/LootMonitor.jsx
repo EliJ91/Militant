@@ -1331,13 +1331,35 @@ function PlayerEmv({ emv }) {
   );
 }
 
+function logDeathCheckDebug(debug) {
+  if (!debug) return;
+
+  const deaths = Array.isArray(debug.deaths) ? debug.deaths : [];
+  console.groupCollapsed('[loot death check] Albion player death lookup');
+  console.log('Albion deaths API URL:', debug.deathApiUrl || '(no player id found)');
+  console.log('Stored player lookup:', debug.player || {});
+  console.log('Loot log date/time frame being checked:', debug.bundle || {});
+  console.log('Kept items being checked against Victim.Inventory:', debug.trackedItems || []);
+  console.log('Filter steps:', debug.filtersAppliedInOrder || []);
+  console.log('Candidate counts:', debug.candidateCounts || {});
+  deaths.forEach((death, index) => {
+    console.log(`Death ${index + 1} of ${deaths.length}`, death);
+  });
+  console.log('Final result:', debug.result || {});
+  console.groupEnd();
+}
+
 function PlayerDeathControl({ deathCheck, isChecking, isClearing, onCheck, onClear, showCheck }) {
-  if (deathCheck?.status === 'found' && deathCheck.eventId) {
+  const deathUrl = deathCheck?.deathUrl || (deathCheck?.eventId
+    ? `https://killboard-1.com/us/event/${encodeURIComponent(deathCheck.eventId)}`
+    : '');
+
+  if (deathCheck?.status === 'found' && deathUrl) {
     return (
       <span className="player-death-actions">
         <a
           className="player-death-control death-link"
-          href={`https://killboard-1.com/us/event/${encodeURIComponent(deathCheck.eventId)}`}
+          href={deathUrl}
           rel="noreferrer"
           target="_blank"
           title="Open death record"
@@ -2457,17 +2479,12 @@ export default function LootMonitor({ bundleId = '', onViewLogs = () => {}, show
 
     setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'loading' }));
     try {
-      console.log('[loot death check] request', {
-        bundleId: selectedBundle.id,
-        keptItems,
-        player: player.player,
-      });
       const result = await checkLootLogDeath({
         bundleId: selectedBundle.id,
         keptItems,
         player: player.player,
       });
-      console.log('[loot death check] result', result);
+      logDeathCheckDebug(result.debug);
       const deathCheck = result.deathCheck;
       if (deathCheck) {
         setSelectedBundle((current) => {

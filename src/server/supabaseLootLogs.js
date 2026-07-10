@@ -344,6 +344,11 @@ function deathTimestamp(death) {
   return Number.isNaN(timestamp.getTime()) ? '' : timestamp.toISOString();
 }
 
+function deathEventUrl(eventId) {
+  const cleanEventId = String(eventId || '').trim();
+  return cleanEventId ? `https://killboard-1.com/us/event/${encodeURIComponent(cleanEventId)}` : '';
+}
+
 function deathMatchesBundle(death, bundle) {
   const timestamp = new Date(deathTimestamp(death)).getTime();
   const startAt = new Date(bundle.start_at).getTime();
@@ -480,6 +485,7 @@ function mapDeathCheck(row) {
   return {
     checkedAt: row.checked_at,
     deathAt: row.death_at || '',
+    deathUrl: row.death_url || deathEventUrl(row.event_id),
     eventId: row.event_id || '',
     matchedItems: Array.isArray(row.matched_items) ? row.matched_items : [],
     player: row.player_name,
@@ -527,6 +533,7 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
 
   let eventId = '';
   let deathAt = '';
+  let deathUrl = '';
   let matchedItems = [];
   let status = 'not_found';
   const playerId = String(member?.player_id || '').trim();
@@ -579,6 +586,7 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
     if (match) {
       eventId = String(match.death?.EventId || '').trim();
       deathAt = deathTimestamp(match.death);
+      deathUrl = deathEventUrl(eventId);
       matchedItems = match.matchedItems;
       status = 'found';
     }
@@ -597,6 +605,7 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
       deaths: debugDeaths,
       result: {
         deathAt,
+        deathUrl,
         eventId,
         matchedItems,
         status,
@@ -621,6 +630,7 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
       bundle_id: cleanBundleId,
       checked_at: checkedAt,
       death_at: deathAt || null,
+      death_url: deathUrl,
       event_id: eventId,
       matched_items: matchedItems,
       player_id: playerId,
@@ -629,7 +639,7 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
       status,
       updated_at: checkedAt,
     }, { onConflict: 'bundle_id,player_key' })
-    .select('player_name,player_id,status,event_id,death_at,matched_items,checked_at')
+    .select('player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
     .single();
 
   if (saveError) throw saveError;
@@ -1093,7 +1103,7 @@ export async function getLootLogBundle(bundleId) {
       .eq('bundle_id', bundleId)
       .order('created_at', { ascending: true }),
     supabase.from('loot_log_death_checks')
-      .select('player_name,player_id,status,event_id,death_at,matched_items,checked_at')
+      .select('player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
       .eq('bundle_id', bundleId)
       .order('checked_at'),
   ]);

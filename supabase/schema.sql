@@ -73,6 +73,7 @@ create table if not exists public.loot_log_death_checks (
   player_id text not null default '',
   status text not null check (status in ('found', 'not_found')),
   event_id text not null default '',
+  death_url text not null default '',
   death_at timestamptz,
   matched_items jsonb not null default '[]'::jsonb,
   checked_at timestamptz not null default now(),

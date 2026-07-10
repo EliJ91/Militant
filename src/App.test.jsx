@@ -48,7 +48,7 @@ describe('App', () => {
     expect(screen.getByText('Track deposits, withdrawals, and outstanding member balances.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Members' })).toBeInTheDocument();
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.4');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.5');
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: /view loot logs/i }));

@@ -982,6 +982,7 @@ export function applyLootDeathChecks(report, deathChecks) {
       deathDetails.set(key, {
         deathAt: check.deathAt || '',
         deathEventId: check.eventId || '',
+        deathUrl: check.deathUrl || '',
       });
     });
   });
@@ -1001,6 +1002,7 @@ export function applyLootDeathChecks(report, deathChecks) {
       deathAccounted: (row.deathAccounted || 0) + accountedByDeath,
       deathAt: details.deathAt || row.deathAt || '',
       deathEventId: details.deathEventId || row.deathEventId || '',
+      deathUrl: details.deathUrl || row.deathUrl || '',
       kept: Math.max(0, row.kept - accountedByDeath),
     };
     nextRow.status = getReportStatus(nextRow);

@@ -49,15 +49,7 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
 }
 
 export async function checkLootLogDeath({ bundleId, keptItems, player }) {
-  const endpoint = getLootLogApiUrl();
-  console.log('[loot death check] frontend POST', {
-    action: 'death-check',
-    bundleId,
-    endpoint,
-    keptItems,
-    player,
-  });
-  const response = await fetch(endpoint, {
+  const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
       action: 'death-check',
       bundleId,
