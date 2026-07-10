@@ -458,6 +458,37 @@ button:focus-visible {
   letter-spacing: 0;
 }
 
+.members-table-tools {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.members-search {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.members-search input {
+  min-height: 38px;
+  width: min(260px, 42vw);
+  padding: 8px 10px;
+  border: 1px solid rgba(247, 250, 245, 0.16);
+  border-radius: 7px;
+  background: rgba(2, 4, 3, 0.78);
+  color: var(--white);
+}
+
+.members-search input:focus {
+  outline: 2px solid var(--green-hot);
+  outline-offset: 2px;
+}
+
 .members-table-wrap {
   overflow: auto;
 }
@@ -483,6 +514,31 @@ button:focus-visible {
   color: var(--muted);
   font-size: 0.68rem;
   text-transform: uppercase;
+}
+
+.members-sort-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 900;
+  text-align: inherit;
+  text-transform: inherit;
+}
+
+.members-sort-button:hover,
+.members-sort-button.active {
+  color: var(--green-hot);
+}
+
+.members-text-column .members-sort-button {
+  justify-content: flex-start;
 }
 
 .members-table th:first-child,
@@ -3277,6 +3333,16 @@ button:focus-visible {
   .members-table-heading {
     align-items: flex-start;
     display: grid;
+  }
+
+  .members-table-tools {
+    align-items: stretch;
+    display: grid;
+    justify-content: stretch;
+  }
+
+  .members-search input {
+    width: 100%;
   }
 
   .view-logs-button {

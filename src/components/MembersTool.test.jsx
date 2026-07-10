@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchSiphonedEnergyMembers } from '../services/siphonedEnergyApi';
 import MembersTool from './MembersTool';
@@ -58,6 +58,41 @@ describe('MembersTool', () => {
     expect(within(table).getByText('2.00')).toBeInTheDocument();
     expect(within(table).getByText('-')).toBeInTheDocument();
     expect(screen.getByText('2 listed')).toBeInTheDocument();
+  });
+
+  it('searches usernames and sorts by table headers', async () => {
+    render(<MembersTool />);
+
+    expect(await screen.findByText('Onslawht')).toBeInTheDocument();
+    let dataRows = screen.getAllByRole('row').slice(1);
+    expect(within(dataRows[0]).getByText('Dyathix')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /username/i })).toHaveTextContent('^');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Username' }));
+    dataRows = screen.getAllByRole('row').slice(1);
+    expect(within(dataRows[0]).getByText('Onslawht')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /username/i })).toHaveTextContent('v');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by PvP Kill Fame' }));
+    dataRows = screen.getAllByRole('row').slice(1);
+    expect(within(dataRows[0]).getByText('Dyathix')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by PvP Kill Fame' }));
+    dataRows = screen.getAllByRole('row').slice(1);
+    expect(within(dataRows[0]).getByText('Onslawht')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search member usernames' }), {
+      target: { value: 'dya' },
+    });
+    expect(screen.getByText('Dyathix')).toBeInTheDocument();
+    expect(screen.queryByText('Onslawht')).not.toBeInTheDocument();
+    expect(screen.getByText('1 listed')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search member usernames' }), {
+      target: { value: 'missing' },
+    });
+    expect(screen.getByText('No members match that username.')).toBeInTheDocument();
+    expect(screen.getByText('0 listed')).toBeInTheDocument();
   });
 
   it('shows an error when members cannot be loaded', async () => {

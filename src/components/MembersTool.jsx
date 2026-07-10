@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchSiphonedEnergyMembers } from '../services/siphonedEnergyApi';
 
+const SORT_COLUMNS = [
+  { align: 'left', key: 'playerName', label: 'Username', type: 'text' },
+  { align: 'left', key: 'playerId', label: 'Player ID', type: 'text' },
+  { key: 'pvpKillFame', label: 'PvP Kill Fame', type: 'number' },
+  { key: 'pveKillFame', label: 'PvE Kill Fame', type: 'number' },
+  { key: 'deathFame', label: 'Death Fame', type: 'number' },
+  { key: 'pvpDeathFameRatio', label: 'PvP/Death', type: 'number' },
+];
+
 function formatNumber(value) {
   return new Intl.NumberFormat('en-US').format(Number(value) || 0);
 }
@@ -29,6 +38,8 @@ function formatRefreshTime(value) {
 export default function MembersTool() {
   const [members, setMembers] = useState([]);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortState, setSortState] = useState({ direction: 'asc', key: 'playerName' });
 
   async function loadMembers() {
     setLoadStatus({ message: '', state: 'loading' });
@@ -54,7 +65,31 @@ export default function MembersTool() {
     pveKillFame: summary.pveKillFame + (Number(member.pveKillFame) || 0),
     pvpKillFame: summary.pvpKillFame + (Number(member.pvpKillFame) || 0),
   }), { deathFame: 0, pveKillFame: 0, pvpKillFame: 0 }), [members]);
+  const visibleMembers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const column = SORT_COLUMNS.find((option) => option.key === sortState.key) || SORT_COLUMNS[0];
+    const direction = sortState.direction === 'desc' ? -1 : 1;
+
+    return members
+      .filter((member) => !query || String(member.playerName || '').toLowerCase().includes(query))
+      .sort((left, right) => {
+        if (column.type === 'number') {
+          const leftValue = Number(left[column.key]) || 0;
+          const rightValue = Number(right[column.key]) || 0;
+          return (leftValue - rightValue) * direction;
+        }
+
+        return String(left[column.key] || '').localeCompare(String(right[column.key] || '')) * direction;
+      });
+  }, [members, searchQuery, sortState]);
   const refreshedAt = members.find((member) => member.refreshedAt)?.refreshedAt;
+
+  function updateSort(key) {
+    setSortState((current) => ({
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+      key,
+    }));
+  }
 
   return (
     <main className="dashboard-shell members-shell">
@@ -101,26 +136,49 @@ export default function MembersTool() {
             <p className="eyebrow">Guild</p>
             <h2 id="members-table-title">Current Members</h2>
           </div>
-          <strong>{formatNumber(members.length)} listed</strong>
+          <div className="members-table-tools">
+            <label className="members-search">
+              <span>Search username</span>
+              <input
+                aria-label="Search member usernames"
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </label>
+            <strong>{formatNumber(visibleMembers.length)} listed</strong>
+          </div>
         </div>
 
         {loadStatus.state === 'loading' ? <p className="members-empty">Loading members...</p> : null}
         {loadStatus.state === 'loaded' && members.length === 0 ? <p className="members-empty">No members found.</p> : null}
-        {members.length > 0 ? (
+        {members.length > 0 && visibleMembers.length === 0 ? <p className="members-empty">No members match that username.</p> : null}
+        {visibleMembers.length > 0 ? (
           <div className="members-table-wrap">
             <table className="members-table">
               <thead>
                 <tr>
-                  <th>Username</th>
-                  <th>Player ID</th>
-                  <th>PvP Kill Fame</th>
-                  <th>PvE Kill Fame</th>
-                  <th>Death Fame</th>
-                  <th>PvP/Death</th>
+                  {SORT_COLUMNS.map((column) => (
+                    <th
+                      aria-sort={sortState.key === column.key ? (sortState.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      className={column.align === 'left' ? 'members-text-column' : ''}
+                      key={column.key}
+                    >
+                      <button
+                        aria-label={`Sort by ${column.label}`}
+                        className={sortState.key === column.key ? 'members-sort-button active' : 'members-sort-button'}
+                        type="button"
+                        onClick={() => updateSort(column.key)}
+                      >
+                        <span>{column.label}</span>
+                        <span aria-hidden="true">{sortState.key === column.key ? (sortState.direction === 'asc' ? '^' : 'v') : '<>'}</span>
+                      </button>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {members.map((member) => (
+                {visibleMembers.map((member) => (
                   <tr key={member.playerId || member.playerKey || member.playerName}>
                     <td>{member.playerName}</td>
                     <td className="members-player-id">{member.playerId || '-'}</td>
