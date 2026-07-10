@@ -1387,6 +1387,150 @@ function FileUploadButton({
   );
 }
 
+function LootLogUploadDialog({
+  disabled,
+  files,
+  ignoreTimeRestraints,
+  onAddFiles,
+  onClose,
+  onRemoveFile,
+  onSubmit,
+  onToggleIgnoreTime,
+}) {
+  const inputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  function receiveFiles(fileList) {
+    const nextFiles = [...(fileList || [])];
+    if (nextFiles.length > 0) onAddFiles(nextFiles);
+  }
+
+  function receiveDroppedFiles(event) {
+    if (disabled) return;
+    event.preventDefault();
+    setIsDragging(false);
+    receiveFiles(event.dataTransfer.files);
+  }
+
+  return (
+    <div
+      className="loot-upload-modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !disabled) onClose();
+      }}
+    >
+      <section
+        aria-labelledby="loot-upload-title"
+        aria-modal="true"
+        className="loot-upload-modal"
+        role="dialog"
+      >
+        <div className="loot-upload-modal-heading">
+          <div>
+            <p className="eyebrow">Loot Logs</p>
+            <h2 id="loot-upload-title">Upload Loot Logs</h2>
+          </div>
+          <button
+            aria-label="Close upload loot logs"
+            className="energy-modal-close"
+            disabled={disabled}
+            type="button"
+            onClick={onClose}
+          >
+            &times;
+          </button>
+        </div>
+        <div
+          className={isDragging ? 'loot-upload-dropzone drag-over' : 'loot-upload-dropzone'}
+          onDragEnter={(event) => {
+            if (disabled) return;
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDragOver={(event) => {
+            if (disabled) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+            setIsDragging(true);
+          }}
+          onDrop={receiveDroppedFiles}
+        >
+          <input
+            accept=".csv,.txt,text/csv,text/plain"
+            className="file-input-hidden"
+            disabled={disabled}
+            multiple
+            ref={inputRef}
+            type="file"
+            onChange={(event) => {
+              receiveFiles(event.target.files);
+              event.target.value = '';
+            }}
+          />
+          <strong>{isDragging ? 'Drop loot logs' : 'Drag loot logs here'}</strong>
+          <span>or</span>
+          <button
+            className="secondary-button"
+            disabled={disabled}
+            type="button"
+            onClick={() => inputRef.current?.click()}
+          >
+            Choose files
+          </button>
+        </div>
+        <label className="loot-upload-ignore">
+          <input
+            checked={ignoreTimeRestraints}
+            disabled={disabled}
+            type="checkbox"
+            onChange={(event) => onToggleIgnoreTime(event.target.checked)}
+          />
+          <span>Ignore time restraints</span>
+        </label>
+        {files.length > 0 ? (
+          <ul className="loot-upload-file-list">
+            {files.map((file, index) => (
+              <li key={`${file.name}-${file.size}-${index}`}>
+                <span>{file.name}</span>
+                <button
+                  aria-label={`Remove ${file.name}`}
+                  disabled={disabled}
+                  type="button"
+                  onClick={() => onRemoveFile(index)}
+                >
+                  &times;
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="loot-upload-empty">No loot logs selected.</p>
+        )}
+        <div className="loot-upload-actions">
+          <button
+            className="secondary-button"
+            disabled={disabled}
+            type="button"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            className="primary-button"
+            disabled={disabled || files.length === 0}
+            type="button"
+            onClick={onSubmit}
+          >
+            {disabled ? 'Uploading...' : 'Upload'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function StatusToasts({ messages }) {
   const visibleMessages = messages
     .filter((status) => status?.message)
@@ -1685,6 +1829,9 @@ export function LootLogArchive({ onView = () => {} }) {
   });
   const [savedLogBundles, setSavedLogBundles] = useState([]);
   const [savedLogStatus, setSavedLogStatus] = useState({ message: '', state: 'loading' });
+  const [lootUploadFiles, setLootUploadFiles] = useState([]);
+  const [lootUploadModalOpen, setLootUploadModalOpen] = useState(false);
+  const [lootUploadIgnoreTime, setLootUploadIgnoreTime] = useState(false);
   const [updatingBundleId, setUpdatingBundleId] = useState('');
   const [uploadingBundleId, setUploadingBundleId] = useState('');
 
@@ -1707,10 +1854,12 @@ export function LootLogArchive({ onView = () => {} }) {
     loadSavedLogs();
   }, []);
 
-  async function uploadLootLogs(files, bundle = null) {
+  async function uploadLootLogs(files, bundle = null, options = {}) {
     const selectedFiles = [...(Array.isArray(files) ? files : [files])].filter(Boolean);
-    if (selectedFiles.length === 0) return;
+    if (selectedFiles.length === 0) return false;
     const targetBundleId = bundle?.id || null;
+    const ignoreTimeRestraints = Boolean(options.ignoreTimeRestraints && !targetBundleId);
+    let mergeBundleId = targetBundleId;
 
     if (targetBundleId) setUploadingBundleId(targetBundleId);
     setActionStatus({
@@ -1728,11 +1877,14 @@ export function LootLogArchive({ onView = () => {} }) {
         if (detectFileKind(text) !== 'loot') throw new Error(`${file.name} is not a valid loot-events file.`);
 
         const result = await submitLootLog({
-          bundleId: targetBundleId,
+          bundleId: mergeBundleId,
           lootLogText: text,
           originalFileName: file.name,
           username: 'manual-web-upload',
         });
+        if (ignoreTimeRestraints && !mergeBundleId) {
+          mergeBundleId = result.bundleId || result.summary?.bundleId || null;
+        }
         uploadedNames.push(result.summary?.displayLootFileName || result.summary?.fileNames?.loot || file.name || 'Loot Log');
       }
 
@@ -1743,14 +1895,27 @@ export function LootLogArchive({ onView = () => {} }) {
         state: 'success',
       });
       await loadSavedLogs();
+      return true;
     } catch (uploadError) {
       setActionStatus({
         message: uploadError.message || 'Could not upload the loot logs.',
         state: 'error',
       });
+      return false;
     } finally {
       if (targetBundleId) setUploadingBundleId('');
     }
+  }
+
+  async function uploadSelectedLootLogs() {
+    const uploaded = await uploadLootLogs(lootUploadFiles, null, {
+      ignoreTimeRestraints: lootUploadIgnoreTime,
+    });
+    if (!uploaded) return;
+
+    setLootUploadFiles([]);
+    setLootUploadIgnoreTime(false);
+    setLootUploadModalOpen(false);
   }
 
   async function uploadChestLog(bundle, files) {
@@ -1977,18 +2142,20 @@ export function LootLogArchive({ onView = () => {} }) {
           <h1 id="view-logs-title">Loot Logs</h1>
         </div>
         <div className="loot-monitor-heading-actions">
-          <FileUploadButton
-            accept=".csv,.txt,text/csv,text/plain"
+          <button
+            aria-label="Upload log"
             className="view-logs-button"
             disabled={actionStatus.state === 'loading'}
-            dropLabel="Drop Loot Log"
-            enableDrop
-            label="Upload"
-            loadingLabel="Uploading"
-            multiple
             title="Upload log"
-            onFiles={uploadLootLogs}
-          />
+            type="button"
+            onClick={() => {
+              setLootUploadFiles([]);
+              setLootUploadIgnoreTime(false);
+              setLootUploadModalOpen(true);
+            }}
+          >
+            {actionStatus.state === 'loading' ? 'Uploading' : 'Upload'}
+          </button>
           <button
             aria-label="Refresh logs"
             className="view-logs-button view-logs-icon-button"
@@ -2008,6 +2175,19 @@ export function LootLogArchive({ onView = () => {} }) {
       </section>
 
       <StatusToasts messages={[actionStatus]} />
+
+      {lootUploadModalOpen ? (
+        <LootLogUploadDialog
+          disabled={actionStatus.state === 'loading'}
+          files={lootUploadFiles}
+          ignoreTimeRestraints={lootUploadIgnoreTime}
+          onAddFiles={(files) => setLootUploadFiles((current) => [...current, ...files])}
+          onClose={() => setLootUploadModalOpen(false)}
+          onRemoveFile={(index) => setLootUploadFiles((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+          onSubmit={uploadSelectedLootLogs}
+          onToggleIgnoreTime={setLootUploadIgnoreTime}
+        />
+      ) : null}
 
       <LootLogBundleList
         bundles={savedLogBundles}

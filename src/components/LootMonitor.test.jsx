@@ -116,7 +116,7 @@ describe('LootMonitor', () => {
     stubMarketPrices();
     fetchLootLogBundle.mockResolvedValue({ bundle: createBundle() });
     fetchLootLogBundles.mockResolvedValue({ bundles: [createBundle()] });
-    submitLootLog.mockResolvedValue({ summary: { fileNames: { loot: '18UTC-JUN-18 Loot Log' } } });
+    submitLootLog.mockResolvedValue({ bundleId: 'bundle-18', summary: { fileNames: { loot: '18UTC-JUN-18 Loot Log' } } });
     submitChestLog.mockResolvedValue({ fileName: '18UTC-JUN-18 Chest Log' });
     deleteLootLogBundle.mockResolvedValue({ bundleId: 'bundle-18', deleted: true });
     updateLootLogBundle.mockResolvedValue({
@@ -579,19 +579,23 @@ describe('LootMonitor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View' }));
     expect(onView).toHaveBeenCalledWith('bundle-18');
 
-    const lootInput = container.querySelector('input[accept^=".csv"]');
-    fireEvent.change(lootInput, {
+    fireEvent.click(screen.getByRole('button', { name: /upload log/i }));
+    let uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
+    let modalLootInput = uploadDialog.querySelector('input[accept^=".csv"]');
+    fireEvent.change(modalLootInput, {
       target: { files: [new File([lootText], 'loot-events.txt', { type: 'text/plain' })] },
     });
+    fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
       bundleId: null,
       lootLogText: lootText,
       originalFileName: 'loot-events.txt',
       username: 'manual-web-upload',
     }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Loot Logs' })).not.toBeInTheDocument());
 
     submitLootLog.mockClear();
-    const addLootInput = container.querySelectorAll('input[accept^=".csv"]')[1];
+    const addLootInput = container.querySelector('input[accept^=".csv"]');
     fireEvent.change(addLootInput, {
       target: { files: [new File([lootText], 'additional-loot-events.txt', { type: 'text/plain' })] },
     });
@@ -604,7 +608,10 @@ describe('LootMonitor', () => {
 
     submitLootLog.mockClear();
     const secondLootText = lootText.replace('Windyyyzz', 'SecondLogger');
-    fireEvent.change(lootInput, {
+    fireEvent.click(screen.getByRole('button', { name: /upload log/i }));
+    uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
+    modalLootInput = uploadDialog.querySelector('input[accept^=".csv"]');
+    fireEvent.change(modalLootInput, {
       target: {
         files: [
           new File([lootText], 'first-loot-events.txt', { type: 'text/plain' }),
@@ -612,6 +619,7 @@ describe('LootMonitor', () => {
         ],
       },
     });
+    fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledTimes(2));
     expect(submitLootLog).toHaveBeenNthCalledWith(1, {
       bundleId: null,
@@ -625,21 +633,54 @@ describe('LootMonitor', () => {
       originalFileName: 'second-loot-events.txt',
       username: 'manual-web-upload',
     });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Loot Logs' })).not.toBeInTheDocument());
 
     submitLootLog.mockClear();
-    const uploadButton = screen.getByRole('button', { name: /upload log/i });
+    fireEvent.click(screen.getByRole('button', { name: /upload log/i }));
+    uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
+    modalLootInput = uploadDialog.querySelector('input[accept^=".csv"]');
+    fireEvent.change(modalLootInput, {
+      target: {
+        files: [
+          new File([lootText], 'first-ignore-time-loot-events.txt', { type: 'text/plain' }),
+          new File([secondLootText], 'second-ignore-time-loot-events.txt', { type: 'text/plain' }),
+        ],
+      },
+    });
+    fireEvent.click(within(uploadDialog).getByRole('checkbox', { name: 'Ignore time restraints' }));
+    fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
+    await waitFor(() => expect(submitLootLog).toHaveBeenCalledTimes(2));
+    expect(submitLootLog).toHaveBeenNthCalledWith(1, {
+      bundleId: null,
+      lootLogText: lootText,
+      originalFileName: 'first-ignore-time-loot-events.txt',
+      username: 'manual-web-upload',
+    });
+    expect(submitLootLog).toHaveBeenNthCalledWith(2, {
+      bundleId: 'bundle-18',
+      lootLogText: secondLootText,
+      originalFileName: 'second-ignore-time-loot-events.txt',
+      username: 'manual-web-upload',
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Loot Logs' })).not.toBeInTheDocument());
+
+    submitLootLog.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /upload log/i }));
+    uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
+    const dropzone = uploadDialog.querySelector('.loot-upload-dropzone');
     const droppedLootFile = new File([lootText], 'dropped-loot-events.txt', { type: 'text/plain' });
-    fireEvent.dragEnter(uploadButton, { dataTransfer: { files: [droppedLootFile] } });
-    expect(uploadButton).toHaveClass('drag-over');
-    expect(uploadButton).toHaveTextContent('Drop Loot Log');
-    fireEvent.drop(uploadButton, { dataTransfer: { files: [droppedLootFile] } });
+    fireEvent.dragEnter(dropzone, { dataTransfer: { files: [droppedLootFile] } });
+    expect(dropzone).toHaveClass('drag-over');
+    expect(dropzone).toHaveTextContent('Drop loot logs');
+    fireEvent.drop(dropzone, { dataTransfer: { files: [droppedLootFile] } });
+    fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
       bundleId: null,
       lootLogText: lootText,
       originalFileName: 'dropped-loot-events.txt',
       username: 'manual-web-upload',
     }));
-    expect(uploadButton).not.toHaveClass('drag-over');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Loot Logs' })).not.toBeInTheDocument());
 
     const chestInput = container.querySelector('input[accept^=".txt"]');
     fireEvent.change(chestInput, {
