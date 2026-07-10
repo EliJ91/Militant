@@ -63,6 +63,7 @@ function createBundle(overrides = {}) {
     chestFileName: '18UTC-JUN-18',
     chestLogText: chestText,
     ctaTimer: '18 UTC',
+    createdAt: '2026-06-20T15:45:00.000Z',
     endAt: '2026-06-18T19:30:00.000Z',
     events: storedEvents,
     hasChestLog: true,
@@ -559,6 +560,7 @@ describe('LootMonitor', () => {
     expect(await screen.findByText('loot-events-original')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Loot Logs' })).toBeInTheDocument();
     expect(screen.getByText('Uploaded')).toBeInTheDocument();
+    expect(screen.getByText('Jun 20, 2026 15:45')).toBeInTheDocument();
     expect(screen.queryByText(/18:33 UTC/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Loot Monitor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toHaveAttribute('title', 'Refresh logs');
@@ -728,6 +730,32 @@ describe('LootMonitor', () => {
     confirm.mockRestore();
   });
 
+  it('orders saved bundles by uploaded date newest first', async () => {
+    fetchLootLogBundles.mockResolvedValue({
+      bundles: [
+        createBundle({
+          createdAt: '2026-07-09T01:50:00.000Z',
+          id: 'older-bundle',
+          lootFileName: 'Older CTA',
+        }),
+        createBundle({
+          createdAt: '2026-07-10T04:08:00.000Z',
+          id: 'newer-bundle',
+          lootFileName: 'Newer CTA',
+        }),
+      ],
+    });
+
+    const { container } = render(<LootLogArchive />);
+
+    expect(await screen.findByText('Newer CTA')).toBeInTheDocument();
+    const rows = [...container.querySelectorAll('.saved-log-row')];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent('Newer CTA');
+    expect(rows[0]).toHaveTextContent('Jul 10, 2026 04:08');
+    expect(rows[1]).toHaveTextContent('Older CTA');
+  });
+
   it('allows adding chest logs after one is already linked', async () => {
     render(<LootLogArchive />);
 
@@ -739,12 +767,11 @@ describe('LootMonitor', () => {
     const { container } = render(<LootLogArchive />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
-    fireEvent.change(screen.getByLabelText('UTC Date'), { target: { value: '2026-06-20' } });
-    fireEvent.change(screen.getByLabelText('CTA Time'), { target: { value: '4' } });
-
-    expect(screen.getByLabelText('Loot Log Name')).toHaveValue('04UTC-JUN-20');
+    expect(screen.getByLabelText('Loot Log Name')).toHaveValue('18UTC-JUN-18');
     expect(screen.getByLabelText('Loot Log Uploaded By')).toHaveValue('Manual');
     expect(screen.getByLabelText('Chest Log Uploaded By')).toHaveValue('Manual');
+    expect(screen.queryByLabelText('UTC Date')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('CTA Time')).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Chest Log Name' })).not.toBeInTheDocument();
     expect(container.querySelector('.saved-log-name-suffix')).not.toBeInTheDocument();
 
@@ -753,8 +780,6 @@ describe('LootMonitor', () => {
     expect(screen.getAllByText('18UTC-JUN-18')).toHaveLength(2);
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-    fireEvent.change(screen.getByLabelText('UTC Date'), { target: { value: '2026-06-20' } });
-    fireEvent.change(screen.getByLabelText('CTA Time'), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Loot Log Name'), { target: { value: 'Custom' } });
     fireEvent.change(screen.getByLabelText('Loot Log Uploaded By'), { target: { value: 'Onslawt' } });
     fireEvent.change(screen.getByLabelText('Chest Log Uploaded By'), { target: { value: 'Banker' } });
@@ -762,8 +787,8 @@ describe('LootMonitor', () => {
 
     await waitFor(() => expect(updateLootLogBundle).toHaveBeenCalledWith({
       bundleId: 'bundle-18',
-      ctaHour: 4,
-      dateUtc: '2026-06-20',
+      ctaHour: 18,
+      dateUtc: '2026-06-18',
       fileNames: {
         baseName: 'Custom',
         chest: 'Custom Chest Log',

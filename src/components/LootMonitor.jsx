@@ -117,6 +117,14 @@ function formatUtcDateTime(value) {
   return `${day} ${time}`;
 }
 
+function getBundleUploadedAt(bundle) {
+  return bundle.createdAt
+    || bundle.submissions?.[0]?.createdAt
+    || bundle.chestSubmissions?.[0]?.createdAt
+    || bundle.updatedAt
+    || bundle.startAt;
+}
+
 function formatUtcDateInput(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -1608,6 +1616,7 @@ function LootLogBundleList({
               ? formatSubmitterList(chestSubmitters)
               : 'No chest log';
             const retention = getRetentionStatus(bundle.startAt);
+            const uploadedAt = getBundleUploadedAt(bundle);
             const isEditing = editingBundleId === bundle.id;
             const editSaveDisabled = !editValues.dateUtc
               || !editValues.lootFileName.trim()
@@ -1628,37 +1637,8 @@ function LootLogBundleList({
                 <div className="saved-log-card">
                   <div className="saved-log-card-main">
                     <div className="saved-log-time">
-                      {isEditing ? (
-                        <div className="saved-log-edit-fields">
-                          <label>
-                            <span>UTC Date</span>
-                            <input
-                              aria-label="UTC Date"
-                              max="9999-12-31"
-                              type="date"
-                              value={editValues.dateUtc}
-                              onChange={(event) => onEditValue('dateUtc', event.target.value)}
-                            />
-                          </label>
-                          <label>
-                            <span>CTA Time</span>
-                            <select
-                              aria-label="CTA Time"
-                              value={editValues.ctaHour}
-                              onChange={(event) => onEditValue('ctaHour', Number(event.target.value))}
-                            >
-                              {CTA_UTC_HOURS.map((hour) => (
-                                <option key={hour} value={hour}>{String(hour).padStart(2, '0')} UTC</option>
-                              ))}
-                            </select>
-                          </label>
-                        </div>
-                      ) : (
-                        <>
-                          <strong>Uploaded</strong>
-                          <small>{formatUtcDateTime(bundle.updatedAt || bundle.startAt)}</small>
-                        </>
-                      )}
+                      <strong>Uploaded</strong>
+                      <small>{formatUtcDateTime(uploadedAt)}</small>
                       {!isEditing && retention ? (
                         <small className="saved-log-countdown" title={`Scheduled deletion: ${formatUtcDate(retention.expiresAt)}`}>
                           {formatDeletionCountdown(retention.daysUntilDeletion)}
@@ -1840,7 +1820,9 @@ export function LootLogArchive({ onView = () => {} }) {
 
     try {
       const result = await fetchLootLogBundles();
-      setSavedLogBundles(result.bundles || []);
+      setSavedLogBundles([...(result.bundles || [])].sort((left, right) => (
+        new Date(getBundleUploadedAt(right)).getTime() - new Date(getBundleUploadedAt(left)).getTime()
+      )));
       setSavedLogStatus({ message: '', state: 'loaded' });
     } catch (savedLogError) {
       setSavedLogStatus({

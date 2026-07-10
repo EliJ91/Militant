@@ -752,7 +752,7 @@ Deno.serve(async (request) => {
       if (bundleId) {
         const { data: bundle, error: bundleError } = await supabase
           .from('loot_log_bundles')
-          .select('id,start_at,end_at,combined_loot_summary,updated_at')
+          .select('id,start_at,end_at,combined_loot_summary,created_at,updated_at')
           .eq('id', bundleId)
           .single();
 
@@ -793,6 +793,7 @@ Deno.serve(async (request) => {
             chestFileName: getBundleDisplayChestFileName(bundle),
             chestLogText: chestLogs.map((log: any) => log.raw_log_text || '').filter(Boolean).join('\n'),
             ctaTimer: getCtaTimer(bundle.start_at),
+            createdAt: bundle.created_at,
             endAt: bundle.end_at,
             events: eventsResult.map(dbEventToMergeEvent),
             hasChestLog: chestLogs.length > 0,
@@ -829,6 +830,7 @@ Deno.serve(async (request) => {
           start_at,
           end_at,
           combined_loot_summary,
+          created_at,
           updated_at,
           loot_log_submissions (
             id,
@@ -841,7 +843,7 @@ Deno.serve(async (request) => {
             created_at
           )
         `)
-        .order('start_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -862,6 +864,7 @@ Deno.serve(async (request) => {
             chestLogCount: chestLogs.length,
             chestFileName: getBundleDisplayChestFileName(bundle),
             ctaTimer: getCtaTimer(bundle.start_at),
+            createdAt: bundle.created_at,
             endAt: bundle.end_at,
             hasChestLog: chestLogs.length > 0,
             id: bundle.id,

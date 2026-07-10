@@ -239,6 +239,7 @@ function mapBundleListRow(bundle) {
     chestLogCount: chestLogs.length,
     chestFileName: getBundleDisplayChestFileName(bundle, startAt),
     ctaTimer: getCtaTimer(startAt),
+    createdAt: bundle.created_at,
     endAt,
     hasChestLog: chestLogs.length > 0,
     id: bundle.id,
@@ -641,7 +642,7 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
       updated_at: new Date().toISOString(),
     })
     .eq('id', bundleId)
-    .select('id,start_at,end_at,combined_loot_summary,updated_at')
+    .select('id,start_at,end_at,combined_loot_summary,created_at,updated_at')
     .single();
 
   if (updateError) throw updateError;
@@ -741,6 +742,7 @@ export async function getLootLogBundle(bundleId) {
       chestLogReportText: rawChestLogTexts.join('\n'),
       chestLogText: combineChestLogTexts(rawChestLogTexts),
       ctaTimer: getCtaTimer(bundle.start_at),
+      createdAt: bundle.created_at,
       endAt: bundle.end_at,
       events: eventsResult.map(dbEventToMergeEvent),
       hasChestLog: chestLogs.length > 0,
@@ -778,6 +780,7 @@ export async function listLootLogBundles() {
       start_at,
       end_at,
       combined_loot_summary,
+      created_at,
       updated_at,
       loot_log_submissions (
         id,
@@ -790,7 +793,7 @@ export async function listLootLogBundles() {
         created_at
       )
     `)
-    .order('start_at', { ascending: false });
+    .order('created_at', { ascending: false });
 
   if (error) throw error;
 
