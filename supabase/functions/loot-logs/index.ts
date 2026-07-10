@@ -835,6 +835,21 @@ async function checkLootLogDeath(supabase: any, body: any) {
   if (bundleError) throw bundleError;
   if (memberError) throw memberError;
 
+  // Event timestamps are authoritative because older bundle rows can contain a stale range.
+  const bundleEvents = await fetchAllBundleEvents(supabase, bundleId);
+  const eventRange = getLootLogTimeRange(bundleEvents.map(dbEventToMergeEvent));
+  const effectiveBundle = eventRange
+    ? { ...bundle, end_at: eventRange.endAt, start_at: eventRange.startAt }
+    : bundle;
+
+  if (eventRange && (bundle.start_at !== eventRange.startAt || bundle.end_at !== eventRange.endAt)) {
+    const { error: rangeUpdateError } = await supabase
+      .from('loot_log_bundles')
+      .update({ end_at: eventRange.endAt, start_at: eventRange.startAt, updated_at: new Date().toISOString() })
+      .eq('id', bundleId);
+    if (rangeUpdateError) throw rangeUpdateError;
+  }
+
   let eventId = '';
   let deathAt = '';
   let deathUrl = '';
@@ -845,15 +860,17 @@ async function checkLootLogDeath(supabase: any, body: any) {
   let debugLog: any = {
     action: 'death-check',
     bundle: {
-      endAt: bundle?.end_at || '',
-      endDate: timestampDateKey(bundle?.end_at),
+      endAt: effectiveBundle?.end_at || '',
+      endDate: timestampDateKey(effectiveBundle?.end_at),
       id: bundleId,
-      startAt: bundle?.start_at || '',
-      startDate: timestampDateKey(bundle?.start_at),
+      startAt: effectiveBundle?.start_at || '',
+      startDate: timestampDateKey(effectiveBundle?.start_at),
+      storedEndAt: bundle?.end_at || '',
+      storedStartAt: bundle?.start_at || '',
     },
     deathApiUrl,
     filtersAppliedInOrder: [
-      '1. Load bundle start_at/end_at from loot_log_bundles.',
+      '1. Load the first and last event timestamps from loot_log_events to establish the bundle start and end.',
       '2. Load the player_id from guild_members by player_key.',
       '3. Fetch Albion deaths URL.',
       '4. Keep deaths whose timestamp and date are between bundle start_at and end_at, with a non-blank Victim.Id matching the stored player_id.',
@@ -874,9 +891,9 @@ async function checkLootLogDeath(supabase: any, body: any) {
 
     const deaths = await response.json();
     const deathRows = Array.isArray(deaths) ? deaths : [];
-    const debugDeaths = deathRows.map((death: any) => summarizeDeathForDebug(death, bundle, trackedItems, playerId));
+    const debugDeaths = deathRows.map((death: any) => summarizeDeathForDebug(death, effectiveBundle, trackedItems, playerId));
     const candidates = (Array.isArray(deaths) ? deaths : [])
-      .filter((death: any) => deathMatchesBundle(death, bundle))
+      .filter((death: any) => deathMatchesBundle(death, effectiveBundle))
       .filter((death: any) => {
         const victimId = String(death?.Victim?.Id || '').trim();
         return !!victimId && victimId === playerId;
