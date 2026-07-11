@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   checkLootLogDeath,
+  checkLootLogDeaths,
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
@@ -13,6 +14,7 @@ import LootMonitor, { LootLogArchive } from './LootMonitor';
 
 vi.mock('../services/lootLogApi', () => ({
   checkLootLogDeath: vi.fn(),
+  checkLootLogDeaths: vi.fn(),
   deleteLootLogBundle: vi.fn(),
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
@@ -131,6 +133,7 @@ describe('LootMonitor', () => {
       },
     });
     checkLootLogDeath.mockResolvedValue({ deathCheck: { eventId: '1413963963', matchedItems: [], playerName: 'Windyyyzz', status: 'found' } });
+    checkLootLogDeaths.mockResolvedValue({ deathChecks: [], errors: [] });
   });
 
   afterEach(() => {
@@ -295,7 +298,7 @@ describe('LootMonitor', () => {
       },
     });
 
-    const { container } = render(<LootMonitor bundleId="bundle-18" />);
+    const { container } = render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Check Death' }));
 
@@ -338,7 +341,7 @@ describe('LootMonitor', () => {
     });
     checkLootLogDeath.mockImplementation(() => new Promise(() => {}));
 
-    render(<LootMonitor bundleId="bundle-18" />);
+    render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
 
     const checkButtons = await screen.findAllByRole('button', { name: 'Check Death' });
     fireEvent.click(checkButtons[0]);
@@ -346,6 +349,129 @@ describe('LootMonitor', () => {
     await waitFor(() => expect(checkButtons[1]).toBeDisabled());
     expect(checkButtons[0]).toBeDisabled();
     expect(checkButtons[0]).toHaveTextContent('Checking...');
+  });
+
+  it('hides death checks without authenticated access', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        events: [storedEvents[0]],
+        hasChestLog: false,
+      }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    expect(await screen.findByText('Windyyyzz')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check Death' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check Visible Deaths' })).not.toBeInTheDocument();
+  });
+
+  it('checks all visible deaths in a blocking batch', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        events: [
+          storedEvents[0],
+          {
+            ...storedEvents[0],
+            item: "Expert's Bag",
+            itemId: 'T5_BAG@1',
+            player: 'Kaelys',
+            quantity: 1,
+          },
+        ],
+        hasChestLog: false,
+      }),
+    });
+    let resolveBatch;
+    checkLootLogDeaths.mockImplementation(() => new Promise((resolve) => {
+      resolveBatch = resolve;
+    }));
+
+    render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Check Visible Deaths' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Checking 0 of 2 visible players.');
+    expect(checkLootLogDeaths).toHaveBeenCalledWith({
+      bundleId: 'bundle-18',
+      checks: [
+        {
+          keptItems: [{
+            itemId: 'T4_CAPEITEM_FW_LYMHURST@3',
+            lootDateQuantities: { '2026-06-18': 2 },
+            lootTimestamps: ['2026-06-18T18:33:30.420Z'],
+            quantity: 2,
+          }],
+          player: 'Windyyyzz',
+        },
+        {
+          keptItems: [{
+            itemId: 'T5_BAG@1',
+            lootDateQuantities: { '2026-06-18': 1 },
+            lootTimestamps: ['2026-06-18T18:33:30.420Z'],
+            quantity: 1,
+          }],
+          player: 'Kaelys',
+        },
+      ],
+    });
+
+    resolveBatch({
+      deathChecks: [
+        { playerName: 'Kaelys', status: 'not_found' },
+        { playerName: 'Windyyyzz', status: 'not_found' },
+      ],
+      errors: [],
+    });
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Checking deaths' })).not.toBeInTheDocument());
+  });
+
+  it('continues visible death checks with the next batch after ten players', async () => {
+    const players = Array.from({ length: 11 }, (_, index) => ({
+      ...storedEvents[0],
+      player: `Tracker${String(index + 1).padStart(2, '0')}`,
+    }));
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        events: players,
+        hasChestLog: false,
+      }),
+    });
+    let resolveFirstBatch;
+    let resolveSecondBatch;
+    checkLootLogDeaths
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveFirstBatch = resolve;
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveSecondBatch = resolve;
+      }));
+
+    render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Check Visible Deaths' }));
+    await waitFor(() => expect(checkLootLogDeaths).toHaveBeenCalledTimes(1));
+    expect(checkLootLogDeaths.mock.calls[0][0].checks).toHaveLength(10);
+
+    resolveFirstBatch({ deathChecks: [], errors: [] });
+
+    await waitFor(() => expect(checkLootLogDeaths).toHaveBeenCalledTimes(2));
+    expect(checkLootLogDeaths.mock.calls[1][0].checks).toHaveLength(1);
+    expect(screen.getByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Batch 2 of 2');
+
+    resolveSecondBatch({ deathChecks: [], errors: [] });
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Checking deaths' })).not.toBeInTheDocument());
   });
 
   it('keeps custody tooltips inside the viewport', async () => {

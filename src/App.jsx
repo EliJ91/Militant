@@ -140,7 +140,7 @@ function DashboardPage({ onSignOut = () => {} }) {
   );
 }
 
-function LootMonitorPage({ bundleId, onSignOut = () => {} }) {
+function LootMonitorPage({ bundleId, isAuthenticated = false, onSignOut = () => {} }) {
   return (
     <>
       <header className="topbar">
@@ -157,13 +157,17 @@ function LootMonitorPage({ bundleId, onSignOut = () => {} }) {
           </button>
         </div>
       </header>
-      <LootMonitor bundleId={bundleId} onViewLogs={() => navigateTo('#loot-logs')} />
+      <LootMonitor
+        bundleId={bundleId}
+        canCheckDeaths={isAuthenticated}
+        onViewLogs={() => navigateTo('#loot-logs')}
+      />
     </>
   );
 }
 
-function SharedLootMonitorPage({ bundleId }) {
-  return <LootMonitor bundleId={bundleId} showShare={false} />;
+function SharedLootMonitorPage({ bundleId, isAuthenticated = false }) {
+  return <LootMonitor bundleId={bundleId} canCheckDeaths={isAuthenticated} showShare={false} />;
 }
 
 function LootLogsPage({ onSignOut = () => {}, onViewBundle }) {
@@ -283,7 +287,7 @@ export default function App() {
 
   let page;
   if (route === 'shared-log') {
-    page = <SharedLootMonitorPage bundleId={selectedBundleId} />;
+    page = <SharedLootMonitorPage bundleId={selectedBundleId} isAuthenticated={isAuthenticated} />;
   } else if (route === 'siphoned-energy') {
     page = <SiphonedEnergyPage isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />;
   } else if (!isAuthenticated && route !== 'landing') {
@@ -300,7 +304,7 @@ export default function App() {
       />
     );
   } else if (route === 'loot-monitor') {
-    page = <LootMonitorPage bundleId={selectedBundleId} onSignOut={handleSignOut} />;
+    page = <LootMonitorPage bundleId={selectedBundleId} isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />;
   } else {
     page = <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
   }

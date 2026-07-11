@@ -68,6 +68,25 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
   return result;
 }
 
+export async function checkLootLogDeaths({ bundleId, checks }) {
+  const response = await fetch(getLootLogApiUrl(), {
+    body: JSON.stringify({
+      action: 'death-check-batch',
+      bundleId,
+      checks,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not check the visible player deaths.');
+  }
+
+  return result;
+}
+
 export async function clearLootLogDeath({ bundleId, player }) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
