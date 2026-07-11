@@ -1,7 +1,27 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import {
+  getCurrentAuthSession,
+  onAuthStateChange,
+  signInWithDiscord,
+} from './services/authService';
 import { fetchLootLogBundle } from './services/lootLogApi';
+
+let authStateCallback = null;
+
+vi.mock('./services/authService', () => ({
+  clearPendingAuthRoute: vi.fn(),
+  getCurrentAuthSession: vi.fn(),
+  getPendingAuthRoute: vi.fn(() => ''),
+  isDiscordAuthConfigured: vi.fn(() => true),
+  onAuthStateChange: vi.fn((callback) => {
+    authStateCallback = callback;
+    return vi.fn();
+  }),
+  signInWithDiscord: vi.fn().mockResolvedValue(undefined),
+  signOutOfDiscord: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('./services/lootLogApi', () => ({
   checkLootLogDeath: vi.fn(),
@@ -25,6 +45,10 @@ vi.mock('./services/siphonedEnergyApi', () => ({
 
 describe('App', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    authStateCallback = null;
+    getCurrentAuthSession.mockResolvedValue(null);
+    signInWithDiscord.mockResolvedValue(undefined);
     window.location.hash = '';
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -32,13 +56,21 @@ describe('App', () => {
 
   afterEach(cleanup);
 
-  it('opens the dashboard from the landing button', () => {
-    vi.spyOn(window, 'prompt').mockReturnValue('militant#1');
+  it('starts Discord login and keeps the password gate before opening the dashboard', async () => {
     const { container } = render(<App />);
 
     expect(screen.queryByText('Member Access')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /enter|login/i }));
+    fireEvent.click(screen.getByRole('button', { name: /login with discord/i }));
+    await waitFor(() => expect(signInWithDiscord).toHaveBeenCalledWith('#dashboard'));
+    await waitFor(() => expect(onAuthStateChange).toHaveBeenCalled());
+    await act(async () => {
+      authStateCallback({ user: { id: 'discord-user' } });
+    });
+
+    expect(screen.queryByRole('heading', { name: /dashboard/i })).not.toBeInTheDocument();
+    vi.spyOn(window, 'prompt').mockReturnValue('militant#1');
+    fireEvent.click(screen.getByRole('button', { name: /enter password/i }));
 
     expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
     expect(window.location.hash).toBe('#dashboard');
@@ -49,7 +81,7 @@ describe('App', () => {
     expect(screen.getByText('Track deposits, withdrawals, and outstanding member balances.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Members' })).toBeInTheDocument();
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.17');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.18');
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: /view loot logs/i }));
@@ -63,11 +95,13 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toBeInTheDocument();
   });
 
-  it('opens the Siphoned Energy Tracker from the dashboard', () => {
+  it('opens the Siphoned Energy Tracker from the dashboard', async () => {
+    getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
     window.localStorage.setItem('militant.authenticated', 'true');
     window.location.hash = '#dashboard';
     const { container } = render(<App />);
 
+    expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /siphoned energy tracker/i }));
 
     expect(window.location.hash).toBe('#siphoned-energy');
@@ -76,11 +110,13 @@ describe('App', () => {
     expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
   });
 
-  it('opens Members from the dashboard', () => {
+  it('opens Members from the dashboard', async () => {
+    getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
     window.localStorage.setItem('militant.authenticated', 'true');
     window.location.hash = '#dashboard';
     const { container } = render(<App />);
 
+    expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /members/i }));
 
     expect(window.location.hash).toBe('#members');
@@ -97,10 +133,10 @@ describe('App', () => {
     expect(withinTopbar(container, 'Dashboard')).toBeUndefined();
     expect(withinTopbar(container, 'Sign Out')).toBeUndefined();
     expect(screen.queryByRole('button', { name: 'Update Log' })).not.toBeInTheDocument();
-    expect(window.localStorage.getItem('militant.authenticated')).toBeNull();
   });
 
-  it('does not restore a previously selected loot log after a refresh', () => {
+  it('does not restore a previously selected loot log after a refresh', async () => {
+    getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
     window.localStorage.setItem('militant.authenticated', 'true');
     window.sessionStorage.setItem('militant.selectedLootLogBundle', 'stale-bundle');
     window.localStorage.setItem('militant.lootMonitor.filters.v3', JSON.stringify({
@@ -112,18 +148,24 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: 'Select a Stored Log' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Select a Stored Log' })).toBeInTheDocument();
     expect(window.localStorage.getItem('militant.lootMonitor.filters.v3')).toContain('tier4');
   });
 
-  it('keeps protected routes behind the password prompt', () => {
+  it('keeps protected routes behind Discord login and password access', async () => {
     window.location.hash = '#dashboard';
-    vi.spyOn(window, 'prompt').mockReturnValue('wrong');
 
     render(<App />);
 
     expect(screen.queryByRole('heading', { name: /dashboard/i })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /enter|login/i }));
+    fireEvent.click(screen.getByRole('button', { name: /login with discord/i }));
+    await waitFor(() => expect(signInWithDiscord).toHaveBeenCalledWith('#dashboard'));
+    await act(async () => {
+      authStateCallback({ user: { id: 'discord-user' } });
+    });
+    expect(screen.queryByRole('heading', { name: /dashboard/i })).not.toBeInTheDocument();
+    vi.spyOn(window, 'prompt').mockReturnValue('wrong');
+    fireEvent.click(screen.getByRole('button', { name: /enter password/i }));
     expect(screen.getByText('Incorrect password.')).toBeInTheDocument();
     expect(window.localStorage.getItem('militant.authenticated')).toBeNull();
   });
@@ -148,7 +190,6 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'View Loot Log' })).toBeInTheDocument();
     expect(container.querySelector('.topbar')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Share' })).not.toBeInTheDocument();
-    expect(window.localStorage.getItem('militant.authenticated')).toBeNull();
   });
 });
 

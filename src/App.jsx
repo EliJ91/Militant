@@ -2,6 +2,15 @@ import { useEffect, useState } from 'react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import MembersTool from './components/MembersTool';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
+import {
+  clearPendingAuthRoute,
+  getCurrentAuthSession,
+  getPendingAuthRoute,
+  isDiscordAuthConfigured,
+  onAuthStateChange,
+  signInWithDiscord,
+  signOutOfDiscord,
+} from './services/authService';
 import packageJson from '../package.json';
 
 const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
@@ -54,25 +63,51 @@ function VersionFooter() {
   );
 }
 
-function LandingPage({ isAuthenticated = false, onLogin = () => {} }) {
+function LandingPage({
+  hasPasswordAccess = false,
+  isAuthenticated = false,
+  isDiscordAuthenticated = false,
+  onDiscordLogin = () => {},
+  onPasswordLogin = () => {},
+}) {
   const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  function enterApp() {
+  async function enterApp() {
     if (isAuthenticated) {
       navigateTo('#dashboard');
       return;
     }
 
-    const password = window.prompt('Enter password');
-    if (password === APP_PASSWORD) {
-      setLoginError('');
-      onLogin();
-      navigateTo('#dashboard');
+    setLoginError('');
+    if (!isDiscordAuthenticated) {
+      setIsLoggingIn(true);
+      try {
+        await onDiscordLogin();
+      } catch (error) {
+        setLoginError(error.message || 'Could not start Discord login.');
+      } finally {
+        setIsLoggingIn(false);
+      }
       return;
     }
 
-    if (password !== null) setLoginError('Incorrect password.');
+    if (!hasPasswordAccess) {
+      const password = window.prompt('Enter password');
+      if (password === APP_PASSWORD) {
+        onPasswordLogin();
+        navigateTo('#dashboard');
+      } else if (password !== null) {
+        setLoginError('Incorrect password.');
+      }
+    }
   }
+
+  const buttonLabel = isLoggingIn
+    ? 'Opening Discord...'
+    : isDiscordAuthenticated && !hasPasswordAccess
+      ? 'Enter Password'
+      : 'Login with Discord';
 
   return (
     <main
@@ -90,8 +125,8 @@ function LandingPage({ isAuthenticated = false, onLogin = () => {} }) {
           <p>Hold the line.</p>
         </div>
         <div className="landing-actions">
-          <button className="primary-button" title="Enter dashboard" type="button" onClick={enterApp}>
-            Enter
+          <button className="primary-button" disabled={isLoggingIn} title={buttonLabel} type="button" onClick={enterApp}>
+            {buttonLabel}
           </button>
           {loginError ? <p className="loot-message error">{loginError}</p> : null}
         </div>
@@ -231,10 +266,12 @@ function MembersPage({ onSignOut = () => {} }) {
 
 export default function App() {
   const [route, setRoute] = useState(getRoute);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => (
+  const [isDiscordAuthenticated, setIsDiscordAuthenticated] = useState(false);
+  const [hasPasswordAccess, setHasPasswordAccess] = useState(() => (
     window.localStorage.getItem(AUTH_STORAGE_KEY) === 'true'
   ));
   const [selectedBundleId, setSelectedBundleId] = useState('');
+  const isAuthenticated = isDiscordAuthenticated && hasPasswordAccess;
 
   useEffect(() => {
     const updateRoute = () => {
@@ -249,6 +286,33 @@ export default function App() {
       window.removeEventListener('hashchange', updateRoute);
       window.removeEventListener('popstate', updateRoute);
       window.removeEventListener('militant-route-change', updateRoute);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    function applySession(session) {
+      if (cancelled) return;
+      const discordAuthenticated = Boolean(session);
+      setIsDiscordAuthenticated(discordAuthenticated);
+      if (!discordAuthenticated || !hasPasswordAccess) return;
+
+      const pendingRoute = getPendingAuthRoute();
+      clearPendingAuthRoute();
+      if (pendingRoute) {
+        navigateTo(pendingRoute);
+      }
+    }
+
+    getCurrentAuthSession()
+      .then(applySession)
+      .catch(() => setIsDiscordAuthenticated(false));
+
+    const unsubscribe = onAuthStateChange(applySession);
+    return () => {
+      cancelled = true;
+      unsubscribe();
     };
   }, []);
 
@@ -269,14 +333,23 @@ export default function App() {
     }
   }, [route]);
 
-  function handleLogin() {
-    window.localStorage.setItem(AUTH_STORAGE_KEY, 'true');
-    setIsAuthenticated(true);
+  async function handleDiscordLogin() {
+    if (!isDiscordAuthConfigured()) {
+      throw new Error('Discord login is not configured.');
+    }
+    await signInWithDiscord('#dashboard');
   }
 
-  function handleSignOut() {
+  function handlePasswordLogin() {
+    window.localStorage.setItem(AUTH_STORAGE_KEY, 'true');
+    setHasPasswordAccess(true);
+  }
+
+  async function handleSignOut() {
+    await signOutOfDiscord();
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    setIsAuthenticated(false);
+    setHasPasswordAccess(false);
+    setIsDiscordAuthenticated(false);
     navigateTo('#');
   }
 
@@ -291,7 +364,15 @@ export default function App() {
   } else if (route === 'siphoned-energy') {
     page = <SiphonedEnergyPage isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />;
   } else if (!isAuthenticated && route !== 'landing') {
-    page = <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
+    page = (
+      <LandingPage
+        hasPasswordAccess={hasPasswordAccess}
+        isAuthenticated={isAuthenticated}
+        isDiscordAuthenticated={isDiscordAuthenticated}
+        onDiscordLogin={handleDiscordLogin}
+        onPasswordLogin={handlePasswordLogin}
+      />
+    );
   } else if (route === 'dashboard') {
     page = <DashboardPage onSignOut={handleSignOut} />;
   } else if (route === 'members') {
@@ -306,7 +387,15 @@ export default function App() {
   } else if (route === 'loot-monitor') {
     page = <LootMonitorPage bundleId={selectedBundleId} isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />;
   } else {
-    page = <LandingPage isAuthenticated={isAuthenticated} onLogin={handleLogin} />;
+    page = (
+      <LandingPage
+        hasPasswordAccess={hasPasswordAccess}
+        isAuthenticated={isAuthenticated}
+        isDiscordAuthenticated={isDiscordAuthenticated}
+        onDiscordLogin={handleDiscordLogin}
+        onPasswordLogin={handlePasswordLogin}
+      />
+    );
   }
 
   return (
