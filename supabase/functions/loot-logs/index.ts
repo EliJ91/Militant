@@ -770,10 +770,36 @@ async function fetchPlayerDeaths(playerId: string) {
   }
 
   const response = await fetch(deathApiUrl, requestOptions);
-  if (!response.ok) throw new Error('Could not load the player death log.');
+  if (!response.ok) {
+    throw new Error(`Could not load the player death log. ${response.status} ${response.statusText} ${deathApiUrl}`);
+  }
 
   const deaths = await response.json();
   return Array.isArray(deaths) ? deaths : [];
+}
+
+function summarizeDeathCandidate(death: any, bundle: any, playerId: string, keptItems: Array<{ itemId: string; quantity: number }>) {
+  const timestamp = deathTimestamp(death);
+  const timestampMs = new Date(timestamp).getTime();
+  const startMs = new Date(bundle.start_at).getTime();
+  const endMs = new Date(bundle.end_at).getTime();
+  const eventId = String(death?.EventId || '').trim();
+  const victimId = String(death?.Victim?.Id || '').trim();
+  const matchedItems = matchDeathInventory(death, keptItems);
+
+  return {
+    eventId,
+    inDateTimeRange: Number.isFinite(timestampMs)
+      && Number.isFinite(startMs)
+      && Number.isFinite(endMs)
+      && timestampMs >= startMs
+      && timestampMs <= endMs,
+    matchedItems,
+    matchedQuantity: matchedItems.reduce((total, item) => total + item.quantity, 0),
+    timestamp,
+    victimId,
+    victimMatchesPlayer: victimId === playerId,
+  };
 }
 
 function normalizeDeathCheckRequests(checks: unknown) {
@@ -903,6 +929,17 @@ async function runLootLogDeathChecks(supabase: any, { bundleId, checks }: any) {
   const deathResults = await Promise.allSettled(requests.map(async (request) => {
     const member = context.membersByPlayer.get(request.playerKey);
     const playerId = String(member?.player_id || '').trim();
+    const deathApiUrl = playerId ? `${ALBION_DEATHS_URL}/${encodeURIComponent(playerId)}/deaths` : '';
+    console.info('[loot death check] player lookup', {
+      bundleId: cleanBundleId,
+      deathApiUrl,
+      player: request.player,
+      playerId,
+      playerKey: request.playerKey,
+      rangeEnd: context.effectiveBundle.end_at,
+      rangeStart: context.effectiveBundle.start_at,
+      storedMemberFound: Boolean(member),
+    });
     const deaths = playerId ? await fetchPlayerDeaths(playerId) : [];
     return { deaths, member, playerId, request };
   }));
@@ -926,6 +963,22 @@ async function runLootLogDeathChecks(supabase: any, { bundleId, checks }: any) {
     const match = playerId
       ? pickMatchingDeath(deaths, context.effectiveBundle, playerId, request.keptItems)
       : null;
+    console.info('[loot death check] player result', {
+      bundleId: cleanBundleId,
+      checkedDeaths: Array.isArray(deaths) ? deaths.length : 0,
+      eventId: match?.eventId || '',
+      matchedItems: match?.matchedItems || [],
+      player: request.player,
+      playerId,
+      playerKey: request.playerKey,
+      status: match ? 'found' : 'not_found',
+      candidates: (Array.isArray(deaths) ? deaths : []).map((death) => summarizeDeathCandidate(
+        death,
+        context.effectiveBundle,
+        playerId,
+        request.keptItems,
+      )),
+    });
     records.push({
       bundle_id: cleanBundleId,
       checked_at: checkedAt,
@@ -947,7 +1000,20 @@ async function runLootLogDeathChecks(supabase: any, { bundleId, checks }: any) {
       .from('loot_log_death_checks')
       .upsert(records, { onConflict: 'bundle_id,player_key' })
       .select('player_key,player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at');
-    if (error) throw error;
+    if (error) {
+      console.error('[loot death check] save failed', {
+        bundleId: cleanBundleId,
+        error,
+        records: records.map((record) => ({
+          event_id: record.event_id,
+          player_id: record.player_id,
+          player_key: record.player_key,
+          player_name: record.player_name,
+          status: record.status,
+        })),
+      });
+      throw error;
+    }
     savedChecks = data || [];
   }
 

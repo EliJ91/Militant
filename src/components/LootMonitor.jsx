@@ -2549,12 +2549,37 @@ export default function LootMonitor({
       }));
 
       try {
+        console.info('[loot death check] visible batch request', {
+          batch: currentBatch,
+          bundleId: selectedBundle.id,
+          players: batch.map(({ keptItems, player }) => ({
+            keptItems: keptItems.map((item) => ({
+              itemId: item.itemId,
+              quantity: item.quantity,
+            })),
+            player,
+          })),
+          totalBatches,
+        });
         const result = await checkLootLogDeaths({
           bundleId: selectedBundle.id,
           checks: batch.map(({ keptItems, player }) => ({ keptItems, player })),
         });
         const deathChecks = Array.isArray(result.deathChecks) ? result.deathChecks : [];
         const batchErrors = Array.isArray(result.errors) ? result.errors : [];
+        console.info('[loot death check] visible batch result', {
+          batch: currentBatch,
+          deathChecks: deathChecks.map((deathCheck) => ({
+            deathAt: deathCheck.deathAt,
+            eventId: deathCheck.eventId,
+            matchedItems: deathCheck.matchedItems,
+            player: deathCheck.player,
+            playerId: deathCheck.playerId,
+            status: deathCheck.status,
+          })),
+          errors: batchErrors,
+          totalBatches,
+        });
         const errorKeys = new Set(batchErrors.map((error) => String(error.playerKey || '').toLowerCase()));
         errors.push(...batchErrors);
         applyDeathChecks(deathChecks);
@@ -2566,6 +2591,13 @@ export default function LootMonitor({
           ])),
         }));
       } catch (error) {
+        console.error('[loot death check] visible batch failed', {
+          batch: currentBatch,
+          bundleId: selectedBundle.id,
+          error,
+          players: batch.map(({ player, playerKey }) => ({ player, playerKey })),
+          totalBatches,
+        });
         errors.push({ message: error.message || 'Could not check the player death log.' });
         setDeathCheckStatus((current) => ({
           ...current,
