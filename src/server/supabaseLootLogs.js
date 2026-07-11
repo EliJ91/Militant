@@ -34,8 +34,10 @@ const RETENTION_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MILITANT_GUILD_ID = 'HNWzt1KSQMSQ855Q9rLvSA';
 const ALBION_DEATHS_URL = 'https://gameinfo.albiononline.com/api/gameinfo/players';
+const KILLBOARD_EVENT_URL = 'https://killboard-1.com/us/event';
 const DEATH_CHECK_BATCH_SIZE = 10;
 const DEATH_REQUEST_TIMEOUT_MS = 6000;
+const DEATH_EVENT_REQUEST_TIMEOUT_MS = 4000;
 
 function chunkArray(values, size) {
   const chunks = [];
@@ -348,7 +350,29 @@ function deathTimestamp(death) {
 
 function deathEventUrl(eventId) {
   const cleanEventId = String(eventId || '').trim();
-  return cleanEventId ? `https://killboard-1.com/us/event/${encodeURIComponent(cleanEventId)}` : '';
+  return cleanEventId ? `${KILLBOARD_EVENT_URL}/${encodeURIComponent(cleanEventId)}` : '';
+}
+
+async function deathEventExists(eventId) {
+  const url = deathEventUrl(eventId);
+  if (!url) return false;
+
+  const requestOptions = {};
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    requestOptions.signal = AbortSignal.timeout(DEATH_EVENT_REQUEST_TIMEOUT_MS);
+  }
+
+  try {
+    const response = await fetch(url, requestOptions);
+    return response.ok;
+  } catch (error) {
+    console.warn('[loot death check] death event verification failed', {
+      eventId: String(eventId || '').trim(),
+      message: error instanceof Error ? error.message : String(error),
+      url,
+    });
+    return false;
+  }
 }
 
 function deathMatchesBundle(death, bundle) {
@@ -607,8 +631,20 @@ async function runLootLogDeathChecks(supabase, { bundleId, checks }) {
   const checkedAt = new Date().toISOString();
   const records = [];
   const errors = [];
+  const possibleMatches = deathResults.map((result) => {
+    if (result.status === 'rejected') return null;
+    const { deaths, playerId, request } = result.value;
+    return playerId
+      ? pickMatchingDeath(deaths, context.effectiveBundle, playerId, request.keptItems)
+      : null;
+  });
+  const verifiedMatches = await Promise.all(possibleMatches.map(async (possibleMatch) => {
+    const matchVerified = possibleMatch ? await deathEventExists(possibleMatch.eventId) : false;
+    return matchVerified ? possibleMatch : null;
+  }));
 
-  deathResults.forEach((result, index) => {
+  for (let index = 0; index < deathResults.length; index += 1) {
+    const result = deathResults[index];
     const request = requests[index];
     if (result.status === 'rejected') {
       errors.push({
@@ -616,17 +652,17 @@ async function runLootLogDeathChecks(supabase, { bundleId, checks }) {
         player: request.player,
         playerKey: request.playerKey,
       });
-      return;
+      continue;
     }
 
     const { deaths, member, playerId } = result.value;
-    const match = playerId
-      ? pickMatchingDeath(deaths, context.effectiveBundle, playerId, request.keptItems)
-      : null;
+    const possibleMatch = possibleMatches[index];
+    const match = verifiedMatches[index];
     console.info('[loot death check] player result', {
       bundleId: cleanBundleId,
       checkedDeaths: Array.isArray(deaths) ? deaths.length : 0,
       eventId: match?.eventId || '',
+      rejectedEventId: possibleMatch && !match ? possibleMatch.eventId : '',
       matchedItems: match?.matchedItems || [],
       player: request.player,
       playerId,
@@ -652,7 +688,7 @@ async function runLootLogDeathChecks(supabase, { bundleId, checks }) {
       status: match ? 'found' : 'not_found',
       updated_at: checkedAt,
     });
-  });
+  }
 
   let savedChecks = [];
   if (records.length > 0) {
