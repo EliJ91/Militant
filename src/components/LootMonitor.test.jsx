@@ -320,6 +320,30 @@ describe('LootMonitor', () => {
     expect(container.querySelector('.loot-item-tile.kept-tile')).not.toBeInTheDocument();
   });
 
+  it('allows a logged-in user to retry a player with no death found', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        deathChecks: [{ playerName: 'Windyyyzz', status: 'not_found' }],
+        events: [storedEvents[0]],
+        hasChestLog: false,
+      }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
+
+    const retryButton = await screen.findByRole('button', { name: 'No Death Found' });
+    expect(retryButton).toHaveAttribute('title', 'Try again?');
+    fireEvent.click(retryButton);
+
+    await waitFor(() => expect(checkLootLogDeath).toHaveBeenCalledWith(expect.objectContaining({
+      bundleId: 'bundle-18',
+      player: 'Windyyyzz',
+    })));
+  });
+
   it('disables other death checks while one is running', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({

@@ -1128,6 +1128,12 @@ function LootItemTile({ tile }) {
   const label = `${tile.player} ${statusLabel} ${tile.quantity} ${tile.item}`;
   const itemDetail = tile.itemId ? `${tile.item} (${tile.itemId})` : `${tile.item} (missing item id)`;
   const hasCustodyTooltip = tile.status === 'kept' && tile.custodyChains;
+  const custodySteps = hasCustodyTooltip
+    ? tile.custodyChains
+      .split('\n')
+      .filter(Boolean)
+      .flatMap((chain) => chain.split(' -> ').filter(Boolean))
+    : [];
   const title = hasCustodyTooltip
     ? `${tile.item}\n${tile.custodyChains}`
     : tile.lostTo ? `${itemDetail} - ${statusLabel} to ${tile.lostTo}` : `${itemDetail} - ${statusLabel}`;
@@ -1301,7 +1307,7 @@ function LootItemTile({ tile }) {
           }}
         >
           <strong>{tile.item}</strong>
-          {tile.custodyChains.split('\n').map((entry, index) => (
+          {custodySteps.map((entry, index) => (
             <span key={`${entry}-${index}`}>{entry}</span>
           ))}
         </div>,
@@ -1361,10 +1367,18 @@ function PlayerDeathControl({ deathCheck, isCheckLocked, isChecking, onCheck, sh
   }
 
   if (deathCheck?.status === 'not_found') {
+    if (!showCheck) return null;
+
     return (
-      <span className="player-death-actions">
-        <span className="player-death-result">No Death Found</span>
-      </span>
+      <button
+        className="player-death-control"
+        disabled={isChecking || isCheckLocked}
+        title="Try again?"
+        type="button"
+        onClick={onCheck}
+      >
+        {isChecking ? 'Checking...' : 'No Death Found'}
+      </button>
     );
   }
 

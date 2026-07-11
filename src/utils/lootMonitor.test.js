@@ -350,6 +350,9 @@ describe('loot monitor report', () => {
 
     expect(looter).toMatchObject({ accounted: 1, kept: 0 });
     expect(courier).toMatchObject({ kept: 1, status: 'kept' });
+    expect(courier.custodyChains).toContain('Looted by Looter');
+    expect(courier.custodyChains).toContain('Deposited by Looter');
+    expect(courier.custodyChains).toContain('Withdrawn by Courier');
     expect(report.totals.depositedQuantity).toBe(1);
   });
 
