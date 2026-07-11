@@ -241,11 +241,9 @@ describe('LootMonitor', () => {
 
     expect(await screen.findByText('Windyyyzz')).toBeInTheDocument();
     const tiles = [...container.querySelectorAll('.loot-item-tile.kept-tile')];
-    const renderedTile = tiles.find((tile) => tile.getAttribute('title').includes("Adept's Lymhurst Cape"));
-    const secondTile = tiles.find((tile) => tile.getAttribute('title').includes("Journeyman's Bag"));
-    expect(renderedTile).toHaveAttribute('title', expect.stringContaining('Looted by Windyyyzz'));
-    expect(renderedTile).toHaveAttribute('title', expect.stringContaining("Adept's Lymhurst Cape"));
-    expect(renderedTile.getAttribute('title')).not.toContain('Kept');
+    const renderedTile = tiles.find((tile) => tile.getAttribute('aria-label').includes("Adept's Lymhurst Cape"));
+    const secondTile = tiles.find((tile) => tile.getAttribute('aria-label').includes("Journeyman's Bag"));
+    expect(renderedTile).not.toHaveAttribute('title');
 
     fireEvent.mouseEnter(renderedTile);
     expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");

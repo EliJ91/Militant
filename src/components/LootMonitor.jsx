@@ -1273,7 +1273,7 @@ function LootItemTile({ tile }) {
         aria-describedby={hasCustodyTooltip && custodyTooltip.visible ? tooltipId : undefined}
         aria-label={label}
         className={`loot-item-tile ${tile.status}-tile ${hasCustodyTooltip ? 'has-custody-tooltip' : ''}`}
-        title={title}
+        title={hasCustodyTooltip ? undefined : title}
         onBlur={closeCustodyTooltip}
         onClick={toggleCustodyTooltip}
         onKeyDown={handleTileKeyDown}
