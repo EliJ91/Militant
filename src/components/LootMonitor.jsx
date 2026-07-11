@@ -1397,9 +1397,29 @@ function PlayerDeathControl({ deathCheck, isCheckLocked, isChecking, onCheck, sh
   );
 }
 
-function DeathCheckProgressModal({ completed, currentBatch, total, totalBatches }) {
+function DeathCheckProgressModal({
+  completed,
+  currentBatch,
+  found = 0,
+  notFound = 0,
+  status = 'checking',
+  total,
+  totalBatches,
+}) {
+  const isComplete = status === 'complete';
+
   return (
-    <div className="death-check-modal-backdrop">
+    <div
+      className="death-check-modal-backdrop"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
       <section
         aria-label="Checking deaths"
         aria-live="assertive"
@@ -1408,10 +1428,22 @@ function DeathCheckProgressModal({ completed, currentBatch, total, totalBatches 
         role="dialog"
       >
         <p className="eyebrow">Death Checks</p>
-        <h2>Checking Deaths</h2>
-        <p>Checking {formatNumber(completed)} of {formatNumber(total)} visible players.</p>
+        <h2>{isComplete ? 'Death Checks Complete' : 'Checking Deaths'}</h2>
+        {isComplete ? (
+          <p>
+            Found {formatNumber(found)}.
+            {' '}
+            Not found {formatNumber(notFound)}.
+          </p>
+        ) : (
+          <p>Checking {formatNumber(completed)} of {formatNumber(total)} visible players.</p>
+        )}
         <progress max={total} value={completed} />
-        <small>Batch {formatNumber(currentBatch)} of {formatNumber(totalBatches)}</small>
+        <small>
+          {isComplete
+            ? 'Closing...'
+            : `Batch ${formatNumber(currentBatch)} of ${formatNumber(totalBatches)}`}
+        </small>
       </section>
     </div>
   );
@@ -2546,7 +2578,17 @@ export default function LootMonitor({
 
     const totalBatches = Math.ceil(targets.length / 10);
     const errors = [];
-    setDeathCheckRun({ completed: 0, currentBatch: 1, total: targets.length, totalBatches });
+    let foundCount = 0;
+    let notFoundCount = 0;
+    setDeathCheckRun({
+      completed: 0,
+      currentBatch: 1,
+      found: 0,
+      notFound: 0,
+      status: 'checking',
+      total: targets.length,
+      totalBatches,
+    });
 
     for (let start = 0; start < targets.length; start += 10) {
       const batch = targets.slice(start, start + 10);
@@ -2554,6 +2596,9 @@ export default function LootMonitor({
       setDeathCheckRun({
         completed: start,
         currentBatch,
+        found: foundCount,
+        notFound: notFoundCount,
+        status: 'checking',
         total: targets.length,
         totalBatches,
       });
@@ -2597,6 +2642,14 @@ export default function LootMonitor({
         const errorKeys = new Set(batchErrors.map((error) => String(error.playerKey || '').toLowerCase()));
         errors.push(...batchErrors);
         applyDeathChecks(deathChecks);
+        const checkedKeys = new Set(deathChecks.map((deathCheck) => String(
+          deathCheck.playerKey || deathCheck.player || deathCheck.playerName || '',
+        ).toLowerCase()));
+        foundCount += deathChecks.filter((deathCheck) => deathCheck.status === 'found').length;
+        notFoundCount += deathChecks.filter((deathCheck) => deathCheck.status !== 'found').length;
+        notFoundCount += batch.filter((target) => (
+          errorKeys.has(target.playerKey) || !checkedKeys.has(target.playerKey)
+        )).length;
         setDeathCheckStatus((current) => ({
           ...current,
           ...Object.fromEntries(batch.map((target) => [
@@ -2612,7 +2665,12 @@ export default function LootMonitor({
           players: batch.map(({ player, playerKey }) => ({ player, playerKey })),
           totalBatches,
         });
-        errors.push({ message: error.message || 'Could not check the player death log.' });
+        errors.push(...batch.map((target) => ({
+          message: error.message || 'Could not check the player death log.',
+          player: target.player,
+          playerKey: target.playerKey,
+        })));
+        notFoundCount += batch.length;
         setDeathCheckStatus((current) => ({
           ...current,
           ...Object.fromEntries(batch.map((target) => [target.playerKey, 'error'])),
@@ -2622,12 +2680,26 @@ export default function LootMonitor({
       setDeathCheckRun({
         completed: start + batch.length,
         currentBatch,
+        found: foundCount,
+        notFound: notFoundCount,
+        status: 'checking',
         total: targets.length,
         totalBatches,
       });
     }
 
-    setDeathCheckRun(null);
+    setDeathCheckRun({
+      completed: targets.length,
+      currentBatch: totalBatches,
+      found: foundCount,
+      notFound: notFoundCount,
+      status: 'complete',
+      total: targets.length,
+      totalBatches,
+    });
+    window.setTimeout(() => {
+      setDeathCheckRun((current) => (current?.status === 'complete' ? null : current));
+    }, 1000);
     if (errors.length > 0) {
       setMarketPriceError(`Could not complete death checks for ${formatNumber(errors.length)} player${errors.length === 1 ? '' : 's'}.`);
     }

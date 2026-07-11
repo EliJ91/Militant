@@ -447,12 +447,17 @@ describe('LootMonitor', () => {
     resolveBatch({
       deathChecks: [
         { playerName: 'Kaelys', status: 'not_found' },
-        { playerName: 'Windyyyzz', status: 'not_found' },
+        { playerName: 'Windyyyzz', status: 'found' },
       ],
       errors: [],
     });
 
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Checking deaths' })).not.toBeInTheDocument());
+    expect(await screen.findByText('Death Checks Complete')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Found 1. Not found 1.');
+    await waitFor(
+      () => expect(screen.queryByRole('dialog', { name: 'Checking deaths' })).not.toBeInTheDocument(),
+      { timeout: 2500 },
+    );
   });
 
   it('continues visible death checks with the next batch after ten players', async () => {
@@ -491,9 +496,17 @@ describe('LootMonitor', () => {
     expect(checkLootLogDeaths.mock.calls[1][0].checks).toHaveLength(1);
     expect(screen.getByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Batch 2 of 2');
 
-    resolveSecondBatch({ deathChecks: [], errors: [] });
+    resolveSecondBatch({
+      deathChecks: [{ playerName: 'Tracker11', status: 'found' }],
+      errors: [],
+    });
 
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Checking deaths' })).not.toBeInTheDocument());
+    expect(await screen.findByText('Death Checks Complete')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Found 1. Not found 10.');
+    await waitFor(
+      () => expect(screen.queryByRole('dialog', { name: 'Checking deaths' })).not.toBeInTheDocument(),
+      { timeout: 2500 },
+    );
   });
 
   it('keeps custody tooltips inside the viewport', async () => {
