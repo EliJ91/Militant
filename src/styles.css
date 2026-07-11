@@ -2588,7 +2588,19 @@ button:focus-visible {
 .death-link {
   display: inline-flex;
   align-items: center;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #f43f5e;
   text-decoration: none;
+}
+
+.death-link:hover:not(:disabled) {
+  background: transparent;
+  color: #f43f5e;
+  text-decoration: underline;
 }
 
 .player-death-result {
@@ -3763,6 +3775,11 @@ button:focus-visible {
     min-height: 28px;
     padding: 5px 8px;
     font-size: 0.62rem;
+  }
+
+  .death-link {
+    min-height: 0;
+    padding: 0;
   }
 
   .loot-item-grid {
