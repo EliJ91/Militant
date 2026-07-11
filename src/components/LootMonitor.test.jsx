@@ -366,7 +366,7 @@ describe('LootMonitor', () => {
 
     expect(await screen.findByText('Windyyyzz')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Check Death' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Check Visible Deaths' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check Deaths' })).not.toBeInTheDocument();
   });
 
   it('checks all visible deaths in a blocking batch', async () => {
@@ -395,7 +395,7 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Check Visible Deaths' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Check Deaths' }));
 
     expect(await screen.findByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Checking 0 of 2 visible players.');
     expect(checkLootLogDeaths).toHaveBeenCalledWith({
@@ -459,7 +459,7 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Check Visible Deaths' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Check Deaths' }));
     await waitFor(() => expect(checkLootLogDeaths).toHaveBeenCalledTimes(1));
     expect(checkLootLogDeaths.mock.calls[0][0].checks).toHaveLength(10);
 

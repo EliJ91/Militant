@@ -2207,12 +2207,14 @@ button:focus-visible {
 }
 
 .death-check-visible-button {
-  border-color: rgba(56, 189, 248, 0.58);
-  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(255, 209, 42, 0.68);
+  background: rgba(255, 209, 42, 0.12);
+  color: #fff1a6;
 }
 
 .death-check-visible-button:hover:not(:disabled) {
-  background: #38bdf8;
+  background: #ffd12a;
+  color: var(--black);
 }
 
 .screenshot-status {

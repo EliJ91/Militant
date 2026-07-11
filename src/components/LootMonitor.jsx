@@ -2795,7 +2795,7 @@ export default function LootMonitor({
                 type="button"
                 onClick={checkVisibleDeaths}
               >
-                Check Visible Deaths
+                Check Deaths
               </button>
             ) : null}
             <button
