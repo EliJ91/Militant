@@ -14,8 +14,6 @@ import {
 import packageJson from '../package.json';
 
 const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
-const AUTH_STORAGE_KEY = 'militant.authenticated';
-const APP_PASSWORD = 'militant#1';
 const APP_VERSION = packageJson.version;
 
 function getRoute() {
@@ -64,11 +62,8 @@ function VersionFooter() {
 }
 
 function LandingPage({
-  hasPasswordAccess = false,
   isAuthenticated = false,
-  isDiscordAuthenticated = false,
   onDiscordLogin = () => {},
-  onPasswordLogin = () => {},
 }) {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -80,34 +75,19 @@ function LandingPage({
     }
 
     setLoginError('');
-    if (!isDiscordAuthenticated) {
-      setIsLoggingIn(true);
-      try {
-        await onDiscordLogin();
-      } catch (error) {
-        setLoginError(error.message || 'Could not start Discord login.');
-      } finally {
-        setIsLoggingIn(false);
-      }
-      return;
-    }
-
-    if (!hasPasswordAccess) {
-      const password = window.prompt('Enter password');
-      if (password === APP_PASSWORD) {
-        onPasswordLogin();
-        navigateTo('#dashboard');
-      } else if (password !== null) {
-        setLoginError('Incorrect password.');
-      }
+    setIsLoggingIn(true);
+    try {
+      await onDiscordLogin();
+    } catch (error) {
+      setLoginError(error.message || 'Could not start Discord login.');
+    } finally {
+      setIsLoggingIn(false);
     }
   }
 
   const buttonLabel = isLoggingIn
     ? 'Opening Discord...'
-    : isDiscordAuthenticated && !hasPasswordAccess
-      ? 'Enter Password'
-      : 'Login with Discord';
+    : 'Login with Discord';
 
   return (
     <main
@@ -267,11 +247,8 @@ function MembersPage({ onSignOut = () => {} }) {
 export default function App() {
   const [route, setRoute] = useState(getRoute);
   const [isDiscordAuthenticated, setIsDiscordAuthenticated] = useState(false);
-  const [hasPasswordAccess, setHasPasswordAccess] = useState(() => (
-    window.localStorage.getItem(AUTH_STORAGE_KEY) === 'true'
-  ));
   const [selectedBundleId, setSelectedBundleId] = useState('');
-  const isAuthenticated = isDiscordAuthenticated && hasPasswordAccess;
+  const isAuthenticated = isDiscordAuthenticated;
 
   useEffect(() => {
     const updateRoute = () => {
@@ -296,12 +273,14 @@ export default function App() {
       if (cancelled) return;
       const discordAuthenticated = Boolean(session);
       setIsDiscordAuthenticated(discordAuthenticated);
-      if (!discordAuthenticated || !hasPasswordAccess) return;
+      if (!discordAuthenticated) return;
 
       const pendingRoute = getPendingAuthRoute();
       clearPendingAuthRoute();
       if (pendingRoute) {
         navigateTo(pendingRoute);
+      } else if (getRoute() === 'landing') {
+        navigateTo('#dashboard');
       }
     }
 
@@ -340,15 +319,8 @@ export default function App() {
     await signInWithDiscord('#dashboard');
   }
 
-  function handlePasswordLogin() {
-    window.localStorage.setItem(AUTH_STORAGE_KEY, 'true');
-    setHasPasswordAccess(true);
-  }
-
   async function handleSignOut() {
     await signOutOfDiscord();
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    setHasPasswordAccess(false);
     setIsDiscordAuthenticated(false);
     navigateTo('#');
   }
@@ -366,11 +338,8 @@ export default function App() {
   } else if (!isAuthenticated && route !== 'landing') {
     page = (
       <LandingPage
-        hasPasswordAccess={hasPasswordAccess}
         isAuthenticated={isAuthenticated}
-        isDiscordAuthenticated={isDiscordAuthenticated}
         onDiscordLogin={handleDiscordLogin}
-        onPasswordLogin={handlePasswordLogin}
       />
     );
   } else if (route === 'dashboard') {
@@ -389,11 +358,8 @@ export default function App() {
   } else {
     page = (
       <LandingPage
-        hasPasswordAccess={hasPasswordAccess}
         isAuthenticated={isAuthenticated}
-        isDiscordAuthenticated={isDiscordAuthenticated}
         onDiscordLogin={handleDiscordLogin}
-        onPasswordLogin={handlePasswordLogin}
       />
     );
   }

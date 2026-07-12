@@ -56,7 +56,7 @@ describe('App', () => {
 
   afterEach(cleanup);
 
-  it('starts Discord login and keeps the password gate before opening the dashboard', async () => {
+  it('starts Discord login before opening the dashboard', async () => {
     const { container } = render(<App />);
 
     expect(screen.queryByText('Member Access')).not.toBeInTheDocument();
@@ -68,13 +68,8 @@ describe('App', () => {
       authStateCallback({ user: { id: 'discord-user' } });
     });
 
-    expect(screen.queryByRole('heading', { name: /dashboard/i })).not.toBeInTheDocument();
-    vi.spyOn(window, 'prompt').mockReturnValue('militant#1');
-    fireEvent.click(screen.getByRole('button', { name: /enter password/i }));
-
     expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
     expect(window.location.hash).toBe('#dashboard');
-    expect(window.localStorage.getItem('militant.authenticated')).toBe('true');
     expect(screen.getByText('Browse uploaded CTA loot and chest logs.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /open tool/i })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
@@ -97,7 +92,6 @@ describe('App', () => {
 
   it('opens the Siphoned Energy Tracker from the dashboard', async () => {
     getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
-    window.localStorage.setItem('militant.authenticated', 'true');
     window.location.hash = '#dashboard';
     const { container } = render(<App />);
 
@@ -112,7 +106,6 @@ describe('App', () => {
 
   it('opens Members from the dashboard', async () => {
     getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
-    window.localStorage.setItem('militant.authenticated', 'true');
     window.location.hash = '#dashboard';
     const { container } = render(<App />);
 
@@ -137,7 +130,6 @@ describe('App', () => {
 
   it('does not restore a previously selected loot log after a refresh', async () => {
     getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
-    window.localStorage.setItem('militant.authenticated', 'true');
     window.sessionStorage.setItem('militant.selectedLootLogBundle', 'stale-bundle');
     window.localStorage.setItem('militant.lootMonitor.filters.v3', JSON.stringify({
       sortDirection: 'asc',
@@ -152,7 +144,7 @@ describe('App', () => {
     expect(window.localStorage.getItem('militant.lootMonitor.filters.v3')).toContain('tier4');
   });
 
-  it('keeps protected routes behind Discord login and password access', async () => {
+  it('keeps protected routes behind Discord login', async () => {
     window.location.hash = '#dashboard';
 
     render(<App />);
@@ -163,11 +155,7 @@ describe('App', () => {
     await act(async () => {
       authStateCallback({ user: { id: 'discord-user' } });
     });
-    expect(screen.queryByRole('heading', { name: /dashboard/i })).not.toBeInTheDocument();
-    vi.spyOn(window, 'prompt').mockReturnValue('wrong');
-    fireEvent.click(screen.getByRole('button', { name: /enter password/i }));
-    expect(screen.getByText('Incorrect password.')).toBeInTheDocument();
-    expect(window.localStorage.getItem('militant.authenticated')).toBeNull();
+    expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
   });
 
   it('opens shared loot logs without login or topbar navigation', async () => {
