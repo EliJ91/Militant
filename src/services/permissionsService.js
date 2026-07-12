@@ -1,5 +1,7 @@
 export const PERMISSIONS_STORAGE_KEY = 'militant.discord.permissions.v1';
 
+export const WEBAPP_ADMIN_DISCORD_USER_IDS = ['264193431830528006'];
+
 export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'viewLogs', label: 'View Logs', area: 'Loot Logs' },
   { key: 'viewLootLog', label: 'View A Loot Log', area: 'Loot Logs' },
@@ -17,13 +19,11 @@ const DEFAULT_ROLE_TEMPLATES = [
   {
     id: 'admin',
     name: 'Admin',
-    roleId: '',
     permissions: Object.fromEntries(WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [permission.key, true])),
   },
   {
     id: 'member',
     name: 'Member',
-    roleId: '',
     permissions: {
       viewLogs: true,
       viewLootLog: true,
@@ -35,7 +35,6 @@ const DEFAULT_ROLE_TEMPLATES = [
 
 export function createDefaultPermissionSettings() {
   return {
-    guildId: '',
     roles: DEFAULT_ROLE_TEMPLATES.map(normalizeRolePermissions),
     updatedAt: null,
   };
@@ -64,7 +63,6 @@ export function createRolePermissionRow() {
   return normalizeRolePermissions({
     id: globalThis.crypto?.randomUUID?.() || `role-${Date.now()}`,
     name: 'New Role',
-    roleId: '',
     permissions: {},
   });
 }
@@ -74,7 +72,7 @@ export function resolvePermissionsForRoleIds(settings, roleIds = []) {
   const assignedRoleIds = new Set(roleIds.map((roleId) => String(roleId)));
 
   return normalized.roles.reduce((resolved, role) => {
-    if (!role.roleId || !assignedRoleIds.has(role.roleId)) return resolved;
+    if (!assignedRoleIds.has(role.id)) return resolved;
     WEBAPP_PERMISSION_DEFINITIONS.forEach((permission) => {
       resolved[permission.key] = Boolean(resolved[permission.key] || role.permissions[permission.key]);
     });
@@ -82,9 +80,16 @@ export function resolvePermissionsForRoleIds(settings, roleIds = []) {
   }, Object.fromEntries(WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [permission.key, false])));
 }
 
+export function resolvePermissionsForDiscordUser(settings, user = {}) {
+  const discordUserId = String(user.discordUserId || user.id || '');
+  if (WEBAPP_ADMIN_DISCORD_USER_IDS.includes(discordUserId)) {
+    return Object.fromEntries(WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [permission.key, true]));
+  }
+  return resolvePermissionsForRoleIds(settings, user.roleIds || []);
+}
+
 function normalizePermissionSettings(settings) {
   return {
-    guildId: String(settings?.guildId || ''),
     roles: Array.isArray(settings?.roles)
       ? settings.roles.map(normalizeRolePermissions)
       : createDefaultPermissionSettings().roles,
@@ -97,7 +102,6 @@ function normalizeRolePermissions(role) {
   return {
     id: String(role?.id || globalThis.crypto?.randomUUID?.() || `role-${Date.now()}`),
     name: String(role?.name || 'Discord Role'),
-    roleId: String(role?.roleId || ''),
     permissions: Object.fromEntries(
       WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [
         permission.key,

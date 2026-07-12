@@ -580,11 +580,10 @@ button:focus-visible {
 .permissions-config-grid {
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(320px, 1.4fr) minmax(180px, 0.8fr) minmax(240px, 1fr);
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
   margin-top: 18px;
 }
 
-.permissions-field,
 .permissions-summary-card {
   display: grid;
   align-content: center;
@@ -596,7 +595,6 @@ button:focus-visible {
   background: linear-gradient(135deg, rgba(9, 28, 14, 0.92), rgba(3, 8, 5, 0.9));
 }
 
-.permissions-field span,
 .permissions-summary-card span {
   color: var(--muted);
   font-size: 0.72rem;
@@ -604,7 +602,6 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
-.permissions-field input,
 .permissions-role-input {
   min-height: 38px;
   width: 100%;
@@ -616,7 +613,6 @@ button:focus-visible {
   font-weight: 900;
 }
 
-.permissions-field input:focus,
 .permissions-role-input:focus {
   outline: 2px solid var(--green-hot);
   outline-offset: 2px;
@@ -624,8 +620,9 @@ button:focus-visible {
 
 .permissions-summary-card strong {
   color: var(--white);
-  font-size: 1.24rem;
+  font-size: clamp(0.92rem, 1.4vw, 1.24rem);
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .permissions-toast {
@@ -659,7 +656,7 @@ button:focus-visible {
 
 .permissions-table {
   width: 100%;
-  min-width: 1320px;
+  min-width: 920px;
   border-collapse: collapse;
 }
 
@@ -688,13 +685,27 @@ button:focus-visible {
   text-align: left;
 }
 
-.permissions-role-input {
-  min-width: 160px;
+.permissions-name-column {
+  min-width: 230px;
 }
 
-.permissions-role-id-input {
-  min-width: 220px;
+.permissions-area-column {
+  width: 170px;
   color: var(--muted);
+}
+
+.permissions-role-column {
+  min-width: 168px;
+}
+
+.permissions-role-heading {
+  display: grid;
+  gap: 8px;
+  justify-items: stretch;
+}
+
+.permissions-role-input {
+  min-width: 160px;
 }
 
 .permissions-toggle {

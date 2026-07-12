@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   createRolePermissionRow,
   loadPermissionSettings,
   savePermissionSettings,
+  WEBAPP_ADMIN_DISCORD_USER_IDS,
   WEBAPP_PERMISSION_DEFINITIONS,
 } from '../services/permissionsService';
 
@@ -23,21 +24,6 @@ function formatSavedAt(value) {
 export default function PermissionsTool() {
   const [settings, setSettings] = useState(loadPermissionSettings);
   const [saveStatus, setSaveStatus] = useState('');
-
-  const permissionGroups = useMemo(() => WEBAPP_PERMISSION_DEFINITIONS.reduce((groups, permission) => {
-    const group = groups.find((entry) => entry.area === permission.area);
-    if (group) {
-      group.permissions.push(permission);
-    } else {
-      groups.push({ area: permission.area, permissions: [permission] });
-    }
-    return groups;
-  }, []), []);
-
-  function updateGuildId(guildId) {
-    setSettings((current) => ({ ...current, guildId }));
-    setSaveStatus('');
-  }
 
   function updateRole(roleId, updates) {
     setSettings((current) => ({
@@ -102,18 +88,17 @@ export default function PermissionsTool() {
       </section>
 
       <section className="permissions-config-grid" aria-label="Discord permission setup">
-        <label className="permissions-field">
-          <span>Discord Server ID</span>
-          <input
-            placeholder="Add server ID later"
-            type="text"
-            value={settings.guildId}
-            onChange={(event) => updateGuildId(event.target.value)}
-          />
-        </label>
         <div className="permissions-summary-card">
           <span>Configured Roles</span>
           <strong>{settings.roles.length}</strong>
+        </div>
+        <div className="permissions-summary-card">
+          <span>Permission Controls</span>
+          <strong>{WEBAPP_PERMISSION_DEFINITIONS.length}</strong>
+        </div>
+        <div className="permissions-summary-card">
+          <span>Full Control Admin</span>
+          <strong>{WEBAPP_ADMIN_DISCORD_USER_IDS[0]}</strong>
         </div>
         <div className="permissions-summary-card">
           <span>Last Saved</span>
@@ -138,50 +123,33 @@ export default function PermissionsTool() {
           <table className="permissions-table">
             <thead>
               <tr>
-                <th scope="col">Role</th>
-                <th scope="col">Role ID</th>
-                {permissionGroups.map((group) => (
-                  <th colSpan={group.permissions.length} key={group.area} scope="colgroup">
-                    {group.area}
+                <th className="permissions-name-column" scope="col">Permission</th>
+                <th className="permissions-area-column" scope="col">Area</th>
+                {settings.roles.map((role) => (
+                  <th className="permissions-role-column" key={role.id} scope="col">
+                    <div className="permissions-role-heading">
+                      <input
+                        aria-label={`${role.name} role name`}
+                        className="permissions-role-input"
+                        type="text"
+                        value={role.name}
+                        onChange={(event) => updateRole(role.id, { name: event.target.value })}
+                      />
+                      <button className="permissions-remove-role" type="button" onClick={() => removeRole(role.id)}>
+                        Remove
+                      </button>
+                    </div>
                   </th>
                 ))}
-                <th scope="col">Actions</th>
-              </tr>
-              <tr>
-                <th aria-label="Role name" />
-                <th aria-label="Discord role ID" />
-                {permissionGroups.flatMap((group) => group.permissions.map((permission) => (
-                  <th key={permission.key} scope="col">
-                    {permission.label}
-                  </th>
-                )))}
-                <th aria-label="Role actions" />
               </tr>
             </thead>
             <tbody>
-              {settings.roles.map((role) => (
-                <tr key={role.id}>
-                  <td>
-                    <input
-                      aria-label={`${role.name} role name`}
-                      className="permissions-role-input"
-                      type="text"
-                      value={role.name}
-                      onChange={(event) => updateRole(role.id, { name: event.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      aria-label={`${role.name} role id`}
-                      className="permissions-role-input permissions-role-id-input"
-                      placeholder="Role ID later"
-                      type="text"
-                      value={role.roleId}
-                      onChange={(event) => updateRole(role.id, { roleId: event.target.value })}
-                    />
-                  </td>
-                  {WEBAPP_PERMISSION_DEFINITIONS.map((permission) => (
-                    <td key={permission.key}>
+              {WEBAPP_PERMISSION_DEFINITIONS.map((permission) => (
+                <tr key={permission.key}>
+                  <th className="permissions-name-column" scope="row">{permission.label}</th>
+                  <td className="permissions-area-column">{permission.area}</td>
+                  {settings.roles.map((role) => (
+                    <td key={role.id}>
                       <button
                         aria-pressed={role.permissions[permission.key]}
                         className={role.permissions[permission.key] ? 'permissions-toggle enabled' : 'permissions-toggle'}
@@ -193,11 +161,6 @@ export default function PermissionsTool() {
                       </button>
                     </td>
                   ))}
-                  <td>
-                    <button className="permissions-remove-role" type="button" onClick={() => removeRole(role.id)}>
-                      Remove
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
