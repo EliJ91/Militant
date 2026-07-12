@@ -3,6 +3,7 @@ export const PERMISSIONS_STORAGE_KEY = 'militant.discord.permissions.v1';
 export const WEBAPP_ADMIN_DISCORD_USER_IDS = ['264193431830528006'];
 
 export const WEBAPP_PERMISSION_DEFINITIONS = [
+  { key: 'changePermissions', label: 'Change Permissions', area: 'Admin' },
   { key: 'viewLogs', label: 'View Logs', area: 'Loot Logs' },
   { key: 'viewLootLog', label: 'View A Loot Log', area: 'Loot Logs' },
   { key: 'uploadLootLogs', label: 'Upload Loot Logs', area: 'Loot Logs' },

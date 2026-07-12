@@ -23,14 +23,6 @@ export default function PermissionsTool() {
     setSaveStatus('Permissions saved');
   }, [settings]);
 
-  function updateRole(roleId, updates) {
-    setSettings((current) => ({
-      ...current,
-      roles: current.roles.map((role) => (role.id === roleId ? { ...role, ...updates } : role)),
-    }));
-    setSaveStatus('');
-  }
-
   function togglePermission(roleId, permissionKey) {
     setSettings((current) => ({
       ...current,
@@ -65,14 +57,6 @@ export default function PermissionsTool() {
     } catch (error) {
       setSaveStatus(error.message || 'Role ID required');
     }
-  }
-
-  function removeRole(roleId) {
-    setSettings((current) => ({
-      ...current,
-      roles: current.roles.filter((role) => role.id !== roleId),
-    }));
-    setSaveStatus('');
   }
 
   return (
@@ -122,19 +106,7 @@ export default function PermissionsTool() {
                 <th className="permissions-name-column" scope="col">Permission</th>
                 {settings.roles.map((role) => (
                   <th className="permissions-role-column" key={role.id} scope="col">
-                    <div className="permissions-role-heading">
-                      <input
-                        aria-label={`${role.name} role name`}
-                        className="permissions-role-input"
-                        type="text"
-                        value={role.name}
-                        onChange={(event) => updateRole(role.id, { name: event.target.value })}
-                      />
-                      <span className="permissions-role-id">ID {role.roleId}</span>
-                      <button className="permissions-remove-role" type="button" onClick={() => removeRole(role.id)}>
-                        Remove
-                      </button>
-                    </div>
+                    <span className="permissions-role-name">{role.name}</span>
                   </th>
                 ))}
               </tr>

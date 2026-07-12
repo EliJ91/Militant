@@ -730,24 +730,18 @@ button:focus-visible {
   width: 154px;
 }
 
-.permissions-role-heading {
-  display: grid;
-  gap: 6px;
-  justify-items: stretch;
-}
-
 .permissions-role-input {
   min-width: 0;
 }
 
-.permissions-role-id {
+.permissions-role-name {
   display: block;
   overflow: hidden;
-  padding: 0 2px;
-  color: var(--muted);
-  font-size: 0.68rem;
+  color: var(--white);
+  font-size: 0.78rem;
+  font-weight: 900;
   text-overflow: ellipsis;
-  text-transform: none;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -756,19 +750,6 @@ button:focus-visible {
   height: 20px;
   accent-color: var(--green-hot);
   cursor: pointer;
-}
-
-.permissions-remove-role {
-  min-height: 32px;
-  padding: 6px 10px;
-  border: 1px solid rgba(255, 84, 103, 0.6);
-  border-radius: 7px;
-  background: rgba(255, 84, 103, 0.12);
-  color: #ff7d8d;
-  cursor: pointer;
-  font-size: 0.68rem;
-  font-weight: 900;
-  text-transform: uppercase;
 }
 
 .loot-monitor-shell {

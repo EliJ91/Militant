@@ -22,6 +22,7 @@ describe('PermissionsTool', () => {
     expect(screen.queryByLabelText('Discord permission setup')).not.toBeInTheDocument();
     expect(screen.queryByText('Discord Server ID')).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText('Role ID later')).not.toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'Change Permissions' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'View Logs' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Update Siphoned Energy Tracker' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Area' })).not.toBeInTheDocument();
@@ -35,6 +36,10 @@ describe('PermissionsTool', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Add Role' }));
 
+    expect(screen.getByRole('columnheader', { name: 'CTA Lead' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('CTA Lead role name')).not.toBeInTheDocument();
+    expect(screen.queryByText('ID role-123')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
     const uploadLootLogsRow = screen.getByRole('row', { name: /Upload Loot Logs/i });
     fireEvent.click(within(uploadLootLogsRow).getByLabelText('Upload Loot Logs for CTA Lead'));
 
