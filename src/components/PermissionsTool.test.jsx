@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PERMISSIONS_STORAGE_KEY,
   resolvePermissionsForDiscordUser,
@@ -7,16 +7,33 @@ import {
   WEBAPP_PERMISSION_DEFINITIONS,
 } from '../services/permissionsService';
 import PermissionsTool from './PermissionsTool';
+import {
+  fetchPermissionSettings,
+  updatePermissionSettings,
+} from '../services/permissionsApi';
+
+vi.mock('../services/permissionsApi', () => ({
+  fetchPermissionSettings: vi.fn(),
+  updatePermissionSettings: vi.fn(),
+}));
+
+const adminUser = { id: WEBAPP_ADMIN_DISCORD_USER_IDS[0], roleIds: [] };
 
 describe('PermissionsTool', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     window.localStorage.clear();
+    fetchPermissionSettings.mockResolvedValue({ settings: { roles: [] }, updatedAt: '2026-07-12T00:00:00.000Z' });
+    updatePermissionSettings.mockImplementation((settings) => Promise.resolve({
+      settings,
+      updatedAt: '2026-07-12T00:01:00.000Z',
+    }));
   });
 
   afterEach(cleanup);
 
   it('renders role permission infrastructure and saves changes', async () => {
-    render(<PermissionsTool />);
+    render(<PermissionsTool currentUser={adminUser} />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Permissions' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Discord permission setup')).not.toBeInTheDocument();
@@ -44,6 +61,7 @@ describe('PermissionsTool', () => {
     fireEvent.click(within(uploadLootLogsRow).getByLabelText('Upload Loot Logs for CTA Lead'));
 
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Permissions saved'));
+    expect(updatePermissionSettings).toHaveBeenCalled();
     const saved = JSON.parse(window.localStorage.getItem(PERMISSIONS_STORAGE_KEY));
     expect(saved.guildId).toBeUndefined();
     expect(saved.roles.some((role) => role.name === 'CTA Lead' && role.roleId === 'role-123')).toBe(true);
@@ -51,7 +69,7 @@ describe('PermissionsTool', () => {
   });
 
   it('requires a Discord role ID before adding a role', () => {
-    render(<PermissionsTool />);
+    render(<PermissionsTool currentUser={adminUser} />);
 
     fireEvent.change(screen.getByLabelText('New role name'), {
       target: { value: 'CTA Lead' },
@@ -60,6 +78,41 @@ describe('PermissionsTool', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('A Discord role ID is required.');
     expect(screen.queryByLabelText('CTA Lead role name')).not.toBeInTheDocument();
+  });
+
+  it('lets Change Permissions users reorder, rename, and delete roles from the role menu', async () => {
+    fetchPermissionSettings.mockResolvedValue({
+      settings: {
+        roles: [
+          { id: 'officer-id', name: 'Officer', roleId: 'role-officer', permissions: { changePermissions: true } },
+          { id: 'soldier-id', name: 'Soldier', roleId: 'role-soldier', permissions: {} },
+        ],
+      },
+      updatedAt: '2026-07-12T00:00:00.000Z',
+    });
+
+    render(<PermissionsTool currentUser={adminUser} />);
+
+    expect(await screen.findByRole('columnheader', { name: 'Officer' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Soldier' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Left' }));
+
+    await waitFor(() => expect(updatePermissionSettings).toHaveBeenCalled());
+    expect(updatePermissionSettings.mock.calls.at(-1)[0].roles.map((role) => role.name)).toEqual(['Soldier', 'Officer']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Soldier' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Name' }));
+    fireEvent.change(screen.getByLabelText('Edit Soldier role name'), {
+      target: { value: 'Vanguard' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Name' }));
+
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Vanguard' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vanguard' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Role' }));
+
+    await waitFor(() => expect(screen.queryByRole('columnheader', { name: 'Vanguard' })).not.toBeInTheDocument());
   });
 
   it('gives the configured Discord admin user full control', () => {

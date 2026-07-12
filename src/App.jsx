@@ -348,7 +348,7 @@ function PermissionsPage({ currentUser = null, onSignOut = () => {} }) {
         ]}
         currentUser={currentUser}
       />
-      <PermissionsTool />
+      <PermissionsTool currentUser={currentUser} />
     </>
   );
 }

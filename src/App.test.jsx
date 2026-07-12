@@ -43,6 +43,11 @@ vi.mock('./services/siphonedEnergyApi', () => ({
   updateSiphonedEnergyTransactions: vi.fn(),
 }));
 
+vi.mock('./services/permissionsApi', () => ({
+  fetchPermissionSettings: vi.fn().mockResolvedValue({ settings: { roles: [] }, updatedAt: null }),
+  updatePermissionSettings: vi.fn().mockResolvedValue({ settings: { roles: [] }, updatedAt: null }),
+}));
+
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();

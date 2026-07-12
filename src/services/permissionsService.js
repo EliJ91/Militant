@@ -35,14 +35,27 @@ export function loadPermissionSettings() {
   }
 }
 
-export function savePermissionSettings(settings) {
+export function normalizePermissionSettings(settings) {
+  const roles = Array.isArray(settings?.roles)
+    ? settings.roles.map(normalizeRolePermissions).filter((role) => role.roleId)
+    : createDefaultPermissionSettings().roles;
+
+  return {
+    roles,
+    updatedAt: settings?.updatedAt || null,
+  };
+}
+
+export function cachePermissionSettings(settings) {
   const normalized = {
     ...normalizePermissionSettings(settings),
-    updatedAt: new Date().toISOString(),
+    updatedAt: settings?.updatedAt || new Date().toISOString(),
   };
   window.localStorage.setItem(PERMISSIONS_STORAGE_KEY, JSON.stringify(normalized));
   return normalized;
 }
+
+export const savePermissionSettings = cachePermissionSettings;
 
 export function createRolePermissionRow({ name = 'New Role', roleId = '' } = {}) {
   const normalizedRoleId = String(roleId || '').trim();
@@ -74,17 +87,6 @@ export function resolvePermissionsForDiscordUser(settings, user = {}) {
     return Object.fromEntries(WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [permission.key, true]));
   }
   return resolvePermissionsForRoleIds(settings, user.roleIds || []);
-}
-
-function normalizePermissionSettings(settings) {
-  const roles = Array.isArray(settings?.roles)
-    ? settings.roles.map(normalizeRolePermissions).filter((role) => role.roleId)
-    : createDefaultPermissionSettings().roles;
-
-  return {
-    roles,
-    updatedAt: settings?.updatedAt || null,
-  };
 }
 
 function normalizeRolePermissions(role) {

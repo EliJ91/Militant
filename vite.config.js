@@ -61,7 +61,7 @@ function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'DELETE,GET,PATCH,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'DELETE,GET,PATCH,POST,PUT,OPTIONS');
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(payload));
 }
@@ -245,6 +245,47 @@ function siphonedEnergyApi() {
   };
 }
 
+function permissionsApi() {
+  async function handlePermissions(req, res) {
+    if (req.method === 'OPTIONS') {
+      sendJson(res, 204, {});
+      return;
+    }
+
+    try {
+      const {
+        getPermissionSettings,
+        updatePermissionSettings,
+      } = await import('./src/server/supabasePermissions.js');
+
+      if (req.method === 'GET') {
+        sendJson(res, 200, await getPermissionSettings());
+        return;
+      }
+
+      if (req.method === 'PUT') {
+        const body = await readJsonBody(req);
+        sendJson(res, 200, await updatePermissionSettings(body.settings || body));
+        return;
+      }
+
+      sendJson(res, 405, { error: 'Method not allowed.' });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || 'Could not update permissions.' });
+    }
+  }
+
+  return {
+    name: 'permissions-api',
+    configureServer(server) {
+      server.middlewares.use('/api/permissions', handlePermissions);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use('/api/permissions', handlePermissions);
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   process.env.SUPABASE_URL ||= env.SUPABASE_URL || env.VITE_SUPABASE_URL;
@@ -252,7 +293,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',
-    plugins: [react(), albionItemProxy(), lootLogApi(), siphonedEnergyApi()],
+    plugins: [react(), albionItemProxy(), lootLogApi(), siphonedEnergyApi(), permissionsApi()],
     server: {
       host: '127.0.0.1',
       port: 5173,
