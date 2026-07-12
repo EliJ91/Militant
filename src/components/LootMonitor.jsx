@@ -20,6 +20,7 @@ import {
 import { warmItemImageCache } from '../utils/itemImageCache';
 
 const FILTER_STORAGE_KEY = 'militant.lootMonitor.filters.v3';
+const UPLOAD_INSTRUCTIONS_IMAGE_URL = `${import.meta.env.BASE_URL}assets/upload-loot-log-instructions.png`;
 const LEGACY_FILTER_STORAGE_KEY = 'militant.lootMonitor.filters.v2';
 const GUILDLESS_VALUE = '__guildless__';
 const NO_ALLIANCE_VALUE = '__no_alliance__';
@@ -1712,6 +1713,36 @@ function submitterNamesFromSubmissions(submissions = []) {
   return submissions.map((submission) => submission.submittedBy);
 }
 
+function UploadInstructionsModal({ onClose }) {
+  return (
+    <div className="upload-instructions-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        aria-labelledby="upload-instructions-title"
+        aria-modal="true"
+        className="upload-instructions-modal"
+        role="dialog"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="upload-instructions-heading">
+          <h2 id="upload-instructions-title">Upload Instructions</h2>
+          <button
+            aria-label="Close upload instructions"
+            className="raw-log-modal-close"
+            title="Close"
+            type="button"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+        <div className="upload-instructions-body">
+          <img src={UPLOAD_INSTRUCTIONS_IMAGE_URL} alt="Loot log upload instructions" />
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function LootLogBundleList({
   bundles,
   deletingBundleId,
@@ -1954,6 +1985,7 @@ export function LootLogArchive({ onView = () => {} }) {
   const [savedLogBundles, setSavedLogBundles] = useState([]);
   const [savedLogStatus, setSavedLogStatus] = useState({ message: '', state: 'loading' });
   const [lootUploadFiles, setLootUploadFiles] = useState([]);
+  const [lootUploadHelpOpen, setLootUploadHelpOpen] = useState(false);
   const [lootUploadModalOpen, setLootUploadModalOpen] = useState(false);
   const [lootUploadIgnoreTime, setLootUploadIgnoreTime] = useState(false);
   const [updatingBundleId, setUpdatingBundleId] = useState('');
@@ -2269,6 +2301,15 @@ export function LootLogArchive({ onView = () => {} }) {
         </div>
         <div className="loot-monitor-heading-actions">
           <button
+            aria-label="Open upload instructions"
+            className="view-logs-button view-logs-icon-button"
+            title="Upload instructions"
+            type="button"
+            onClick={() => setLootUploadHelpOpen(true)}
+          >
+            ?
+          </button>
+          <button
             aria-label="Upload log"
             className="view-logs-button"
             disabled={actionStatus.state === 'loading'}
@@ -2301,6 +2342,10 @@ export function LootLogArchive({ onView = () => {} }) {
       </section>
 
       <StatusToasts messages={[actionStatus]} />
+
+      {lootUploadHelpOpen ? (
+        <UploadInstructionsModal onClose={() => setLootUploadHelpOpen(false)} />
+      ) : null}
 
       {lootUploadModalOpen ? (
         <LootLogUploadDialog

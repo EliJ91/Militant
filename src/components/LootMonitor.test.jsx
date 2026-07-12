@@ -800,6 +800,7 @@ describe('LootMonitor', () => {
     expect(screen.queryByText(/18:33 UTC/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Loot Monitor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toHaveAttribute('title', 'Refresh logs');
+    expect(screen.getByRole('button', { name: 'Open upload instructions' })).toHaveAttribute('title', 'Upload instructions');
     expect(screen.getByText('Loot Log Uploaded by')).toBeInTheDocument();
     expect(screen.getByText('Chest Log Uploaded by')).toBeInTheDocument();
     const stats = container.querySelector('.saved-log-totals');
@@ -816,6 +817,15 @@ describe('LootMonitor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'View' }));
     expect(onView).toHaveBeenCalledWith('bundle-18');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open upload instructions' }));
+    const instructionsDialog = screen.getByRole('dialog', { name: 'Upload Instructions' });
+    expect(within(instructionsDialog).getByRole('img', { name: 'Loot log upload instructions' })).toHaveAttribute(
+      'src',
+      '/assets/upload-loot-log-instructions.png',
+    );
+    fireEvent.click(within(instructionsDialog).getByRole('button', { name: 'Close upload instructions' }));
+    expect(screen.queryByRole('dialog', { name: 'Upload Instructions' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /upload log/i }));
     let uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });

@@ -960,6 +960,59 @@ button:focus-visible {
   letter-spacing: 0;
 }
 
+.upload-instructions-modal-backdrop {
+  position: fixed;
+  z-index: 1050;
+  inset: 0;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding: 18px;
+  background: rgba(2, 4, 3, 0.84);
+  backdrop-filter: blur(4px);
+}
+
+.upload-instructions-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(760px, 100%);
+  max-height: calc(100vh - 36px);
+  border: 1px solid rgba(87, 216, 120, 0.42);
+  border-radius: 8px;
+  background: #020403;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.72);
+  overflow: hidden;
+}
+
+.upload-instructions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.12);
+}
+
+.upload-instructions-heading h2 {
+  margin: 0;
+  color: var(--white);
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.upload-instructions-body {
+  min-height: 0;
+  overflow: auto;
+  background: #000;
+}
+
+.upload-instructions-body img {
+  display: block;
+  width: min(100%, 760px);
+  height: auto;
+  margin: 0 auto;
+}
+
 .loot-upload-dropzone {
   display: grid;
   gap: 10px;
