@@ -1914,10 +1914,6 @@ button:focus-visible {
   padding-left: 0;
 }
 
-.saved-log-actions {
-  padding-inline: 14px 0;
-}
-
 .saved-log-time,
 .saved-log-users,
 .saved-log-submitters,
@@ -2312,10 +2308,12 @@ button:focus-visible {
 
 .saved-log-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(92px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   align-self: center;
-  justify-content: stretch;
+  align-content: center;
+  justify-content: center;
+  justify-items: stretch;
 }
 
 .saved-log-actions.editing {
