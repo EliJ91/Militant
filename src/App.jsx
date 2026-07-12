@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import MembersTool from './components/MembersTool';
+import PermissionsTool from './components/PermissionsTool';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
 import {
   clearPendingAuthRoute,
@@ -24,6 +25,7 @@ function getRoute() {
   if (route === 'shared-log' || route.startsWith('shared-log/')) return 'shared-log';
   if (route === 'siphoned-energy') return 'siphoned-energy';
   if (route === 'members') return 'members';
+  if (route === 'permissions') return 'permissions';
   return route === 'dashboard' ? 'dashboard' : 'landing';
 }
 
@@ -149,6 +151,11 @@ function DashboardPage({ onSignOut = () => {} }) {
             <h2>Members</h2>
             <p>View current Militant guild members and fame totals.</p>
           </button>
+          <button className="tool-card tool-card-button" title="Manage permissions" type="button" onClick={() => navigateTo('#permissions')}>
+            <span className="tool-card-kicker">Admin</span>
+            <h2>Permissions</h2>
+            <p>Map Discord roles to webapp access controls.</p>
+          </button>
         </section>
       </main>
     </>
@@ -244,6 +251,25 @@ function MembersPage({ onSignOut = () => {} }) {
   );
 }
 
+function PermissionsPage({ onSignOut = () => {} }) {
+  return (
+    <>
+      <header className="topbar">
+        <BrandLockup compact />
+        <div className="topbar-actions">
+          <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
+            Dashboard
+          </button>
+          <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
+            Sign Out
+          </button>
+        </div>
+      </header>
+      <PermissionsTool />
+    </>
+  );
+}
+
 export default function App() {
   const [route, setRoute] = useState(getRoute);
   const [isDiscordAuthenticated, setIsDiscordAuthenticated] = useState(false);
@@ -300,6 +326,7 @@ export default function App() {
       : route === 'loot-monitor' || route === 'shared-log' ? 'View Loot Log'
       : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
       : route === 'members' ? 'Members'
+      : route === 'permissions' ? 'Permissions'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);
@@ -346,6 +373,8 @@ export default function App() {
     page = <DashboardPage onSignOut={handleSignOut} />;
   } else if (route === 'members') {
     page = <MembersPage onSignOut={handleSignOut} />;
+  } else if (route === 'permissions') {
+    page = <PermissionsPage onSignOut={handleSignOut} />;
   } else if (route === 'loot-logs') {
     page = (
       <LootLogsPage

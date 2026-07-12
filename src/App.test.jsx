@@ -76,6 +76,8 @@ describe('App', () => {
     expect(screen.getByText('Track deposits, withdrawals, and outstanding member balances.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Members' })).toBeInTheDocument();
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
+    expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
     expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.19');
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
 
@@ -114,6 +116,20 @@ describe('App', () => {
 
     expect(window.location.hash).toBe('#members');
     expect(screen.getByRole('heading', { level: 1, name: 'Members' })).toBeInTheDocument();
+    expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
+    expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
+  });
+
+  it('opens Permissions from the dashboard', async () => {
+    getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
+    window.location.hash = '#dashboard';
+    const { container } = render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /permissions/i }));
+
+    expect(window.location.hash).toBe('#permissions');
+    expect(screen.getByRole('heading', { level: 1, name: 'Permissions' })).toBeInTheDocument();
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
     expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
   });

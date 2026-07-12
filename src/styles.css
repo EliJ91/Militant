@@ -573,6 +573,163 @@ button:focus-visible {
   font-weight: 900;
 }
 
+.permissions-shell {
+  width: min(1480px, 100%);
+}
+
+.permissions-config-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(320px, 1.4fr) minmax(180px, 0.8fr) minmax(240px, 1fr);
+  margin-top: 18px;
+}
+
+.permissions-field,
+.permissions-summary-card {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  min-height: 88px;
+  padding: 14px;
+  border: 1px solid rgba(87, 216, 120, 0.32);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(9, 28, 14, 0.92), rgba(3, 8, 5, 0.9));
+}
+
+.permissions-field span,
+.permissions-summary-card span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.permissions-field input,
+.permissions-role-input {
+  min-height: 38px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(247, 250, 245, 0.16);
+  border-radius: 7px;
+  background: rgba(2, 4, 3, 0.78);
+  color: var(--white);
+  font-weight: 900;
+}
+
+.permissions-field input:focus,
+.permissions-role-input:focus {
+  outline: 2px solid var(--green-hot);
+  outline-offset: 2px;
+}
+
+.permissions-summary-card strong {
+  color: var(--white);
+  font-size: 1.24rem;
+  line-height: 1.1;
+}
+
+.permissions-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 44px;
+  z-index: 1200;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(87, 216, 120, 0.48);
+  border-radius: 8px;
+  background: rgba(7, 16, 8, 0.96);
+  color: var(--green-hot);
+  font-size: 0.74rem;
+  font-weight: 900;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+
+.permissions-table-section {
+  margin-top: 18px;
+}
+
+.permissions-add-role {
+  min-width: 128px;
+}
+
+.permissions-table-wrap {
+  overflow: auto;
+}
+
+.permissions-table {
+  width: 100%;
+  min-width: 1320px;
+  border-collapse: collapse;
+}
+
+.permissions-table th,
+.permissions-table td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.1);
+  color: var(--white);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.permissions-table th {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.permissions-table th:first-child,
+.permissions-table th:nth-child(2),
+.permissions-table td:first-child,
+.permissions-table td:nth-child(2) {
+  text-align: left;
+}
+
+.permissions-role-input {
+  min-width: 160px;
+}
+
+.permissions-role-id-input {
+  min-width: 220px;
+  color: var(--muted);
+}
+
+.permissions-toggle {
+  min-width: 54px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid rgba(247, 250, 245, 0.14);
+  border-radius: 999px;
+  background: rgba(247, 250, 245, 0.06);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.permissions-toggle.enabled {
+  border-color: rgba(87, 216, 120, 0.7);
+  background: rgba(87, 216, 120, 0.18);
+  color: var(--green-hot);
+}
+
+.permissions-remove-role {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 84, 103, 0.6);
+  border-radius: 7px;
+  background: rgba(255, 84, 103, 0.12);
+  color: #ff7d8d;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .loot-monitor-shell {
   width: min(1440px, 100%);
 }
@@ -3512,6 +3669,14 @@ button:focus-visible {
 
   .members-search input {
     width: 100%;
+  }
+
+  .permissions-config-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .permissions-table {
+    min-width: 1180px;
   }
 
   .view-logs-button {
