@@ -28,6 +28,21 @@ export async function fetchPermissionSettings() {
   }
 }
 
+export async function fetchDiscordMemberRoles(accessToken) {
+  if (!accessToken) return { roleIds: [] };
+
+  try {
+    const requestUrl = new URL(getPermissionsApiUrl(), window.location.origin);
+    requestUrl.searchParams.set('resource', 'discord-member-roles');
+    const response = await fetch(requestUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return readResult(response, 'Could not load Discord roles.');
+  } catch (error) {
+    throw new Error(error.message === 'Failed to fetch' ? 'Could not reach permissions database.' : error.message);
+  }
+}
+
 export async function updatePermissionSettings(settings) {
   try {
     const response = await fetch(getPermissionsApiUrl(), {

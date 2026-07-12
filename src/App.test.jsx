@@ -7,6 +7,7 @@ import {
   signInWithDiscord,
 } from './services/authService';
 import { fetchLootLogBundle } from './services/lootLogApi';
+import { fetchDiscordMemberRoles, fetchPermissionSettings } from './services/permissionsApi';
 
 let authStateCallback = null;
 
@@ -44,6 +45,7 @@ vi.mock('./services/siphonedEnergyApi', () => ({
 }));
 
 vi.mock('./services/permissionsApi', () => ({
+  fetchDiscordMemberRoles: vi.fn().mockResolvedValue({ roleIds: [] }),
   fetchPermissionSettings: vi.fn().mockResolvedValue({ settings: { roles: [] }, updatedAt: null }),
   updatePermissionSettings: vi.fn().mockResolvedValue({ settings: { roles: [] }, updatedAt: null }),
 }));
@@ -134,6 +136,35 @@ describe('App', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Members' })).toBeInTheDocument();
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
     expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
+  });
+
+  it('loads Discord server roles after login and grants matching webapp permissions', async () => {
+    fetchPermissionSettings.mockResolvedValue({
+      settings: {
+        roles: [
+          { id: 'role-row', name: 'Officer', roleId: 'discord-role-1', permissions: { viewMembers: true } },
+        ],
+      },
+      updatedAt: null,
+    });
+    fetchDiscordMemberRoles.mockResolvedValue({
+      discordUserId: 'discord-user-1',
+      roleIds: ['discord-role-1'],
+    });
+    getCurrentAuthSession.mockResolvedValue({
+      access_token: 'supabase-jwt',
+      user: {
+        id: 'supabase-user-id',
+        user_metadata: { provider_id: 'discord-user-1' },
+      },
+    });
+    window.location.hash = '#dashboard';
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Members' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Permissions' })).not.toBeInTheDocument();
+    expect(fetchDiscordMemberRoles).toHaveBeenCalledWith('supabase-jwt');
   });
 
   it('opens Permissions from the dashboard', async () => {

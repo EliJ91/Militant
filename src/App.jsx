@@ -12,7 +12,7 @@ import {
   signInWithDiscord,
   signOutOfDiscord,
 } from './services/authService';
-import { fetchPermissionSettings } from './services/permissionsApi';
+import { fetchDiscordMemberRoles, fetchPermissionSettings } from './services/permissionsApi';
 import {
   loadPermissionSettings,
   getDiscordUserId,
@@ -618,6 +618,25 @@ export default function App() {
       setIsDiscordAuthenticated(discordAuthenticated);
       setAuthSession(session || null);
       if (!discordAuthenticated) return;
+
+      if (session?.access_token) {
+        fetchDiscordMemberRoles(session.access_token)
+          .then((result) => {
+            if (cancelled) return;
+            setAuthSession((currentSession) => {
+              if (!currentSession || currentSession.access_token !== session.access_token) return currentSession;
+              return {
+                ...currentSession,
+                user: {
+                  ...(currentSession.user || {}),
+                  discordUserId: result.discordUserId || getDiscordUserId(currentSession.user || {}),
+                  roleIds: Array.isArray(result.roleIds) ? result.roleIds : [],
+                },
+              };
+            });
+          })
+          .catch(() => {});
+      }
 
       const pendingRoute = getPendingAuthRoute();
       clearPendingAuthRoute();

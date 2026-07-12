@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SETTINGS_ID = 'default';
+const DISCORD_GUILD_ID = Deno.env.get('DISCORD_GUILD_ID') || '805908199541702666';
 const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
@@ -18,6 +19,32 @@ function normalizeSettings(settings: any) {
   return {
     roles: Array.isArray(settings?.roles) ? settings.roles : [],
   };
+}
+
+function getBearerToken(request: Request) {
+  const authorization = request.headers.get('authorization') || '';
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1] : '';
+}
+
+function getDiscordUserId(user: any) {
+  const metadata = user?.user_metadata || {};
+  const identity = Array.isArray(user?.identities)
+    ? user.identities.find((currentIdentity: any) => currentIdentity.provider === 'discord') || user.identities[0]
+    : null;
+  const identityData = identity?.identity_data || {};
+
+  return String(
+    metadata.discordUserId
+      || metadata.discord_user_id
+      || metadata.provider_id
+      || metadata.providerId
+      || metadata.sub
+      || identityData.sub
+      || identityData.provider_id
+      || identity?.id
+      || '',
+  );
 }
 
 function createSupabaseAdmin() {
@@ -43,6 +70,38 @@ async function getPermissionSettings(supabase: any) {
   }
 
   return updatePermissionSettings(supabase, { roles: [] });
+}
+
+async function getDiscordMemberRoles(supabase: any, request: Request) {
+  const accessToken = getBearerToken(request);
+  if (!accessToken) throw new Error('Missing authorization token.');
+
+  const { data, error } = await supabase.auth.getUser(accessToken);
+  if (error) throw error;
+
+  const discordUserId = getDiscordUserId(data?.user);
+  if (!discordUserId) throw new Error('Discord user ID not found.');
+
+  const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
+  if (!botToken) throw new Error('Discord bot token is not configured.');
+
+  const response = await fetch(
+    `https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`,
+    { headers: { Authorization: `Bot ${botToken}` } },
+  );
+
+  if (response.status === 404) {
+    return { discordGuildId: DISCORD_GUILD_ID, discordUserId, roleIds: [] };
+  }
+
+  if (!response.ok) throw new Error('Could not load Discord member roles.');
+
+  const member = await response.json();
+  return {
+    discordGuildId: DISCORD_GUILD_ID,
+    discordUserId,
+    roleIds: Array.isArray(member?.roles) ? member.roles.map(String) : [],
+  };
 }
 
 async function updatePermissionSettings(supabase: any, settings: any) {
@@ -78,6 +137,11 @@ Deno.serve(async (request) => {
     const supabase = createSupabaseAdmin();
 
     if (request.method === 'GET') {
+      const requestUrl = new URL(request.url);
+      if (requestUrl.searchParams.get('resource') === 'discord-member-roles') {
+        return jsonResponse(200, await getDiscordMemberRoles(supabase, request));
+      }
+
       return jsonResponse(200, await getPermissionSettings(supabase));
     }
 
