@@ -43,7 +43,10 @@ describe('MembersTool', () => {
     fetchSiphonedEnergyMembers.mockResolvedValue({ members });
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it('lists current guild members and fame data', async () => {
     render(<MembersTool />);
@@ -76,6 +79,26 @@ describe('MembersTool', () => {
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('player-one');
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Onslawht ID copied'));
+  });
+
+  it('disables member updates for three days after the last update', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-07-12T12:00:00.000Z').getTime());
+
+    render(<MembersTool canUpdate />);
+
+    const updateButton = await screen.findByRole('button', { name: 'Update' });
+    expect(updateButton).toBeDisabled();
+    expect(updateButton).toHaveAttribute('title', 'Member list was updated within the last 3 days');
+  });
+
+  it('allows member updates after the three day cooldown', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-07-14T12:00:01.000Z').getTime());
+
+    render(<MembersTool canUpdate />);
+
+    const updateButton = await screen.findByRole('button', { name: 'Update' });
+    expect(updateButton).not.toBeDisabled();
+    expect(updateButton).toHaveAttribute('title', 'Update members');
   });
 
   it('searches usernames and sorts by table headers', async () => {

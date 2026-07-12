@@ -751,22 +751,23 @@ button:focus-visible {
 }
 
 .members-text-column .members-sort-button {
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .members-table th:first-child,
 .members-table td:first-child {
-  text-align: left;
+  text-align: center;
 }
 
 .members-name-button {
+  width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
   color: inherit;
   cursor: pointer;
   font: inherit;
-  text-align: left;
+  text-align: center;
 }
 
 .members-name-button:hover {

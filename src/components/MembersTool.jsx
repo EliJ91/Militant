@@ -9,6 +9,7 @@ const SORT_COLUMNS = [
   { key: 'deathFame', label: 'Death Fame', type: 'number' },
   { key: 'pvpDeathFameRatio', label: 'PvP/Death', type: 'number' },
 ];
+const MEMBER_UPDATE_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
 
 function formatNumber(value) {
   return new Intl.NumberFormat('en-US').format(Number(value) || 0);
@@ -49,6 +50,10 @@ function formatDateAdded(value) {
 function dateValue(value) {
   const time = new Date(value || '').getTime();
   return Number.isFinite(time) ? time : 0;
+}
+
+function mostRecentRefreshTime(members) {
+  return members.reduce((latest, member) => Math.max(latest, dateValue(member.refreshedAt)), 0);
 }
 
 export default function MembersTool({ canUpdate = false }) {
@@ -106,6 +111,10 @@ export default function MembersTool({ canUpdate = false }) {
       });
   }, [members, searchQuery, sortState]);
   const refreshedAt = members.find((member) => member.refreshedAt)?.refreshedAt;
+  const refreshedAtTime = useMemo(() => mostRecentRefreshTime(members), [members]);
+  const updateCoolingDown = refreshedAtTime > 0
+    && Date.now() - refreshedAtTime >= 0
+    && Date.now() - refreshedAtTime < MEMBER_UPDATE_COOLDOWN_MS;
   const newestDateAdded = useMemo(() => Math.max(...members.map((member) => dateValue(member.dateAdded)), 0), [members]);
   const oldestDateAdded = useMemo(() => Math.min(
     ...members.map((member) => dateValue(member.dateAdded)).filter((value) => value > 0),
@@ -150,12 +159,12 @@ export default function MembersTool({ canUpdate = false }) {
         </div>
         <button
           className="view-logs-button"
-          disabled={!canUpdate || loadStatus.state === 'loading'}
-          title="Refresh members"
+          disabled={!canUpdate || loadStatus.state === 'loading' || updateCoolingDown}
+          title={updateCoolingDown ? 'Member list was updated within the last 3 days' : 'Update members'}
           type="button"
           onClick={loadMembers}
         >
-          {loadStatus.state === 'loading' ? 'Loading' : 'Refresh'}
+          {loadStatus.state === 'loading' ? 'Updating' : 'Update'}
         </button>
       </section>
 
