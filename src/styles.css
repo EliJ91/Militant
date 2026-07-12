@@ -704,7 +704,7 @@ button:focus-visible {
 
 .members-table {
   width: 100%;
-  min-width: 1080px;
+  min-width: 940px;
   border-collapse: collapse;
 }
 
@@ -727,10 +727,6 @@ button:focus-visible {
 
 .members-table tr.members-new-row td {
   color: #9dffb7;
-}
-
-.members-table tr.members-new-row .members-player-id {
-  color: #86eaa0;
 }
 
 .members-sort-button {
@@ -759,15 +755,39 @@ button:focus-visible {
 }
 
 .members-table th:first-child,
-.members-table th:nth-child(2),
-.members-table td:first-child,
-.members-table td:nth-child(2) {
+.members-table td:first-child {
   text-align: left;
 }
 
-.members-player-id {
-  color: var(--muted);
-  font-size: 0.72rem;
+.members-name-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.members-name-button:hover {
+  color: var(--green-hot);
+}
+
+.members-copy-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 44px;
+  z-index: 1200;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(87, 216, 120, 0.48);
+  border-radius: 8px;
+  background: rgba(7, 16, 8, 0.96);
+  color: var(--green-hot);
+  font-size: 0.74rem;
+  font-weight: 900;
+  pointer-events: none;
+  text-transform: uppercase;
 }
 
 .members-empty {

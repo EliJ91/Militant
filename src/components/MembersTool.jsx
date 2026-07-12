@@ -3,7 +3,6 @@ import { fetchSiphonedEnergyMembers } from '../services/siphonedEnergyApi';
 
 const SORT_COLUMNS = [
   { align: 'left', key: 'playerName', label: 'Username', type: 'text' },
-  { align: 'left', key: 'playerId', label: 'Player ID', type: 'text' },
   { key: 'dateAdded', label: 'Date Added', type: 'date' },
   { key: 'pvpKillFame', label: 'PvP Kill Fame', type: 'number' },
   { key: 'pveKillFame', label: 'PvE Kill Fame', type: 'number' },
@@ -53,6 +52,7 @@ function dateValue(value) {
 }
 
 export default function MembersTool({ canUpdate = false }) {
+  const [copyStatus, setCopyStatus] = useState('');
   const [members, setMembers] = useState([]);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,6 +119,28 @@ export default function MembersTool({ canUpdate = false }) {
     }));
   }
 
+  async function copyPlayerId(member) {
+    const playerId = String(member.playerId || '').trim();
+    if (!playerId) return;
+
+    try {
+      await navigator.clipboard.writeText(playerId);
+    } catch {
+      const input = document.createElement('textarea');
+      input.value = playerId;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      input.remove();
+    }
+
+    setCopyStatus(`${member.playerName || 'Player'} ID copied`);
+    window.setTimeout(() => setCopyStatus(''), 1600);
+  }
+
   return (
     <main className="dashboard-shell members-shell">
       <section className="dashboard-heading members-heading" aria-labelledby="members-title">
@@ -138,6 +160,7 @@ export default function MembersTool({ canUpdate = false }) {
       </section>
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
+      {copyStatus ? <p className="members-copy-toast" role="status">{copyStatus}</p> : null}
 
       <section className="members-summary-grid" aria-label="Member summary">
         <div className="members-summary-card">
@@ -211,8 +234,16 @@ export default function MembersTool({ canUpdate = false }) {
                     className={dateValue(member.dateAdded) === newestDateAdded && newestDateAdded > oldestDateAdded ? 'members-new-row' : ''}
                     key={member.playerId || member.playerKey || member.playerName}
                   >
-                    <td>{member.playerName}</td>
-                    <td className="members-player-id">{member.playerId || '-'}</td>
+                    <td>
+                      <button
+                        className="members-name-button"
+                        title={member.playerId ? `Copy ${member.playerName} player ID` : member.playerName}
+                        type="button"
+                        onClick={() => copyPlayerId(member)}
+                      >
+                        {member.playerName}
+                      </button>
+                    </td>
                     <td>{formatDateAdded(member.dateAdded)}</td>
                     <td>{formatNumber(member.pvpKillFame)}</td>
                     <td>{formatNumber(member.pveKillFame)}</td>

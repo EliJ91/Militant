@@ -35,6 +35,11 @@ const members = [
 describe('MembersTool', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
     fetchSiphonedEnergyMembers.mockResolvedValue({ members });
   });
 
@@ -46,8 +51,8 @@ describe('MembersTool', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Members' })).toBeInTheDocument();
     expect(await screen.findByText('Onslawht')).toBeInTheDocument();
     expect(screen.getByText('Dyathix')).toBeInTheDocument();
-    expect(screen.getByText('player-one')).toBeInTheDocument();
-    expect(screen.getByText('player-two')).toBeInTheDocument();
+    expect(screen.queryByText('player-one')).not.toBeInTheDocument();
+    expect(screen.queryByText('player-two')).not.toBeInTheDocument();
 
     const table = screen.getByRole('table');
     expect(within(table).getByText('Date Added')).toBeInTheDocument();
@@ -62,6 +67,15 @@ describe('MembersTool', () => {
     expect(within(table).getByText('2.00')).toBeInTheDocument();
     expect(within(table).getByText('-')).toBeInTheDocument();
     expect(screen.getByText('2 listed')).toBeInTheDocument();
+  });
+
+  it('copies the player id when a username is clicked', async () => {
+    render(<MembersTool />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Onslawht' }));
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('player-one');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Onslawht ID copied'));
   });
 
   it('searches usernames and sorts by table headers', async () => {
