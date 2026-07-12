@@ -1,6 +1,7 @@
 export const PERMISSIONS_STORAGE_KEY = 'militant.discord.permissions.v1';
 
-export const WEBAPP_ADMIN_DISCORD_USER_IDS = ['264193431830528006'];
+export const SUPERUSER_DISCORD_USER_IDS = ['264193431830528006'];
+export const PERMISSIONS_CHANGED_EVENT = 'militant-permissions-change';
 
 export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'changePermissions', label: 'Change Permissions', area: 'Admin' },
@@ -52,6 +53,7 @@ export function cachePermissionSettings(settings) {
     updatedAt: settings?.updatedAt || new Date().toISOString(),
   };
   window.localStorage.setItem(PERMISSIONS_STORAGE_KEY, JSON.stringify(normalized));
+  window.dispatchEvent?.(new CustomEvent(PERMISSIONS_CHANGED_EVENT, { detail: normalized }));
   return normalized;
 }
 
@@ -82,11 +84,35 @@ export function resolvePermissionsForRoleIds(settings, roleIds = []) {
 }
 
 export function resolvePermissionsForDiscordUser(settings, user = {}) {
-  const discordUserId = String(user.discordUserId || user.id || '');
-  if (WEBAPP_ADMIN_DISCORD_USER_IDS.includes(discordUserId)) {
+  const discordUserId = getDiscordUserId(user);
+  if (SUPERUSER_DISCORD_USER_IDS.includes(discordUserId)) {
     return Object.fromEntries(WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [permission.key, true]));
   }
   return resolvePermissionsForRoleIds(settings, user.roleIds || []);
+}
+
+export function getDiscordUserId(user = {}) {
+  const metadata = user.user_metadata || user.userMetadata || {};
+  const identity = Array.isArray(user.identities)
+    ? user.identities.find((currentIdentity) => currentIdentity.provider === 'discord') || user.identities[0]
+    : null;
+  const identityData = identity?.identity_data || identity?.identityData || {};
+
+  return String(
+    user.discordUserId
+      || user.providerId
+      || user.provider_id
+      || metadata.discordUserId
+      || metadata.discord_user_id
+      || metadata.provider_id
+      || metadata.providerId
+      || metadata.sub
+      || identityData.sub
+      || identityData.provider_id
+      || identity?.id
+      || user.id
+      || '',
+  );
 }
 
 function normalizeRolePermissions(role) {

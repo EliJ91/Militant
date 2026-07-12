@@ -67,7 +67,12 @@ async function updatePermissionSettings(supabase: any, settings: any) {
 }
 
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return jsonResponse(204, {});
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: corsHeaders,
+      status: 204,
+    });
+  }
 
   try {
     const supabase = createSupabaseAdmin();

@@ -1745,6 +1745,11 @@ function UploadInstructionsModal({ onClose }) {
 
 function LootLogBundleList({
   bundles,
+  canDeleteLogs = true,
+  canDownloadLogs = true,
+  canEditLogs = true,
+  canUploadChestLogs = true,
+  canUploadLootLogs = true,
   deletingBundleId,
   downloadingBundleId,
   editingBundleId,
@@ -1823,7 +1828,7 @@ function LootLogBundleList({
                   <div className="saved-log-users">
                     <div className="saved-log-title-line">
                       <small>Loot Log</small>
-                      {!isEditing ? (
+                      {!isEditing && canUploadLootLogs ? (
                         <FileUploadButton
                           accept=".csv,.txt,text/csv,text/plain"
                           className="saved-log-title-upload"
@@ -1854,16 +1859,18 @@ function LootLogBundleList({
                       <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
                         <div className="saved-log-chest-status">
                           <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
-                          <FileUploadButton
-                            accept=".txt,.tsv,text/plain,text/tab-separated-values"
-                            className="saved-log-title-upload"
-                            disabled={uploadingBundleId === bundle.id}
-                            label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
-                            loadingLabel="Uploading..."
-                            multiple
-                            title="Add chest log"
-                            onFiles={(files) => onUploadChest(bundle, files)}
-                          />
+                          {canUploadChestLogs ? (
+                            <FileUploadButton
+                              accept=".txt,.tsv,text/plain,text/tab-separated-values"
+                              className="saved-log-title-upload"
+                              disabled={uploadingBundleId === bundle.id}
+                              label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
+                              loadingLabel="Uploading..."
+                              multiple
+                              title="Add chest log"
+                              onFiles={(files) => onUploadChest(bundle, files)}
+                            />
+                          ) : null}
                         </div>
                         <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
                       </div>
@@ -1930,27 +1937,33 @@ function LootLogBundleList({
                         </>
                       ) : (
                         <>
-                          <button className="saved-log-edit-button" title="Edit log" type="button" onClick={() => onEdit(bundle)}>
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            className="saved-log-download-button"
-                            disabled={downloadingBundleId === bundle.id}
-                            title="Download log"
-                            type="button"
-                            onClick={() => onDownload(bundle)}
-                          >
-                            <span>{downloadingBundleId === bundle.id ? 'Packing...' : 'Download'}</span>
-                          </button>
-                          <button
-                            className="saved-log-delete-button"
-                            disabled={deletingBundleId === bundle.id}
-                            title="Delete log"
-                            type="button"
-                            onClick={() => onDelete(bundle)}
-                          >
-                            <span>{deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}</span>
-                          </button>
+                          {canEditLogs ? (
+                            <button className="saved-log-edit-button" title="Edit log" type="button" onClick={() => onEdit(bundle)}>
+                              <span>Edit</span>
+                            </button>
+                          ) : null}
+                          {canDownloadLogs ? (
+                            <button
+                              className="saved-log-download-button"
+                              disabled={downloadingBundleId === bundle.id}
+                              title="Download log"
+                              type="button"
+                              onClick={() => onDownload(bundle)}
+                            >
+                              <span>{downloadingBundleId === bundle.id ? 'Packing...' : 'Download'}</span>
+                            </button>
+                          ) : null}
+                          {canDeleteLogs ? (
+                            <button
+                              className="saved-log-delete-button"
+                              disabled={deletingBundleId === bundle.id}
+                              title="Delete log"
+                              type="button"
+                              onClick={() => onDelete(bundle)}
+                            >
+                              <span>{deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}</span>
+                            </button>
+                          ) : null}
                           <button className="saved-log-view-button" title="View log" type="button" onClick={() => onView(bundle.id)}>
                             <span>View</span>
                           </button>
@@ -1968,7 +1981,14 @@ function LootLogBundleList({
   );
 }
 
-export function LootLogArchive({ onView = () => {} }) {
+export function LootLogArchive({
+  canDeleteLogs = true,
+  canDownloadLogs = true,
+  canEditLogs = true,
+  canUploadChestLogs = true,
+  canUploadLootLogs = true,
+  onView = () => {},
+}) {
   const [actionStatus, setActionStatus] = useState({ message: '', state: 'idle' });
   const [deletingBundleId, setDeletingBundleId] = useState('');
   const [downloadingBundleId, setDownloadingBundleId] = useState('');
@@ -2309,20 +2329,22 @@ export function LootLogArchive({ onView = () => {} }) {
           >
             ?
           </button>
-          <button
-            aria-label="Upload log"
-            className="view-logs-button"
-            disabled={actionStatus.state === 'loading'}
-            title="Upload log"
-            type="button"
-            onClick={() => {
-              setLootUploadFiles([]);
-              setLootUploadIgnoreTime(false);
-              setLootUploadModalOpen(true);
-            }}
-          >
-            {actionStatus.state === 'loading' ? 'Uploading' : 'Upload'}
-          </button>
+          {canUploadLootLogs ? (
+            <button
+              aria-label="Upload log"
+              className="view-logs-button"
+              disabled={actionStatus.state === 'loading'}
+              title="Upload log"
+              type="button"
+              onClick={() => {
+                setLootUploadFiles([]);
+                setLootUploadIgnoreTime(false);
+                setLootUploadModalOpen(true);
+              }}
+            >
+              {actionStatus.state === 'loading' ? 'Uploading' : 'Upload'}
+            </button>
+          ) : null}
           <button
             aria-label="Refresh logs"
             className="view-logs-button view-logs-icon-button"
@@ -2362,6 +2384,11 @@ export function LootLogArchive({ onView = () => {} }) {
 
       <LootLogBundleList
         bundles={savedLogBundles}
+        canDeleteLogs={canDeleteLogs}
+        canDownloadLogs={canDownloadLogs}
+        canEditLogs={canEditLogs}
+        canUploadChestLogs={canUploadChestLogs}
+        canUploadLootLogs={canUploadLootLogs}
         deletingBundleId={deletingBundleId}
         downloadingBundleId={downloadingBundleId}
         editingBundleId={editingBundleId}

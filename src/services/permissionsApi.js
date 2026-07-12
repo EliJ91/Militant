@@ -20,15 +20,23 @@ async function readResult(response, fallbackMessage) {
 }
 
 export async function fetchPermissionSettings() {
-  const response = await fetch(getPermissionsApiUrl());
-  return readResult(response, 'Could not load permissions.');
+  try {
+    const response = await fetch(getPermissionsApiUrl());
+    return readResult(response, 'Could not load permissions.');
+  } catch (error) {
+    throw new Error(error.message === 'Failed to fetch' ? 'Could not reach permissions database.' : error.message);
+  }
 }
 
 export async function updatePermissionSettings(settings) {
-  const response = await fetch(getPermissionsApiUrl(), {
-    body: JSON.stringify({ settings }),
-    headers: { 'Content-Type': 'application/json' },
-    method: 'PUT',
-  });
-  return readResult(response, 'Could not save permissions.');
+  try {
+    const response = await fetch(getPermissionsApiUrl(), {
+      body: JSON.stringify({ settings }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'PUT',
+    });
+    return readResult(response, 'Could not save permissions.');
+  } catch (error) {
+    throw new Error(error.message === 'Failed to fetch' ? 'Could not reach permissions database.' : error.message);
+  }
 }

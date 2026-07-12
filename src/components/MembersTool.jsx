@@ -52,7 +52,7 @@ function dateValue(value) {
   return Number.isFinite(time) ? time : 0;
 }
 
-export default function MembersTool() {
+export default function MembersTool({ canUpdate = false }) {
   const [members, setMembers] = useState([]);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
   const [searchQuery, setSearchQuery] = useState('');
@@ -128,7 +128,7 @@ export default function MembersTool() {
         </div>
         <button
           className="view-logs-button"
-          disabled={loadStatus.state === 'loading'}
+          disabled={!canUpdate || loadStatus.state === 'loading'}
           title="Refresh members"
           type="button"
           onClick={loadMembers}

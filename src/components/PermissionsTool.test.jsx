@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PERMISSIONS_STORAGE_KEY,
   resolvePermissionsForDiscordUser,
-  WEBAPP_ADMIN_DISCORD_USER_IDS,
+  SUPERUSER_DISCORD_USER_IDS,
   WEBAPP_PERMISSION_DEFINITIONS,
 } from '../services/permissionsService';
 import PermissionsTool from './PermissionsTool';
@@ -17,7 +17,7 @@ vi.mock('../services/permissionsApi', () => ({
   updatePermissionSettings: vi.fn(),
 }));
 
-const adminUser = { id: WEBAPP_ADMIN_DISCORD_USER_IDS[0], roleIds: [] };
+const superUser = { id: SUPERUSER_DISCORD_USER_IDS[0], roleIds: [] };
 
 describe('PermissionsTool', () => {
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe('PermissionsTool', () => {
   afterEach(cleanup);
 
   it('renders role permission infrastructure and saves changes', async () => {
-    render(<PermissionsTool currentUser={adminUser} />);
+    render(<PermissionsTool currentUser={superUser} />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Permissions' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Discord permission setup')).not.toBeInTheDocument();
@@ -69,7 +69,7 @@ describe('PermissionsTool', () => {
   });
 
   it('requires a Discord role ID before adding a role', () => {
-    render(<PermissionsTool currentUser={adminUser} />);
+    render(<PermissionsTool currentUser={superUser} />);
 
     fireEvent.change(screen.getByLabelText('New role name'), {
       target: { value: 'CTA Lead' },
@@ -91,7 +91,7 @@ describe('PermissionsTool', () => {
       updatedAt: '2026-07-12T00:00:00.000Z',
     });
 
-    render(<PermissionsTool currentUser={adminUser} />);
+    render(<PermissionsTool currentUser={superUser} />);
 
     expect(await screen.findByRole('columnheader', { name: 'Officer' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Soldier' }));
@@ -115,13 +115,22 @@ describe('PermissionsTool', () => {
     await waitFor(() => expect(screen.queryByRole('columnheader', { name: 'Vanguard' })).not.toBeInTheDocument());
   });
 
-  it('gives the configured Discord admin user full control', () => {
+  it('gives the configured Discord SuperUser full control', () => {
     const resolvedPermissions = resolvePermissionsForDiscordUser(null, {
-      discordUserId: WEBAPP_ADMIN_DISCORD_USER_IDS[0],
+      discordUserId: SUPERUSER_DISCORD_USER_IDS[0],
     });
 
     expect(resolvedPermissions).toEqual(
       Object.fromEntries(WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [permission.key, true])),
     );
+  });
+
+  it('recognizes the Supabase Discord provider id as the SuperUser id', () => {
+    const resolvedPermissions = resolvePermissionsForDiscordUser(null, {
+      id: 'supabase-auth-user-id',
+      user_metadata: { provider_id: SUPERUSER_DISCORD_USER_IDS[0] },
+    });
+
+    expect(resolvedPermissions.changePermissions).toBe(true);
   });
 });

@@ -54,7 +54,10 @@ export default function PermissionsTool({ currentUser = null }) {
         setSettings(loaded);
       })
       .catch((error) => {
-        if (!cancelled) setSaveStatus(error.message || 'Could not load permissions');
+        if (!cancelled) {
+          setSettings(loadPermissionSettings());
+          setSaveStatus(error.message ? 'Using cached permissions' : '');
+        }
       });
 
     return () => {
@@ -105,7 +108,7 @@ export default function PermissionsTool({ currentUser = null }) {
         setSaveStatus('Permissions saved');
       })
       .catch((error) => {
-        setSaveStatus(error.message || 'Could not save permissions');
+        setSaveStatus(error.message || 'Could not save permissions to database.');
       });
   }, [canChangePermissions, settings]);
 

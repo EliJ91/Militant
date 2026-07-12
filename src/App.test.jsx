@@ -73,7 +73,7 @@ describe('App', () => {
       authStateCallback({
         user: {
           avatar: 'avatar-hash',
-          id: 'discord-user',
+          id: '264193431830528006',
           username: 'Onslawht',
         },
       });
@@ -93,7 +93,7 @@ describe('App', () => {
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
-      'https://cdn.discordapp.com/avatars/discord-user/avatar-hash.png?size=80',
+      'https://cdn.discordapp.com/avatars/264193431830528006/avatar-hash.png?size=80',
     );
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
 
@@ -109,7 +109,7 @@ describe('App', () => {
   });
 
   it('opens the Siphoned Energy Tracker from the dashboard', async () => {
-    getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
+    getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006' } });
     window.location.hash = '#dashboard';
     const { container } = render(<App />);
 
@@ -123,7 +123,7 @@ describe('App', () => {
   });
 
   it('opens Members from the dashboard', async () => {
-    getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
+    getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006' } });
     window.location.hash = '#dashboard';
     const { container } = render(<App />);
 
@@ -137,7 +137,7 @@ describe('App', () => {
   });
 
   it('opens Permissions from the dashboard', async () => {
-    getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
+    getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006' } });
     window.location.hash = '#dashboard';
     const { container } = render(<App />);
 
@@ -161,7 +161,7 @@ describe('App', () => {
   });
 
   it('does not restore a previously selected loot log after a refresh', async () => {
-    getCurrentAuthSession.mockResolvedValue({ user: { id: 'discord-user' } });
+    getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006' } });
     window.sessionStorage.setItem('militant.selectedLootLogBundle', 'stale-bundle');
     window.localStorage.setItem('militant.lootMonitor.filters.v3', JSON.stringify({
       sortDirection: 'asc',
@@ -185,7 +185,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /login with discord/i }));
     await waitFor(() => expect(signInWithDiscord).toHaveBeenCalledWith('#dashboard'));
     await act(async () => {
-      authStateCallback({ user: { id: 'discord-user' } });
+      authStateCallback({ user: { id: '264193431830528006' } });
     });
     expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
   });
