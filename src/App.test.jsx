@@ -65,7 +65,13 @@ describe('App', () => {
     await waitFor(() => expect(signInWithDiscord).toHaveBeenCalledWith('#dashboard'));
     await waitFor(() => expect(onAuthStateChange).toHaveBeenCalled());
     await act(async () => {
-      authStateCallback({ user: { id: 'discord-user' } });
+      authStateCallback({
+        user: {
+          avatar: 'avatar-hash',
+          id: 'discord-user',
+          username: 'Onslawht',
+        },
+      });
     });
 
     expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
@@ -79,6 +85,11 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
     expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.19');
+    expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
+    expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
+      'src',
+      'https://cdn.discordapp.com/avatars/discord-user/avatar-hash.png?size=80',
+    );
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: /view loot logs/i }));

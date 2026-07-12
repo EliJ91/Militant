@@ -270,6 +270,36 @@ button:focus-visible {
   gap: 8px;
 }
 
+.topbar-profile {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.topbar-profile-avatar,
+.topbar-profile-fallback {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(87, 216, 120, 0.62);
+  border-radius: 999px;
+  background: rgba(87, 216, 120, 0.12);
+  box-shadow: 0 0 0 3px rgba(87, 216, 120, 0.08);
+}
+
+.topbar-profile-avatar {
+  display: block;
+  object-fit: cover;
+}
+
+.topbar-profile-fallback {
+  align-items: center;
+  color: var(--green-hot);
+  display: inline-flex;
+  font-size: 0.95rem;
+  font-weight: 900;
+  justify-content: center;
+}
+
 .navigation-button {
   background: rgba(247, 250, 245, 0.04);
   border: 1px solid rgba(87, 216, 120, 0.36);

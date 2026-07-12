@@ -55,6 +55,39 @@ function BrandLockup({ compact = false }) {
   );
 }
 
+function getDiscordAvatarUrl(user = {}) {
+  if (user.avatarUrl || user.avatar_url || user.picture) {
+    return user.avatarUrl || user.avatar_url || user.picture;
+  }
+  if (user.id && user.avatar) {
+    const extension = String(user.avatar).startsWith('a_') ? 'gif' : 'png';
+    return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${extension}?size=80`;
+  }
+  return '';
+}
+
+function getDiscordDisplayName(user = {}) {
+  return user.globalName || user.global_name || user.full_name || user.name || user.username || 'Discord User';
+}
+
+function UserProfileChip({ user = null }) {
+  if (!user) return null;
+
+  const avatarUrl = getDiscordAvatarUrl(user);
+  const displayName = getDiscordDisplayName(user);
+  const fallbackInitial = displayName.trim().charAt(0).toUpperCase() || 'D';
+
+  return (
+    <div className="topbar-profile" title={displayName} aria-label={`Logged in as ${displayName}`}>
+      {avatarUrl ? (
+        <img className="topbar-profile-avatar" src={avatarUrl} alt="" referrerPolicy="no-referrer" />
+      ) : (
+        <span className="topbar-profile-fallback" aria-hidden="true">{fallbackInitial}</span>
+      )}
+    </div>
+  );
+}
+
 function VersionFooter() {
   return (
     <footer className="app-version-footer" aria-label="Application version">
@@ -117,12 +150,13 @@ function LandingPage({
   );
 }
 
-function DashboardPage({ onSignOut = () => {} }) {
+function DashboardPage({ currentUser = null, onSignOut = () => {} }) {
   return (
     <>
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
+          <UserProfileChip user={currentUser} />
           <button className="navigation-button" title="Exit" type="button" onClick={onSignOut}>
             Exit
           </button>
@@ -162,12 +196,18 @@ function DashboardPage({ onSignOut = () => {} }) {
   );
 }
 
-function LootMonitorPage({ bundleId, isAuthenticated = false, onSignOut = () => {} }) {
+function LootMonitorPage({
+  bundleId,
+  currentUser = null,
+  isAuthenticated = false,
+  onSignOut = () => {},
+}) {
   return (
     <>
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
+          <UserProfileChip user={currentUser} />
           <button className="navigation-button" title="Loot logs" type="button" onClick={() => navigateTo('#loot-logs')}>
             Loot Logs
           </button>
@@ -192,12 +232,13 @@ function SharedLootMonitorPage({ bundleId, isAuthenticated = false }) {
   return <LootMonitor bundleId={bundleId} canCheckDeaths={isAuthenticated} showShare={false} />;
 }
 
-function LootLogsPage({ onSignOut = () => {}, onViewBundle }) {
+function LootLogsPage({ currentUser = null, onSignOut = () => {}, onViewBundle }) {
   return (
     <>
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
+          <UserProfileChip user={currentUser} />
           <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Dashboard
           </button>
@@ -211,13 +252,14 @@ function LootLogsPage({ onSignOut = () => {}, onViewBundle }) {
   );
 }
 
-function SiphonedEnergyPage({ isAuthenticated = false, onSignOut = () => {} }) {
+function SiphonedEnergyPage({ currentUser = null, isAuthenticated = false, onSignOut = () => {} }) {
   return (
     <>
       <header className="topbar">
         <BrandLockup compact />
         {isAuthenticated ? (
           <div className="topbar-actions">
+            <UserProfileChip user={currentUser} />
             <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
               Dashboard
             </button>
@@ -232,12 +274,13 @@ function SiphonedEnergyPage({ isAuthenticated = false, onSignOut = () => {} }) {
   );
 }
 
-function MembersPage({ onSignOut = () => {} }) {
+function MembersPage({ currentUser = null, onSignOut = () => {} }) {
   return (
     <>
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
+          <UserProfileChip user={currentUser} />
           <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Dashboard
           </button>
@@ -251,12 +294,13 @@ function MembersPage({ onSignOut = () => {} }) {
   );
 }
 
-function PermissionsPage({ onSignOut = () => {} }) {
+function PermissionsPage({ currentUser = null, onSignOut = () => {} }) {
   return (
     <>
       <header className="topbar">
         <BrandLockup compact />
         <div className="topbar-actions">
+          <UserProfileChip user={currentUser} />
           <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
             Dashboard
           </button>
@@ -273,8 +317,10 @@ function PermissionsPage({ onSignOut = () => {} }) {
 export default function App() {
   const [route, setRoute] = useState(getRoute);
   const [isDiscordAuthenticated, setIsDiscordAuthenticated] = useState(false);
+  const [authSession, setAuthSession] = useState(null);
   const [selectedBundleId, setSelectedBundleId] = useState('');
   const isAuthenticated = isDiscordAuthenticated;
+  const currentUser = authSession?.user || null;
 
   useEffect(() => {
     const updateRoute = () => {
@@ -299,6 +345,7 @@ export default function App() {
       if (cancelled) return;
       const discordAuthenticated = Boolean(session);
       setIsDiscordAuthenticated(discordAuthenticated);
+      setAuthSession(session || null);
       if (!discordAuthenticated) return;
 
       const pendingRoute = getPendingAuthRoute();
@@ -312,7 +359,10 @@ export default function App() {
 
     getCurrentAuthSession()
       .then(applySession)
-      .catch(() => setIsDiscordAuthenticated(false));
+      .catch(() => {
+        setIsDiscordAuthenticated(false);
+        setAuthSession(null);
+      });
 
     const unsubscribe = onAuthStateChange(applySession);
     return () => {
@@ -349,6 +399,7 @@ export default function App() {
   async function handleSignOut() {
     await signOutOfDiscord();
     setIsDiscordAuthenticated(false);
+    setAuthSession(null);
     navigateTo('#');
   }
 
@@ -361,7 +412,7 @@ export default function App() {
   if (route === 'shared-log') {
     page = <SharedLootMonitorPage bundleId={selectedBundleId} isAuthenticated={isAuthenticated} />;
   } else if (route === 'siphoned-energy') {
-    page = <SiphonedEnergyPage isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />;
+    page = <SiphonedEnergyPage currentUser={currentUser} isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />;
   } else if (!isAuthenticated && route !== 'landing') {
     page = (
       <LandingPage
@@ -370,20 +421,28 @@ export default function App() {
       />
     );
   } else if (route === 'dashboard') {
-    page = <DashboardPage onSignOut={handleSignOut} />;
+    page = <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} />;
   } else if (route === 'members') {
-    page = <MembersPage onSignOut={handleSignOut} />;
+    page = <MembersPage currentUser={currentUser} onSignOut={handleSignOut} />;
   } else if (route === 'permissions') {
-    page = <PermissionsPage onSignOut={handleSignOut} />;
+    page = <PermissionsPage currentUser={currentUser} onSignOut={handleSignOut} />;
   } else if (route === 'loot-logs') {
     page = (
       <LootLogsPage
+        currentUser={currentUser}
         onSignOut={handleSignOut}
         onViewBundle={viewLootLogBundle}
       />
     );
   } else if (route === 'loot-monitor') {
-    page = <LootMonitorPage bundleId={selectedBundleId} isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />;
+    page = (
+      <LootMonitorPage
+        bundleId={selectedBundleId}
+        currentUser={currentUser}
+        isAuthenticated={isAuthenticated}
+        onSignOut={handleSignOut}
+      />
+    );
   } else {
     page = (
       <LandingPage
