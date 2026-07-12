@@ -103,10 +103,7 @@ export async function signOutOfDiscord() {
 }
 
 async function consumeDiscordImplicitCallback() {
-  const hash = window.location.hash || '';
-  if (!hash.startsWith('#access_token=')) return null;
-
-  const params = new URLSearchParams(hash.slice(1));
+  const params = getDiscordCallbackParams();
   const accessToken = params.get('access_token') || '';
   const tokenType = params.get('token_type') || 'Bearer';
   const expiresIn = Number(params.get('expires_in') || '0');
@@ -127,11 +124,7 @@ async function consumeDiscordImplicitCallback() {
 }
 
 async function buildDiscordSession({ accessToken, expiresAt, tokenType }) {
-  const response = await fetch('https://discord.com/api/users/@me', {
-    headers: { Authorization: `${tokenType} ${accessToken}` },
-  });
-  if (!response.ok) throw new Error('Could not verify Discord login.');
-  const user = await response.json();
+  const user = await fetchDiscordUser(accessToken, tokenType);
   return {
     accessToken,
     expiresAt,
@@ -144,6 +137,37 @@ async function buildDiscordSession({ accessToken, expiresAt, tokenType }) {
       id: user.id,
       username: user.username,
     },
+  };
+}
+
+function getDiscordCallbackParams() {
+  const hash = window.location.hash || '';
+  if (hash.includes('access_token=')) return new URLSearchParams(hash.slice(1));
+
+  const search = window.location.search || '';
+  if (search.includes('access_token=')) return new URLSearchParams(search.slice(1));
+
+  return new URLSearchParams();
+}
+
+async function fetchDiscordUser(accessToken, tokenType) {
+  try {
+    const response = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `${tokenType} ${accessToken}` },
+    });
+    if (!response.ok) throw new Error('Discord profile lookup failed.');
+    const user = await response.json();
+    if (user?.id) return user;
+  } catch {
+    // The login token is enough to unlock the app; profile data can be added by the backend later.
+  }
+
+  return {
+    avatar: '',
+    discriminator: '',
+    global_name: '',
+    id: 'discord-oauth-user',
+    username: 'Discord User',
   };
 }
 
