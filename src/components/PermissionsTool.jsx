@@ -24,6 +24,8 @@ function formatSavedAt(value) {
 export default function PermissionsTool() {
   const [settings, setSettings] = useState(loadPermissionSettings);
   const [saveStatus, setSaveStatus] = useState('');
+  const [newRoleName, setNewRoleName] = useState('');
+  const [newRoleId, setNewRoleId] = useState('');
 
   function updateRole(roleId, updates) {
     setSettings((current) => ({
@@ -52,11 +54,21 @@ export default function PermissionsTool() {
   }
 
   function addRole() {
-    setSettings((current) => ({
-      ...current,
-      roles: [...current.roles, createRolePermissionRow()],
-    }));
-    setSaveStatus('');
+    try {
+      const role = createRolePermissionRow({
+        name: newRoleName.trim() || 'Discord Role',
+        roleId: newRoleId,
+      });
+      setSettings((current) => ({
+        ...current,
+        roles: [...current.roles, role],
+      }));
+      setNewRoleName('');
+      setNewRoleId('');
+      setSaveStatus('');
+    } catch (error) {
+      setSaveStatus(error.message || 'Role ID required');
+    }
   }
 
   function removeRole(roleId) {
@@ -68,6 +80,11 @@ export default function PermissionsTool() {
   }
 
   function saveSettings() {
+    const missingRoleId = settings.roles.find((role) => !String(role.roleId || '').trim());
+    if (missingRoleId) {
+      setSaveStatus('Every role needs a Discord role ID');
+      return;
+    }
     setSettings((current) => {
       const saved = savePermissionSettings(current);
       setSaveStatus('Permissions saved');
@@ -114,9 +131,27 @@ export default function PermissionsTool() {
             <p className="eyebrow">Discord Roles</p>
             <h2 id="permissions-table-title">Role Access Matrix</h2>
           </div>
-          <button className="view-logs-button permissions-add-role" type="button" onClick={addRole}>
-            Add Role
-          </button>
+          <div className="permissions-add-role-form">
+            <input
+              aria-label="New role name"
+              className="permissions-role-input"
+              placeholder="Role name"
+              type="text"
+              value={newRoleName}
+              onChange={(event) => setNewRoleName(event.target.value)}
+            />
+            <input
+              aria-label="New role id"
+              className="permissions-role-input"
+              placeholder="Discord role ID"
+              type="text"
+              value={newRoleId}
+              onChange={(event) => setNewRoleId(event.target.value)}
+            />
+            <button className="view-logs-button permissions-add-role" type="button" onClick={addRole}>
+              Add Role
+            </button>
+          </div>
         </div>
 
         <div className="permissions-table-wrap">
@@ -134,6 +169,14 @@ export default function PermissionsTool() {
                         type="text"
                         value={role.name}
                         onChange={(event) => updateRole(role.id, { name: event.target.value })}
+                      />
+                      <input
+                        aria-label={`${role.name} role id`}
+                        className="permissions-role-input permissions-role-id-input"
+                        placeholder="Discord role ID"
+                        type="text"
+                        value={role.roleId}
+                        onChange={(event) => updateRole(role.id, { roleId: event.target.value })}
                       />
                       <button className="permissions-remove-role" type="button" onClick={() => removeRole(role.id)}>
                         Remove

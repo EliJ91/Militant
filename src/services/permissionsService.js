@@ -15,23 +15,7 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'updateSiphonedEnergy', label: 'Update Siphoned Energy Tracker', area: 'Siphoned Energy' },
 ];
 
-const DEFAULT_ROLE_TEMPLATES = [
-  {
-    id: 'admin',
-    name: 'Admin',
-    permissions: Object.fromEntries(WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [permission.key, true])),
-  },
-  {
-    id: 'member',
-    name: 'Member',
-    permissions: {
-      viewLogs: true,
-      viewLootLog: true,
-      viewMembers: true,
-      viewSiphonedEnergy: true,
-    },
-  },
-];
+const DEFAULT_ROLE_TEMPLATES = [];
 
 export function createDefaultPermissionSettings() {
   return {
@@ -59,10 +43,13 @@ export function savePermissionSettings(settings) {
   return normalized;
 }
 
-export function createRolePermissionRow() {
+export function createRolePermissionRow({ name = 'New Role', roleId = '' } = {}) {
+  const normalizedRoleId = String(roleId || '').trim();
+  if (!normalizedRoleId) throw new Error('A Discord role ID is required.');
   return normalizeRolePermissions({
     id: globalThis.crypto?.randomUUID?.() || `role-${Date.now()}`,
-    name: 'New Role',
+    name,
+    roleId: normalizedRoleId,
     permissions: {},
   });
 }
@@ -72,7 +59,7 @@ export function resolvePermissionsForRoleIds(settings, roleIds = []) {
   const assignedRoleIds = new Set(roleIds.map((roleId) => String(roleId)));
 
   return normalized.roles.reduce((resolved, role) => {
-    if (!assignedRoleIds.has(role.id)) return resolved;
+    if (!role.roleId || !assignedRoleIds.has(role.roleId)) return resolved;
     WEBAPP_PERMISSION_DEFINITIONS.forEach((permission) => {
       resolved[permission.key] = Boolean(resolved[permission.key] || role.permissions[permission.key]);
     });
@@ -89,10 +76,12 @@ export function resolvePermissionsForDiscordUser(settings, user = {}) {
 }
 
 function normalizePermissionSettings(settings) {
+  const roles = Array.isArray(settings?.roles)
+    ? settings.roles.map(normalizeRolePermissions).filter((role) => role.roleId)
+    : createDefaultPermissionSettings().roles;
+
   return {
-    roles: Array.isArray(settings?.roles)
-      ? settings.roles.map(normalizeRolePermissions)
-      : createDefaultPermissionSettings().roles,
+    roles,
     updatedAt: settings?.updatedAt || null,
   };
 }
@@ -102,6 +91,7 @@ function normalizeRolePermissions(role) {
   return {
     id: String(role?.id || globalThis.crypto?.randomUUID?.() || `role-${Date.now()}`),
     name: String(role?.name || 'Discord Role'),
+    roleId: String(role?.roleId || ''),
     permissions: Object.fromEntries(
       WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [
         permission.key,

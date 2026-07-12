@@ -25,11 +25,14 @@ describe('PermissionsTool', () => {
     expect(screen.getByRole('rowheader', { name: 'View Logs' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Update Siphoned Energy Tracker' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add Role' }));
-
-    fireEvent.change(screen.getByLabelText('New Role role name'), {
+    fireEvent.change(screen.getByLabelText('New role name'), {
       target: { value: 'CTA Lead' },
     });
+    fireEvent.change(screen.getByLabelText('New role id'), {
+      target: { value: 'role-123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Role' }));
+
     const uploadLootLogsRow = screen.getByRole('row', { name: /Upload Loot Logs/i });
     fireEvent.click(within(uploadLootLogsRow).getByTitle('Upload Loot Logs for CTA Lead'));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -37,7 +40,19 @@ describe('PermissionsTool', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Permissions saved');
     const saved = JSON.parse(window.localStorage.getItem(PERMISSIONS_STORAGE_KEY));
     expect(saved.guildId).toBeUndefined();
-    expect(saved.roles.some((role) => role.name === 'CTA Lead' && role.roleId === undefined)).toBe(true);
+    expect(saved.roles.some((role) => role.name === 'CTA Lead' && role.roleId === 'role-123')).toBe(true);
+  });
+
+  it('requires a Discord role ID before adding a role', () => {
+    render(<PermissionsTool />);
+
+    fireEvent.change(screen.getByLabelText('New role name'), {
+      target: { value: 'CTA Lead' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Role' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent('A Discord role ID is required.');
+    expect(screen.queryByLabelText('CTA Lead role name')).not.toBeInTheDocument();
   });
 
   it('gives the configured Discord admin user full control', () => {

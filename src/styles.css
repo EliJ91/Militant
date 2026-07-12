@@ -647,7 +647,14 @@ button:focus-visible {
 }
 
 .permissions-add-role {
-  min-width: 128px;
+  min-width: 112px;
+}
+
+.permissions-add-role-form {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  grid-template-columns: minmax(150px, 180px) minmax(190px, 230px) auto;
 }
 
 .permissions-table-wrap {
@@ -658,6 +665,7 @@ button:focus-visible {
   width: 100%;
   min-width: 920px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .permissions-table th,
@@ -686,7 +694,7 @@ button:focus-visible {
 }
 
 .permissions-name-column {
-  min-width: 230px;
+  width: 230px;
 }
 
 .permissions-area-column {
@@ -695,17 +703,22 @@ button:focus-visible {
 }
 
 .permissions-role-column {
-  min-width: 168px;
+  width: 172px;
 }
 
 .permissions-role-heading {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   justify-items: stretch;
 }
 
 .permissions-role-input {
-  min-width: 160px;
+  min-width: 0;
+}
+
+.permissions-role-id-input {
+  color: var(--muted);
+  font-size: 0.68rem;
 }
 
 .permissions-toggle {
