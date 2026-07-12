@@ -267,6 +267,17 @@ button:focus-visible {
 .topbar-actions {
   align-items: center;
   display: flex;
+  gap: 18px;
+}
+
+.topbar-menu-region {
+  margin-left: auto;
+  position: relative;
+}
+
+.topbar-links {
+  align-items: center;
+  display: flex;
   gap: 8px;
 }
 
@@ -274,6 +285,7 @@ button:focus-visible {
   align-items: center;
   display: inline-flex;
   justify-content: center;
+  margin-left: 10px;
 }
 
 .topbar-profile-avatar,
@@ -298,6 +310,27 @@ button:focus-visible {
   font-size: 0.95rem;
   font-weight: 900;
   justify-content: center;
+}
+
+.topbar-menu-toggle {
+  display: none;
+  width: 46px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-direction: column;
+  border: 1px solid rgba(87, 216, 120, 0.42);
+  border-radius: 7px;
+  background: rgba(87, 216, 120, 0.08);
+  cursor: pointer;
+}
+
+.topbar-menu-toggle span {
+  width: 20px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--white);
 }
 
 .navigation-button {
@@ -607,31 +640,6 @@ button:focus-visible {
   width: min(1480px, 100%);
 }
 
-.permissions-config-grid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
-  margin-top: 18px;
-}
-
-.permissions-summary-card {
-  display: grid;
-  align-content: center;
-  gap: 8px;
-  min-height: 88px;
-  padding: 14px;
-  border: 1px solid rgba(87, 216, 120, 0.32);
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(9, 28, 14, 0.92), rgba(3, 8, 5, 0.9));
-}
-
-.permissions-summary-card span {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
 .permissions-role-input {
   min-height: 38px;
   width: 100%;
@@ -646,13 +654,6 @@ button:focus-visible {
 .permissions-role-input:focus {
   outline: 2px solid var(--green-hot);
   outline-offset: 2px;
-}
-
-.permissions-summary-card strong {
-  color: var(--white);
-  font-size: clamp(0.92rem, 1.4vw, 1.24rem);
-  line-height: 1.1;
-  overflow-wrap: anywhere;
 }
 
 .permissions-toast {
@@ -693,7 +694,7 @@ button:focus-visible {
 
 .permissions-table {
   width: 100%;
-  min-width: 920px;
+  min-width: 620px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -717,23 +718,16 @@ button:focus-visible {
 }
 
 .permissions-table th:first-child,
-.permissions-table th:nth-child(2),
-.permissions-table td:first-child,
-.permissions-table td:nth-child(2) {
+.permissions-table td:first-child {
   text-align: left;
 }
 
 .permissions-name-column {
-  width: 230px;
-}
-
-.permissions-area-column {
-  width: 170px;
-  color: var(--muted);
+  width: 260px;
 }
 
 .permissions-role-column {
-  width: 172px;
+  width: 154px;
 }
 
 .permissions-role-heading {
@@ -746,29 +740,22 @@ button:focus-visible {
   min-width: 0;
 }
 
-.permissions-role-id-input {
+.permissions-role-id {
+  display: block;
+  overflow: hidden;
+  padding: 0 2px;
   color: var(--muted);
   font-size: 0.68rem;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
 }
 
-.permissions-toggle {
-  min-width: 54px;
-  min-height: 32px;
-  padding: 6px 10px;
-  border: 1px solid rgba(247, 250, 245, 0.14);
-  border-radius: 999px;
-  background: rgba(247, 250, 245, 0.06);
-  color: var(--muted);
+.permissions-checkbox {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--green-hot);
   cursor: pointer;
-  font-size: 0.68rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.permissions-toggle.enabled {
-  border-color: rgba(87, 216, 120, 0.7);
-  background: rgba(87, 216, 120, 0.18);
-  color: var(--green-hot);
 }
 
 .permissions-remove-role {
@@ -3678,14 +3665,44 @@ button:focus-visible {
   }
 
   .topbar {
-    align-items: flex-start;
-    gap: 16px;
+    align-items: center;
+    gap: 12px;
     padding: 12px 14px;
   }
 
+  .topbar-menu-toggle {
+    display: inline-flex;
+  }
+
   .topbar-actions {
-    align-items: stretch;
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 1300;
+    display: none;
+    min-width: 210px;
+    padding: 10px;
+    border: 1px solid rgba(87, 216, 120, 0.36);
+    border-radius: 8px;
+    background: rgba(2, 4, 3, 0.98);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.52);
+  }
+
+  .topbar-actions.is-open {
     display: grid;
+    gap: 10px;
+  }
+
+  .topbar-links {
+    display: grid;
+    gap: 8px;
+  }
+
+  .topbar-profile {
+    justify-self: end;
+    margin-left: 0;
+    padding-top: 8px;
+    border-top: 1px solid rgba(247, 250, 245, 0.1);
   }
 
   .brand-lockup-compact .brand-wordmark {
@@ -3725,12 +3742,8 @@ button:focus-visible {
     width: 100%;
   }
 
-  .permissions-config-grid {
-    grid-template-columns: 1fr;
-  }
-
   .permissions-table {
-    min-width: 1180px;
+    min-width: 720px;
   }
 
   .view-logs-button {

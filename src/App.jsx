@@ -88,6 +88,79 @@ function UserProfileChip({ user = null }) {
   );
 }
 
+function Topbar({ actions = [], currentUser = null }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const hasMenuContent = actions.length > 0 || Boolean(currentUser);
+
+  useEffect(() => {
+    if (!isMenuOpen) return undefined;
+
+    function closeOnOutsideClick(event) {
+      if (!event.target.closest('.topbar-menu-region')) {
+        setIsMenuOpen(false);
+      }
+    }
+
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    }
+
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    document.addEventListener('touchstart', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick);
+      document.removeEventListener('touchstart', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isMenuOpen]);
+
+  function runAction(action) {
+    setIsMenuOpen(false);
+    action.onClick();
+  }
+
+  return (
+    <header className="topbar">
+      <BrandLockup compact />
+      {hasMenuContent ? (
+        <div className="topbar-menu-region">
+          {actions.length > 0 ? (
+            <button
+              aria-expanded={isMenuOpen}
+              aria-label="Toggle navigation menu"
+              className="topbar-menu-toggle"
+              title="Menu"
+              type="button"
+              onClick={() => setIsMenuOpen((current) => !current)}
+            >
+              <span aria-hidden="true" />
+              <span aria-hidden="true" />
+              <span aria-hidden="true" />
+            </button>
+          ) : null}
+          <div className={isMenuOpen ? 'topbar-actions is-open' : 'topbar-actions'}>
+            <div className="topbar-links">
+              {actions.map((action) => (
+                <button
+                  className="navigation-button"
+                  key={action.label}
+                  title={action.title || action.label}
+                  type="button"
+                  onClick={() => runAction(action)}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+            <UserProfileChip user={currentUser} />
+          </div>
+        </div>
+      ) : null}
+    </header>
+  );
+}
+
 function VersionFooter() {
   return (
     <footer className="app-version-footer" aria-label="Application version">
@@ -153,15 +226,10 @@ function LandingPage({
 function DashboardPage({ currentUser = null, onSignOut = () => {} }) {
   return (
     <>
-      <header className="topbar">
-        <BrandLockup compact />
-        <div className="topbar-actions">
-          <UserProfileChip user={currentUser} />
-          <button className="navigation-button" title="Exit" type="button" onClick={onSignOut}>
-            Exit
-          </button>
-        </div>
-      </header>
+      <Topbar
+        actions={[{ label: 'Exit', onClick: onSignOut }]}
+        currentUser={currentUser}
+      />
 
       <main className="dashboard-shell">
         <section className="dashboard-heading" aria-labelledby="dashboard-title">
@@ -204,21 +272,14 @@ function LootMonitorPage({
 }) {
   return (
     <>
-      <header className="topbar">
-        <BrandLockup compact />
-        <div className="topbar-actions">
-          <UserProfileChip user={currentUser} />
-          <button className="navigation-button" title="Loot logs" type="button" onClick={() => navigateTo('#loot-logs')}>
-            Loot Logs
-          </button>
-          <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
-            Dashboard
-          </button>
-          <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
-            Sign Out
-          </button>
-        </div>
-      </header>
+      <Topbar
+        actions={[
+          { label: 'Loot Logs', onClick: () => navigateTo('#loot-logs') },
+          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
+          { label: 'Sign Out', onClick: onSignOut },
+        ]}
+        currentUser={currentUser}
+      />
       <LootMonitor
         bundleId={bundleId}
         canCheckDeaths={isAuthenticated}
@@ -235,18 +296,13 @@ function SharedLootMonitorPage({ bundleId, isAuthenticated = false }) {
 function LootLogsPage({ currentUser = null, onSignOut = () => {}, onViewBundle }) {
   return (
     <>
-      <header className="topbar">
-        <BrandLockup compact />
-        <div className="topbar-actions">
-          <UserProfileChip user={currentUser} />
-          <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
-            Dashboard
-          </button>
-          <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
-            Sign Out
-          </button>
-        </div>
-      </header>
+      <Topbar
+        actions={[
+          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
+          { label: 'Sign Out', onClick: onSignOut },
+        ]}
+        currentUser={currentUser}
+      />
       <LootLogArchive onView={onViewBundle} />
     </>
   );
@@ -255,20 +311,13 @@ function LootLogsPage({ currentUser = null, onSignOut = () => {}, onViewBundle }
 function SiphonedEnergyPage({ currentUser = null, isAuthenticated = false, onSignOut = () => {} }) {
   return (
     <>
-      <header className="topbar">
-        <BrandLockup compact />
-        {isAuthenticated ? (
-          <div className="topbar-actions">
-            <UserProfileChip user={currentUser} />
-            <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
-              Dashboard
-            </button>
-            <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
-              Sign Out
-            </button>
-          </div>
-        ) : null}
-      </header>
+      <Topbar
+        actions={isAuthenticated ? [
+          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
+          { label: 'Sign Out', onClick: onSignOut },
+        ] : []}
+        currentUser={isAuthenticated ? currentUser : null}
+      />
       <SiphonedEnergyTracker canUpdate={isAuthenticated} />
     </>
   );
@@ -277,18 +326,13 @@ function SiphonedEnergyPage({ currentUser = null, isAuthenticated = false, onSig
 function MembersPage({ currentUser = null, onSignOut = () => {} }) {
   return (
     <>
-      <header className="topbar">
-        <BrandLockup compact />
-        <div className="topbar-actions">
-          <UserProfileChip user={currentUser} />
-          <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
-            Dashboard
-          </button>
-          <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
-            Sign Out
-          </button>
-        </div>
-      </header>
+      <Topbar
+        actions={[
+          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
+          { label: 'Sign Out', onClick: onSignOut },
+        ]}
+        currentUser={currentUser}
+      />
       <MembersTool />
     </>
   );
@@ -297,18 +341,13 @@ function MembersPage({ currentUser = null, onSignOut = () => {} }) {
 function PermissionsPage({ currentUser = null, onSignOut = () => {} }) {
   return (
     <>
-      <header className="topbar">
-        <BrandLockup compact />
-        <div className="topbar-actions">
-          <UserProfileChip user={currentUser} />
-          <button className="navigation-button" title="Dashboard" type="button" onClick={() => navigateTo('#dashboard')}>
-            Dashboard
-          </button>
-          <button className="navigation-button" title="Sign out" type="button" onClick={onSignOut}>
-            Sign Out
-          </button>
-        </div>
-      </header>
+      <Topbar
+        actions={[
+          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
+          { label: 'Sign Out', onClick: onSignOut },
+        ]}
+        currentUser={currentUser}
+      />
       <PermissionsTool />
     </>
   );
