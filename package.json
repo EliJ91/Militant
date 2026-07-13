@@ -1,17 +1,19 @@
 {
   "name": "militant-webapp",
-  "version": "1.8.46",
+  "version": "1.8.47",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "vite",
     "dev": "vite",
     "build": "vite build",
+    "discord-worker": "node src/discord/lootLogDiscordWorker.js",
     "preview": "vite preview",
     "test": "vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
+    "discord.js": "^14.26.5",
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
     "react": "^19.1.0",

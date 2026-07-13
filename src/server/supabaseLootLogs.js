@@ -849,6 +849,18 @@ async function refreshBundleSummary(supabase, bundle, originalFileName) {
   const range = getLootLogTimeRange(mergeEvents);
   const summaryWithFileNames = {
     ...summary,
+    ...(bundle.combined_loot_summary?.discordChannelId ? {
+      discordChannelId: bundle.combined_loot_summary.discordChannelId,
+    } : {}),
+    ...(Array.isArray(bundle.combined_loot_summary?.discordProcessedAttachmentIds) ? {
+      discordProcessedAttachmentIds: bundle.combined_loot_summary.discordProcessedAttachmentIds,
+    } : {}),
+    ...(bundle.combined_loot_summary?.discordThreadId ? {
+      discordThreadId: bundle.combined_loot_summary.discordThreadId,
+    } : {}),
+    ...(bundle.combined_loot_summary?.discordThreadName ? {
+      discordThreadName: bundle.combined_loot_summary.discordThreadName,
+    } : {}),
     ...(bundle.combined_loot_summary?.isMerged ? {
       deathCheckRanges: bundle.combined_loot_summary.deathCheckRanges,
       isMerged: true,
