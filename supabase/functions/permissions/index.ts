@@ -94,9 +94,12 @@ async function getDiscordMemberRoles(supabase: any, request: Request) {
   if (!response.ok) throw new Error('Could not load Discord member roles.');
 
   const member = await response.json();
+  const guildNickname = String(member?.nick || '').trim();
   return {
     discordGuildId: DISCORD_GUILD_ID,
     discordUserId,
+    guildNickname,
+    serverNickname: guildNickname,
     roleIds: Array.isArray(member?.roles) ? member.roles.map(String) : [],
   };
 }

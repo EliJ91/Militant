@@ -84,7 +84,13 @@ function getDiscordAvatarUrl(user = {}) {
 
 function getDiscordDisplayName(user = {}) {
   const metadata = user.user_metadata || user.userMetadata || {};
-  return user.globalName
+  return user.guildNickname
+    || user.serverNickname
+    || user.nick
+    || metadata.guildNickname
+    || metadata.serverNickname
+    || metadata.nick
+    || user.globalName
     || user.global_name
     || metadata.global_name
     || metadata.full_name
@@ -99,7 +105,12 @@ function getDiscordDisplayName(user = {}) {
 function getUploadUsername(user = {}) {
   const metadata = user.user_metadata || user.userMetadata || {};
   return String(
-    user.username
+    user.guildNickname
+      || user.serverNickname
+      || user.nick
+      || metadata.guildNickname
+      || metadata.serverNickname
+      || metadata.nick
       || metadata.user_name
       || metadata.preferred_username
       || getDiscordDisplayName(user),
@@ -645,6 +656,7 @@ export default function App() {
                 user: {
                   ...(currentSession.user || {}),
                   discordUserId: result.discordUserId || getDiscordUserId(currentSession.user || {}),
+                  guildNickname: result.guildNickname || result.serverNickname || result.nick || '',
                   roleIds: Array.isArray(result.roleIds) ? result.roleIds : [],
                 },
               };

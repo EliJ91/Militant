@@ -178,6 +178,7 @@ describe('App', () => {
     });
     fetchDiscordMemberRoles.mockResolvedValue({
       discordUserId: 'discord-user-2',
+      guildNickname: 'Frontline Soldier',
       roleIds: ['discord-soldier-role'],
     });
     getCurrentAuthSession.mockResolvedValue({
@@ -193,6 +194,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'View Loot Logs' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Logged in as Frontline Soldier')).toBeInTheDocument();
     expect(fetchDiscordMemberRoles).toHaveBeenCalledWith('discord-oauth-token');
   });
 
