@@ -1770,7 +1770,6 @@ function LootLogBundleList({
   onEditValue,
   onDelete,
   onDownload,
-  onMerge,
   onSelectBundle,
   onUploadLoot,
   onSaveEdit,
@@ -1836,19 +1835,7 @@ function LootLogBundleList({
     <section className="saved-log-section" aria-label="Saved combined loot logs">
       <header className="saved-log-header">
         <h2>Loot Logs</h2>
-        <div className="saved-log-header-actions">
-          {canMergeLogs ? (
-            <button
-              className="saved-log-merge-button"
-              disabled={selectedBundleIds.length < 2 || mergingLogs}
-              type="button"
-              onClick={onMerge}
-            >
-              {mergingLogs ? 'Merging...' : 'Merge'}
-            </button>
-          ) : null}
-          <strong>{status.state === 'loading' ? 'Loading' : `${formatNumber(bundles.length)} logs`}</strong>
-        </div>
+        <strong>{status.state === 'loading' ? 'Loading' : `${formatNumber(bundles.length)} logs`}</strong>
       </header>
       {status.message ? (
         <p className={`saved-log-message ${status.state === 'error' ? 'error' : ''}`}>{status.message}</p>
@@ -2450,6 +2437,18 @@ export function LootLogArchive({
           >
             ?
           </button>
+          {canMergeLogs ? (
+            <button
+              aria-label="Merge"
+              className="view-logs-button"
+              disabled={selectedBundleIds.length < 2 || mergingLogs}
+              title="Merge selected loot logs"
+              type="button"
+              onClick={mergeSelectedBundles}
+            >
+              {mergingLogs ? 'Merging' : 'Merge'}
+            </button>
+          ) : null}
           {canUploadLootLogs ? (
             <button
               aria-label="Upload log"
@@ -2519,7 +2518,6 @@ export function LootLogArchive({
         onEditValue={updateEditValue}
         onDelete={deleteBundle}
         onDownload={downloadBundle}
-        onMerge={mergeSelectedBundles}
         onSelectBundle={toggleSelectedBundle}
         onUploadLoot={uploadLootLogs}
         onSaveEdit={saveEditedBundle}

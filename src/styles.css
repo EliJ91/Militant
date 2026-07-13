@@ -1851,36 +1851,6 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
-.saved-log-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.saved-log-merge-button {
-  min-width: 92px;
-  min-height: 34px;
-  padding: 6px 14px;
-  border: 1px solid rgba(87, 216, 120, 0.58);
-  border-radius: 7px;
-  background: rgba(87, 216, 120, 0.13);
-  color: var(--white);
-  font: inherit;
-  font-size: 0.7rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.saved-log-merge-button:hover:not(:disabled) {
-  background: var(--green-hot);
-  color: var(--black);
-}
-
-.saved-log-merge-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.38;
-}
-
 .saved-log-message {
   margin: 0;
   padding: 14px 16px;
