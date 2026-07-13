@@ -129,11 +129,17 @@ function lootLogApi() {
       const {
         checkLootLogDeath,
         clearLootLogDeath,
+        mergeLootLogBundles,
         submitChestLog,
         submitLootLog,
       } = await import('./src/server/supabaseLootLogs.js');
       const body = await readJsonBody(req);
-      const result = body.action === 'death-check'
+      const result = body.action === 'merge'
+        ? await mergeLootLogBundles({
+          bundleIds: body.bundleIds,
+          username: body.username,
+        })
+        : body.action === 'death-check'
         ? await checkLootLogDeath({
           bundleId: body.bundleId,
           keptItems: body.keptItems,

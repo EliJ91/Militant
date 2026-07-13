@@ -8,6 +8,7 @@ import {
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
+  mergeLootLogBundles,
   submitChestLog,
   submitLootLog,
   updateLootLogBundle,
@@ -1561,12 +1562,10 @@ function FileUploadButton({
 function LootLogUploadDialog({
   disabled,
   files,
-  ignoreTimeRestraints,
   onAddFiles,
   onClose,
   onRemoveFile,
   onSubmit,
-  onToggleIgnoreTime,
 }) {
   const inputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -1651,15 +1650,6 @@ function LootLogUploadDialog({
             Choose files
           </button>
         </div>
-        <label className="loot-upload-ignore">
-          <input
-            checked={ignoreTimeRestraints}
-            disabled={disabled}
-            type="checkbox"
-            onChange={(event) => onToggleIgnoreTime(event.target.checked)}
-          />
-          <span>Ignore time restraints</span>
-        </label>
         {files.length > 0 ? (
           <ul className="loot-upload-file-list">
             {files.map((file, index) => (
@@ -1767,22 +1757,27 @@ function LootLogBundleList({
   canDeleteLogs = true,
   canDownloadLogs = true,
   canEditLogs = true,
+  canMergeLogs = false,
   canUploadChestLogs = true,
   canUploadLootLogs = true,
   deletingBundleId,
   downloadingBundleId,
   editingBundleId,
   editValues,
+  mergingLogs,
   onCancelEdit,
   onEdit,
   onEditValue,
   onDelete,
   onDownload,
+  onMerge,
+  onSelectBundle,
   onUploadLoot,
   onSaveEdit,
   onUploadChest,
   onView,
   status,
+  selectedBundleIds,
   updatingBundleId,
   uploadingBundleId,
 }) {
@@ -1792,7 +1787,19 @@ function LootLogBundleList({
     <section className="saved-log-section" aria-label="Saved combined loot logs">
       <header className="saved-log-header">
         <h2>Loot Logs</h2>
-        <strong>{status.state === 'loading' ? 'Loading' : `${formatNumber(bundles.length)} logs`}</strong>
+        <div className="saved-log-header-actions">
+          {canMergeLogs ? (
+            <button
+              className="saved-log-merge-button"
+              disabled={selectedBundleIds.length < 2 || mergingLogs}
+              type="button"
+              onClick={onMerge}
+            >
+              {mergingLogs ? 'Merging...' : 'Merge'}
+            </button>
+          ) : null}
+          <strong>{status.state === 'loading' ? 'Loading' : `${formatNumber(bundles.length)} logs`}</strong>
+        </div>
       </header>
       {status.message ? (
         <p className={`saved-log-message ${status.state === 'error' ? 'error' : ''}`}>{status.message}</p>
@@ -1819,6 +1826,7 @@ function LootLogBundleList({
             const isEditing = editingBundleId === bundle.id;
             const canEditSubmitters = canEditLogs;
             const canEditBundle = canEditLogs || canChangeLootLogTitle;
+            const isSelected = selectedBundleIds.includes(bundle.id);
             const editSaveDisabled = !editValues.dateUtc
               || !editValues.lootFileName.trim()
               || (canEditSubmitters && !editValues.lootSubmitter.trim())
@@ -1835,7 +1843,18 @@ function LootLogBundleList({
                   onSaveEdit(bundle);
                 }}
               >
-                <div className="saved-log-card">
+                <div className={`saved-log-card${isSelected ? ' selected' : ''}`}>
+                  {canMergeLogs ? (
+                    <label className="saved-log-select" title={`Select ${bundle.lootFileName || 'loot log'} for merging`}>
+                      <input
+                        aria-label={`Select ${bundle.lootFileName || 'loot log'}`}
+                        checked={isSelected}
+                        disabled={mergingLogs}
+                        type="checkbox"
+                        onChange={() => onSelectBundle(bundle.id)}
+                      />
+                    </label>
+                  ) : null}
                   <div className="saved-log-card-main">
                     <div className="saved-log-time">
                       <strong>Uploaded</strong>
@@ -1849,6 +1868,7 @@ function LootLogBundleList({
                   <div className="saved-log-users">
                     <div className="saved-log-title-line">
                       <small>Loot Log</small>
+                      {bundle.summary?.isMerged ? <span className="saved-log-merged-badge">Merged</span> : null}
                       {!isEditing && canUploadLootLogs ? (
                         <FileUploadButton
                           accept=".csv,.txt,text/csv,text/plain"
@@ -2008,6 +2028,7 @@ export function LootLogArchive({
   canDeleteLogs = true,
   canDownloadLogs = true,
   canEditLogs = true,
+  canMergeLogs = false,
   canUploadChestLogs = true,
   canUploadLootLogs = true,
   onView = () => {},
@@ -2031,7 +2052,8 @@ export function LootLogArchive({
   const [lootUploadFiles, setLootUploadFiles] = useState([]);
   const [lootUploadHelpOpen, setLootUploadHelpOpen] = useState(false);
   const [lootUploadModalOpen, setLootUploadModalOpen] = useState(false);
-  const [lootUploadIgnoreTime, setLootUploadIgnoreTime] = useState(false);
+  const [mergingLogs, setMergingLogs] = useState(false);
+  const [selectedBundleIds, setSelectedBundleIds] = useState([]);
   const [updatingBundleId, setUpdatingBundleId] = useState('');
   const [uploadingBundleId, setUploadingBundleId] = useState('');
 
@@ -2043,6 +2065,8 @@ export function LootLogArchive({
       setSavedLogBundles([...(result.bundles || [])].sort((left, right) => (
         new Date(getBundleUploadedAt(right)).getTime() - new Date(getBundleUploadedAt(left)).getTime()
       )));
+      const availableIds = new Set((result.bundles || []).map((bundle) => bundle.id));
+      setSelectedBundleIds((current) => current.filter((bundleId) => availableIds.has(bundleId)));
       setSavedLogStatus({ message: '', state: 'loaded' });
     } catch (savedLogError) {
       setSavedLogStatus({
@@ -2056,12 +2080,10 @@ export function LootLogArchive({
     loadSavedLogs();
   }, []);
 
-  async function uploadLootLogs(files, bundle = null, options = {}) {
+  async function uploadLootLogs(files, bundle = null) {
     const selectedFiles = [...(Array.isArray(files) ? files : [files])].filter(Boolean);
     if (selectedFiles.length === 0) return false;
     const targetBundleId = bundle?.id || null;
-    const ignoreTimeRestraints = Boolean(options.ignoreTimeRestraints && !targetBundleId);
-    let mergeBundleId = targetBundleId;
 
     if (targetBundleId) setUploadingBundleId(targetBundleId);
     setActionStatus({
@@ -2079,14 +2101,11 @@ export function LootLogArchive({
         if (detectFileKind(text) !== 'loot') throw new Error(`${file.name} is not a valid loot-events file.`);
 
         const result = await submitLootLog({
-          bundleId: mergeBundleId,
+          bundleId: targetBundleId,
           lootLogText: text,
           originalFileName: file.name,
           username: uploadUsername,
         });
-        if (ignoreTimeRestraints && !mergeBundleId) {
-          mergeBundleId = result.bundleId || result.summary?.bundleId || null;
-        }
         uploadedNames.push(result.summary?.displayLootFileName || result.summary?.fileNames?.loot || file.name || 'Loot Log');
       }
 
@@ -2110,14 +2129,46 @@ export function LootLogArchive({
   }
 
   async function uploadSelectedLootLogs() {
-    const uploaded = await uploadLootLogs(lootUploadFiles, null, {
-      ignoreTimeRestraints: lootUploadIgnoreTime,
-    });
+    const uploaded = await uploadLootLogs(lootUploadFiles);
     if (!uploaded) return;
 
     setLootUploadFiles([]);
-    setLootUploadIgnoreTime(false);
     setLootUploadModalOpen(false);
+  }
+
+  function toggleSelectedBundle(bundleId) {
+    setSelectedBundleIds((current) => (
+      current.includes(bundleId)
+        ? current.filter((currentId) => currentId !== bundleId)
+        : [...current, bundleId]
+    ));
+  }
+
+  async function mergeSelectedBundles() {
+    if (!canMergeLogs || selectedBundleIds.length < 2 || mergingLogs) return;
+
+    setMergingLogs(true);
+    setActionStatus({ message: `Merging ${selectedBundleIds.length} loot logs...`, state: 'loading' });
+
+    try {
+      const result = await mergeLootLogBundles({
+        bundleIds: selectedBundleIds,
+        username: uploadUsername,
+      });
+      setSelectedBundleIds([]);
+      setActionStatus({
+        message: `${result.lootFileName || 'Merged loot log'} created.`,
+        state: 'success',
+      });
+      await loadSavedLogs();
+    } catch (mergeError) {
+      setActionStatus({
+        message: mergeError.message || 'Could not merge the selected loot logs.',
+        state: 'error',
+      });
+    } finally {
+      setMergingLogs(false);
+    }
   }
 
   async function uploadChestLog(bundle, files) {
@@ -2362,7 +2413,6 @@ export function LootLogArchive({
               type="button"
               onClick={() => {
                 setLootUploadFiles([]);
-                setLootUploadIgnoreTime(false);
                 setLootUploadModalOpen(true);
               }}
             >
@@ -2397,12 +2447,10 @@ export function LootLogArchive({
         <LootLogUploadDialog
           disabled={actionStatus.state === 'loading'}
           files={lootUploadFiles}
-          ignoreTimeRestraints={lootUploadIgnoreTime}
           onAddFiles={(files) => setLootUploadFiles((current) => [...current, ...files])}
           onClose={() => setLootUploadModalOpen(false)}
           onRemoveFile={(index) => setLootUploadFiles((current) => current.filter((_, currentIndex) => currentIndex !== index))}
           onSubmit={uploadSelectedLootLogs}
-          onToggleIgnoreTime={setLootUploadIgnoreTime}
         />
       ) : null}
 
@@ -2412,22 +2460,27 @@ export function LootLogArchive({
         canDeleteLogs={canDeleteLogs}
         canDownloadLogs={canDownloadLogs}
         canEditLogs={canEditLogs}
+        canMergeLogs={canMergeLogs}
         canUploadChestLogs={canUploadChestLogs}
         canUploadLootLogs={canUploadLootLogs}
         deletingBundleId={deletingBundleId}
         downloadingBundleId={downloadingBundleId}
         editingBundleId={editingBundleId}
         editValues={editValues}
+        mergingLogs={mergingLogs}
         onCancelEdit={cancelEditBundle}
         onEdit={editBundle}
         onEditValue={updateEditValue}
         onDelete={deleteBundle}
         onDownload={downloadBundle}
+        onMerge={mergeSelectedBundles}
+        onSelectBundle={toggleSelectedBundle}
         onUploadLoot={uploadLootLogs}
         onSaveEdit={saveEditedBundle}
         onUploadChest={uploadChestLog}
         onView={onView}
         status={savedLogStatus}
+        selectedBundleIds={selectedBundleIds}
         updatingBundleId={updatingBundleId}
         uploadingBundleId={uploadingBundleId}
       />

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deathMatchesBundle,
   getBundleDisplayChestFileName,
   getBundleDisplayLootFileName,
   getBundleFileNames,
+  normalizeDeathCheckRanges,
 } from './supabaseLootLogs.js';
 
 describe('getBundleFileNames', () => {
@@ -57,5 +59,38 @@ describe('getBundleFileNames', () => {
     expect(getBundleDisplayLootFileName(bundle, 'later-merged-file.txt'))
       .toBe('Custom Raid');
     expect(getBundleDisplayChestFileName(bundle)).toBe('Custom Raid');
+  });
+});
+
+describe('merged bundle death ranges', () => {
+  const bundle = {
+    combined_loot_summary: {
+      deathCheckRanges: [
+        { startAt: '2026-06-18T13:00:00.000Z', endAt: '2026-06-18T15:00:00.000Z' },
+        { startAt: '2026-06-18T17:00:00.000Z', endAt: '2026-06-18T19:00:00.000Z' },
+      ],
+    },
+    end_at: '2026-06-18T19:00:00.000Z',
+    start_at: '2026-06-18T13:00:00.000Z',
+  };
+
+  it('checks deaths inside either source log window', () => {
+    expect(deathMatchesBundle({ TimeStamp: '2026-06-18T14:00:00.000Z' }, bundle)).toBe(true);
+    expect(deathMatchesBundle({ TimeStamp: '2026-06-18T18:00:00.000Z' }, bundle)).toBe(true);
+  });
+
+  it('does not check deaths in a gap between source logs', () => {
+    expect(deathMatchesBundle({ TimeStamp: '2026-06-18T16:00:00.000Z' }, bundle)).toBe(false);
+  });
+
+  it('merges overlapping windows while preserving gaps', () => {
+    expect(normalizeDeathCheckRanges([
+      { startAt: '2026-06-18T13:00:00.000Z', endAt: '2026-06-18T15:00:00.000Z' },
+      { startAt: '2026-06-18T14:30:00.000Z', endAt: '2026-06-18T16:00:00.000Z' },
+      { startAt: '2026-06-18T17:00:00.000Z', endAt: '2026-06-18T19:00:00.000Z' },
+    ])).toEqual([
+      { startAt: '2026-06-18T13:00:00.000Z', endAt: '2026-06-18T16:00:00.000Z' },
+      { startAt: '2026-06-18T17:00:00.000Z', endAt: '2026-06-18T19:00:00.000Z' },
+    ]);
   });
 });

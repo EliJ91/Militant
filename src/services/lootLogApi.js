@@ -48,6 +48,25 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
   return result;
 }
 
+export async function mergeLootLogBundles({ bundleIds, username }) {
+  const response = await fetch(getLootLogApiUrl(), {
+    body: JSON.stringify({
+      action: 'merge',
+      bundleIds,
+      username,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not merge loot logs.');
+  }
+
+  return result;
+}
+
 export async function checkLootLogDeath({ bundleId, keptItems, player }) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({

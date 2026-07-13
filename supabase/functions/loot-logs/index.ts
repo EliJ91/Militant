@@ -622,6 +622,35 @@ function dbEventToMergeEvent(event: any): LootEvent {
   };
 }
 
+function normalizeDeathCheckRanges(ranges: any, fallbackBundle: any = null) {
+  const sourceRanges = Array.isArray(ranges) && ranges.length > 0
+    ? ranges
+    : fallbackBundle
+      ? [{ endAt: fallbackBundle.end_at, startAt: fallbackBundle.start_at }]
+      : [];
+  const validRanges = sourceRanges
+    .map((range: any) => {
+      const start = new Date(range?.startAt || range?.start_at || '').getTime();
+      const end = new Date(range?.endAt || range?.end_at || '').getTime();
+      return Number.isFinite(start) && Number.isFinite(end) && start <= end ? { end, start } : null;
+    })
+    .filter(Boolean)
+    .sort((left: any, right: any) => left.start - right.start);
+
+  return validRanges.reduce((merged: any[], range: any) => {
+    const previous = merged[merged.length - 1];
+    if (previous && range.start <= previous.end) {
+      previous.end = Math.max(previous.end, range.end);
+      return merged;
+    }
+    merged.push({ ...range });
+    return merged;
+  }, []).map((range: any) => ({
+    endAt: new Date(range.end).toISOString(),
+    startAt: new Date(range.start).toISOString(),
+  }));
+}
+
 function normalizeDeathKey(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
@@ -712,6 +741,16 @@ async function deathEventExists(eventId: unknown) {
 
 function deathMatchesBundle(death: any, bundle: any) {
   const timestamp = new Date(deathTimestamp(death)).getTime();
+  const deathCheckRanges = normalizeDeathCheckRanges(
+    bundle?.combined_loot_summary?.deathCheckRanges,
+    bundle,
+  );
+  if (deathCheckRanges.length > 0) {
+    return Number.isFinite(timestamp) && deathCheckRanges.some((range: any) => (
+      timestamp >= new Date(range.startAt).getTime()
+      && timestamp <= new Date(range.endAt).getTime()
+    ));
+  }
   const startAt = new Date(bundle.start_at).getTime();
   const endAt = new Date(bundle.end_at).getTime();
   return Number.isFinite(timestamp)
@@ -856,7 +895,7 @@ async function loadDeathCheckContext(supabase: any, bundleId: string, playerKeys
   const [bundleResult, membersResult, startResult, endResult] = await Promise.all([
     supabase
       .from('loot_log_bundles')
-      .select('id,start_at,end_at')
+      .select('id,start_at,end_at,combined_loot_summary')
       .eq('id', bundleId)
       .single(),
     supabase
@@ -924,6 +963,153 @@ async function clearLootLogDeathChecks(supabase: any, bundleId: string) {
     .eq('bundle_id', bundleId);
 
   if (error) throw error;
+}
+
+async function mergeLootLogBundles(supabase: any, body: any) {
+  const sourceIds = [...new Set((Array.isArray(body.bundleIds) ? body.bundleIds : [])
+    .map((bundleId: unknown) => String(bundleId || '').trim())
+    .filter(Boolean))] as string[];
+  if (sourceIds.length < 2) throw new Error('Select at least two loot logs to merge.');
+  if (sourceIds.length > 20) throw new Error('A maximum of 20 loot logs can be merged at once.');
+
+  const { data: unorderedBundles, error: bundlesError } = await supabase
+    .from('loot_log_bundles')
+    .select('id,start_at,end_at,combined_loot_summary')
+    .in('id', sourceIds);
+  if (bundlesError) throw bundlesError;
+  if ((unorderedBundles || []).length !== sourceIds.length) throw new Error('One or more selected loot logs could not be found.');
+
+  const byId = new Map((unorderedBundles || []).map((bundle: any) => [bundle.id, bundle]));
+  const sourceBundles = sourceIds.map((bundleId) => byId.get(bundleId));
+  const startAt = new Date(Math.min(...sourceBundles.map((bundle: any) => new Date(bundle.start_at).getTime()))).toISOString();
+  const endAt = new Date(Math.max(...sourceBundles.map((bundle: any) => new Date(bundle.end_at).getTime()))).toISOString();
+  const mergedAt = new Date().toISOString();
+  const mergedBy = String(body.username || '').trim() || 'manual-web-upload';
+  const deathCheckRanges = normalizeDeathCheckRanges(sourceBundles.flatMap((bundle: any) => (
+    bundle.combined_loot_summary?.deathCheckRanges || [{ endAt: bundle.end_at, startAt: bundle.start_at }]
+  )));
+  const firstTitle = getBundleDisplayLootFileName(sourceBundles[0]);
+  const displayLootFileName = cleanDisplayLogName(`Merged - ${firstTitle}`) || 'Merged Loot Logs';
+  const fileNames = buildSharedFileNames(displayLootFileName, buildBundleFileNames(startAt).baseName);
+  const mergeMetadata = {
+    deathCheckRanges,
+    displayLootFileName,
+    fileNames,
+    isMerged: true,
+    mergedAt,
+    mergedBy: normalizeSubmitterName(mergedBy),
+    mergedFromBundleIds: sourceIds,
+  };
+
+  const { data: targetBundle, error: targetError } = await supabase
+    .from('loot_log_bundles')
+    .insert({ combined_loot_summary: mergeMetadata, end_at: endAt, start_at: startAt })
+    .select('id,start_at,end_at,combined_loot_summary')
+    .single();
+  if (targetError) throw targetError;
+
+  try {
+    const copiedEventsByHash = new Map<string, any>();
+    const chestRows: any[] = [];
+
+    for (const sourceBundle of sourceBundles) {
+      const [submissionsResult, chestResult, sourceEvents] = await Promise.all([
+        supabase.from('loot_log_submissions')
+          .select('id,submitted_by,event_start_at,event_end_at,raw_log_text,skipped_rows')
+          .eq('bundle_id', sourceBundle.id)
+          .order('created_at'),
+        supabase.from('chest_log_submissions')
+          .select('submitted_by,raw_log_text,parsed_chest_summary')
+          .eq('bundle_id', sourceBundle.id)
+          .order('created_at'),
+        fetchAllBundleEvents(supabase, sourceBundle.id),
+      ]);
+      if (submissionsResult.error) throw submissionsResult.error;
+      if (chestResult.error) throw chestResult.error;
+
+      const submissionIds = new Map<string, string>();
+      for (const submission of submissionsResult.data || []) {
+        const { data: copiedSubmission, error: submissionError } = await supabase
+          .from('loot_log_submissions')
+          .insert({
+            bundle_id: targetBundle.id,
+            event_end_at: submission.event_end_at,
+            event_start_at: submission.event_start_at,
+            raw_log_text: submission.raw_log_text,
+            skipped_rows: submission.skipped_rows || [],
+            submitted_by: submission.submitted_by,
+          })
+          .select('id')
+          .single();
+        if (submissionError) throw submissionError;
+        submissionIds.set(submission.id, copiedSubmission.id);
+      }
+
+      const fallbackSubmissionId = submissionIds.values().next().value;
+      sourceEvents.forEach((event: any) => {
+        const current = copiedEventsByHash.get(event.event_hash);
+        if (current && Number(current.quantity) >= Number(event.quantity)) return;
+        copiedEventsByHash.set(event.event_hash, {
+          alliance: event.alliance,
+          bundle_id: targetBundle.id,
+          dedupe_key: event.dedupe_key,
+          emv_each: event.emv_each,
+          emv_priced_at: event.emv_priced_at,
+          emv_source_city: event.emv_source_city,
+          emv_total: event.emv_total,
+          enchantment: event.enchantment,
+          event_hash: event.event_hash,
+          event_type: event.event_type,
+          guild: event.guild,
+          item_id: event.item_id,
+          item_name: event.item_name,
+          lost_to: event.lost_to,
+          player_name: event.player_name,
+          quantity: event.quantity,
+          submission_id: submissionIds.get(event.submission_id) || fallbackSubmissionId,
+          timestamp_utc: event.timestamp_utc,
+        });
+      });
+
+      (chestResult.data || []).forEach((submission: any) => chestRows.push({
+        bundle_id: targetBundle.id,
+        parsed_chest_summary: submission.parsed_chest_summary || {},
+        raw_log_text: submission.raw_log_text,
+        submitted_by: submission.submitted_by,
+      }));
+    }
+
+    const copiedEvents = [...copiedEventsByHash.values()].filter((event) => event.submission_id);
+    for (const eventBatch of chunkArray(copiedEvents, INSERT_BATCH_SIZE)) {
+      const { error } = await supabase.from('loot_log_events').insert(eventBatch);
+      if (error) throw error;
+    }
+    for (const chestBatch of chunkArray(chestRows, INSERT_BATCH_SIZE)) {
+      const { error } = await supabase.from('chest_log_submissions').insert(chestBatch);
+      if (error) throw error;
+    }
+
+    const summary = {
+      ...aggregateLootLogEvents(copiedEvents.map(dbEventToMergeEvent)),
+      ...mergeMetadata,
+    };
+    const { error: summaryError } = await supabase
+      .from('loot_log_bundles')
+      .update({ combined_loot_summary: summary, updated_at: mergedAt })
+      .eq('id', targetBundle.id);
+    if (summaryError) throw summaryError;
+
+    return {
+      bundleId: targetBundle.id,
+      lootFileName: displayLootFileName,
+      merged: true,
+      sourceBundleIds: sourceIds,
+      summary,
+    };
+  } catch (error) {
+    await supabase.from('loot_log_bundles').delete().eq('id', targetBundle.id);
+    throw error;
+  }
 }
 
 async function runLootLogDeathChecks(supabase: any, { bundleId, checks }: any) {
@@ -1248,7 +1434,9 @@ Deno.serve(async (request) => {
         const summary = aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent));
         const chestLogs = chestResult.data || [];
         const chestLog = chestLogs[chestLogs.length - 1] || null;
-        const primaryLootLog = submissionsResult.data?.[0] || null;
+        const rawLootLogTexts = (submissionsResult.data || [])
+          .map((submission: any) => submission.raw_log_text || '')
+          .filter(Boolean);
         const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
         const submitters = displaySubmitters.loot
           ? [displaySubmitters.loot]
@@ -1272,7 +1460,7 @@ Deno.serve(async (request) => {
             hasChestLog: chestLogs.length > 0,
             id: bundle.id,
             lootFileName: getBundleDisplayLootFileName(bundle),
-            lootLogText: primaryLootLog?.raw_log_text || '',
+            lootLogText: rawLootLogTexts.join('\n'),
             startAt: bundle.start_at,
             submissions: (submissionsResult.data || []).map((submission: any) => ({
               createdAt: submission.created_at,
@@ -1366,6 +1554,9 @@ Deno.serve(async (request) => {
     const body = await request.json();
     const submittedBy = String(body.username || '').trim() || 'manual-web-upload';
 
+    if (body.action === 'merge') {
+      return jsonResponse(200, await mergeLootLogBundles(supabase, body));
+    }
     if (body.action === 'death-check') {
       return jsonResponse(200, await checkLootLogDeath(supabase, body));
     }
@@ -1595,6 +1786,13 @@ Deno.serve(async (request) => {
     const refreshedRange = getLootLogTimeRange(mergeEvents);
     const summaryWithFileNames = {
       ...summary,
+      ...(bundle.combined_loot_summary?.isMerged ? {
+        deathCheckRanges: bundle.combined_loot_summary.deathCheckRanges,
+        isMerged: true,
+        mergedAt: bundle.combined_loot_summary.mergedAt,
+        mergedBy: bundle.combined_loot_summary.mergedBy,
+        mergedFromBundleIds: bundle.combined_loot_summary.mergedFromBundleIds,
+      } : {}),
       displayLootFileName: getBundleDisplayLootFileName(
         bundle,
         originalFileName,

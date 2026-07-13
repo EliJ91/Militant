@@ -558,6 +558,7 @@ function LootLogsPage({
         canChangeLootLogTitle={Boolean(permissions.changeLootLogTitle)}
         canDownloadLogs={Boolean(permissions.viewLogs)}
         canEditLogs={Boolean(permissions.editLootLogs)}
+        canMergeLogs={Boolean(permissions.mergeLootLogs)}
         canUploadChestLogs={Boolean(permissions.uploadChestLogs)}
         canUploadLootLogs={Boolean(permissions.uploadLootLogs)}
         onView={onViewBundle}

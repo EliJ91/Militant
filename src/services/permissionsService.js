@@ -8,6 +8,7 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'viewLogs', label: 'View Logs', area: 'Loot Logs' },
   { key: 'viewLootLog', label: 'View A Loot Log', area: 'Loot Logs' },
   { key: 'uploadLootLogs', label: 'Upload Loot Logs', area: 'Loot Logs' },
+  { key: 'mergeLootLogs', label: 'Merge Loot Logs', area: 'Loot Logs' },
   { key: 'editLootLogs', label: 'Edit Loot Logs', area: 'Loot Logs' },
   { key: 'changeLootLogTitle', label: 'Edit Loot Log Title', area: 'Loot Logs' },
   { key: 'uploadChestLogs', label: 'Upload Chest Logs', area: 'Loot Logs' },

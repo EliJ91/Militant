@@ -6,6 +6,7 @@ import {
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
+  mergeLootLogBundles,
   submitChestLog,
   submitLootLog,
   updateLootLogBundle,
@@ -18,6 +19,7 @@ vi.mock('../services/lootLogApi', () => ({
   deleteLootLogBundle: vi.fn(),
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
+  mergeLootLogBundles: vi.fn(),
   submitChestLog: vi.fn(),
   submitLootLog: vi.fn(),
   updateLootLogBundle: vi.fn(),
@@ -121,6 +123,7 @@ describe('LootMonitor', () => {
     stubMarketPrices();
     fetchLootLogBundle.mockResolvedValue({ bundle: createBundle() });
     fetchLootLogBundles.mockResolvedValue({ bundles: [createBundle()] });
+    mergeLootLogBundles.mockResolvedValue({ bundleId: 'merged-bundle', lootFileName: 'Merged - 18UTC-JUN-18' });
     submitLootLog.mockResolvedValue({ bundleId: 'bundle-18', summary: { fileNames: { loot: '18UTC-JUN-18 Loot Log' } } });
     submitChestLog.mockResolvedValue({ fileName: '18UTC-JUN-18 Chest Log' });
     deleteLootLogBundle.mockResolvedValue({ bundleId: 'bundle-18', deleted: true });
@@ -873,6 +876,7 @@ describe('LootMonitor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /upload log/i }));
     let uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
+    expect(within(uploadDialog).queryByText('Ignore time restraints')).not.toBeInTheDocument();
     let modalLootInput = uploadDialog.querySelector('input[accept^=".csv"]');
     fireEvent.change(modalLootInput, {
       target: { files: [new File([lootText], 'loot-events.txt', { type: 'text/plain' })] },
@@ -930,35 +934,6 @@ describe('LootMonitor', () => {
     submitLootLog.mockClear();
     fireEvent.click(screen.getByRole('button', { name: /upload log/i }));
     uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
-    modalLootInput = uploadDialog.querySelector('input[accept^=".csv"]');
-    fireEvent.change(modalLootInput, {
-      target: {
-        files: [
-          new File([lootText], 'first-ignore-time-loot-events.txt', { type: 'text/plain' }),
-          new File([secondLootText], 'second-ignore-time-loot-events.txt', { type: 'text/plain' }),
-        ],
-      },
-    });
-    fireEvent.click(within(uploadDialog).getByRole('checkbox', { name: 'Ignore time restraints' }));
-    fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
-    await waitFor(() => expect(submitLootLog).toHaveBeenCalledTimes(2));
-    expect(submitLootLog).toHaveBeenNthCalledWith(1, {
-      bundleId: null,
-      lootLogText: lootText,
-      originalFileName: 'first-ignore-time-loot-events.txt',
-      username: 'manual-web-upload',
-    });
-    expect(submitLootLog).toHaveBeenNthCalledWith(2, {
-      bundleId: 'bundle-18',
-      lootLogText: secondLootText,
-      originalFileName: 'second-ignore-time-loot-events.txt',
-      username: 'manual-web-upload',
-    });
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Loot Logs' })).not.toBeInTheDocument());
-
-    submitLootLog.mockClear();
-    fireEvent.click(screen.getByRole('button', { name: /upload log/i }));
-    uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
     const dropzone = uploadDialog.querySelector('.loot-upload-dropzone');
     const droppedLootFile = new File([lootText], 'dropped-loot-events.txt', { type: 'text/plain' });
     fireEvent.dragEnter(dropzone, { dataTransfer: { files: [droppedLootFile] } });
@@ -1004,6 +979,41 @@ describe('LootMonitor', () => {
       chestLogText: chestText,
       username: 'manual-web-upload',
     });
+  });
+
+  it('lets permitted users select and merge existing loot log bundles', async () => {
+    fetchLootLogBundles.mockResolvedValue({
+      bundles: [
+        createBundle({ id: 'bundle-18', lootFileName: 'First CTA' }),
+        createBundle({ id: 'bundle-20', lootFileName: 'Second CTA' }),
+      ],
+    });
+
+    render(<LootLogArchive canMergeLogs uploadUsername="Frontline Soldier" />);
+
+    const mergeButton = await screen.findByRole('button', { name: 'Merge' });
+    expect(mergeButton).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select First CTA' }));
+    expect(mergeButton).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Second CTA' }));
+    expect(mergeButton).toBeEnabled();
+    fireEvent.click(mergeButton);
+
+    await waitFor(() => expect(mergeLootLogBundles).toHaveBeenCalledWith({
+      bundleIds: ['bundle-18', 'bundle-20'],
+      username: 'Frontline Soldier',
+    }));
+    expect(await screen.findByText('Merged - 18UTC-JUN-18 created.')).toBeInTheDocument();
+  });
+
+  it('marks merged loot log entries', async () => {
+    fetchLootLogBundles.mockResolvedValue({
+      bundles: [createBundle({ summary: { isMerged: true, totals: { lootedQuantity: 2, players: 1 } } })],
+    });
+
+    render(<LootLogArchive />);
+
+    expect(await screen.findByText('Merged')).toBeInTheDocument();
   });
 
   it('deletes a saved bundle only after confirmation', async () => {
