@@ -1082,6 +1082,16 @@ describe('LootMonitor', () => {
     }));
   });
 
+  it('allows title-only editors to open edit mode without changing uploader names', async () => {
+    render(<LootLogArchive canChangeLootLogTitle canEditLogs={false} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+
+    expect(screen.getByLabelText('Loot Log Name')).toBeEnabled();
+    expect(screen.getByLabelText('Loot Log Uploaded By')).toBeDisabled();
+    expect(screen.getByLabelText('Chest Log Uploaded By')).toBeDisabled();
+  });
+
   it('previews, customizes, cancels, and saves log metadata edits', async () => {
     const { container } = render(<LootLogArchive />);
 
