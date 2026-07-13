@@ -30,6 +30,7 @@ const DOWNLOAD_AGE_DAYS = 60;
 const RETENTION_DAYS = 90;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 const LOOT_TOOLTIP_OPEN_EVENT = 'militant:loot-tooltip-open';
+const DEATH_CHECK_BATCH_SIZE = 1;
 
 const TIER_OPTIONS = [
   { label: 'T4', value: 'tier4' },
@@ -1338,7 +1339,14 @@ function PlayerEmv({ emv }) {
   );
 }
 
-function PlayerDeathControl({ deathCheck, isCheckLocked, isChecking, onCheck, showCheck }) {
+function PlayerDeathControl({
+  canResetDeathCheck = false,
+  deathCheck,
+  isCheckLocked,
+  isChecking,
+  onCheck,
+  showCheck,
+}) {
   const deathUrl = deathCheck?.deathUrl || (deathCheck?.eventId
     ? `https://killboard-1.com/us/event/${encodeURIComponent(deathCheck.eventId)}`
     : '');
@@ -1368,18 +1376,28 @@ function PlayerDeathControl({ deathCheck, isCheckLocked, isChecking, onCheck, sh
   }
 
   if (deathCheck?.status === 'not_found') {
-    if (!showCheck) return null;
-
     return (
-      <button
-        className="player-death-control"
-        disabled={isChecking || isCheckLocked}
-        title="Try again?"
-        type="button"
-        onClick={onCheck}
-      >
-        {isChecking ? 'Checking...' : 'No Death Found'}
-      </button>
+      <span className="player-death-actions">
+        {showCheck && canResetDeathCheck ? (
+          <button
+            className="player-death-control"
+            disabled={isChecking || isCheckLocked}
+            title="Recheck the player's deaths"
+            type="button"
+            onClick={onCheck}
+          >
+            {isChecking ? 'Checking...' : 'Reset'}
+          </button>
+        ) : null}
+        <button
+          className="player-death-control"
+          disabled
+          title="No death was found for this player"
+          type="button"
+        >
+          No Death Found
+        </button>
+      </span>
     );
   }
 
@@ -1745,6 +1763,7 @@ function UploadInstructionsModal({ onClose }) {
 
 function LootLogBundleList({
   bundles,
+  canChangeLootLogTitle = true,
   canDeleteLogs = true,
   canDownloadLogs = true,
   canEditLogs = true,
@@ -1798,10 +1817,12 @@ function LootLogBundleList({
             const retention = getRetentionStatus(bundle.startAt);
             const uploadedAt = getBundleUploadedAt(bundle);
             const isEditing = editingBundleId === bundle.id;
+            const canEditSubmitters = canEditLogs;
+            const canEditBundle = canEditLogs || canChangeLootLogTitle;
             const editSaveDisabled = !editValues.dateUtc
               || !editValues.lootFileName.trim()
-              || !editValues.lootSubmitter.trim()
-              || (bundle.hasChestLog && !editValues.chestSubmitter.trim())
+              || (canEditSubmitters && !editValues.lootSubmitter.trim())
+              || (canEditSubmitters && bundle.hasChestLog && !editValues.chestSubmitter.trim())
               || updatingBundleId === bundle.id;
 
             return (
@@ -1883,6 +1904,7 @@ function LootLogBundleList({
                         <input
                           aria-label="Loot Log Uploaded By"
                           className="saved-log-name-input"
+                          disabled={!canEditSubmitters}
                           maxLength={80}
                           type="text"
                           value={editValues.lootSubmitter}
@@ -1898,7 +1920,7 @@ function LootLogBundleList({
                         <input
                           aria-label="Chest Log Uploaded By"
                           className="saved-log-name-input"
-                          disabled={!bundle.hasChestLog}
+                          disabled={!canEditSubmitters || !bundle.hasChestLog}
                           maxLength={80}
                           type="text"
                           value={editValues.chestSubmitter}
@@ -1937,7 +1959,7 @@ function LootLogBundleList({
                         </>
                       ) : (
                         <>
-                          {canEditLogs ? (
+                          {canEditBundle ? (
                             <button className="saved-log-edit-button" title="Edit log" type="button" onClick={() => onEdit(bundle)}>
                               <span>Edit</span>
                             </button>
@@ -1982,6 +2004,7 @@ function LootLogBundleList({
 }
 
 export function LootLogArchive({
+  canChangeLootLogTitle = true,
   canDeleteLogs = true,
   canDownloadLogs = true,
   canEditLogs = true,
@@ -2218,8 +2241,8 @@ export function LootLogArchive({
       const submitterUpdates = {};
       const lootSubmitter = editValues.lootSubmitter.trim();
       const chestSubmitter = editValues.chestSubmitter.trim();
-      if (lootSubmitter !== editValues.originalLootSubmitter) submitterUpdates.loot = lootSubmitter;
-      if (bundle.hasChestLog && chestSubmitter !== editValues.originalChestSubmitter) {
+      if (canEditLogs && lootSubmitter !== editValues.originalLootSubmitter) submitterUpdates.loot = lootSubmitter;
+      if (canEditLogs && bundle.hasChestLog && chestSubmitter !== editValues.originalChestSubmitter) {
         submitterUpdates.chest = chestSubmitter;
       }
       const editedBaseName = editValues.lootFileName.trim();
@@ -2385,6 +2408,7 @@ export function LootLogArchive({
 
       <LootLogBundleList
         bundles={savedLogBundles}
+        canChangeLootLogTitle={canChangeLootLogTitle}
         canDeleteLogs={canDeleteLogs}
         canDownloadLogs={canDownloadLogs}
         canEditLogs={canEditLogs}
@@ -2414,6 +2438,7 @@ export function LootLogArchive({
 export default function LootMonitor({
   bundleId = '',
   canCheckDeaths = false,
+  canResetDeathChecks = false,
   onViewLogs = () => {},
   showShare = true,
 }) {
@@ -2649,7 +2674,7 @@ export default function LootMonitor({
     const targets = visibleDeathCheckTargets;
     if (targets.length === 0) return;
 
-    const totalBatches = Math.ceil(targets.length / 10);
+    const totalBatches = Math.ceil(targets.length / DEATH_CHECK_BATCH_SIZE);
     const errors = [];
     let foundCount = 0;
     let notFoundCount = 0;
@@ -2663,9 +2688,9 @@ export default function LootMonitor({
       totalBatches,
     });
 
-    for (let start = 0; start < targets.length; start += 10) {
-      const batch = targets.slice(start, start + 10);
-      const currentBatch = Math.floor(start / 10) + 1;
+    for (let start = 0; start < targets.length; start += DEATH_CHECK_BATCH_SIZE) {
+      const batch = targets.slice(start, start + DEATH_CHECK_BATCH_SIZE);
+      const currentBatch = Math.floor(start / DEATH_CHECK_BATCH_SIZE) + 1;
       setDeathCheckRun({
         completed: start,
         currentBatch,
@@ -3027,6 +3052,7 @@ export default function LootMonitor({
                     </div>
                     <div className="loot-player-actions">
                       <PlayerDeathControl
+                        canResetDeathCheck={canResetDeathChecks}
                         deathCheck={deathChecksByPlayer.get(player.player.toLowerCase())}
                         isCheckLocked={Boolean(deathCheckRun || (activeDeathCheckKey && activeDeathCheckKey !== player.player.toLowerCase()))}
                         isChecking={deathCheckStatus[player.player.toLowerCase()] === 'loading'}

@@ -12,9 +12,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MILITANT_GUILD_ID = 'HNWzt1KSQMSQ855Q9rLvSA';
 const ALBION_DEATHS_URL = 'https://gameinfo.albiononline.com/api/gameinfo/players';
 const KILLBOARD_EVENT_URL = 'https://killboard-1.com/us/event';
-const DEATH_CHECK_BATCH_SIZE = 10;
-const DEATH_REQUEST_TIMEOUT_MS = 6000;
-const DEATH_EVENT_REQUEST_TIMEOUT_MS = 4000;
+const DEATH_CHECK_BATCH_SIZE = 1;
+const DEATH_REQUEST_TIMEOUT_MS = 12000;
+const DEATH_EVENT_REQUEST_TIMEOUT_MS = 8000;
 const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'DELETE, GET, PATCH, POST, OPTIONS',
@@ -950,84 +950,70 @@ async function runLootLogDeathChecks(supabase: any, { bundleId, checks }: any) {
     })()
     : null;
 
-  const deathResults = await Promise.allSettled(requests.map(async (request) => {
-    const member = context.membersByPlayer.get(request.playerKey);
-    const playerId = String(member?.player_id || '').trim();
-    const deathApiUrl = playerId ? `${ALBION_DEATHS_URL}/${encodeURIComponent(playerId)}/deaths` : '';
-    console.info('[loot death check] player lookup', {
-      bundleId: cleanBundleId,
-      deathApiUrl,
-      player: request.player,
-      playerId,
-      playerKey: request.playerKey,
-      rangeEnd: context.effectiveBundle.end_at,
-      rangeStart: context.effectiveBundle.start_at,
-      storedMemberFound: Boolean(member),
-    });
-    const deaths = playerId ? await fetchPlayerDeaths(playerId) : [];
-    return { deaths, member, playerId, request };
-  }));
-
   const checkedAt = new Date().toISOString();
   const records: any[] = [];
   const errors: Array<{ message: string; player: string; playerKey: string }> = [];
-  const possibleMatches = deathResults.map((result) => {
-    if (result.status === 'rejected') return null;
-    const { deaths, playerId, request } = result.value;
-    return playerId
-      ? pickMatchingDeath(deaths, context.effectiveBundle, playerId, request.keptItems)
-      : null;
-  });
-  const verifiedMatches = await Promise.all(possibleMatches.map(async (possibleMatch) => {
-    const matchVerified = possibleMatch ? await deathEventExists(possibleMatch.eventId) : false;
-    return matchVerified ? possibleMatch : null;
-  }));
 
-  for (let index = 0; index < deathResults.length; index += 1) {
-    const result = deathResults[index];
-    const request = requests[index];
-    if (result.status === 'rejected') {
+  for (const request of requests) {
+    try {
+      const member = context.membersByPlayer.get(request.playerKey);
+      const playerId = String(member?.player_id || '').trim();
+      const deathApiUrl = playerId ? `${ALBION_DEATHS_URL}/${encodeURIComponent(playerId)}/deaths` : '';
+      console.info('[loot death check] player lookup', {
+        bundleId: cleanBundleId,
+        deathApiUrl,
+        player: request.player,
+        playerId,
+        playerKey: request.playerKey,
+        rangeEnd: context.effectiveBundle.end_at,
+        rangeStart: context.effectiveBundle.start_at,
+        storedMemberFound: Boolean(member),
+      });
+
+      const deaths = playerId ? await fetchPlayerDeaths(playerId) : [];
+      const possibleMatch = playerId
+        ? pickMatchingDeath(deaths, context.effectiveBundle, playerId, request.keptItems)
+        : null;
+      const match = possibleMatch && await deathEventExists(possibleMatch.eventId)
+        ? possibleMatch
+        : null;
+      console.info('[loot death check] player result', {
+        bundleId: cleanBundleId,
+        checkedDeaths: Array.isArray(deaths) ? deaths.length : 0,
+        eventId: match?.eventId || '',
+        rejectedEventId: possibleMatch && !match ? possibleMatch.eventId : '',
+        matchedItems: match?.matchedItems || [],
+        player: request.player,
+        playerId,
+        playerKey: request.playerKey,
+        status: match ? 'found' : 'not_found',
+        candidates: (Array.isArray(deaths) ? deaths : []).map((death) => summarizeDeathCandidate(
+          death,
+          context.effectiveBundle,
+          playerId,
+          request.keptItems,
+        )),
+      });
+      records.push({
+        bundle_id: cleanBundleId,
+        checked_at: checkedAt,
+        death_at: match ? deathTimestamp(match.death) : null,
+        death_url: match ? deathEventUrl(match.eventId) : '',
+        event_id: match?.eventId || '',
+        matched_items: match?.matchedItems || [],
+        player_id: playerId,
+        player_key: request.playerKey,
+        player_name: member?.player_name || request.player,
+        status: match ? 'found' : 'not_found',
+        updated_at: checkedAt,
+      });
+    } catch (error) {
       errors.push({
-        message: result.reason?.message || 'Could not load the player death log.',
+        message: error instanceof Error ? error.message : 'Could not load the player death log.',
         player: request.player,
         playerKey: request.playerKey,
       });
-      continue;
     }
-
-    const { deaths, member, playerId } = result.value;
-    const possibleMatch = possibleMatches[index];
-    const match = verifiedMatches[index];
-    console.info('[loot death check] player result', {
-      bundleId: cleanBundleId,
-      checkedDeaths: Array.isArray(deaths) ? deaths.length : 0,
-      eventId: match?.eventId || '',
-      rejectedEventId: possibleMatch && !match ? possibleMatch.eventId : '',
-      matchedItems: match?.matchedItems || [],
-      player: request.player,
-      playerId,
-      playerKey: request.playerKey,
-      status: match ? 'found' : 'not_found',
-      candidates: (Array.isArray(deaths) ? deaths : []).map((death) => summarizeDeathCandidate(
-        death,
-        context.effectiveBundle,
-        playerId,
-        request.keptItems,
-      )),
-    });
-    records.push({
-      bundle_id: cleanBundleId,
-      checked_at: checkedAt,
-      death_at: match ? deathTimestamp(match.death) : null,
-      death_url: match ? deathEventUrl(match.eventId) : '',
-      event_id: match?.eventId || '',
-      matched_items: match?.matchedItems || [],
-      player_id: playerId,
-      player_key: request.playerKey,
-      player_name: member?.player_name || request.player,
-      status: match ? 'found' : 'not_found',
-      updated_at: checkedAt,
-    });
   }
 
   let savedChecks: any[] = [];

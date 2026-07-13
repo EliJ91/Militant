@@ -318,7 +318,7 @@ describe('LootMonitor', () => {
     expect(container.querySelector('.loot-item-tile.kept-tile')).not.toBeInTheDocument();
   });
 
-  it('allows a logged-in user to retry a player with no death found', async () => {
+  it('greys out no death found unless the user can reset death checks', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
         chestLogText: '',
@@ -332,9 +332,27 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
 
-    const retryButton = await screen.findByRole('button', { name: 'No Death Found' });
-    expect(retryButton).toHaveAttribute('title', 'Try again?');
-    fireEvent.click(retryButton);
+    const noDeathButton = await screen.findByRole('button', { name: 'No Death Found' });
+    expect(noDeathButton).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Reset' })).not.toBeInTheDocument();
+  });
+
+  it('allows a permitted user to reset and recheck a player with no death found', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        deathChecks: [{ playerName: 'Windyyyzz', status: 'not_found' }],
+        events: [storedEvents[0]],
+        hasChestLog: false,
+      }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" canCheckDeaths canResetDeathChecks />);
+
+    const resetButton = await screen.findByRole('button', { name: 'Reset' });
+    fireEvent.click(resetButton);
 
     await waitFor(() => expect(checkLootLogDeath).toHaveBeenCalledWith(expect.objectContaining({
       bundleId: 'bundle-18',
@@ -410,10 +428,15 @@ describe('LootMonitor', () => {
         hasChestLog: false,
       }),
     });
-    let resolveBatch;
-    checkLootLogDeaths.mockImplementation(() => new Promise((resolve) => {
-      resolveBatch = resolve;
-    }));
+    let resolveFirstCheck;
+    let resolveSecondCheck;
+    checkLootLogDeaths
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveFirstCheck = resolve;
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveSecondCheck = resolve;
+      }));
 
     render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
 
@@ -432,6 +455,20 @@ describe('LootMonitor', () => {
           }],
           player: 'Windyyyzz',
         },
+      ],
+    });
+
+    resolveFirstCheck({
+      deathChecks: [
+        { playerName: 'Windyyyzz', status: 'found' },
+      ],
+      errors: [],
+    });
+
+    await waitFor(() => expect(checkLootLogDeaths).toHaveBeenCalledTimes(2));
+    expect(checkLootLogDeaths.mock.calls[1][0]).toEqual({
+      bundleId: 'bundle-18',
+      checks: [
         {
           keptItems: [{
             itemId: 'T5_BAG@1',
@@ -444,10 +481,9 @@ describe('LootMonitor', () => {
       ],
     });
 
-    resolveBatch({
+    resolveSecondCheck({
       deathChecks: [
         { playerName: 'Kaelys', status: 'not_found' },
-        { playerName: 'Windyyyzz', status: 'found' },
       ],
       errors: [],
     });
@@ -460,8 +496,8 @@ describe('LootMonitor', () => {
     );
   });
 
-  it('continues visible death checks with the next batch after ten players', async () => {
-    const players = Array.from({ length: 11 }, (_, index) => ({
+  it('continues visible death checks one player at a time', async () => {
+    const players = Array.from({ length: 3 }, (_, index) => ({
       ...storedEvents[0],
       player: `Tracker${String(index + 1).padStart(2, '0')}`,
     }));
@@ -474,35 +510,43 @@ describe('LootMonitor', () => {
         hasChestLog: false,
       }),
     });
-    let resolveFirstBatch;
-    let resolveSecondBatch;
+    const resolvers = [];
     checkLootLogDeaths
       .mockImplementationOnce(() => new Promise((resolve) => {
-        resolveFirstBatch = resolve;
+        resolvers[0] = resolve;
       }))
       .mockImplementationOnce(() => new Promise((resolve) => {
-        resolveSecondBatch = resolve;
+        resolvers[1] = resolve;
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolvers[2] = resolve;
       }));
 
     render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Check Deaths' }));
     await waitFor(() => expect(checkLootLogDeaths).toHaveBeenCalledTimes(1));
-    expect(checkLootLogDeaths.mock.calls[0][0].checks).toHaveLength(10);
+    expect(checkLootLogDeaths.mock.calls[0][0].checks).toHaveLength(1);
 
-    resolveFirstBatch({ deathChecks: [], errors: [] });
+    resolvers[0]({ deathChecks: [], errors: [] });
 
     await waitFor(() => expect(checkLootLogDeaths).toHaveBeenCalledTimes(2));
     expect(checkLootLogDeaths.mock.calls[1][0].checks).toHaveLength(1);
-    expect(screen.getByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Batch 2 of 2');
+    expect(screen.getByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Batch 2 of 3');
 
-    resolveSecondBatch({
-      deathChecks: [{ playerName: 'Tracker11', status: 'found' }],
+    resolvers[1]({ deathChecks: [], errors: [] });
+
+    await waitFor(() => expect(checkLootLogDeaths).toHaveBeenCalledTimes(3));
+    expect(checkLootLogDeaths.mock.calls[2][0].checks).toHaveLength(1);
+    expect(screen.getByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Batch 3 of 3');
+
+    resolvers[2]({
+      deathChecks: [{ playerName: 'Tracker03', status: 'found' }],
       errors: [],
     });
 
     expect(await screen.findByText('Death Checks Complete')).toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Found 1. Not found 10.');
+    expect(screen.getByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Found 1. Not found 2.');
     await waitFor(
       () => expect(screen.queryByRole('dialog', { name: 'Checking deaths' })).not.toBeInTheDocument(),
       { timeout: 2500 },
