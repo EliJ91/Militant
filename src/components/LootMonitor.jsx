@@ -1988,6 +1988,7 @@ export function LootLogArchive({
   canUploadChestLogs = true,
   canUploadLootLogs = true,
   onView = () => {},
+  uploadUsername = 'manual-web-upload',
 }) {
   const [actionStatus, setActionStatus] = useState({ message: '', state: 'idle' });
   const [deletingBundleId, setDeletingBundleId] = useState('');
@@ -2058,7 +2059,7 @@ export function LootLogArchive({
           bundleId: mergeBundleId,
           lootLogText: text,
           originalFileName: file.name,
-          username: 'manual-web-upload',
+          username: uploadUsername,
         });
         if (ignoreTimeRestraints && !mergeBundleId) {
           mergeBundleId = result.bundleId || result.summary?.bundleId || null;
@@ -2118,7 +2119,7 @@ export function LootLogArchive({
         const result = await submitChestLog({
           bundleId: bundle.id,
           chestLogText: text,
-          username: 'manual-web-upload',
+          username: uploadUsername,
         });
         uploadedNames.push(result.fileName || file.name || 'Chest Log');
       }

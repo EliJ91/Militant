@@ -96,6 +96,16 @@ function getDiscordDisplayName(user = {}) {
     || 'Discord User';
 }
 
+function getUploadUsername(user = {}) {
+  const metadata = user.user_metadata || user.userMetadata || {};
+  return String(
+    user.username
+      || metadata.user_name
+      || metadata.preferred_username
+      || getDiscordDisplayName(user),
+  ).trim() || 'manual-web-upload';
+}
+
 function emptyPermissions() {
   return Object.fromEntries(WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [permission.key, false]));
 }
@@ -493,6 +503,7 @@ function LootLogsPage({
         canUploadChestLogs={Boolean(permissions.uploadChestLogs)}
         canUploadLootLogs={Boolean(permissions.uploadLootLogs)}
         onView={onViewBundle}
+        uploadUsername={getUploadUsername(currentUser)}
       />
     </>
   );

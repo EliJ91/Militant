@@ -1009,6 +1009,35 @@ describe('LootMonitor', () => {
     expect(screen.getByRole('button', { name: /add chest log/i })).toBeInTheDocument();
   });
 
+  it('stores the logged-in username as the loot and chest uploader', async () => {
+    const { container } = render(<LootLogArchive uploadUsername="Onslawht" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /upload log/i }));
+    const uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
+    fireEvent.change(uploadDialog.querySelector('input[accept^=".csv"]'), {
+      target: { files: [new File([lootText], 'loot-events.txt', { type: 'text/plain' })] },
+    });
+    fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
+      bundleId: null,
+      lootLogText: lootText,
+      originalFileName: 'loot-events.txt',
+      username: 'Onslawht',
+    }));
+
+    const chestInput = container.querySelector('input[accept^=".txt"]');
+    fireEvent.change(chestInput, {
+      target: { files: [new File([chestText], 'chest.txt', { type: 'text/plain' })] },
+    });
+
+    await waitFor(() => expect(submitChestLog).toHaveBeenCalledWith({
+      bundleId: 'bundle-18',
+      chestLogText: chestText,
+      username: 'Onslawht',
+    }));
+  });
+
   it('previews, customizes, cancels, and saves log metadata edits', async () => {
     const { container } = render(<LootLogArchive />);
 
