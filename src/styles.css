@@ -326,12 +326,23 @@ button:focus-visible {
   position: fixed;
   z-index: 1500;
   display: grid;
-  min-width: 150px;
+  gap: 6px;
+  min-width: 190px;
   padding: 8px;
   border: 1px solid rgba(87, 216, 120, 0.4);
   border-radius: 8px;
   background: rgba(2, 4, 3, 0.98);
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.55);
+}
+
+.topbar-profile-menu-label,
+.topbar-profile-menu-empty {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  padding: 2px 4px;
+  text-transform: uppercase;
 }
 
 .topbar-profile-menu button {
@@ -349,6 +360,20 @@ button:focus-visible {
 .topbar-profile-menu button:hover {
   border-color: var(--green-hot);
   background: rgba(87, 216, 120, 0.16);
+}
+
+.topbar-profile-menu button.is-selected,
+.topbar-profile-menu button[aria-pressed="true"] {
+  border-color: #4f9cff;
+  background: rgba(47, 140, 255, 0.24);
+  color: #e5f0ff;
+  box-shadow: 0 0 0 1px rgba(79, 156, 255, 0.34), 0 0 20px rgba(47, 140, 255, 0.16);
+}
+
+.topbar-profile-menu .topbar-profile-menu-reset {
+  border-color: rgba(255, 187, 0, 0.58);
+  background: rgba(255, 187, 0, 0.12);
+  color: var(--gold);
 }
 
 .view-as-role-backdrop {

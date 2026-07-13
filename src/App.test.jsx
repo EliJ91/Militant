@@ -91,7 +91,7 @@ describe('App', () => {
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.19');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.41');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -210,6 +210,32 @@ describe('App', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Permissions' })).toBeInTheDocument();
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
     expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
+  });
+
+  it('lets the SuperUser preview combined permissions from multiple roles', async () => {
+    fetchPermissionSettings.mockResolvedValue({
+      settings: {
+        roles: [
+          { id: 'officer-row', name: 'Officer', roleId: 'discord-officer-role', permissions: { viewMembers: true } },
+          { id: 'soldier-row', name: 'Soldier', roleId: 'discord-soldier-role', permissions: { viewLogs: true } },
+        ],
+      },
+      updatedAt: null,
+    });
+    getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006', username: 'Onslawht' } });
+    window.location.hash = '#dashboard';
+    const { container } = render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
+    fireEvent.contextMenu(container.querySelector('.topbar-profile-button'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Officer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Soldier' }));
+
+    expect(screen.getByRole('button', { name: 'Officer' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Soldier' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('heading', { name: 'View Loot Logs' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Members' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Permissions' })).not.toBeInTheDocument();
   });
 
   it('opens the Siphoned Energy Tracker without login but hides protected controls', () => {

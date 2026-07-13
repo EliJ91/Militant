@@ -125,7 +125,14 @@ function isSuperUser(user = null) {
   return SUPERUSER_DISCORD_USER_IDS.includes(getDiscordUserId(user || {}));
 }
 
-function UserProfileChip({ isSuperUserProfile = false, onOpenViewAsRole = () => {}, user = null }) {
+function UserProfileChip({
+  isSuperUserProfile = false,
+  onResetViewAsRole = () => {},
+  onToggleViewAsRole = () => {},
+  user = null,
+  viewAsRoleIds = [],
+  viewAsRoles = [],
+}) {
   const [menu, setMenu] = useState(null);
   const menuRef = useRef(null);
 
@@ -155,6 +162,16 @@ function UserProfileChip({ isSuperUserProfile = false, onOpenViewAsRole = () => 
   const avatarUrl = getDiscordAvatarUrl(user);
   const displayName = getDiscordDisplayName(user);
   const fallbackInitial = displayName.trim().charAt(0).toUpperCase() || 'D';
+  const selectedRoleIds = new Set(viewAsRoleIds.map((roleId) => String(roleId)));
+
+  function openProfileMenu(event) {
+    if (!isSuperUserProfile) return;
+    event.preventDefault();
+    setMenu({
+      x: Math.max(8, Math.min(event.clientX, window.innerWidth - 220)),
+      y: Math.max(8, Math.min(event.clientY, window.innerHeight - 280)),
+    });
+  }
 
   return (
     <div
@@ -162,20 +179,12 @@ function UserProfileChip({ isSuperUserProfile = false, onOpenViewAsRole = () => 
       ref={menuRef}
       title={isSuperUserProfile ? `${displayName} (SuperUser)` : displayName}
       aria-label={`Logged in as ${displayName}`}
-      onContextMenu={(event) => {
-        if (!isSuperUserProfile) return;
-        event.preventDefault();
-        setMenu({ x: event.clientX, y: event.clientY });
-      }}
+      onContextMenu={openProfileMenu}
     >
       <button
         className="topbar-profile-button"
         type="button"
-        onContextMenu={(event) => {
-          if (!isSuperUserProfile) return;
-          event.preventDefault();
-          setMenu({ x: event.clientX, y: event.clientY });
-        }}
+        onContextMenu={openProfileMenu}
       >
         {avatarUrl ? (
           <img className="topbar-profile-avatar" src={avatarUrl} alt="" referrerPolicy="no-referrer" />
@@ -189,15 +198,26 @@ function UserProfileChip({ isSuperUserProfile = false, onOpenViewAsRole = () => 
           role="menu"
           style={{ left: menu.x, top: menu.y }}
         >
-          <button
-            type="button"
-            onClick={() => {
-              setMenu(null);
-              onOpenViewAsRole();
-            }}
-          >
-            View as role
-          </button>
+          <span className="topbar-profile-menu-label">View As Roles</span>
+          {viewAsRoles.length > 0 ? viewAsRoles.map((role) => {
+            const isSelected = selectedRoleIds.has(String(role.id)) || selectedRoleIds.has(String(role.roleId));
+            return (
+              <button
+                aria-pressed={isSelected}
+                className={isSelected ? 'is-selected' : ''}
+                key={role.id}
+                type="button"
+                onClick={() => onToggleViewAsRole(role)}
+              >
+                {role.name}
+              </button>
+            );
+          }) : <span className="topbar-profile-menu-empty">No roles configured</span>}
+          {selectedRoleIds.size > 0 ? (
+            <button className="topbar-profile-menu-reset" type="button" onClick={onResetViewAsRole}>
+              Reset View
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -208,7 +228,10 @@ function Topbar({
   actions = [],
   currentUser = null,
   isSuperUserProfile = false,
-  onOpenViewAsRole = () => {},
+  onResetViewAsRole = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const hasMenuContent = actions.length > 0 || Boolean(currentUser);
@@ -277,7 +300,10 @@ function Topbar({
             <UserProfileChip
               isSuperUserProfile={isSuperUserProfile}
               user={currentUser}
-              onOpenViewAsRole={onOpenViewAsRole}
+              onResetViewAsRole={onResetViewAsRole}
+              onToggleViewAsRole={onToggleViewAsRole}
+              viewAsRoleIds={viewAsRoleIds}
+              viewAsRoles={viewAsRoles}
             />
           </div>
         </div>
@@ -390,9 +416,12 @@ function LandingPage({
 function DashboardPage({
   currentUser = null,
   isSuperUserProfile = false,
-  onOpenViewAsRole = () => {},
+  onResetViewAsRole = () => {},
   onSignOut = () => {},
+  onToggleViewAsRole = () => {},
   permissions = emptyPermissions(),
+  viewAsRoleIds = [],
+  viewAsRoles = [],
 }) {
   const tools = [
     {
@@ -431,7 +460,10 @@ function DashboardPage({
         actions={[{ label: 'Exit', onClick: onSignOut }]}
         currentUser={currentUser}
         isSuperUserProfile={isSuperUserProfile}
-        onOpenViewAsRole={onOpenViewAsRole}
+        onResetViewAsRole={onResetViewAsRole}
+        onToggleViewAsRole={onToggleViewAsRole}
+        viewAsRoleIds={viewAsRoleIds}
+        viewAsRoles={viewAsRoles}
       />
 
       <main className="dashboard-shell">
@@ -461,8 +493,11 @@ function LootMonitorPage({
   canResetDeathChecks = false,
   currentUser = null,
   isSuperUserProfile = false,
-  onOpenViewAsRole = () => {},
+  onResetViewAsRole = () => {},
   onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
 }) {
   return (
     <>
@@ -474,7 +509,10 @@ function LootMonitorPage({
         ]}
         currentUser={currentUser}
         isSuperUserProfile={isSuperUserProfile}
-        onOpenViewAsRole={onOpenViewAsRole}
+        onResetViewAsRole={onResetViewAsRole}
+        onToggleViewAsRole={onToggleViewAsRole}
+        viewAsRoleIds={viewAsRoleIds}
+        viewAsRoles={viewAsRoles}
       />
       <LootMonitor
         bundleId={bundleId}
@@ -493,10 +531,13 @@ function SharedLootMonitorPage({ bundleId, isAuthenticated = false }) {
 function LootLogsPage({
   currentUser = null,
   isSuperUserProfile = false,
-  onOpenViewAsRole = () => {},
+  onResetViewAsRole = () => {},
   onSignOut = () => {},
+  onToggleViewAsRole = () => {},
   onViewBundle,
   permissions = emptyPermissions(),
+  viewAsRoleIds = [],
+  viewAsRoles = [],
 }) {
   return (
     <>
@@ -507,7 +548,10 @@ function LootLogsPage({
         ]}
         currentUser={currentUser}
         isSuperUserProfile={isSuperUserProfile}
-        onOpenViewAsRole={onOpenViewAsRole}
+        onResetViewAsRole={onResetViewAsRole}
+        onToggleViewAsRole={onToggleViewAsRole}
+        viewAsRoleIds={viewAsRoleIds}
+        viewAsRoles={viewAsRoles}
       />
       <LootLogArchive
         canDeleteLogs={Boolean(permissions.editLootLogs)}
@@ -528,8 +572,11 @@ function SiphonedEnergyPage({
   currentUser = null,
   isAuthenticated = false,
   isSuperUserProfile = false,
-  onOpenViewAsRole = () => {},
+  onResetViewAsRole = () => {},
   onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
 }) {
   return (
     <>
@@ -540,7 +587,10 @@ function SiphonedEnergyPage({
         ] : []}
         currentUser={isAuthenticated ? currentUser : null}
         isSuperUserProfile={isSuperUserProfile}
-        onOpenViewAsRole={onOpenViewAsRole}
+        onResetViewAsRole={onResetViewAsRole}
+        onToggleViewAsRole={onToggleViewAsRole}
+        viewAsRoleIds={viewAsRoleIds}
+        viewAsRoles={viewAsRoles}
       />
       <SiphonedEnergyTracker canUpdate={canUpdate} />
     </>
@@ -551,8 +601,11 @@ function MembersPage({
   canUpdate = false,
   currentUser = null,
   isSuperUserProfile = false,
-  onOpenViewAsRole = () => {},
+  onResetViewAsRole = () => {},
   onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
 }) {
   return (
     <>
@@ -563,7 +616,10 @@ function MembersPage({
         ]}
         currentUser={currentUser}
         isSuperUserProfile={isSuperUserProfile}
-        onOpenViewAsRole={onOpenViewAsRole}
+        onResetViewAsRole={onResetViewAsRole}
+        onToggleViewAsRole={onToggleViewAsRole}
+        viewAsRoleIds={viewAsRoleIds}
+        viewAsRoles={viewAsRoles}
       />
       <MembersTool canUpdate={canUpdate} />
     </>
@@ -573,8 +629,11 @@ function MembersPage({
 function PermissionsPage({
   currentUser = null,
   isSuperUserProfile = false,
-  onOpenViewAsRole = () => {},
+  onResetViewAsRole = () => {},
   onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
 }) {
   return (
     <>
@@ -585,7 +644,10 @@ function PermissionsPage({
         ]}
         currentUser={currentUser}
         isSuperUserProfile={isSuperUserProfile}
-        onOpenViewAsRole={onOpenViewAsRole}
+        onResetViewAsRole={onResetViewAsRole}
+        onToggleViewAsRole={onToggleViewAsRole}
+        viewAsRoleIds={viewAsRoleIds}
+        viewAsRoles={viewAsRoles}
       />
       <PermissionsTool currentUser={currentUser} />
     </>
@@ -598,24 +660,40 @@ export default function App() {
   const [authSession, setAuthSession] = useState(null);
   const [permissionSettings, setPermissionSettings] = useState(loadPermissionSettings);
   const [selectedBundleId, setSelectedBundleId] = useState('');
-  const [viewAsRoleId, setViewAsRoleId] = useState('');
-  const [viewAsRoleModalOpen, setViewAsRoleModalOpen] = useState(false);
+  const [viewAsRoleIds, setViewAsRoleIds] = useState([]);
   const isAuthenticated = isDiscordAuthenticated;
   const currentUser = authSession?.user || null;
   const currentUserIsSuperUser = isSuperUser(currentUser);
-  const viewAsRole = useMemo(() => (
-    currentUserIsSuperUser && viewAsRoleId
-      ? permissionSettings.roles.find((role) => role.id === viewAsRoleId || role.roleId === viewAsRoleId) || null
-      : null
-  ), [currentUserIsSuperUser, permissionSettings.roles, viewAsRoleId]);
+  const activeViewAsRoles = useMemo(() => {
+    if (!currentUserIsSuperUser || viewAsRoleIds.length === 0) return [];
+    const selectedRoleIds = new Set(viewAsRoleIds.map((roleId) => String(roleId)));
+    return permissionSettings.roles.filter((role) => (
+      selectedRoleIds.has(String(role.id)) || selectedRoleIds.has(String(role.roleId))
+    ));
+  }, [currentUserIsSuperUser, permissionSettings.roles, viewAsRoleIds]);
   const effectivePermissions = useMemo(() => {
     if (!isAuthenticated && route !== 'siphoned-energy' && route !== 'shared-log') return emptyPermissions();
-    if (viewAsRole) return resolvePermissionsForRoleIds(permissionSettings, [viewAsRole.roleId]);
+    if (activeViewAsRoles.length > 0) {
+      return resolvePermissionsForRoleIds(permissionSettings, activeViewAsRoles.map((role) => role.roleId));
+    }
     return resolvePermissionsForDiscordUser(permissionSettings, currentUser || {});
-  }, [currentUser, isAuthenticated, permissionSettings, route, viewAsRole]);
+  }, [activeViewAsRoles, currentUser, isAuthenticated, permissionSettings, route]);
   const topbarContext = {
     isSuperUserProfile: currentUserIsSuperUser,
-    onOpenViewAsRole: () => setViewAsRoleModalOpen(true),
+    onResetViewAsRole: () => setViewAsRoleIds([]),
+    onToggleViewAsRole: (role) => {
+      const roleId = String(role.roleId || role.id || '');
+      if (!roleId) return;
+      setViewAsRoleIds((currentRoleIds) => {
+        const normalized = currentRoleIds.map((currentRoleId) => String(currentRoleId));
+        if (normalized.includes(roleId)) {
+          return normalized.filter((currentRoleId) => currentRoleId !== roleId);
+        }
+        return [...normalized, roleId];
+      });
+    },
+    viewAsRoleIds,
+    viewAsRoles: permissionSettings.roles,
   };
 
   useEffect(() => {
@@ -719,14 +797,15 @@ export default function App() {
 
   useEffect(() => {
     if (!currentUserIsSuperUser) {
-      setViewAsRoleId('');
-      setViewAsRoleModalOpen(false);
+      setViewAsRoleIds([]);
     }
   }, [currentUserIsSuperUser]);
 
   useEffect(() => {
-    if (viewAsRoleId && !viewAsRole) setViewAsRoleId('');
-  }, [viewAsRole, viewAsRoleId]);
+    if (viewAsRoleIds.length === 0) return;
+    const configuredIds = new Set(permissionSettings.roles.flatMap((role) => [String(role.id), String(role.roleId)]));
+    setViewAsRoleIds((currentRoleIds) => currentRoleIds.filter((roleId) => configuredIds.has(String(roleId))));
+  }, [permissionSettings.roles, viewAsRoleIds.length]);
 
   useEffect(() => {
     document.title = route === 'loot-logs' ? 'Loot Logs'
@@ -757,7 +836,7 @@ export default function App() {
     await signOutOfDiscord();
     setIsDiscordAuthenticated(false);
     setAuthSession(null);
-    setViewAsRoleId('');
+    setViewAsRoleIds([]);
     navigateTo('#');
   }
 
@@ -848,21 +927,10 @@ export default function App() {
 
   return (
     <>
-      {viewAsRole ? (
-        <button className="reset-view-button" type="button" onClick={() => setViewAsRoleId('')}>
+      {activeViewAsRoles.length > 0 ? (
+        <button className="reset-view-button" type="button" onClick={() => setViewAsRoleIds([])}>
           Reset View
         </button>
-      ) : null}
-      {viewAsRoleModalOpen ? (
-        <ViewAsRoleModal
-          roles={permissionSettings.roles}
-          onClose={() => setViewAsRoleModalOpen(false)}
-          onSelect={(role) => {
-            setViewAsRoleId(role.id);
-            setViewAsRoleModalOpen(false);
-            navigateTo('#dashboard');
-          }}
-        />
       ) : null}
       {page}
       <VersionFooter />
