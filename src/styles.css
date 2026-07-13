@@ -1946,10 +1946,6 @@ button:focus-visible {
     0 18px 46px rgba(0, 0, 0, 0.42);
 }
 
-.saved-log-card:has(.saved-log-select) {
-  padding-left: 50px;
-}
-
 .saved-log-card.selected {
   border-color: rgba(87, 216, 120, 0.82);
   box-shadow:
@@ -1957,26 +1953,12 @@ button:focus-visible {
     0 18px 46px rgba(0, 0, 0, 0.42);
 }
 
-.saved-log-select {
-  position: absolute;
-  top: 50%;
-  left: 17px;
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  transform: translateY(-50%);
+.saved-log-row.merge-selectable .saved-log-card {
+  user-select: none;
 }
 
-.saved-log-select input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--green-hot);
-  cursor: pointer;
-}
-
-.saved-log-merged-badge {
+.saved-log-merged-badge,
+.saved-log-selected-badge {
   width: auto;
   padding: 3px 7px;
   border: 1px solid rgba(80, 156, 255, 0.6);
@@ -1988,6 +1970,12 @@ button:focus-visible {
   letter-spacing: 0.05em;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.saved-log-selected-badge {
+  border-color: rgba(87, 216, 120, 0.7);
+  background: rgba(87, 216, 120, 0.16);
+  color: var(--green-hot);
 }
 
 .saved-log-card-main {

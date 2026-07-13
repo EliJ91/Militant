@@ -1781,6 +1781,55 @@ function LootLogBundleList({
   updatingBundleId,
   uploadingBundleId,
 }) {
+  const longPressRef = useRef(null);
+  const recentLongPressRef = useRef({ bundleId: '', completedAt: 0 });
+
+  useEffect(() => () => {
+    if (longPressRef.current?.timer) window.clearTimeout(longPressRef.current.timer);
+  }, []);
+
+  function isInteractiveTarget(target) {
+    return target instanceof Element && Boolean(target.closest('button, a, input, select, textarea, label'));
+  }
+
+  function cancelLongPress() {
+    if (longPressRef.current?.timer) window.clearTimeout(longPressRef.current.timer);
+    longPressRef.current = null;
+  }
+
+  function beginLongPress(event, bundleId, isEditing) {
+    if (!canMergeLogs || mergingLogs || isEditing || event.pointerType === 'mouse' || isInteractiveTarget(event.target)) return;
+    cancelLongPress();
+    const press = {
+      bundleId,
+      startX: event.clientX,
+      startY: event.clientY,
+      timer: window.setTimeout(() => {
+        recentLongPressRef.current = { bundleId, completedAt: Date.now() };
+        onSelectBundle(bundleId);
+        longPressRef.current = null;
+      }, 550),
+    };
+    longPressRef.current = press;
+  }
+
+  function moveLongPress(event) {
+    const press = longPressRef.current;
+    if (!press) return;
+    if (Math.abs(event.clientX - press.startX) > 10 || Math.abs(event.clientY - press.startY) > 10) {
+      cancelLongPress();
+    }
+  }
+
+  function selectFromContextMenu(event, bundleId, isEditing) {
+    if (!canMergeLogs || mergingLogs || isEditing || isInteractiveTarget(event.target)) return;
+    event.preventDefault();
+    if (longPressRef.current?.bundleId === bundleId) cancelLongPress();
+    const recentLongPress = recentLongPressRef.current;
+    if (recentLongPress.bundleId === bundleId && Date.now() - recentLongPress.completedAt < 1000) return;
+    onSelectBundle(bundleId);
+  }
+
   if (status.state === 'idle') return null;
 
   return (
@@ -1835,26 +1884,22 @@ function LootLogBundleList({
 
             return (
               <article
-                className={`saved-log-row${isEditing ? ' editing' : ''}`}
+                aria-selected={canMergeLogs ? isSelected : undefined}
+                className={`saved-log-row${isEditing ? ' editing' : ''}${canMergeLogs ? ' merge-selectable' : ''}`}
                 key={bundle.id}
+                title={canMergeLogs ? 'Right-click or tap and hold to select for merging' : undefined}
+                onContextMenu={(event) => selectFromContextMenu(event, bundle.id, isEditing)}
                 onKeyDown={(event) => {
                   if (!isEditing || event.key !== 'Enter' || editSaveDisabled) return;
                   event.preventDefault();
                   onSaveEdit(bundle);
                 }}
+                onPointerCancel={cancelLongPress}
+                onPointerDown={(event) => beginLongPress(event, bundle.id, isEditing)}
+                onPointerMove={moveLongPress}
+                onPointerUp={cancelLongPress}
               >
                 <div className={`saved-log-card${isSelected ? ' selected' : ''}`}>
-                  {canMergeLogs ? (
-                    <label className="saved-log-select" title={`Select ${bundle.lootFileName || 'loot log'} for merging`}>
-                      <input
-                        aria-label={`Select ${bundle.lootFileName || 'loot log'}`}
-                        checked={isSelected}
-                        disabled={mergingLogs}
-                        type="checkbox"
-                        onChange={() => onSelectBundle(bundle.id)}
-                      />
-                    </label>
-                  ) : null}
                   <div className="saved-log-card-main">
                     <div className="saved-log-time">
                       <strong>Uploaded</strong>
@@ -1869,6 +1914,7 @@ function LootLogBundleList({
                     <div className="saved-log-title-line">
                       <small>Loot Log</small>
                       {bundle.summary?.isMerged ? <span className="saved-log-merged-badge">Merged</span> : null}
+                      {isSelected ? <span className="saved-log-selected-badge">Selected</span> : null}
                       {!isEditing && canUploadLootLogs ? (
                         <FileUploadButton
                           accept=".csv,.txt,text/csv,text/plain"

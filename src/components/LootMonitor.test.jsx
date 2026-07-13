@@ -993,10 +993,12 @@ describe('LootMonitor', () => {
 
     const mergeButton = await screen.findByRole('button', { name: 'Merge' });
     expect(mergeButton).toBeDisabled();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select First CTA' }));
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    fireEvent.contextMenu(screen.getByText('First CTA').closest('article'));
     expect(mergeButton).toBeDisabled();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Second CTA' }));
+    fireEvent.contextMenu(screen.getByText('Second CTA').closest('article'));
     expect(mergeButton).toBeEnabled();
+    expect(screen.getAllByText('Selected')).toHaveLength(2);
     fireEvent.click(mergeButton);
 
     await waitFor(() => expect(mergeLootLogBundles).toHaveBeenCalledWith({
@@ -1014,6 +1016,17 @@ describe('LootMonitor', () => {
     render(<LootLogArchive />);
 
     expect(await screen.findByText('Merged')).toBeInTheDocument();
+  });
+
+  it('selects a loot log after a mobile tap and hold', async () => {
+    render(<LootLogArchive canMergeLogs />);
+
+    const titles = await screen.findAllByText('18UTC-JUN-18');
+    const row = titles[0].closest('article');
+    fireEvent.pointerDown(row, { clientX: 20, clientY: 20, pointerType: 'touch' });
+
+    expect(await screen.findByText('Selected', {}, { timeout: 1000 })).toBeInTheDocument();
+    fireEvent.pointerUp(row, { clientX: 20, clientY: 20, pointerType: 'touch' });
   });
 
   it('deletes a saved bundle only after confirmation', async () => {
