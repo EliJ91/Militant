@@ -167,6 +167,35 @@ describe('App', () => {
     expect(fetchDiscordMemberRoles).toHaveBeenCalledWith('supabase-jwt');
   });
 
+  it('loads Discord server roles for direct Discord OAuth sessions', async () => {
+    fetchPermissionSettings.mockResolvedValue({
+      settings: {
+        roles: [
+          { id: 'soldier-row', name: 'Soldier', roleId: 'discord-soldier-role', permissions: { viewLogs: true } },
+        ],
+      },
+      updatedAt: null,
+    });
+    fetchDiscordMemberRoles.mockResolvedValue({
+      discordUserId: 'discord-user-2',
+      roleIds: ['discord-soldier-role'],
+    });
+    getCurrentAuthSession.mockResolvedValue({
+      accessToken: 'discord-oauth-token',
+      provider: 'discord',
+      user: {
+        id: 'discord-user-2',
+        username: 'Soldier',
+      },
+    });
+    window.location.hash = '#dashboard';
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'View Loot Logs' })).toBeInTheDocument();
+    expect(fetchDiscordMemberRoles).toHaveBeenCalledWith('discord-oauth-token');
+  });
+
   it('opens Permissions from the dashboard', async () => {
     getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006' } });
     window.location.hash = '#dashboard';

@@ -630,12 +630,16 @@ export default function App() {
       setAuthSession(session || null);
       if (!discordAuthenticated) return;
 
-      if (session?.access_token) {
-        fetchDiscordMemberRoles(session.access_token)
+      const roleLookupToken = session?.access_token || session?.provider_token || session?.accessToken;
+      if (roleLookupToken) {
+        fetchDiscordMemberRoles(roleLookupToken)
           .then((result) => {
             if (cancelled) return;
             setAuthSession((currentSession) => {
-              if (!currentSession || currentSession.access_token !== session.access_token) return currentSession;
+              const currentLookupToken = currentSession.access_token
+                || currentSession.provider_token
+                || currentSession.accessToken;
+              if (!currentSession || currentLookupToken !== roleLookupToken) return currentSession;
               return {
                 ...currentSession,
                 user: {

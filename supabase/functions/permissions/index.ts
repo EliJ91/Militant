@@ -76,10 +76,7 @@ async function getDiscordMemberRoles(supabase: any, request: Request) {
   const accessToken = getBearerToken(request);
   if (!accessToken) throw new Error('Missing authorization token.');
 
-  const { data, error } = await supabase.auth.getUser(accessToken);
-  if (error) throw error;
-
-  const discordUserId = getDiscordUserId(data?.user);
+  const discordUserId = await getDiscordUserIdFromToken(supabase, accessToken);
   if (!discordUserId) throw new Error('Discord user ID not found.');
 
   const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
@@ -102,6 +99,25 @@ async function getDiscordMemberRoles(supabase: any, request: Request) {
     discordUserId,
     roleIds: Array.isArray(member?.roles) ? member.roles.map(String) : [],
   };
+}
+
+async function getDiscordUserIdFromToken(supabase: any, accessToken: string) {
+  const { data, error } = await supabase.auth.getUser(accessToken);
+  if (!error) {
+    const supabaseDiscordUserId = getDiscordUserId(data?.user);
+    if (supabaseDiscordUserId) return supabaseDiscordUserId;
+  }
+
+  const response = await fetch('https://discord.com/api/v10/users/@me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    if (error) throw error;
+    throw new Error('Could not verify Discord user.');
+  }
+
+  const discordUser = await response.json();
+  return String(discordUser?.id || '');
 }
 
 async function updatePermissionSettings(supabase: any, settings: any) {
