@@ -1889,6 +1889,7 @@ function LootLogBundleList({
                 <div className={`saved-log-card${isSelected ? ' selected' : ''}`}>
                   <div className="saved-log-card-main">
                     <div className="saved-log-time">
+                      {isSelected ? <span className="saved-log-selected-badge">Selected</span> : null}
                       <strong>Uploaded</strong>
                       <small>{formatUtcDateTime(uploadedAt)}</small>
                       {!isEditing && retention ? (
@@ -1901,7 +1902,6 @@ function LootLogBundleList({
                     <div className="saved-log-title-line">
                       <small>Loot Log</small>
                       {bundle.summary?.isMerged ? <span className="saved-log-merged-badge">Merged</span> : null}
-                      {isSelected ? <span className="saved-log-selected-badge">Selected</span> : null}
                       {!isEditing && canUploadLootLogs ? (
                         <FileUploadButton
                           accept=".csv,.txt,text/csv,text/plain"

@@ -1917,9 +1917,9 @@ button:focus-visible {
 }
 
 .saved-log-card.selected {
-  border-color: rgba(87, 216, 120, 0.82);
+  border-color: rgba(255, 176, 0, 0.9);
   box-shadow:
-    inset 0 0 0 1px rgba(87, 216, 120, 0.2),
+    inset 0 0 0 1px rgba(255, 176, 0, 0.24),
     0 18px 46px rgba(0, 0, 0, 0.42);
 }
 
@@ -1928,7 +1928,7 @@ button:focus-visible {
 }
 
 .saved-log-merged-badge,
-.saved-log-selected-badge {
+.saved-log-time .saved-log-selected-badge {
   width: auto;
   padding: 3px 7px;
   border: 1px solid rgba(80, 156, 255, 0.6);
@@ -1943,9 +1943,10 @@ button:focus-visible {
 }
 
 .saved-log-selected-badge {
-  border-color: rgba(87, 216, 120, 0.7);
-  background: rgba(87, 216, 120, 0.16);
-  color: var(--green-hot);
+  justify-self: start;
+  border-color: rgba(255, 176, 0, 0.76);
+  background: rgba(255, 176, 0, 0.14);
+  color: #ffcf68;
 }
 
 .saved-log-card-main {
