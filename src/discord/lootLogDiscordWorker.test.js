@@ -13,11 +13,6 @@ const lootLogText = [
   'Onslawht;Militant;CHAIR;;;;Adept\'s Rune;T4_RUNE;2;2026-07-12T04:10:00.000Z',
 ].join('\n');
 
-const chestLogText = [
-  'Date\tPlayer\tItem\tEnchantment\tQuality\tAmount',
-  '07/12/2026 04:20:00\tOnslawht\tAdept\'s Rune\t0\t1\t2',
-].join('\n');
-
 function createAttachment(id, name) {
   return { id, name, url: `https://cdn.discordapp.test/${id}/${name}` };
 }
@@ -164,13 +159,12 @@ function createThread(messages) {
 describe('Discord loot log worker helpers', () => {
   it('recognizes supported log attachment extensions', () => {
     expect(isSupportedLogAttachment(createAttachment('1', 'loot.csv'))).toBe(true);
-    expect(isSupportedLogAttachment(createAttachment('2', 'chest.txt'))).toBe(true);
+    expect(isSupportedLogAttachment(createAttachment('2', 'chest.txt'))).toBe(false);
     expect(isSupportedLogAttachment(createAttachment('3', 'image.png'))).toBe(false);
   });
 
-  it('classifies loot and chest log text', () => {
+  it('classifies only loot log text', () => {
     expect(classifyLogText(lootLogText)).toBe('loot');
-    expect(classifyLogText(chestLogText)).toBe('chest');
     expect(classifyLogText('not a log')).toBe('unknown');
   });
 
@@ -192,45 +186,47 @@ describe('Discord loot log worker helpers', () => {
 });
 
 describe('processLootLogThread', () => {
-  it('creates one bundle for a thread and attaches later chest logs to it', async () => {
-    const chestAttachment = createAttachment('chest-1', 'chest.txt');
+  it('creates one bundle for a thread and appends later loot csv files to it', async () => {
     const lootAttachment = createAttachment('loot-1', 'loot.csv');
+    const laterLootAttachment = createAttachment('loot-2', 'later-loot.csv');
     const messages = [
-      createMessage({ attachment: chestAttachment, id: 'message-1', timestamp: 100 }),
-      createMessage({ attachment: lootAttachment, id: 'message-2', timestamp: 200 }),
+      createMessage({ attachment: lootAttachment, id: 'message-1', timestamp: 100 }),
+      createMessage({
+        attachment: laterLootAttachment,
+        author: { id: 'discord-user-2', username: 'SecondUser' },
+        id: 'message-2',
+        timestamp: 200,
+      }),
     ];
     const thread = createThread(messages);
     const supabase = createSupabaseMock();
     const submitLootLogFn = vi.fn().mockResolvedValue({ bundleId: 'bundle-1' });
-    const submitChestLogFn = vi.fn().mockResolvedValue({ bundleId: 'bundle-1' });
-    const fetchAttachmentTextFn = vi.fn(async (attachment) => (
-      attachment.id === 'loot-1' ? lootLogText : chestLogText
-    ));
+    const fetchAttachmentTextFn = vi.fn().mockResolvedValue(lootLogText);
 
     const result = await processLootLogThread({
       fetchAttachmentTextFn,
-      submitChestLogFn,
       submitLootLogFn,
       supabase,
       thread,
     });
 
     expect(result).toEqual({ bundleId: 'bundle-1', processedAttachments: 2, skippedAttachments: 0 });
-    expect(submitLootLogFn).toHaveBeenCalledWith({
+    expect(submitLootLogFn).toHaveBeenNthCalledWith(1, {
       bundleId: null,
       lootLogText,
       originalFileName: '04 CTA loot uploads',
       username: 'Onslawht',
     });
-    expect(submitChestLogFn).toHaveBeenCalledWith({
+    expect(submitLootLogFn).toHaveBeenNthCalledWith(2, {
       bundleId: 'bundle-1',
-      chestLogText,
+      lootLogText,
+      originalFileName: '04 CTA loot uploads',
       username: 'Onslawht',
     });
     expect(supabase.state.attachments.map((row) => [row.attachment_id, row.log_type, row.bundle_id]))
       .toEqual([
         ['loot-1', 'loot', 'bundle-1'],
-        ['chest-1', 'chest', 'bundle-1'],
+        ['loot-2', 'loot', 'bundle-1'],
       ]);
   });
 

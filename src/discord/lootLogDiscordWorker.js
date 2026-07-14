@@ -6,13 +6,12 @@ import {
   GatewayIntentBits,
   Partials,
 } from 'discord.js';
-import { submitChestLog, submitLootLog } from '../server/supabaseLootLogs.js';
+import { submitLootLog } from '../server/supabaseLootLogs.js';
 import { buildLootLogEvents } from '../utils/lootLogMerge.js';
-import { parseChestLog } from '../utils/lootMonitor.js';
 
 export const DEFAULT_LOOT_LOG_THREAD_CHANNEL_ID = '1492400020958351391';
 
-const SUPPORTED_ATTACHMENT_EXTENSIONS = new Set(['.csv', '.log', '.tsv', '.txt']);
+const SUPPORTED_ATTACHMENT_EXTENSIONS = new Set(['.csv']);
 const MAX_MESSAGES_PER_THREAD_SCAN = 500;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
@@ -38,13 +37,6 @@ export function classifyLogText(text) {
   try {
     const { events } = buildLootLogEvents(text);
     if (events.length > 0) return 'loot';
-  } catch {
-    // Try chest parsing below.
-  }
-
-  try {
-    const parsed = parseChestLog(text);
-    if (parsed.rows.length > 0 || parsed.withdrawals.length > 0) return 'chest';
   } catch {
     // Unknown log format.
   }
@@ -308,7 +300,7 @@ async function prepareJob({ fetchAttachmentTextFn, job }) {
   };
 }
 
-async function processPreparedJob({ bundleId, job, submitChestLogFn, submitLootLogFn, supabase, thread }) {
+async function processPreparedJob({ bundleId, job, submitLootLogFn, supabase, thread }) {
   if (job.logType === 'loot') {
     const result = await submitLootLogFn({
       bundleId,
@@ -326,22 +318,6 @@ async function processPreparedJob({ bundleId, job, submitChestLogFn, submitLootL
     return { bundleId: nextBundleId, processed: true, type: job.logType };
   }
 
-  if (job.logType === 'chest') {
-    if (!bundleId) return { bundleId, processed: false, type: job.logType };
-
-    await submitChestLogFn({
-      bundleId,
-      chestLogText: job.logText,
-      username: job.submittedBy,
-    });
-    await markAttachmentProcessed(supabase, thread, job, {
-      bundleId,
-      logType: job.logType,
-      submittedBy: job.submittedBy,
-    });
-    return { bundleId, processed: true, type: job.logType };
-  }
-
   return { bundleId, processed: false, type: job.logType };
 }
 
@@ -349,7 +325,6 @@ export async function processLootLogThread({
   channelId = DEFAULT_LOOT_LOG_THREAD_CHANNEL_ID,
   fetchAttachmentTextFn = fetchAttachmentText,
   messages = null,
-  submitChestLogFn = submitChestLog,
   submitLootLogFn = submitLootLog,
   supabase,
   thread,
@@ -376,21 +351,18 @@ export async function processLootLogThread({
     preparedJobs.push(await prepareJob({ fetchAttachmentTextFn, job }));
   }
 
-  for (const pass of ['loot', 'chest']) {
-    for (const job of preparedJobs.filter((candidate) => candidate.logType === pass)) {
-      const result = await processPreparedJob({
-        bundleId,
-        job,
-        submitChestLogFn,
-        submitLootLogFn,
-        supabase,
-        thread,
-      });
+  for (const job of preparedJobs.filter((candidate) => candidate.logType === 'loot')) {
+    const result = await processPreparedJob({
+      bundleId,
+      job,
+      submitLootLogFn,
+      supabase,
+      thread,
+    });
 
-      bundleId = result.bundleId || bundleId;
-      if (result.processed) processedAttachments += 1;
-      else skippedAttachments += 1;
-    }
+    bundleId = result.bundleId || bundleId;
+    if (result.processed) processedAttachments += 1;
+    else skippedAttachments += 1;
   }
 
   skippedAttachments += preparedJobs.filter((job) => job.logType === 'unknown').length;
