@@ -2987,6 +2987,10 @@ export default function LootMonitor({
             <small>Loot Log</small>
             <strong>{selectedBundle.lootFileName || 'Loot Log'}</strong>
           </div>
+          <div className={`selected-log-file ${selectedBundle.hasChestLog ? 'linked' : 'missing'}`}>
+            <small>Chest Log</small>
+            <strong>{selectedBundle.hasChestLog ? selectedBundle.chestFileName || 'Chest linked' : 'No chest log'}</strong>
+          </div>
           <div className="selected-log-file selected-log-loggers">
             <small>Loot Loggers</small>
             <strong>{lootLoggers.length > 0 ? lootLoggers.join(', ') : 'Unknown'}</strong>

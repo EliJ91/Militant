@@ -2714,7 +2714,7 @@ button:focus-visible {
 
 .selected-log-summary {
   display: grid;
-  grid-template-columns: minmax(150px, 0.55fr) minmax(210px, 1fr) minmax(260px, 1fr) minmax(180px, 0.72fr) minmax(210px, 1fr);
+  grid-template-columns: minmax(145px, 0.55fr) minmax(180px, 0.85fr) minmax(180px, 0.85fr) minmax(220px, 1fr) minmax(170px, 0.72fr) minmax(210px, 1fr);
   gap: 0;
   overflow: hidden;
   margin-top: 18px;
@@ -2808,6 +2808,10 @@ button:focus-visible {
   color: var(--green-hot);
   font-size: 0.78rem;
   font-weight: 900;
+}
+
+.selected-log-file.missing strong {
+  color: #ffbf2f;
 }
 
 .loot-status-legend.selected-log-legend {

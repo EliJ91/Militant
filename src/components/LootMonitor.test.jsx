@@ -173,6 +173,18 @@ describe('LootMonitor', () => {
     expect(within(summary).getByText('Onslawt, Manual')).toBeInTheDocument();
   });
 
+  it('states when the selected loot log has no chest log', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({ chestFileName: '', chestLogText: '', hasChestLog: false }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    const summary = await screen.findByRole('region', { name: 'Selected CTA log' });
+    expect(within(summary).getByText('Chest Log')).toBeInTheDocument();
+    expect(within(summary).getByText('No chest log')).toBeInTheDocument();
+  });
+
   it('loads a saved bundle and keeps the saved monitor filters', async () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       alliances: ['CHAIR'],
@@ -185,7 +197,7 @@ describe('LootMonitor', () => {
 
     const { container } = render(<LootMonitor bundleId="bundle-18" />);
 
-    expect(await screen.findByText('18UTC-JUN-18')).toBeInTheDocument();
+    expect((await screen.findAllByText('18UTC-JUN-18')).length).toBeGreaterThan(0);
     expect(screen.queryByText('Log Upload')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Choose files' })).not.toBeInTheDocument();
     expect(screen.getByText('Tier')).toBeInTheDocument();
@@ -672,7 +684,7 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" showShare={false} />);
 
-    expect(await screen.findByText('18UTC-JUN-18')).toBeInTheDocument();
+    expect((await screen.findAllByText('18UTC-JUN-18')).length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue('Least to most')).toBeInTheDocument();
     const statusControl = screen.getByText('Status').closest('.filter-dropdown-control');
     expect(statusControl.querySelector('summary')).toHaveTextContent('Kept');
