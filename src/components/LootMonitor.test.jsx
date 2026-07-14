@@ -885,8 +885,10 @@ describe('LootMonitor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Open upload instructions' }));
     const instructionsDialog = screen.getByRole('dialog', { name: 'Upload Instructions' });
-    expect(within(instructionsDialog).getByRole('heading', { name: 'Upload From The Webapp' })).toBeInTheDocument();
-    expect(within(instructionsDialog).getByRole('heading', { name: 'Upload From Discord' })).toBeInTheDocument();
+    expect(within(instructionsDialog).getByRole('heading', { name: 'Upload Loot Logs' })).toBeInTheDocument();
+    expect(within(instructionsDialog).queryByRole('heading', { name: 'Upload From The Webapp' })).not.toBeInTheDocument();
+    expect(within(instructionsDialog).queryByRole('heading', { name: 'Upload From Discord' })).not.toBeInTheDocument();
+    expect(within(instructionsDialog).queryByRole('heading', { name: 'Add Loot Files Later' })).not.toBeInTheDocument();
     expect(within(instructionsDialog).getByRole('heading', { name: 'Upload Chest Logs' })).toBeInTheDocument();
     expect(within(instructionsDialog).getByRole('heading', { name: 'Merge Loot Logs' })).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('.csv or .txt')).toBeInTheDocument();

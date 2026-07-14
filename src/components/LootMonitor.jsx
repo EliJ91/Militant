@@ -1835,27 +1835,13 @@ function UploadInstructionsModal({ onClose }) {
   const guideSections = [
     {
       steps: [
-        <>Open <strong>Loot Logs</strong> and select <strong>Upload</strong>.</>,
-        <>Drag in one or more loot logger <strong>.csv</strong> files, or select <strong>Choose files</strong>.</>,
-        <>Review the file list, then select <strong>Upload</strong>. Multiple files for the same CTA are grouped together.</>,
+        <><strong>From the webapp:</strong> Open <strong>Loot Logs</strong>, select <strong>Upload</strong>, then add one or more <strong>.csv/.txt</strong> loot logger files and submit them.</>,
+        <><strong>From Discord:</strong> Post every loot logger <strong>.csv</strong> file in the CTA thread. Multiple members can contribute files to the same thread.</>,
+        <><strong>Submit from Discord:</strong> A member with <strong>Upload Loot Logs From Discord</strong> permission runs <code>/upload</code> inside the thread.</>,
+        <><strong>Add files later:</strong> Select the <strong>+</strong> beside <strong>Loot Log</strong> on an existing entry, add the missing <strong>.csv/.txt</strong> files, and submit them.</>,
+        <>Files submitted together are grouped into one CTA. Adding files later recalculates item custody and player details for the existing entry.</>,
       ],
-      title: 'Upload From The Webapp',
-    },
-    {
-      steps: [
-        <>Open or create the CTA thread in the designated Discord loot-log channel.</>,
-        <>Post every loot logger <strong>.csv</strong> file in that thread. Multiple members can post files.</>,
-        <>A member with <strong>Upload Loot Logs From Discord</strong> permission runs <code>/upload</code> inside the thread.</>,
-      ],
-      title: 'Upload From Discord',
-    },
-    {
-      steps: [
-        <>Select the <strong>+</strong> beside <strong>Loot Log</strong> on an existing entry.</>,
-        <>Add the missing <strong>.csv</strong> files in the same upload window and submit them.</>,
-        <>The existing entry is updated and all item custody and player details are calculated again.</>,
-      ],
-      title: 'Add Loot Files Later',
+      title: 'Upload Loot Logs',
     },
     {
       steps: [
