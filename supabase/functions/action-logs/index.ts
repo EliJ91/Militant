@@ -2,8 +2,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 250;
+const DISCORD_GUILD_ID = '805908199541702666';
 const corsHeaders = {
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-discord-access-token',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Origin': '*',
 };
@@ -17,6 +18,82 @@ function jsonResponse(status: number, payload: unknown) {
 
 function clean(value: unknown, fallback = '') {
   return String(value || '').trim() || fallback;
+}
+
+function getBearerToken(request: Request) {
+  const authorization = request.headers.get('authorization') || '';
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1] : '';
+}
+
+function getDiscordUserId(user: any) {
+  const metadata = user?.user_metadata || {};
+  const identity = Array.isArray(user?.identities)
+    ? user.identities.find((currentIdentity: any) => currentIdentity.provider === 'discord') || user.identities[0]
+    : null;
+  const identityData = identity?.identity_data || {};
+  return clean(
+    metadata.discordUserId
+      || metadata.discord_user_id
+      || metadata.provider_id
+      || metadata.providerId
+      || metadata.sub
+      || identityData.sub
+      || identityData.provider_id
+      || identity?.id,
+  );
+}
+
+async function getDiscordUserIdFromToken(supabase: any, accessToken: string) {
+  const { data, error } = await supabase.auth.getUser(accessToken);
+  if (!error) {
+    const discordUserId = getDiscordUserId(data?.user);
+    if (discordUserId) return discordUserId;
+  }
+
+  const response = await fetch('https://discord.com/api/v10/users/@me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) return '';
+  return clean((await response.json())?.id);
+}
+
+function discordMemberDisplayName(member: any) {
+  return clean(member?.nick || member?.user?.global_name || member?.user?.username);
+}
+
+function fallbackActorName(value: unknown) {
+  const actorName = clean(value);
+  return !actorName || /^unknown(?:\s+server)?\s+(?:member|user)$/i.test(actorName) ? 'System' : actorName;
+}
+
+async function resolveActionActorName(supabase: any, request: Request, requestedActorName: unknown) {
+  const accessToken = getBearerToken(request);
+  if (!accessToken) return fallbackActorName(requestedActorName);
+
+  const discordUserId = await getDiscordUserIdFromToken(supabase, accessToken);
+  if (!discordUserId) return fallbackActorName(requestedActorName);
+
+  const discordAccessToken = request.headers.get('x-discord-access-token') || '';
+  if (discordAccessToken) {
+    const oauthResponse = await fetch(
+      `https://discord.com/api/v10/users/@me/guilds/${DISCORD_GUILD_ID}/member`,
+      { headers: { Authorization: `Bearer ${discordAccessToken}` } },
+    );
+    if (oauthResponse.ok) {
+      const oauthName = discordMemberDisplayName(await oauthResponse.json());
+      if (oauthName) return oauthName;
+    }
+  }
+
+  const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
+  if (!botToken) return fallbackActorName(requestedActorName);
+  const memberResponse = await fetch(
+    `https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`,
+    { headers: { Authorization: `Bot ${botToken}` } },
+  );
+  if (!memberResponse.ok) return fallbackActorName(requestedActorName);
+  return discordMemberDisplayName(await memberResponse.json()) || fallbackActorName(requestedActorName);
 }
 
 function bundleTitle(bundle: any) {
@@ -94,11 +171,12 @@ Deno.serve(async (request) => {
       const body = await request.json();
       const action = String(body.action || '').trim();
       if (!action) throw new Error('Action is required.');
+      const actorName = await resolveActionActorName(supabase, request, body.actorName);
       const { data, error } = await supabase
         .from('webapp_action_logs')
         .insert({
           action: action.slice(0, 160),
-          actor_name: String(body.actorName || '').trim().slice(0, 120) || 'Unknown User',
+          actor_name: actorName.slice(0, 120),
           details: body.details && typeof body.details === 'object' ? body.details : {},
           target_id: String(body.targetId || '').trim().slice(0, 160) || null,
           target_name: String(body.targetName || '').trim().slice(0, 240) || null,

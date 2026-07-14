@@ -97,7 +97,7 @@ describe('App', () => {
       'src',
       '/assets/siphoned-energy.png',
     );
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.67');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.68');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -116,6 +116,7 @@ describe('App', () => {
     expect(withinTopbar(container, 'Sign Out')).toBeUndefined();
     fireEvent.click(container.querySelector('.topbar-profile-button'));
     expect(screen.getByRole('button', { name: 'Sign Out' })).toBeInTheDocument();
+    expect(screen.queryByText('View As Roles')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /upload log/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toBeInTheDocument();
   });

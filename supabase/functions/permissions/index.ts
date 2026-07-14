@@ -114,7 +114,7 @@ async function getDiscordMemberFromOAuth(accessToken: string, expectedUserId: st
 }
 
 function formatDiscordMember(discordUserId: string, member: any) {
-  const guildNickname = String(member?.nick || '').trim();
+  const guildNickname = String(member?.nick || member?.user?.global_name || member?.user?.username || '').trim();
   return {
     discordGuildId: DISCORD_GUILD_ID,
     discordUserId,

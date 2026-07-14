@@ -1,7 +1,8 @@
 const DEFAULT_API_URL = '/api/action-logs';
 const PRODUCTION_API_URL = 'https://maeljnrgffgrljqusnre.supabase.co/functions/v1/action-logs';
 
-let currentActorName = 'Unknown User';
+let currentActorName = 'System';
+let currentAuthSession = null;
 
 function getActionLogsApiUrl() {
   if (import.meta.env.PROD) {
@@ -26,7 +27,26 @@ export async function fetchActionLogs({ before = '', limit = 100 } = {}) {
 }
 
 export function setActionLogActorName(actorName) {
-  currentActorName = String(actorName || '').trim() || 'Unknown User';
+  currentActorName = String(actorName || '').trim() || 'System';
+}
+
+export function setActionLogAuthSession(session) {
+  currentAuthSession = session || null;
+}
+
+function getActionLogAuthHeaders() {
+  const accessToken = currentAuthSession?.access_token
+    || currentAuthSession?.accessToken
+    || currentAuthSession?.provider_token
+    || '';
+  const discordAccessToken = currentAuthSession?.provider_token
+    || (currentAuthSession?.provider === 'discord' ? currentAuthSession?.accessToken : '')
+    || '';
+
+  return {
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    ...(discordAccessToken ? { 'X-Discord-Access-Token': discordAccessToken } : {}),
+  };
 }
 
 export async function recordActionLog({
@@ -40,7 +60,7 @@ export async function recordActionLog({
   try {
     const response = await fetch(getActionLogsApiUrl(), {
       body: JSON.stringify({ action, actorName, details, targetId, targetName, targetType }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getActionLogAuthHeaders() },
       method: 'POST',
     });
     if (!response.ok) throw new Error('Could not record action.');

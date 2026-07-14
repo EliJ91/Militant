@@ -5,7 +5,7 @@ import MembersTool from './components/MembersTool';
 import PermissionsTool from './components/PermissionsTool';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
 import ActionLogsTool from './components/ActionLogsTool';
-import { setActionLogActorName } from './services/actionLogsApi';
+import { setActionLogActorName, setActionLogAuthSession } from './services/actionLogsApi';
 import {
   clearPendingAuthRoute,
   getCurrentAuthSession,
@@ -167,10 +167,12 @@ function UserProfileChip({
   const fallbackInitial = displayName.trim().charAt(0).toUpperCase() || 'D';
   const selectedRoleIds = new Set(viewAsRoleIds.map((roleId) => String(roleId)));
 
-  function openProfileMenu(event) {
+  function openProfileMenu(event, showRoleOptions = false) {
     event.preventDefault();
+    event.stopPropagation();
     const bounds = event.currentTarget.getBoundingClientRect();
     setMenu({
+      showRoleOptions: Boolean(showRoleOptions && isSuperUserProfile),
       x: Math.max(8, Math.min(bounds.right - 220, window.innerWidth - 228)),
       y: Math.max(8, Math.min(bounds.bottom + 8, window.innerHeight - 280)),
     });
@@ -187,14 +189,14 @@ function UserProfileChip({
       ref={menuRef}
       title={isSuperUserProfile ? `${displayName} (SuperUser)` : displayName}
       aria-label={`Logged in as ${displayName}`}
-      onContextMenu={openProfileMenu}
+      onContextMenu={(event) => openProfileMenu(event, true)}
     >
       <button
         aria-label={`Open profile menu for ${displayName}`}
         className="topbar-profile-button"
         type="button"
-        onClick={(event) => (menu ? setMenu(null) : openProfileMenu(event))}
-        onContextMenu={openProfileMenu}
+        onClick={(event) => (menu ? setMenu(null) : openProfileMenu(event, false))}
+        onContextMenu={(event) => openProfileMenu(event, true)}
       >
         {avatarUrl ? (
           <img className="topbar-profile-avatar" src={avatarUrl} alt="" referrerPolicy="no-referrer" />
@@ -208,7 +210,7 @@ function UserProfileChip({
           role="menu"
           style={{ left: menu.x, top: menu.y }}
         >
-          {isSuperUserProfile ? (
+          {menu.showRoleOptions ? (
             <>
               <span className="topbar-profile-menu-label">View As Roles</span>
               {viewAsRoles.length > 0 ? viewAsRoles.map((role) => {
@@ -519,7 +521,6 @@ function DashboardPage({
               <section className={`dashboard-tool-group ${group.key}`} aria-labelledby={`dashboard-${group.key}-title`} key={group.key}>
                 <div className="dashboard-tool-group-heading">
                   <h2 id={`dashboard-${group.key}-title`}>{group.label}</h2>
-                  <span>{group.tools.length}</span>
                 </div>
                 <div className="tool-board">
                   {group.tools.map((tool) => {
@@ -797,8 +798,9 @@ export default function App() {
   };
 
   useEffect(() => {
-    setActionLogActorName(getUploadUsername(currentUser || {}));
-  }, [currentUser]);
+    setActionLogAuthSession(authSession);
+    setActionLogActorName(currentUser ? getUploadUsername(currentUser) : 'System');
+  }, [authSession, currentUser]);
 
   useEffect(() => {
     const updateRoute = () => {

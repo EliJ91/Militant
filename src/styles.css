@@ -853,20 +853,6 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
-.dashboard-tool-group-heading span {
-  display: grid;
-  min-width: 26px;
-  height: 24px;
-  place-items: center;
-  padding: 0 7px;
-  border: 1px solid rgba(87, 216, 120, 0.3);
-  border-radius: 6px;
-  background: rgba(87, 216, 120, 0.08);
-  color: var(--green-hot);
-  font-size: 0.68rem;
-  font-weight: 900;
-}
-
 .dashboard-tool-group.admin .dashboard-tool-group-heading h2 {
   color: #d9e2d8;
 }
