@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchActionLogs } from '../services/actionLogsApi';
+import { fetchLootLogBundles } from '../services/lootLogApi';
 
 function formatDateTime(value) {
   const date = new Date(value);
@@ -43,43 +44,56 @@ function permissionChangeText(change) {
   return text;
 }
 
-function deathCheckRows(log) {
+function getLootLogReference(log, bundleById) {
+  const details = log.details || {};
+  const bundle = bundleById.get(String(log.targetId || '')) || {};
+  const number = Number(details.lootLogNumber || bundle.logNumber) || null;
+  const rawName = cleanText(details.lootLogName || bundle.lootFileName || log.targetName);
+  const name = /^\d+ players?$/i.test(rawName) ? '' : rawName;
+  const prefix = number ? `Loot Log #${number}` : 'Loot Log';
+  return name ? `${prefix}: ${name}` : prefix;
+}
+
+function deathCheckRows(log, bundleById) {
   const details = log.details || {};
   const players = Array.isArray(details.players) && details.players.length > 0
     ? details.players
     : [details.player].filter(Boolean);
-  const lootLogName = cleanText(details.lootLogName || log.targetName || log.targetId, 'selected loot log');
+  const lootLogReference = getLootLogReference(log, bundleById);
 
   if (players.length === 0) {
     return [{
       ...log,
-      actionText: `Checked death for loot log: ${lootLogName}`,
+      actionText: `Checked death for ${lootLogReference}`,
       rowId: `${log.id || log.createdAt}-death`,
     }];
   }
 
   return players.map((player, index) => ({
     ...log,
-    actionText: `Checked ${player} death for loot log: ${lootLogName}`,
+    actionText: `Checked ${player} death for ${lootLogReference}`,
     rowId: `${log.id || log.createdAt}-death-${index}`,
   }));
 }
 
-function formatAction(log) {
+function formatAction(log, bundleById) {
   const action = cleanText(log.action);
   const details = log.details || {};
+  const lootLogReference = getLootLogReference(log, bundleById);
 
   if (action === 'Loot log uploaded from Discord') {
     const uploadedBy = cleanText(details.uploadedBy);
-    return uploadedBy ? `Uploaded ${uploadedBy} log from Discord` : 'Uploaded loot log from Discord';
+    return uploadedBy
+      ? `Uploaded ${uploadedBy} log from Discord to ${lootLogReference}`
+      : `Uploaded loot log from Discord to ${lootLogReference}`;
   }
 
   if (action === 'Loot log uploaded') {
-    return `Uploaded loot log ${cleanText(log.targetName || details.fileName, 'Untitled')}`;
+    return `Uploaded ${lootLogReference}`;
   }
 
   if (action === 'Chest log uploaded') {
-    return `Uploaded chest log for loot log ${cleanText(details.lootLogName || log.targetName, 'Untitled')}`;
+    return `Uploaded chest log for ${lootLogReference}`;
   }
 
   if (action === 'Loot logs merged') {
@@ -105,7 +119,7 @@ function formatAction(log) {
   return cleanText(log.action, 'Updated webapp');
 }
 
-function flattenLogs(logs) {
+function flattenLogs(logs, bundleById) {
   return logs.flatMap((log) => {
     const details = log.details || {};
     if (log.action === 'Permissions updated' && Array.isArray(details.changes) && details.changes.length > 0) {
@@ -117,12 +131,12 @@ function flattenLogs(logs) {
     }
 
     if (log.action === 'Death check completed' || log.action === 'Death checks completed') {
-      return deathCheckRows(log);
+      return deathCheckRows(log, bundleById);
     }
 
     return [{
       ...log,
-      actionText: formatAction(log),
+      actionText: formatAction(log, bundleById),
       rowId: log.id || `${log.createdAt}-${log.action}`,
     }];
   });
@@ -132,6 +146,7 @@ export default function ActionLogsTool() {
   const [logs, setLogs] = useState([]);
   const [nextCursor, setNextCursor] = useState('');
   const [hasMore, setHasMore] = useState(false);
+  const [bundleById, setBundleById] = useState(new Map());
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState({ message: '', state: 'loading' });
 
@@ -151,9 +166,14 @@ export default function ActionLogsTool() {
 
   useEffect(() => {
     loadLogs();
+    fetchLootLogBundles()
+      .then((result) => {
+        setBundleById(new Map((result.bundles || []).map((bundle) => [String(bundle.id), bundle])));
+      })
+      .catch(() => {});
   }, []);
 
-  const rows = useMemo(() => flattenLogs(logs), [logs]);
+  const rows = useMemo(() => flattenLogs(logs, bundleById), [bundleById, logs]);
   const visibleCount = useMemo(() => rows.length.toLocaleString(), [rows.length]);
 
   return (
@@ -196,7 +216,7 @@ export default function ActionLogsTool() {
                 {rows.map((log) => (
                   <tr key={log.rowId}>
                     <td className="action-logs-actor">{cleanText(log.actorName, 'System')}</td>
-                    <td className="action-logs-action-text">{log.actionText || formatAction(log)}</td>
+                    <td className="action-logs-action-text">{log.actionText || formatAction(log, bundleById)}</td>
                     <td><time dateTime={log.createdAt}>{formatDateTime(log.createdAt)}</time></td>
                   </tr>
                 ))}

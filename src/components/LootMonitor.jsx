@@ -1894,6 +1894,7 @@ function LootLogBundleList({
                   <div className="saved-log-card-main">
                     <div className="saved-log-time">
                       {isSelected ? <span className="saved-log-selected-badge">Selected</span> : null}
+                      {bundle.logNumber ? <span className="saved-log-number">Loot Log #{bundle.logNumber}</span> : null}
                       <strong>Uploaded</strong>
                       <small>{formatEasternDateTime(uploadedAt)}</small>
                       {!isEditing && retention ? (

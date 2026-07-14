@@ -151,24 +151,17 @@ async function getDisplayName(message) {
   const nick = cleanString(member?.nickname || member?.nick);
   if (nick) return nick;
 
-  const displayName = cleanString(member?.displayName);
-  if (displayName) return displayName;
-
   if (message?.guild?.members?.fetch && message?.author?.id) {
     try {
       const fetchedMember = await message.guild.members.fetch(message.author.id);
       const fetchedNick = cleanString(fetchedMember?.nickname || fetchedMember?.nick);
       if (fetchedNick) return fetchedNick;
-      const fetchedDisplayName = cleanString(fetchedMember?.displayName);
-      if (fetchedDisplayName) return fetchedDisplayName;
     } catch {
-      // Fall back to author data.
+      // The action log intentionally never falls back to a Discord username.
     }
   }
 
-  return cleanString(message?.author?.globalName)
-    || cleanString(message?.author?.username)
-    || 'Discord';
+  return 'Unknown Server Member';
 }
 
 async function loadThreadRecord(supabase, thread) {

@@ -82,3 +82,7 @@ jobs:
       - name: Deploy loot log API
         if: ${{ env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
         run: supabase functions deploy loot-logs --no-verify-jwt --project-ref maeljnrgffgrljqusnre
+
+      - name: Deploy action log API
+        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        run: supabase functions deploy action-logs --no-verify-jwt --project-ref maeljnrgffgrljqusnre

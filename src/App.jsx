@@ -114,10 +114,8 @@ function getUploadUsername(user = {}) {
       || metadata.guildNickname
       || metadata.serverNickname
       || metadata.nick
-      || metadata.user_name
-      || metadata.preferred_username
-      || getDiscordDisplayName(user),
-  ).trim() || 'manual-web-upload';
+      || 'Unknown Server Member',
+  ).trim() || 'Unknown Server Member';
 }
 
 function emptyPermissions() {

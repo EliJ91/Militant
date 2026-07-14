@@ -2174,6 +2174,13 @@ button:focus-visible {
     0 18px 46px rgba(0, 0, 0, 0.42);
 }
 
+.saved-log-number {
+  color: var(--green);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .saved-log-row.merge-selectable .saved-log-card {
   user-select: none;
 }

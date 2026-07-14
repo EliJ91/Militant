@@ -222,7 +222,7 @@ function getBundleFileNames(bundle: any, startAt = bundle?.start_at) {
 }
 
 function cleanDisplayLogName(value: unknown) {
-  const fileName = String(value || '').trim().split(/[\\/]/).pop() || '';
+  const fileName = String(value || '').trim().split(/\\/).pop() || '';
   return stripLogTypeSuffixes(
     fileName.replace(/[\r\n]/g, '').replace(/\.(?:csv|log|tsv|txt)$/i, ''),
   ).slice(0, 151);
@@ -230,7 +230,8 @@ function cleanDisplayLogName(value: unknown) {
 
 function getBundleDisplayLootFileName(bundle: any, originalFileName?: unknown, startAt = bundle?.start_at) {
   const summary = bundle?.combined_loot_summary || {};
-  return cleanDisplayLogName(summary.displayLootFileName)
+  return cleanDisplayLogName(summary.discordThreadName)
+    || cleanDisplayLogName(summary.displayLootFileName)
     || cleanDisplayLogName(summary.fileNames?.loot)
     || cleanDisplayLogName(originalFileName)
     || getBundleFileNames(bundle, startAt).baseName;
@@ -1455,8 +1456,9 @@ Deno.serve(async (request) => {
 
       if (error) throw error;
 
+      const bundles = data || [];
       return jsonResponse(200, {
-        bundles: (data || []).map((bundle: any) => {
+        bundles: bundles.map((bundle: any, index: number) => {
           const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
           const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
           const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
@@ -1476,6 +1478,7 @@ Deno.serve(async (request) => {
             endAt: bundle.end_at,
             hasChestLog: chestLogs.length > 0,
             id: bundle.id,
+            logNumber: bundles.length - index,
             lootFileName: getBundleDisplayLootFileName(bundle),
             startAt: bundle.start_at,
             submissions: submissions.map((submission: any) => ({

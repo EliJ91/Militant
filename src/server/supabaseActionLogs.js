@@ -14,6 +14,67 @@ function clean(value, fallback = '') {
   return String(value || '').trim() || fallback;
 }
 
+function bundleTitle(bundle) {
+  const summary = bundle?.combined_loot_summary || {};
+  const fileNames = summary.fileNames || {};
+  return clean(summary.discordThreadName || summary.displayLootFileName || fileNames.baseName || fileNames.loot)
+    .replace(/\s+(?:Loot|Chest) Log$/i, '');
+}
+
+async function enrichActionRows(admin, rows) {
+  const bundleIds = [...new Set(rows
+    .map((row) => clean(row.target_id))
+    .filter((value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)))];
+  if (bundleIds.length === 0) return rows;
+
+  const [{ data: bundles, error: bundleError }, { data: deathChecks, error: deathError }] = await Promise.all([
+    admin
+      .from('loot_log_bundles')
+      .select('id,combined_loot_summary,created_at')
+      .order('created_at', { ascending: true }),
+    admin
+      .from('loot_log_death_checks')
+      .select('bundle_id,player_name,checked_at')
+      .in('bundle_id', bundleIds)
+      .order('checked_at', { ascending: true }),
+  ]);
+
+  if (bundleError) throw bundleError;
+  if (deathError) throw deathError;
+
+  const bundleById = new Map((bundles || []).map((bundle, index) => [String(bundle.id), {
+    logNumber: index + 1,
+    lootLogName: bundleTitle(bundle),
+  }]));
+  const deathsByBundle = new Map();
+  (deathChecks || []).forEach((deathCheck) => {
+    const bundleId = String(deathCheck.bundle_id || '');
+    if (!deathsByBundle.has(bundleId)) deathsByBundle.set(bundleId, []);
+    deathsByBundle.get(bundleId).push(deathCheck);
+  });
+
+  return rows.map((row) => {
+    const bundleId = clean(row.target_id);
+    const bundle = bundleById.get(bundleId);
+    const details = { ...(row.details || {}) };
+    if (bundle) {
+      details.lootLogNumber ||= bundle.logNumber;
+      details.lootLogName ||= bundle.lootLogName;
+    }
+
+    if (/^Death checks? completed$/i.test(clean(row.action)) && !details.player && !details.players?.length) {
+      const actionTime = new Date(row.created_at).getTime();
+      const nearest = (deathsByBundle.get(bundleId) || []).reduce((best, candidate) => {
+        const distance = Math.abs(new Date(candidate.checked_at).getTime() - actionTime);
+        return !best || distance < best.distance ? { candidate, distance } : best;
+      }, null);
+      if (nearest?.candidate?.player_name) details.players = [nearest.candidate.player_name];
+    }
+
+    return { ...row, details };
+  });
+}
+
 export async function recordActionLog({
   action,
   actorName = 'System',
@@ -62,7 +123,7 @@ export async function listActionLogs({ before = '', limit = DEFAULT_PAGE_SIZE } 
   const { count, data, error } = await query;
   if (error) throw error;
 
-  const rows = data || [];
+  const rows = await enrichActionRows(admin, data || []);
   const hasMore = rows.length > pageSize;
   const visibleRows = rows.slice(0, pageSize);
   return {
@@ -81,4 +142,3 @@ export async function listActionLogs({ before = '', limit = DEFAULT_PAGE_SIZE } 
     total: count || 0,
   };
 }
-

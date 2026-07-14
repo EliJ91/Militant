@@ -37,6 +37,7 @@ function createMessage({ attachment, author = {}, id, timestamp }) {
 
 function createSupabaseMock({ permissionRoles = [], processedAttachmentIds = [], threadRecord = null } = {}) {
   const state = {
+    actionLogs: [],
     attachments: [],
     bundleSummary: threadRecord?.bundle_id ? {
       discordProcessedAttachmentIds: threadRecord.processedAttachmentIds || [],
@@ -60,6 +61,10 @@ function createSupabaseMock({ permissionRoles = [], processedAttachmentIds = [],
         return this;
       },
       insert(value) {
+        if (table === 'webapp_action_logs') {
+          state.actionLogs.push(value);
+          return this;
+        }
         if (table === 'discord_loot_threads') {
           state.threadRecord = {
             bundle_id: null,
@@ -322,6 +327,43 @@ describe('handleUploadCommand', () => {
 
     expect(result).toEqual({ bundleId: 'bundle-1', processedAttachments: 1, skippedAttachments: 0 });
     expect(submitLootLogFn).toHaveBeenCalledTimes(1);
+    expect(supabase.state.actionLogs).toContainEqual(expect.objectContaining({
+      actor_name: 'Onslawht',
+      details: expect.objectContaining({ uploadedBy: 'Onslawht' }),
+    }));
+  });
+
+  it('never falls back to a Discord username when a server nickname is unavailable', async () => {
+    const lootAttachment = createAttachment('loot-1', 'loot.csv');
+    const attachmentMessage = {
+      ...createMessage({ attachment: lootAttachment, id: 'message-1', timestamp: 100 }),
+      guild: { members: { fetch: vi.fn().mockResolvedValue({ nickname: null }) } },
+      member: { roles: { cache: new Map([['role-logger', {}]]) } },
+    };
+    const thread = createThread([attachmentMessage]);
+    const supabase = createSupabaseMock({
+      permissionRoles: [
+        { roleId: 'role-logger', permissions: { uploadLootLogsFromDiscord: true } },
+      ],
+    });
+
+    await handleUploadCommand({
+      fetchAttachmentTextFn: vi.fn().mockResolvedValue(lootLogText),
+      message: {
+        author: { id: 'discord-user', username: 'ActualUsername' },
+        channel: thread,
+        content: '!upload',
+        guild: { members: { fetch: vi.fn().mockResolvedValue({ nickname: null }) } },
+        member: { id: 'discord-user', roles: { cache: new Map([['role-logger', {}]]) } },
+      },
+      submitLootLogFn: vi.fn().mockResolvedValue({ bundleId: 'bundle-1' }),
+      supabase,
+    });
+
+    expect(supabase.state.actionLogs).toContainEqual(expect.objectContaining({
+      actor_name: 'Unknown Server Member',
+      details: expect.objectContaining({ uploadedBy: 'Unknown Server Member' }),
+    }));
   });
 
   it('does not upload when the member lacks the Discord upload permission', async () => {

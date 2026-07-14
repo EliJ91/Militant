@@ -144,7 +144,7 @@ export function getBundleFileNames(bundle, startAt = bundle?.start_at) {
 }
 
 function cleanDisplayLogName(value) {
-  const fileName = String(value || '').trim().split(/[\\/]/).pop() || '';
+  const fileName = String(value || '').trim().split(/\\/).pop() || '';
   return stripLogTypeSuffixes(
     fileName.replace(/[\r\n]/g, '').replace(/\.(?:csv|log|tsv|txt)$/i, ''),
   ).slice(0, 151);
@@ -152,7 +152,8 @@ function cleanDisplayLogName(value) {
 
 export function getBundleDisplayLootFileName(bundle, originalFileName, startAt = bundle?.start_at) {
   const summary = bundle?.combined_loot_summary || {};
-  return cleanDisplayLogName(summary.displayLootFileName)
+  return cleanDisplayLogName(summary.discordThreadName)
+    || cleanDisplayLogName(summary.displayLootFileName)
     || cleanDisplayLogName(summary.fileNames?.loot)
     || cleanDisplayLogName(originalFileName)
     || getBundleFileNames(bundle, startAt).baseName;
@@ -227,7 +228,7 @@ function cleanEditedSubmitterName(name) {
   return clean;
 }
 
-function mapBundleListRow(bundle) {
+function mapBundleListRow(bundle, logNumber = null) {
   const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
   const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
   const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
@@ -247,6 +248,7 @@ function mapBundleListRow(bundle) {
     endAt,
     hasChestLog: chestLogs.length > 0,
     id: bundle.id,
+    logNumber,
     lootFileName: getBundleDisplayLootFileName(bundle, '', startAt),
     startAt,
     submissions: submissions.map((submission) => ({
@@ -1419,8 +1421,9 @@ export async function listLootLogBundles() {
 
   if (error) throw error;
 
+  const bundles = data || [];
   return {
-    bundles: (data || []).map(mapBundleListRow),
+    bundles: bundles.map((bundle, index) => mapBundleListRow(bundle, bundles.length - index)),
     ctaTimers: CTA_UTC_HOURS.map(formatCtaTimer),
   };
 }

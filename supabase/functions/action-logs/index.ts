@@ -15,6 +15,71 @@ function jsonResponse(status: number, payload: unknown) {
   });
 }
 
+function clean(value: unknown, fallback = '') {
+  return String(value || '').trim() || fallback;
+}
+
+function bundleTitle(bundle: any) {
+  const summary = bundle?.combined_loot_summary || {};
+  const fileNames = summary.fileNames || {};
+  return clean(summary.discordThreadName || summary.displayLootFileName || fileNames.baseName || fileNames.loot)
+    .replace(/\s+(?:Loot|Chest) Log$/i, '');
+}
+
+async function enrichActionRows(supabase: any, rows: any[]) {
+  const bundleIds = [...new Set(rows
+    .map((row) => clean(row.target_id))
+    .filter((value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)))];
+  if (bundleIds.length === 0) return rows;
+
+  const [bundleResult, deathResult] = await Promise.all([
+    supabase
+      .from('loot_log_bundles')
+      .select('id,combined_loot_summary,created_at')
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('loot_log_death_checks')
+      .select('bundle_id,player_name,checked_at')
+      .in('bundle_id', bundleIds)
+      .order('checked_at', { ascending: true }),
+  ]);
+
+  if (bundleResult.error) throw bundleResult.error;
+  if (deathResult.error) throw deathResult.error;
+
+  const bundleById = new Map((bundleResult.data || []).map((bundle: any, index: number) => [String(bundle.id), {
+    logNumber: index + 1,
+    lootLogName: bundleTitle(bundle),
+  }]));
+  const deathsByBundle = new Map<string, any[]>();
+  (deathResult.data || []).forEach((deathCheck: any) => {
+    const bundleId = String(deathCheck.bundle_id || '');
+    if (!deathsByBundle.has(bundleId)) deathsByBundle.set(bundleId, []);
+    deathsByBundle.get(bundleId)?.push(deathCheck);
+  });
+
+  return rows.map((row: any) => {
+    const bundleId = clean(row.target_id);
+    const bundle: any = bundleById.get(bundleId);
+    const details = { ...(row.details || {}) };
+    if (bundle) {
+      details.lootLogNumber ||= bundle.logNumber;
+      details.lootLogName ||= bundle.lootLogName;
+    }
+
+    if (/^Death checks? completed$/i.test(clean(row.action)) && !details.player && !details.players?.length) {
+      const actionTime = new Date(row.created_at).getTime();
+      const nearest = (deathsByBundle.get(bundleId) || []).reduce((best: any, candidate: any) => {
+        const distance = Math.abs(new Date(candidate.checked_at).getTime() - actionTime);
+        return !best || distance < best.distance ? { candidate, distance } : best;
+      }, null);
+      if (nearest?.candidate?.player_name) details.players = [nearest.candidate.player_name];
+    }
+
+    return { ...row, details };
+  });
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders, status: 204 });
   if (!['GET', 'POST'].includes(request.method)) return jsonResponse(405, { error: 'Method not allowed.' });
@@ -60,7 +125,7 @@ Deno.serve(async (request) => {
 
     const { count, data, error } = await query;
     if (error) throw error;
-    const rows = data || [];
+    const rows = await enrichActionRows(supabase, data || []);
     const hasMore = rows.length > pageSize;
     const visibleRows = rows.slice(0, pageSize);
 
