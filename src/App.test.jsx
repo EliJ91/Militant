@@ -91,21 +91,23 @@ describe('App', () => {
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.61');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.62');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
       'https://cdn.discordapp.com/avatars/264193431830528006/avatar-hash.png?size=80',
     );
-    expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
+    expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(0);
 
     fireEvent.click(screen.getByRole('button', { name: /view loot logs/i }));
 
     expect(screen.getByRole('heading', { level: 1, name: 'Loot Logs' })).toBeInTheDocument();
     expect(window.location.hash).toBe('#loot-logs');
-    expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(2);
+    expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
-    expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
+    expect(withinTopbar(container, 'Sign Out')).toBeUndefined();
+    fireEvent.click(container.querySelector('.topbar-profile-button'));
+    expect(screen.getByRole('button', { name: 'Sign Out' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /upload log/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toBeInTheDocument();
   });
@@ -121,7 +123,7 @@ describe('App', () => {
     expect(window.location.hash).toBe('#siphoned-energy');
     expect(screen.getByRole('heading', { level: 1, name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
-    expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
+    expect(withinTopbar(container, 'Sign Out')).toBeUndefined();
   });
 
   it('opens Members from the dashboard', async () => {
@@ -135,7 +137,7 @@ describe('App', () => {
     expect(window.location.hash).toBe('#members');
     expect(screen.getByRole('heading', { level: 1, name: 'Members' })).toBeInTheDocument();
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
-    expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
+    expect(withinTopbar(container, 'Sign Out')).toBeUndefined();
   });
 
   it('loads Discord server roles after login and grants matching webapp permissions', async () => {
@@ -209,7 +211,7 @@ describe('App', () => {
     expect(window.location.hash).toBe('#permissions');
     expect(screen.getByRole('heading', { level: 1, name: 'Permissions' })).toBeInTheDocument();
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
-    expect(withinTopbar(container, 'Sign Out')).toBeInTheDocument();
+    expect(withinTopbar(container, 'Sign Out')).toBeUndefined();
   });
 
   it('lets the SuperUser preview combined permissions from multiple roles', async () => {

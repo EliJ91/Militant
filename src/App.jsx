@@ -129,6 +129,7 @@ function isSuperUser(user = null) {
 function UserProfileChip({
   isSuperUserProfile = false,
   onResetViewAsRole = () => {},
+  onSignOut = () => {},
   onToggleViewAsRole = () => {},
   user = null,
   viewAsRoleIds = [],
@@ -166,12 +167,17 @@ function UserProfileChip({
   const selectedRoleIds = new Set(viewAsRoleIds.map((roleId) => String(roleId)));
 
   function openProfileMenu(event) {
-    if (!isSuperUserProfile) return;
     event.preventDefault();
+    const bounds = event.currentTarget.getBoundingClientRect();
     setMenu({
-      x: Math.max(8, Math.min(event.clientX, window.innerWidth - 220)),
-      y: Math.max(8, Math.min(event.clientY, window.innerHeight - 280)),
+      x: Math.max(8, Math.min(bounds.right - 220, window.innerWidth - 228)),
+      y: Math.max(8, Math.min(bounds.bottom + 8, window.innerHeight - 280)),
     });
+  }
+
+  function signOut() {
+    setMenu(null);
+    onSignOut();
   }
 
   return (
@@ -183,8 +189,10 @@ function UserProfileChip({
       onContextMenu={openProfileMenu}
     >
       <button
+        aria-label={`Open profile menu for ${displayName}`}
         className="topbar-profile-button"
         type="button"
+        onClick={(event) => (menu ? setMenu(null) : openProfileMenu(event))}
         onContextMenu={openProfileMenu}
       >
         {avatarUrl ? (
@@ -199,26 +207,33 @@ function UserProfileChip({
           role="menu"
           style={{ left: menu.x, top: menu.y }}
         >
-          <span className="topbar-profile-menu-label">View As Roles</span>
-          {viewAsRoles.length > 0 ? viewAsRoles.map((role) => {
-            const isSelected = selectedRoleIds.has(String(role.id)) || selectedRoleIds.has(String(role.roleId));
-            return (
-              <button
-                aria-pressed={isSelected}
-                className={isSelected ? 'is-selected' : ''}
-                key={role.id}
-                type="button"
-                onClick={() => onToggleViewAsRole(role)}
-              >
-                {role.name}
-              </button>
-            );
-          }) : <span className="topbar-profile-menu-empty">No roles configured</span>}
-          {selectedRoleIds.size > 0 ? (
-            <button className="topbar-profile-menu-reset" type="button" onClick={onResetViewAsRole}>
-              Reset View
-            </button>
+          {isSuperUserProfile ? (
+            <>
+              <span className="topbar-profile-menu-label">View As Roles</span>
+              {viewAsRoles.length > 0 ? viewAsRoles.map((role) => {
+                const isSelected = selectedRoleIds.has(String(role.id)) || selectedRoleIds.has(String(role.roleId));
+                return (
+                  <button
+                    aria-pressed={isSelected}
+                    className={isSelected ? 'is-selected' : ''}
+                    key={role.id}
+                    type="button"
+                    onClick={() => onToggleViewAsRole(role)}
+                  >
+                    {role.name}
+                  </button>
+                );
+              }) : <span className="topbar-profile-menu-empty">No roles configured</span>}
+              {selectedRoleIds.size > 0 ? (
+                <button className="topbar-profile-menu-reset" type="button" onClick={onResetViewAsRole}>
+                  Reset View
+                </button>
+              ) : null}
+            </>
           ) : null}
+          <button className="topbar-profile-menu-signout" type="button" onClick={signOut}>
+            Sign Out
+          </button>
         </div>
       ) : null}
     </div>
@@ -230,6 +245,7 @@ function Topbar({
   currentUser = null,
   isSuperUserProfile = false,
   onResetViewAsRole = () => {},
+  onSignOut = () => {},
   onToggleViewAsRole = () => {},
   viewAsRoleIds = [],
   viewAsRoles = [],
@@ -270,7 +286,7 @@ function Topbar({
       <BrandLockup compact />
       {hasMenuContent ? (
         <div className="topbar-menu-region">
-          {actions.length > 0 ? (
+          {hasMenuContent ? (
             <button
               aria-expanded={isMenuOpen}
               aria-label="Toggle navigation menu"
@@ -302,6 +318,7 @@ function Topbar({
               isSuperUserProfile={isSuperUserProfile}
               user={currentUser}
               onResetViewAsRole={onResetViewAsRole}
+              onSignOut={onSignOut}
               onToggleViewAsRole={onToggleViewAsRole}
               viewAsRoleIds={viewAsRoleIds}
               viewAsRoles={viewAsRoles}
@@ -465,10 +482,11 @@ function DashboardPage({
   return (
     <>
       <Topbar
-        actions={[{ label: 'Exit', onClick: onSignOut }]}
+        actions={[]}
         currentUser={currentUser}
         isSuperUserProfile={isSuperUserProfile}
         onResetViewAsRole={onResetViewAsRole}
+        onSignOut={onSignOut}
         onToggleViewAsRole={onToggleViewAsRole}
         viewAsRoleIds={viewAsRoleIds}
         viewAsRoles={viewAsRoles}
@@ -513,11 +531,11 @@ function LootMonitorPage({
         actions={[
           { label: 'Loot Logs', onClick: () => navigateTo('#loot-logs') },
           { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
-          { label: 'Sign Out', onClick: onSignOut },
         ]}
         currentUser={currentUser}
         isSuperUserProfile={isSuperUserProfile}
         onResetViewAsRole={onResetViewAsRole}
+        onSignOut={onSignOut}
         onToggleViewAsRole={onToggleViewAsRole}
         viewAsRoleIds={viewAsRoleIds}
         viewAsRoles={viewAsRoles}
@@ -553,11 +571,11 @@ function ToolPage({
       <Topbar
         actions={isAuthenticated ? [
           { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
-          { label: 'Sign Out', onClick: onSignOut },
         ] : []}
         currentUser={isAuthenticated ? currentUser : null}
         isSuperUserProfile={isSuperUserProfile}
         onResetViewAsRole={onResetViewAsRole}
+        onSignOut={onSignOut}
         onToggleViewAsRole={onToggleViewAsRole}
         viewAsRoleIds={viewAsRoleIds}
         viewAsRoles={viewAsRoles}
