@@ -76,7 +76,7 @@ export function createRolePermissionRow({ name = 'New Role', roleId = '' } = {})
 
 export function resolvePermissionsForRoleIds(settings, roleIds = []) {
   const normalized = normalizePermissionSettings(settings);
-  const assignedRoleIds = new Set(roleIds.map((roleId) => String(roleId)));
+  const assignedRoleIds = new Set(roleIds.map((roleId) => String(roleId).trim()).filter(Boolean));
 
   return normalized.roles.reduce((resolved, role) => {
     if (!role.roleId || !assignedRoleIds.has(role.roleId)) return resolved;
@@ -124,7 +124,7 @@ function normalizeRolePermissions(role) {
   return {
     id: String(role?.id || globalThis.crypto?.randomUUID?.() || `role-${Date.now()}`),
     name: String(role?.name || 'Discord Role'),
-    roleId: String(role?.roleId || ''),
+    roleId: String(role?.roleId || '').trim(),
     permissions: Object.fromEntries(
       WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [
         permission.key,

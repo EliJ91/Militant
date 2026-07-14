@@ -1,9 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SETTINGS_ID = 'default';
-const DISCORD_GUILD_ID = Deno.env.get('DISCORD_GUILD_ID') || '805908199541702666';
+const DISCORD_GUILD_ID = '805908199541702666';
 const corsHeaders = {
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-discord-access-token',
   'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
   'Access-Control-Allow-Origin': '*',
 };
@@ -79,6 +79,12 @@ async function getDiscordMemberRoles(supabase: any, request: Request) {
   const discordUserId = await getDiscordUserIdFromToken(supabase, accessToken);
   if (!discordUserId) throw new Error('Discord user ID not found.');
 
+  const discordAccessToken = request.headers.get('x-discord-access-token') || '';
+  if (discordAccessToken) {
+    const oauthMember = await getDiscordMemberFromOAuth(discordAccessToken, discordUserId);
+    if (oauthMember) return formatDiscordMember(discordUserId, oauthMember);
+  }
+
   const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
   if (!botToken) throw new Error('Discord bot token is not configured.');
 
@@ -93,7 +99,21 @@ async function getDiscordMemberRoles(supabase: any, request: Request) {
 
   if (!response.ok) throw new Error('Could not load Discord member roles.');
 
+  return formatDiscordMember(discordUserId, await response.json());
+}
+
+async function getDiscordMemberFromOAuth(accessToken: string, expectedUserId: string) {
+  const response = await fetch(
+    `https://discord.com/api/v10/users/@me/guilds/${DISCORD_GUILD_ID}/member`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!response.ok) return null;
+
   const member = await response.json();
+  return String(member?.user?.id || '') === expectedUserId ? member : null;
+}
+
+function formatDiscordMember(discordUserId: string, member: any) {
   const guildNickname = String(member?.nick || '').trim();
   return {
     discordGuildId: DISCORD_GUILD_ID,
@@ -171,6 +191,7 @@ Deno.serve(async (request) => {
 
     return jsonResponse(405, { error: 'Method not allowed.' });
   } catch (error) {
+    console.error('Permissions request failed:', error?.message || String(error));
     return jsonResponse(400, { error: error.message || 'Could not update permissions.' });
   }
 });

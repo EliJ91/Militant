@@ -29,14 +29,24 @@ export async function fetchPermissionSettings() {
   }
 }
 
-export async function fetchDiscordMemberRoles(accessToken) {
+export async function fetchDiscordMemberRoles(sessionOrToken) {
+  const session = typeof sessionOrToken === 'string' ? null : sessionOrToken;
+  const accessToken = typeof sessionOrToken === 'string'
+    ? sessionOrToken
+    : session?.access_token || session?.accessToken || session?.provider_token || '';
+  const discordAccessToken = session?.provider_token
+    || (session?.provider === 'discord' ? session?.accessToken : '')
+    || '';
   if (!accessToken) return { roleIds: [] };
 
   try {
     const requestUrl = new URL(getPermissionsApiUrl(), window.location.origin);
     requestUrl.searchParams.set('resource', 'discord-member-roles');
     const response = await fetch(requestUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(discordAccessToken ? { 'X-Discord-Access-Token': discordAccessToken } : {}),
+      },
     });
     return readResult(response, 'Could not load Discord roles.');
   } catch (error) {

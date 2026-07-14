@@ -762,19 +762,37 @@ export default function App() {
       if (cancelled) return;
       const discordAuthenticated = Boolean(session);
       setIsDiscordAuthenticated(discordAuthenticated);
-      setAuthSession(session || null);
+      setAuthSession((currentSession) => {
+        if (!session || !currentSession) return session || null;
+        const currentUserId = getDiscordUserId(currentSession.user || {});
+        const incomingUserId = getDiscordUserId(session.user || {});
+        if (!currentUserId || currentUserId !== incomingUserId) return session;
+
+        return {
+          ...session,
+          user: {
+            ...(currentSession.user || {}),
+            ...(session.user || {}),
+            guildNickname: currentSession.user?.guildNickname || session.user?.guildNickname || '',
+            roleIds: Array.isArray(currentSession.user?.roleIds)
+              ? currentSession.user.roleIds
+              : session.user?.roleIds || [],
+          },
+        };
+      });
       if (!discordAuthenticated) return;
 
-      const roleLookupToken = session?.access_token || session?.provider_token || session?.accessToken;
+      const roleLookupToken = session?.access_token || session?.accessToken || session?.provider_token;
       if (roleLookupToken) {
-        fetchDiscordMemberRoles(roleLookupToken)
+        fetchDiscordMemberRoles(session)
           .then((result) => {
             if (cancelled) return;
             setAuthSession((currentSession) => {
+              if (!currentSession) return currentSession;
               const currentLookupToken = currentSession.access_token
                 || currentSession.provider_token
                 || currentSession.accessToken;
-              if (!currentSession || currentLookupToken !== roleLookupToken) return currentSession;
+              if (currentLookupToken !== roleLookupToken) return currentSession;
               return {
                 ...currentSession,
                 user: {

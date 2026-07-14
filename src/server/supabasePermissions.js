@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SETTINGS_ID = 'default';
-const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID || '805908199541702666';
+const DISCORD_GUILD_ID = '805908199541702666';
 
 function createSupabaseAdmin() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -78,12 +78,17 @@ export async function updatePermissionSettings(settings) {
   };
 }
 
-export async function getDiscordMemberRoles(accessToken) {
+export async function getDiscordMemberRoles(accessToken, discordAccessToken = '') {
   if (!accessToken) throw new Error('Missing authorization token.');
 
   const supabase = createSupabaseAdmin();
   const discordUserId = await getDiscordUserIdFromToken(supabase, accessToken);
   if (!discordUserId) throw new Error('Discord user ID not found.');
+
+  if (discordAccessToken) {
+    const oauthMember = await getDiscordMemberFromOAuth(discordAccessToken, discordUserId);
+    if (oauthMember) return formatDiscordMember(discordUserId, oauthMember);
+  }
 
   const botToken = process.env.DISCORD_BOT_TOKEN;
   if (!botToken) throw new Error('Discord bot token is not configured.');
@@ -99,7 +104,21 @@ export async function getDiscordMemberRoles(accessToken) {
 
   if (!response.ok) throw new Error('Could not load Discord member roles.');
 
+  return formatDiscordMember(discordUserId, await response.json());
+}
+
+async function getDiscordMemberFromOAuth(accessToken, expectedUserId) {
+  const response = await fetch(
+    `https://discord.com/api/v10/users/@me/guilds/${DISCORD_GUILD_ID}/member`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!response.ok) return null;
+
   const member = await response.json();
+  return String(member?.user?.id || '') === expectedUserId ? member : null;
+}
+
+function formatDiscordMember(discordUserId, member) {
   const guildNickname = String(member?.nick || '').trim();
   return {
     discordGuildId: DISCORD_GUILD_ID,

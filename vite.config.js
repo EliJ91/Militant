@@ -60,7 +60,7 @@ function readJsonBody(req) {
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Discord-Access-Token');
   res.setHeader('Access-Control-Allow-Methods', 'DELETE,GET,PATCH,POST,PUT,OPTIONS');
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(payload));
@@ -269,7 +269,8 @@ function permissionsApi() {
         const requestUrl = new URL(req.url || '/', 'http://127.0.0.1');
         if (requestUrl.searchParams.get('resource') === 'discord-member-roles') {
           const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-          sendJson(res, 200, await getDiscordMemberRoles(token));
+          const discordToken = String(req.headers['x-discord-access-token'] || '');
+          sendJson(res, 200, await getDiscordMemberRoles(token, discordToken));
           return;
         }
 

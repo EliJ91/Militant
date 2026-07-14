@@ -87,7 +87,10 @@ export async function signInWithDiscord(redirectRoute = '#dashboard') {
   const redirectTo = `${window.location.origin}${window.location.pathname}${window.location.search}`;
   const { error } = await client.auth.signInWithOAuth({
     provider: 'discord',
-    options: { redirectTo },
+    options: {
+      redirectTo,
+      scopes: 'identify guilds.members.read',
+    },
   });
   if (error) throw error;
 }
@@ -209,7 +212,7 @@ function signInWithDiscordImplicit(redirectRoute) {
     client_id: DISCORD_CLIENT_ID,
     redirect_uri: redirectTo,
     response_type: 'token',
-    scope: 'identify',
+    scope: 'identify guilds.members.read',
     state: redirectRoute,
   });
   window.location.assign(`https://discord.com/oauth2/authorize?${params.toString()}`);

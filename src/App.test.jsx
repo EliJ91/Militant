@@ -92,7 +92,7 @@ describe('App', () => {
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.51');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.52');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -165,7 +165,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Members' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Permissions' })).not.toBeInTheDocument();
-    expect(fetchDiscordMemberRoles).toHaveBeenCalledWith('supabase-jwt');
+    expect(fetchDiscordMemberRoles).toHaveBeenCalledWith(expect.objectContaining({ access_token: 'supabase-jwt' }));
   });
 
   it('loads Discord server roles for direct Discord OAuth sessions', async () => {
@@ -196,7 +196,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'View Loot Logs' })).toBeInTheDocument();
     expect(await screen.findByLabelText('Logged in as Frontline Soldier')).toBeInTheDocument();
-    expect(fetchDiscordMemberRoles).toHaveBeenCalledWith('discord-oauth-token');
+    expect(fetchDiscordMemberRoles).toHaveBeenCalledWith(expect.objectContaining({ accessToken: 'discord-oauth-token' }));
   });
 
   it('opens Permissions from the dashboard', async () => {
