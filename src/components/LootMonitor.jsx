@@ -2100,9 +2100,13 @@ export function LootLogArchive({
 
     try {
       const result = await fetchLootLogBundles();
-      setSavedLogBundles([...(result.bundles || [])].sort((left, right) => (
+      const sortedBundles = [...(result.bundles || [])].sort((left, right) => (
         new Date(getBundleUploadedAt(right)).getTime() - new Date(getBundleUploadedAt(left)).getTime()
-      )));
+      ));
+      setSavedLogBundles(sortedBundles.map((bundle, index) => ({
+        ...bundle,
+        logNumber: bundle.logNumber || sortedBundles.length - index,
+      })));
       const availableIds = new Set((result.bundles || []).map((bundle) => bundle.id));
       setSelectedBundleIds((current) => current.filter((bundleId) => availableIds.has(bundleId)));
       setSavedLogStatus({ message: '', state: 'loaded' });

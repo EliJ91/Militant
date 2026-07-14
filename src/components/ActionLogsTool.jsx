@@ -168,7 +168,11 @@ export default function ActionLogsTool() {
     loadLogs();
     fetchLootLogBundles()
       .then((result) => {
-        setBundleById(new Map((result.bundles || []).map((bundle) => [String(bundle.id), bundle])));
+        const bundles = result.bundles || [];
+        setBundleById(new Map(bundles.map((bundle, index) => [String(bundle.id), {
+          ...bundle,
+          logNumber: bundle.logNumber || bundles.length - index,
+        }])));
       })
       .catch(() => {});
   }, []);
