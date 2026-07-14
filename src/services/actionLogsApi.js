@@ -1,3 +1,5 @@
+import { getCurrentAuthSession } from './authService';
+
 const DEFAULT_API_URL = '/api/action-logs';
 const PRODUCTION_API_URL = 'https://maeljnrgffgrljqusnre.supabase.co/functions/v1/action-logs';
 
@@ -34,13 +36,13 @@ export function setActionLogAuthSession(session) {
   currentAuthSession = session || null;
 }
 
-function getActionLogAuthHeaders() {
-  const accessToken = currentAuthSession?.access_token
-    || currentAuthSession?.accessToken
-    || currentAuthSession?.provider_token
+function getActionLogAuthHeaders(session) {
+  const isDirectDiscordSession = session?.provider === 'discord' && !session?.access_token;
+  const accessToken = session?.access_token
+    || (!isDirectDiscordSession ? session?.accessToken : '')
     || '';
-  const discordAccessToken = currentAuthSession?.provider_token
-    || (currentAuthSession?.provider === 'discord' ? currentAuthSession?.accessToken : '')
+  const discordAccessToken = session?.provider_token
+    || (isDirectDiscordSession ? session?.accessToken : '')
     || '';
 
   return {
@@ -58,9 +60,10 @@ export async function recordActionLog({
   targetType = 'webapp',
 }) {
   try {
+    const authSession = currentAuthSession || await getCurrentAuthSession().catch(() => null);
     const response = await fetch(getActionLogsApiUrl(), {
       body: JSON.stringify({ action, actorName, details, targetId, targetName, targetType }),
-      headers: { 'Content-Type': 'application/json', ...getActionLogAuthHeaders() },
+      headers: { 'Content-Type': 'application/json', ...getActionLogAuthHeaders(authSession) },
       method: 'POST',
     });
     if (!response.ok) throw new Error('Could not record action.');

@@ -5,6 +5,10 @@ import {
   setActionLogAuthSession,
 } from './actionLogsApi';
 
+vi.mock('./authService', () => ({
+  getCurrentAuthSession: vi.fn().mockResolvedValue(null),
+}));
+
 describe('action log identity', () => {
   afterEach(() => {
     setActionLogActorName('System');
@@ -45,5 +49,20 @@ describe('action log identity', () => {
     const request = fetchMock.mock.calls[0][1];
     expect(JSON.parse(request.body).actorName).toBe('System');
     expect(request.headers).not.toHaveProperty('Authorization');
+  });
+
+  it('sends direct Discord OAuth tokens only through the Discord identity header', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({ actionLog: { id: 'action-3' } }),
+      ok: true,
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    setActionLogAuthSession({ accessToken: 'discord-oauth-token', provider: 'discord' });
+
+    await recordActionLog({ action: 'Role added' });
+
+    const request = fetchMock.mock.calls[0][1];
+    expect(request.headers).not.toHaveProperty('Authorization');
+    expect(request.headers['X-Discord-Access-Token']).toBe('discord-oauth-token');
   });
 });

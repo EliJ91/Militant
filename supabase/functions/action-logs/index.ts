@@ -58,6 +58,15 @@ async function getDiscordUserIdFromToken(supabase: any, accessToken: string) {
   return clean((await response.json())?.id);
 }
 
+async function getDiscordUserIdFromOAuth(accessToken: string) {
+  if (!accessToken) return '';
+  const response = await fetch('https://discord.com/api/v10/users/@me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) return '';
+  return clean((await response.json())?.id);
+}
+
 function discordMemberDisplayName(member: any) {
   return clean(member?.nick || member?.user?.global_name || member?.user?.username);
 }
@@ -69,12 +78,12 @@ function fallbackActorName(value: unknown) {
 
 async function resolveActionActorName(supabase: any, request: Request, requestedActorName: unknown) {
   const accessToken = getBearerToken(request);
-  if (!accessToken) return fallbackActorName(requestedActorName);
-
-  const discordUserId = await getDiscordUserIdFromToken(supabase, accessToken);
+  const discordAccessToken = request.headers.get('x-discord-access-token') || '';
+  const discordUserId = accessToken
+    ? await getDiscordUserIdFromToken(supabase, accessToken)
+    : await getDiscordUserIdFromOAuth(discordAccessToken);
   if (!discordUserId) return fallbackActorName(requestedActorName);
 
-  const discordAccessToken = request.headers.get('x-discord-access-token') || '';
   if (discordAccessToken) {
     const oauthResponse = await fetch(
       `https://discord.com/api/v10/users/@me/guilds/${DISCORD_GUILD_ID}/member`,

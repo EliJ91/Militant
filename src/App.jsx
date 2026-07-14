@@ -823,6 +823,7 @@ export default function App() {
 
     function applySession(session) {
       if (cancelled) return;
+      setActionLogAuthSession(session);
       const discordAuthenticated = Boolean(session);
       setIsDiscordAuthenticated(discordAuthenticated);
       setAuthSession((currentSession) => {
