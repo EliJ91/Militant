@@ -27,7 +27,6 @@ vi.mock('./services/authService', () => ({
 vi.mock('./services/lootLogApi', () => ({
   checkLootLogDeath: vi.fn(),
   checkLootLogDeaths: vi.fn(),
-  clearLootLogDeath: vi.fn(),
   deleteLootLogBundle: vi.fn(),
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn().mockResolvedValue({ bundles: [] }),
@@ -92,7 +91,7 @@ describe('App', () => {
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.53');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.54');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',

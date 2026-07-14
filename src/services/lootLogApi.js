@@ -1,7 +1,7 @@
 const DEFAULT_LOOT_LOG_API_URL = '/api/loot-logs';
 import { recordActionLog } from './actionLogsApi';
 
-export function getLootLogApiUrl() {
+function getLootLogApiUrl() {
   if (import.meta.env.PROD) {
     return import.meta.env.VITE_PRODUCTION_LOOT_LOG_API_URL || DEFAULT_LOOT_LOG_API_URL;
   }
@@ -140,33 +140,6 @@ export async function checkLootLogDeaths({ bundleId, checks }) {
     details: { count: checks.length },
     targetId: bundleId,
     targetName: `${checks.length} players`,
-    targetType: 'death-check',
-  });
-
-  return result;
-}
-
-export async function clearLootLogDeath({ bundleId, player }) {
-  const response = await fetch(getLootLogApiUrl(), {
-    body: JSON.stringify({
-      action: 'clear-death-check',
-      bundleId,
-      player,
-    }),
-    headers: { 'Content-Type': 'application/json' },
-    method: 'POST',
-  });
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.error || 'Could not remove the saved death check.');
-  }
-
-  void recordActionLog({
-    action: 'Death check reset',
-    details: { player },
-    targetId: bundleId,
-    targetName: player,
     targetType: 'death-check',
   });
 

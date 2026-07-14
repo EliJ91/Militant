@@ -512,14 +512,6 @@ export function createLootLogDiscordWorker({
     console.log(`[loot-discord-worker] Logged in as ${botClient.user?.tag || botClient.user?.id}.`);
   });
 
-  botClient.on('threadCreate', async (thread) => {
-    if (!isTargetThread(thread, channelId)) return;
-    try {
-      await registerNewThread(admin, thread);
-    } catch (error) {
-      console.error(`[loot-discord-worker] Could not register new thread ${thread?.id || 'unknown'}.`, error);
-    }
-  });
   botClient.on('messageCreate', async (message) => {
     if (!isUploadCommandMessage(message)) return;
     try {

@@ -128,48 +128,64 @@ function lootLogApi() {
     try {
       const {
         checkLootLogDeath,
+        checkLootLogDeaths,
         clearLootLogDeath,
         mergeLootLogBundles,
         submitChestLog,
         submitLootLog,
       } = await import('./src/server/supabaseLootLogs.js');
       const body = await readJsonBody(req);
-      const result = body.action === 'merge'
-        ? await mergeLootLogBundles({
-          bundleIds: body.bundleIds,
-          username: body.username,
-        })
-        : body.action === 'death-check'
-        ? await checkLootLogDeath({
-          bundleId: body.bundleId,
-          keptItems: body.keptItems,
-          player: body.player,
-        })
-        : body.action === 'clear-death-check'
-        ? await clearLootLogDeath({
-          bundleId: body.bundleId,
-          player: body.player,
-        })
-        : body.action === 'chest'
-        ? await submitChestLog({
-          bundleId: body.bundleId,
-          chestLogText: body.chestLogText || body.chestText || body.text,
-          username: body.username,
-        })
-        : await submitLootLog({
-          bundleId: body.bundleId || null,
-          lootLogText: body.lootLogText || body.lootText || body.text,
-          originalFileName: body.originalFileName
-            || body.original_filename
-            || body.lootFileName
-            || body.logFileName
-            || body.fileName
-            || body.filename
-            || body.file_name
-            || req.headers['x-file-name']
-            || req.headers['x-filename'],
-          username: body.username,
-        });
+      let result;
+
+      switch (body.action) {
+        case 'merge':
+          result = await mergeLootLogBundles({
+            bundleIds: body.bundleIds,
+            username: body.username,
+          });
+          break;
+        case 'death-check':
+          result = await checkLootLogDeath({
+            bundleId: body.bundleId,
+            keptItems: body.keptItems,
+            player: body.player,
+          });
+          break;
+        case 'death-check-batch':
+          result = await checkLootLogDeaths({
+            bundleId: body.bundleId,
+            checks: body.checks,
+          });
+          break;
+        case 'clear-death-check':
+          result = await clearLootLogDeath({
+            bundleId: body.bundleId,
+            player: body.player,
+          });
+          break;
+        case 'chest':
+          result = await submitChestLog({
+            bundleId: body.bundleId,
+            chestLogText: body.chestLogText || body.chestText || body.text,
+            username: body.username,
+          });
+          break;
+        default:
+          result = await submitLootLog({
+            bundleId: body.bundleId || null,
+            lootLogText: body.lootLogText || body.lootText || body.text,
+            originalFileName: body.originalFileName
+              || body.original_filename
+              || body.lootFileName
+              || body.logFileName
+              || body.fileName
+              || body.filename
+              || body.file_name
+              || req.headers['x-file-name']
+              || req.headers['x-filename'],
+            username: body.username,
+          });
+      }
 
       sendJson(res, 200, result);
     } catch (error) {

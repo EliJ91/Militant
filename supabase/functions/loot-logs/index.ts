@@ -841,30 +841,6 @@ async function fetchPlayerDeaths(playerId: string) {
   return Array.isArray(deaths) ? deaths : [];
 }
 
-function summarizeDeathCandidate(death: any, bundle: any, playerId: string, keptItems: Array<{ itemId: string; quantity: number }>) {
-  const timestamp = deathTimestamp(death);
-  const timestampMs = new Date(timestamp).getTime();
-  const startMs = new Date(bundle.start_at).getTime();
-  const endMs = new Date(bundle.end_at).getTime();
-  const eventId = String(death?.EventId || '').trim();
-  const victimId = String(death?.Victim?.Id || '').trim();
-  const matchedItems = matchDeathInventory(death, keptItems);
-
-  return {
-    eventId,
-    inDateTimeRange: Number.isFinite(timestampMs)
-      && Number.isFinite(startMs)
-      && Number.isFinite(endMs)
-      && timestampMs >= startMs
-      && timestampMs <= endMs,
-    matchedItems,
-    matchedQuantity: matchedItems.reduce((total, item) => total + item.quantity, 0),
-    timestamp,
-    victimId,
-    victimMatchesPlayer: victimId === playerId,
-  };
-}
-
 function normalizeDeathCheckRequests(checks: unknown) {
   const requestsByPlayer = new Map<string, { keptItems: ReturnType<typeof normalizeKeptItems>; player: string; playerKey: string }>();
 
@@ -1144,18 +1120,6 @@ async function runLootLogDeathChecks(supabase: any, { bundleId, checks }: any) {
     try {
       const member = context.membersByPlayer.get(request.playerKey);
       const playerId = String(member?.player_id || '').trim();
-      const deathApiUrl = playerId ? `${ALBION_DEATHS_URL}/${encodeURIComponent(playerId)}/deaths` : '';
-      console.info('[loot death check] player lookup', {
-        bundleId: cleanBundleId,
-        deathApiUrl,
-        player: request.player,
-        playerId,
-        playerKey: request.playerKey,
-        rangeEnd: context.effectiveBundle.end_at,
-        rangeStart: context.effectiveBundle.start_at,
-        storedMemberFound: Boolean(member),
-      });
-
       const deaths = playerId ? await fetchPlayerDeaths(playerId) : [];
       const possibleMatch = playerId
         ? pickMatchingDeath(deaths, context.effectiveBundle, playerId, request.keptItems)
@@ -1163,23 +1127,6 @@ async function runLootLogDeathChecks(supabase: any, { bundleId, checks }: any) {
       const match = possibleMatch && await deathEventExists(possibleMatch.eventId)
         ? possibleMatch
         : null;
-      console.info('[loot death check] player result', {
-        bundleId: cleanBundleId,
-        checkedDeaths: Array.isArray(deaths) ? deaths.length : 0,
-        eventId: match?.eventId || '',
-        rejectedEventId: possibleMatch && !match ? possibleMatch.eventId : '',
-        matchedItems: match?.matchedItems || [],
-        player: request.player,
-        playerId,
-        playerKey: request.playerKey,
-        status: match ? 'found' : 'not_found',
-        candidates: (Array.isArray(deaths) ? deaths : []).map((death) => summarizeDeathCandidate(
-          death,
-          context.effectiveBundle,
-          playerId,
-          request.keptItems,
-        )),
-      });
       records.push({
         bundle_id: cleanBundleId,
         checked_at: checkedAt,

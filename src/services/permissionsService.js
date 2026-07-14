@@ -22,11 +22,9 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'updateSiphonedEnergy', label: 'Update Siphoned Energy Tracker', area: 'Siphoned Energy' },
 ];
 
-const DEFAULT_ROLE_TEMPLATES = [];
-
-export function createDefaultPermissionSettings() {
+function createDefaultPermissionSettings() {
   return {
-    roles: DEFAULT_ROLE_TEMPLATES.map(normalizeRolePermissions),
+    roles: [],
     updatedAt: null,
   };
 }
@@ -61,8 +59,6 @@ export function cachePermissionSettings(settings) {
   window.dispatchEvent?.(new CustomEvent(PERMISSIONS_CHANGED_EVENT, { detail: normalized }));
   return normalized;
 }
-
-export const savePermissionSettings = cachePermissionSettings;
 
 export function createRolePermissionRow({ name = 'New Role', roleId = '' } = {}) {
   const normalizedRoleId = String(roleId || '').trim();

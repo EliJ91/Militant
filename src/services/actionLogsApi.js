@@ -1,9 +1,9 @@
 const DEFAULT_API_URL = '/api/action-logs';
-export const PRODUCTION_API_URL = 'https://maeljnrgffgrljqusnre.supabase.co/functions/v1/action-logs';
+const PRODUCTION_API_URL = 'https://maeljnrgffgrljqusnre.supabase.co/functions/v1/action-logs';
 
 let currentActorName = 'Unknown User';
 
-export function getActionLogsApiUrl() {
+function getActionLogsApiUrl() {
   if (import.meta.env.PROD) {
     return import.meta.env.VITE_PRODUCTION_ACTION_LOGS_API_URL || PRODUCTION_API_URL;
   }

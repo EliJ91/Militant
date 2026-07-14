@@ -1,7 +1,7 @@
 import { parseLootEvents } from './lootMonitor.js';
+import { dedupeNearbyLootEvents } from './dedupeLootEvents.js';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
-const NEARBY_DUPLICATE_MS = 30000;
 
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
@@ -30,102 +30,9 @@ function unique(values) {
   return [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
 }
 
-function eventTimestampMs(event) {
-  const time = new Date(event.timestamp).getTime();
-  return Number.isFinite(time) ? time : Number.NaN;
-}
-
-function nearbyDuplicateKey(event) {
-  return [
-    event.eventType,
-    normalize(event.player),
-    normalize(event.guild),
-    normalize(event.itemId),
-    normalize(event.item),
-    String(event.enchantment || 0),
-  ].join('|');
-}
-
-function bestDuplicateValue(entries, field) {
-  return entries.map(({ event }) => event[field]).find((value) => String(value || '').trim()) || '';
-}
-
-function duplicateQuantity(entries) {
-  const quantities = entries
-    .map(({ event }) => Number(event.quantity) || 0)
-    .filter((quantity) => quantity > 0);
-  if (!quantities.length) return 0;
-
-  const counts = new Map();
-  quantities.forEach((quantity) => counts.set(quantity, (counts.get(quantity) || 0) + 1));
-
-  return quantities.reduce((best, quantity) => {
-    const quantityCount = counts.get(quantity) || 0;
-    const bestCount = counts.get(best) || 0;
-    return quantityCount > bestCount || (quantityCount === bestCount && quantity < best)
-      ? quantity
-      : best;
-  }, quantities[0]);
-}
-
-export function dedupeNearbyLootLogEvents(events) {
-  const groups = new Map();
-
-  (events || []).forEach((event, index) => {
-    const key = nearbyDuplicateKey(event);
-    const group = groups.get(key) || [];
-    group.push({ event, index, time: eventTimestampMs(event) });
-    groups.set(key, group);
-  });
-
-  const deduped = [];
-
-  groups.forEach((group) => {
-    const clusters = [];
-    const sorted = group.sort((left, right) => (
-      (Number.isNaN(left.time) ? Number.POSITIVE_INFINITY : left.time)
-      - (Number.isNaN(right.time) ? Number.POSITIVE_INFINITY : right.time)
-      || left.index - right.index
-    ));
-
-    sorted.forEach((entry) => {
-      if (Number.isNaN(entry.time)) {
-        clusters.push({ entries: [entry], lastTime: Number.NaN });
-        return;
-      }
-
-      const cluster = clusters.find((current) => (
-        Number.isFinite(current.lastTime) && entry.time - current.lastTime <= NEARBY_DUPLICATE_MS
-      ));
-      if (cluster) {
-        cluster.entries.push(entry);
-        cluster.lastTime = Math.max(cluster.lastTime, entry.time);
-      } else {
-        clusters.push({ entries: [entry], lastTime: entry.time });
-      }
-    });
-
-    clusters.forEach((cluster) => {
-      const first = cluster.entries[0];
-      deduped.push({
-        ...first.event,
-        alliance: bestDuplicateValue(cluster.entries, 'alliance'),
-        guild: bestDuplicateValue(cluster.entries, 'guild'),
-        lostTo: bestDuplicateValue(cluster.entries, 'lostTo'),
-        quantity: duplicateQuantity(cluster.entries),
-      });
-    });
-  });
-
-  return deduped.sort((left, right) => (
-    eventTimestampMs(left) - eventTimestampMs(right)
-    || nearbyDuplicateKey(left).localeCompare(nearbyDuplicateKey(right))
-  ));
-}
-
 export function buildLootLogEvents(text) {
   const parsed = parseLootEvents(text);
-  const events = dedupeNearbyLootLogEvents([
+  const events = dedupeNearbyLootEvents([
     ...parsed.rows.map((row) => ({ ...row, eventType: 'looted', lostTo: '' })),
     ...parsed.lostRows.map((row) => ({ ...row, eventType: 'lost' })),
   ]).map((event) => ({
@@ -146,7 +53,7 @@ export function buildLootLogEvents(text) {
 }
 
 export function getLootLogTimeRange(events) {
-  const timestamps = dedupeNearbyLootLogEvents(events)
+  const timestamps = dedupeNearbyLootEvents(events)
     .map((event) => new Date(event.timestamp).getTime())
     .filter((time) => Number.isFinite(time));
 
@@ -163,7 +70,7 @@ export function getLootLogTimeRange(events) {
 export function aggregateLootLogEvents(events) {
   const byKey = new Map();
 
-  dedupeNearbyLootLogEvents(events).forEach((event) => {
+  dedupeNearbyLootEvents(events).forEach((event) => {
     const key = [
       normalize(event.player),
       normalize(event.itemId),

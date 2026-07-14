@@ -538,50 +538,10 @@ function SharedLootMonitorPage({ bundleId, isAuthenticated = false }) {
   return <LootMonitor bundleId={bundleId} canCheckDeaths={isAuthenticated} showShare={false} />;
 }
 
-function LootLogsPage({
+function ToolPage({
+  children,
   currentUser = null,
-  isSuperUserProfile = false,
-  onResetViewAsRole = () => {},
-  onSignOut = () => {},
-  onToggleViewAsRole = () => {},
-  onViewBundle,
-  permissions = emptyPermissions(),
-  viewAsRoleIds = [],
-  viewAsRoles = [],
-}) {
-  return (
-    <>
-      <Topbar
-        actions={[
-          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
-          { label: 'Sign Out', onClick: onSignOut },
-        ]}
-        currentUser={currentUser}
-        isSuperUserProfile={isSuperUserProfile}
-        onResetViewAsRole={onResetViewAsRole}
-        onToggleViewAsRole={onToggleViewAsRole}
-        viewAsRoleIds={viewAsRoleIds}
-        viewAsRoles={viewAsRoles}
-      />
-      <LootLogArchive
-        canDeleteLogs={Boolean(permissions.editLootLogs)}
-        canChangeLootLogTitle={Boolean(permissions.changeLootLogTitle)}
-        canDownloadLogs={Boolean(permissions.viewLogs)}
-        canEditLogs={Boolean(permissions.editLootLogs)}
-        canMergeLogs={Boolean(permissions.mergeLootLogs)}
-        canUploadChestLogs={Boolean(permissions.uploadChestLogs)}
-        canUploadLootLogs={Boolean(permissions.uploadLootLogs)}
-        onView={onViewBundle}
-        uploadUsername={getUploadUsername(currentUser)}
-      />
-    </>
-  );
-}
-
-function SiphonedEnergyPage({
-  canUpdate = false,
-  currentUser = null,
-  isAuthenticated = false,
+  isAuthenticated = true,
   isSuperUserProfile = false,
   onResetViewAsRole = () => {},
   onSignOut = () => {},
@@ -603,8 +563,71 @@ function SiphonedEnergyPage({
         viewAsRoleIds={viewAsRoleIds}
         viewAsRoles={viewAsRoles}
       />
-      <SiphonedEnergyTracker canUpdate={canUpdate} />
+      {children}
     </>
+  );
+}
+
+function LootLogsPage({
+  currentUser = null,
+  isSuperUserProfile = false,
+  onResetViewAsRole = () => {},
+  onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  onViewBundle,
+  permissions = emptyPermissions(),
+  viewAsRoleIds = [],
+  viewAsRoles = [],
+}) {
+  return (
+    <ToolPage
+      currentUser={currentUser}
+      isSuperUserProfile={isSuperUserProfile}
+      onResetViewAsRole={onResetViewAsRole}
+      onSignOut={onSignOut}
+      onToggleViewAsRole={onToggleViewAsRole}
+      viewAsRoleIds={viewAsRoleIds}
+      viewAsRoles={viewAsRoles}
+    >
+      <LootLogArchive
+        canDeleteLogs={Boolean(permissions.editLootLogs)}
+        canChangeLootLogTitle={Boolean(permissions.changeLootLogTitle)}
+        canDownloadLogs={Boolean(permissions.viewLogs)}
+        canEditLogs={Boolean(permissions.editLootLogs)}
+        canMergeLogs={Boolean(permissions.mergeLootLogs)}
+        canUploadChestLogs={Boolean(permissions.uploadChestLogs)}
+        canUploadLootLogs={Boolean(permissions.uploadLootLogs)}
+        onView={onViewBundle}
+        uploadUsername={getUploadUsername(currentUser)}
+      />
+    </ToolPage>
+  );
+}
+
+function SiphonedEnergyPage({
+  canUpdate = false,
+  currentUser = null,
+  isAuthenticated = false,
+  isSuperUserProfile = false,
+  onResetViewAsRole = () => {},
+  onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
+}) {
+  return (
+    <ToolPage
+      currentUser={currentUser}
+      isAuthenticated={isAuthenticated}
+      isSuperUserProfile={isSuperUserProfile}
+      onResetViewAsRole={onResetViewAsRole}
+      onSignOut={onSignOut}
+      onToggleViewAsRole={onToggleViewAsRole}
+      viewAsRoleIds={viewAsRoleIds}
+      viewAsRoles={viewAsRoles}
+    >
+      <SiphonedEnergyTracker canUpdate={canUpdate} />
+    </ToolPage>
   );
 }
 
@@ -619,21 +642,17 @@ function MembersPage({
   viewAsRoles = [],
 }) {
   return (
-    <>
-      <Topbar
-        actions={[
-          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
-          { label: 'Sign Out', onClick: onSignOut },
-        ]}
-        currentUser={currentUser}
-        isSuperUserProfile={isSuperUserProfile}
-        onResetViewAsRole={onResetViewAsRole}
-        onToggleViewAsRole={onToggleViewAsRole}
-        viewAsRoleIds={viewAsRoleIds}
-        viewAsRoles={viewAsRoles}
-      />
+    <ToolPage
+      currentUser={currentUser}
+      isSuperUserProfile={isSuperUserProfile}
+      onResetViewAsRole={onResetViewAsRole}
+      onSignOut={onSignOut}
+      onToggleViewAsRole={onToggleViewAsRole}
+      viewAsRoleIds={viewAsRoleIds}
+      viewAsRoles={viewAsRoles}
+    >
       <MembersTool canUpdate={canUpdate} />
-    </>
+    </ToolPage>
   );
 }
 
@@ -647,21 +666,17 @@ function PermissionsPage({
   viewAsRoles = [],
 }) {
   return (
-    <>
-      <Topbar
-        actions={[
-          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
-          { label: 'Sign Out', onClick: onSignOut },
-        ]}
-        currentUser={currentUser}
-        isSuperUserProfile={isSuperUserProfile}
-        onResetViewAsRole={onResetViewAsRole}
-        onToggleViewAsRole={onToggleViewAsRole}
-        viewAsRoleIds={viewAsRoleIds}
-        viewAsRoles={viewAsRoles}
-      />
+    <ToolPage
+      currentUser={currentUser}
+      isSuperUserProfile={isSuperUserProfile}
+      onResetViewAsRole={onResetViewAsRole}
+      onSignOut={onSignOut}
+      onToggleViewAsRole={onToggleViewAsRole}
+      viewAsRoleIds={viewAsRoleIds}
+      viewAsRoles={viewAsRoles}
+    >
       <PermissionsTool currentUser={currentUser} />
-    </>
+    </ToolPage>
   );
 }
 
@@ -675,21 +690,17 @@ function ActionLogsPage({
   viewAsRoles = [],
 }) {
   return (
-    <>
-      <Topbar
-        actions={[
-          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
-          { label: 'Sign Out', onClick: onSignOut },
-        ]}
-        currentUser={currentUser}
-        isSuperUserProfile={isSuperUserProfile}
-        onResetViewAsRole={onResetViewAsRole}
-        onToggleViewAsRole={onToggleViewAsRole}
-        viewAsRoleIds={viewAsRoleIds}
-        viewAsRoles={viewAsRoles}
-      />
+    <ToolPage
+      currentUser={currentUser}
+      isSuperUserProfile={isSuperUserProfile}
+      onResetViewAsRole={onResetViewAsRole}
+      onSignOut={onSignOut}
+      onToggleViewAsRole={onToggleViewAsRole}
+      viewAsRoleIds={viewAsRoleIds}
+      viewAsRoles={viewAsRoles}
+    >
       <ActionLogsTool />
-    </>
+    </ToolPage>
   );
 }
 

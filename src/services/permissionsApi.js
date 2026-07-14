@@ -1,8 +1,8 @@
 const DEFAULT_API_URL = '/api/permissions';
 import { recordActionLog } from './actionLogsApi';
-export const PRODUCTION_API_URL = 'https://maeljnrgffgrljqusnre.supabase.co/functions/v1/permissions';
+const PRODUCTION_API_URL = 'https://maeljnrgffgrljqusnre.supabase.co/functions/v1/permissions';
 
-export function getPermissionsApiUrl() {
+function getPermissionsApiUrl() {
   if (import.meta.env.PROD) {
     return import.meta.env.VITE_PRODUCTION_PERMISSIONS_API_URL || PRODUCTION_API_URL;
   }

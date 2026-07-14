@@ -2,7 +2,7 @@ const DEFAULT_API_URL = '/api/siphoned-energy';
 import { recordActionLog } from './actionLogsApi';
 export const PRODUCTION_API_URL = 'https://maeljnrgffgrljqusnre.supabase.co/functions/v1/siphoned-energy';
 
-export function getSiphonedEnergyApiUrl() {
+function getSiphonedEnergyApiUrl() {
   if (import.meta.env.PROD) {
     return import.meta.env.VITE_PRODUCTION_SIPHONED_ENERGY_API_URL || PRODUCTION_API_URL;
   }

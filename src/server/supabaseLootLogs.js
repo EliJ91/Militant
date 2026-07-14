@@ -239,8 +239,6 @@ function mapBundleListRow(bundle) {
     : [...new Set(chestLogs.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
   const startAt = bundle.start_at;
   const endAt = bundle.end_at;
-  const fileNames = getBundleFileNames(bundle, startAt);
-
   return {
     chestLogCount: chestLogs.length,
     chestFileName: getBundleDisplayChestFileName(bundle, startAt),
@@ -501,30 +499,6 @@ async function fetchPlayerDeaths(playerId) {
   return Array.isArray(deaths) ? deaths : [];
 }
 
-function summarizeDeathCandidate(death, bundle, playerId, keptItems) {
-  const timestamp = deathTimestamp(death);
-  const timestampMs = new Date(timestamp).getTime();
-  const startMs = new Date(bundle.start_at).getTime();
-  const endMs = new Date(bundle.end_at).getTime();
-  const eventId = String(death?.EventId || '').trim();
-  const victimId = String(death?.Victim?.Id || '').trim();
-  const matchedItems = matchDeathInventory(death, keptItems);
-
-  return {
-    eventId,
-    inDateTimeRange: Number.isFinite(timestampMs)
-      && Number.isFinite(startMs)
-      && Number.isFinite(endMs)
-      && timestampMs >= startMs
-      && timestampMs <= endMs,
-    matchedItems,
-    matchedQuantity: matchedItems.reduce((total, item) => total + item.quantity, 0),
-    timestamp,
-    victimId,
-    victimMatchesPlayer: victimId === playerId,
-  };
-}
-
 function normalizeDeathCheckRequests(checks) {
   const requestsByPlayer = new Map();
 
@@ -657,18 +631,6 @@ async function runLootLogDeathChecks(supabase, { bundleId, checks }) {
     try {
       const member = context.membersByPlayer.get(request.playerKey);
       const playerId = String(member?.player_id || '').trim();
-      const deathApiUrl = playerId ? `${ALBION_DEATHS_URL}/${encodeURIComponent(playerId)}/deaths` : '';
-      console.info('[loot death check] player lookup', {
-        bundleId: cleanBundleId,
-        deathApiUrl,
-        player: request.player,
-        playerId,
-        playerKey: request.playerKey,
-        rangeEnd: context.effectiveBundle.end_at,
-        rangeStart: context.effectiveBundle.start_at,
-        storedMemberFound: Boolean(member),
-      });
-
       const deaths = playerId ? await fetchPlayerDeaths(playerId) : [];
       const possibleMatch = playerId
         ? pickMatchingDeath(deaths, context.effectiveBundle, playerId, request.keptItems)
@@ -676,23 +638,6 @@ async function runLootLogDeathChecks(supabase, { bundleId, checks }) {
       const match = possibleMatch && await deathEventExists(possibleMatch.eventId)
         ? possibleMatch
         : null;
-      console.info('[loot death check] player result', {
-        bundleId: cleanBundleId,
-        checkedDeaths: Array.isArray(deaths) ? deaths.length : 0,
-        eventId: match?.eventId || '',
-        rejectedEventId: possibleMatch && !match ? possibleMatch.eventId : '',
-        matchedItems: match?.matchedItems || [],
-        player: request.player,
-        playerId,
-        playerKey: request.playerKey,
-        status: match ? 'found' : 'not_found',
-        candidates: (Array.isArray(deaths) ? deaths : []).map((death) => summarizeDeathCandidate(
-          death,
-          context.effectiveBundle,
-          playerId,
-          request.keptItems,
-        )),
-      });
       records.push({
         bundle_id: cleanBundleId,
         checked_at: checkedAt,
@@ -1412,8 +1357,6 @@ export async function getLootLogBundle(bundleId) {
   const chestSubmitters = displaySubmitters.chest
     ? [displaySubmitters.chest]
     : [...new Set(chestLogs.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
-  const fileNames = getBundleFileNames(bundle);
-
   return {
     bundle: {
       chestFileName: getBundleDisplayChestFileName(bundle),

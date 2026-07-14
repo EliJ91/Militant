@@ -1,9 +1,9 @@
 import albionItemLookup from '../data/albion_item_lookup.json' with { type: 'json' };
+import { dedupeNearbyLootEvents } from './dedupeLootEvents.js';
 
 const DEFAULT_CUSTODY_GUILD = 'Militant';
-const NEARBY_DUPLICATE_MS = 30000;
 
-export function parseDelimited(text, delimiter) {
+function parseDelimited(text, delimiter) {
   const rows = [];
   let row = [];
   let value = '';
@@ -49,7 +49,7 @@ export function parseDelimited(text, delimiter) {
   return rows;
 }
 
-export function rowsToObjects(rows) {
+function rowsToObjects(rows) {
   if (rows.length === 0) return [];
   const headers = rows[0].map((header) => header.replace(/^\uFEFF/, '').trim());
 
@@ -82,10 +82,6 @@ function parseInteger(value) {
 export function extractEnchantment(itemId) {
   const match = String(itemId || '').match(/@(\d+)$/);
   return match ? Number.parseInt(match[1], 10) : 0;
-}
-
-function makeInventoryKey({ player, item, enchantment }) {
-  return [normalize(player), normalize(item), String(enchantment || 0)].join('::');
 }
 
 function makeItemKey({ itemId, item, enchantment }) {
@@ -131,105 +127,18 @@ function timestampMs(value) {
   return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
 }
 
+function omitFields(record, fields) {
+  return Object.fromEntries(
+    Object.entries(record).filter(([field]) => !fields.includes(field)),
+  );
+}
+
 function timestampDateKey(value) {
   const text = String(value || '').trim();
   const isoDate = text.match(/^(\d{4}-\d{2}-\d{2})/);
   if (isoDate) return isoDate[1];
   const parsed = parseTimestamp(text);
   return parsed ? parsed.slice(0, 10) : '';
-}
-
-function duplicateEventTimestampMs(event) {
-  const time = new Date(event.timestamp).getTime();
-  return Number.isFinite(time) ? time : Number.NaN;
-}
-
-function nearbyDuplicateKey(event) {
-  return [
-    event.eventType || 'looted',
-    normalize(event.player),
-    normalize(event.guild),
-    normalize(event.itemId),
-    normalize(event.item),
-    String(event.enchantment || 0),
-  ].join('|');
-}
-
-function bestDuplicateValue(entries, field) {
-  return entries.map(({ event }) => event[field]).find((value) => String(value || '').trim()) || '';
-}
-
-function duplicateQuantity(entries) {
-  const quantities = entries
-    .map(({ event }) => Number(event.quantity) || 0)
-    .filter((quantity) => quantity > 0);
-  if (!quantities.length) return 0;
-
-  const counts = new Map();
-  quantities.forEach((quantity) => counts.set(quantity, (counts.get(quantity) || 0) + 1));
-
-  return quantities.reduce((best, quantity) => {
-    const quantityCount = counts.get(quantity) || 0;
-    const bestCount = counts.get(best) || 0;
-    return quantityCount > bestCount || (quantityCount === bestCount && quantity < best)
-      ? quantity
-      : best;
-  }, quantities[0]);
-}
-
-function dedupeNearbyEvents(events) {
-  const groups = new Map();
-
-  (events || []).forEach((event, index) => {
-    const key = nearbyDuplicateKey(event);
-    const group = groups.get(key) || [];
-    group.push({ event, index, time: duplicateEventTimestampMs(event) });
-    groups.set(key, group);
-  });
-
-  const deduped = [];
-  groups.forEach((group) => {
-    const clusters = [];
-    group
-      .sort((left, right) => (
-        (Number.isNaN(left.time) ? Number.POSITIVE_INFINITY : left.time)
-        - (Number.isNaN(right.time) ? Number.POSITIVE_INFINITY : right.time)
-        || left.index - right.index
-      ))
-      .forEach((entry) => {
-        if (Number.isNaN(entry.time)) {
-          clusters.push({ entries: [entry], lastTime: Number.NaN });
-          return;
-        }
-
-        const cluster = clusters.find((current) => (
-          Number.isFinite(current.lastTime) && entry.time - current.lastTime <= NEARBY_DUPLICATE_MS
-        ));
-        if (cluster) {
-          cluster.entries.push(entry);
-          cluster.lastTime = Math.max(cluster.lastTime, entry.time);
-        } else {
-          clusters.push({ entries: [entry], lastTime: entry.time });
-        }
-      });
-
-    clusters.forEach((cluster) => {
-      const first = cluster.entries[0];
-      deduped.push({
-        ...first.event,
-        alliance: bestDuplicateValue(cluster.entries, 'alliance'),
-        guild: bestDuplicateValue(cluster.entries, 'guild'),
-        lostTo: bestDuplicateValue(cluster.entries, 'lostTo'),
-        quantity: duplicateQuantity(cluster.entries),
-      });
-    });
-  });
-
-  return deduped.sort((left, right) => (
-    (Number.isNaN(duplicateEventTimestampMs(left)) ? Number.POSITIVE_INFINITY : duplicateEventTimestampMs(left))
-    - (Number.isNaN(duplicateEventTimestampMs(right)) ? Number.POSITIVE_INFINITY : duplicateEventTimestampMs(right))
-    || nearbyDuplicateKey(left).localeCompare(nearbyDuplicateKey(right))
-  ));
 }
 
 function escapeTabCell(value) {
@@ -291,7 +200,7 @@ export function parseLootEvents(text) {
     }];
   });
 
-  const deduped = dedupeNearbyEvents([
+  const deduped = dedupeNearbyLootEvents([
     ...rows.map((row) => ({ ...row, eventType: 'looted', lostTo: '' })),
     ...lostRows.map((row) => ({ ...row, eventType: 'lost' })),
   ]);
@@ -299,10 +208,10 @@ export function parseLootEvents(text) {
   return {
     lostRows: deduped
       .filter((row) => row.eventType === 'lost')
-      .map(({ eventType, ...row }) => row),
+      .map((row) => omitFields(row, ['eventType'])),
     rows: deduped
       .filter((row) => row.eventType !== 'lost')
-      .map(({ eventType, lostTo, ...row }) => row),
+      .map((row) => omitFields(row, ['eventType', 'lostTo'])),
     skippedRows,
   };
 }
@@ -434,79 +343,6 @@ export function combineChestLogTexts(texts) {
   return [header, ...entries.map((entry) => entry.cells)]
     .map((row) => row.map(escapeTabCell).join('\t'))
     .join('\n');
-}
-
-function aggregateLoot(rows) {
-  const byKey = new Map();
-
-  rows.forEach((row) => {
-    const key = makeInventoryKey(row);
-    const current = byKey.get(key) || {
-      alliance: [],
-      guild: [],
-      item: row.item,
-      itemId: row.itemId,
-      player: row.player,
-      quantity: 0,
-      enchantment: row.enchantment,
-      timestamps: [],
-    };
-
-    current.quantity += row.quantity;
-    pushUnique(current.alliance, row.alliance);
-    pushUnique(current.guild, row.guild);
-    pushUnique(current.timestamps, row.timestamp);
-    byKey.set(key, current);
-  });
-
-  return byKey;
-}
-
-function aggregateChest(rows) {
-  const byKey = new Map();
-
-  rows.forEach((row) => {
-    const key = makeInventoryKey(row);
-    const current = byKey.get(key) || {
-      amount: 0,
-      enchantment: row.enchantment,
-      item: row.item,
-      player: row.player,
-      qualities: [],
-    };
-
-    current.amount += row.amount;
-    pushUnique(current.qualities, row.quality ? `Q${row.quality}` : '');
-    byKey.set(key, current);
-  });
-
-  return byKey;
-}
-
-function aggregateLost(rows) {
-  const byKey = new Map();
-
-  rows.forEach((row) => {
-    const key = makeInventoryKey(row);
-    const current = byKey.get(key) || {
-      alliance: [],
-      guild: [],
-      item: row.item,
-      itemId: row.itemId,
-      lostTo: [],
-      player: row.player,
-      quantity: 0,
-      enchantment: row.enchantment,
-    };
-
-    current.quantity += row.quantity;
-    pushUnique(current.alliance, row.alliance);
-    pushUnique(current.guild, row.guild);
-    pushUnique(current.lostTo, row.lostTo);
-    byKey.set(key, current);
-  });
-
-  return byKey;
 }
 
 function buildItemIdLookup(rows) {
@@ -1031,7 +867,7 @@ export function buildLootMonitorReportFromEvents(events, chestText) {
     skippedRows: [],
   };
 
-  dedupeNearbyEvents(events || []).forEach((event) => {
+  dedupeNearbyLootEvents(events || []).forEach((event) => {
     const row = {
       alliance: event.alliance || '',
       enchantment: event.enchantment || 0,
@@ -1141,8 +977,4 @@ export function buildLootLogExport(events) {
   return [headers, ...rows]
     .map((row) => row.map(escapeSemicolonCell).join(';'))
     .join('\r\n');
-}
-
-export function uniqueSorted(values) {
-  return [...new Set(values.filter(Boolean))].sort((left, right) => left.localeCompare(right));
 }

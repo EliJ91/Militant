@@ -26,7 +26,7 @@ async function cacheItemImage(url) {
     ? await fetch(itemUrl.href, { mode: 'no-cors', credentials: 'omit' })
     : await fetch(itemUrl.href, { credentials: itemUrl.origin === self.location.origin ? 'same-origin' : 'omit' });
 
-  if (response && response.ok ) {
+  if (response?.ok) {
     await cache.put(itemUrl.href, response.clone());
     await trimCache(cache);
   }
@@ -54,7 +54,7 @@ self.addEventListener('fetch', (event) => {
     if (cached) return cached;
 
     const response = await fetch(event.request);
-    if (response && response.ok ) {
+    if (response?.ok) {
       await cache.put(event.request.url, response.clone());
       await trimCache(cache);
     }
