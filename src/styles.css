@@ -822,11 +822,60 @@ button:focus-visible {
   margin: 0;
 }
 
+.dashboard-tool-groups {
+  display: grid;
+  gap: 28px;
+  margin-top: 24px;
+}
+
+.dashboard-tool-group {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-tool-group + .dashboard-tool-group {
+  padding-top: 24px;
+  border-top: 1px solid rgba(247, 250, 245, 0.13);
+}
+
+.dashboard-tool-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboard-tool-group-heading h2 {
+  margin: 0;
+  color: var(--white);
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dashboard-tool-group-heading span {
+  display: grid;
+  min-width: 26px;
+  height: 24px;
+  place-items: center;
+  padding: 0 7px;
+  border: 1px solid rgba(87, 216, 120, 0.3);
+  border-radius: 6px;
+  background: rgba(87, 216, 120, 0.08);
+  color: var(--green-hot);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.dashboard-tool-group.admin .dashboard-tool-group-heading h2 {
+  color: #d9e2d8;
+}
+
 .tool-board {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 22px;
+  margin-top: 0;
 }
 
 .dashboard-empty {
@@ -844,9 +893,10 @@ button:focus-visible {
   border: 1px solid rgba(247, 250, 245, 0.14);
   border-radius: 8px;
   display: grid;
-  gap: 8px;
-  align-content: start;
-  min-height: 170px;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  min-height: 136px;
   padding: 18px;
   text-align: left;
 }
@@ -870,20 +920,40 @@ button:focus-visible {
   border-color: rgba(247, 250, 245, 0.24);
 }
 
-.tool-card-kicker {
+.tool-card-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(87, 216, 120, 0.34);
+  border-radius: 8px;
+  background: rgba(87, 216, 120, 0.08);
   color: var(--green-hot);
-  display: block;
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
-.tool-card h2 {
+.tool-card-icon.image {
+  background: rgba(2, 4, 3, 0.72);
+}
+
+.tool-card-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.tool-card-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tool-card h3 {
   color: var(--white);
   font-size: 1.35rem;
   letter-spacing: 0;
-  margin: 10px 0 8px;
+  margin: 0;
 }
 
 .tool-card p {

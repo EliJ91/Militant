@@ -91,7 +91,13 @@ describe('App', () => {
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.66');
+    expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
+    expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).toHaveAttribute(
+      'src',
+      '/assets/siphoned-energy.png',
+    );
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.67');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { History, ScrollText, ShieldCheck, Users } from 'lucide-react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import MembersTool from './components/MembersTool';
 import PermissionsTool from './components/PermissionsTool';
@@ -446,40 +447,52 @@ function DashboardPage({
   const tools = [
     {
       description: 'Browse uploaded CTA loot and chest logs.',
-      kicker: 'Tools',
+      group: 'tools',
+      icon: ScrollText,
       permission: 'viewLogs',
       title: 'View Loot Logs',
       to: '#loot-logs',
     },
     {
       description: 'Track deposits, withdrawals, and outstanding member balances.',
-      kicker: 'Tools',
+      group: 'tools',
+      image: `${ASSET_BASE}siphoned-energy.png`,
       permission: 'viewSiphonedEnergy',
       title: 'Siphoned Energy Tracker',
       to: '#siphoned-energy',
     },
     {
       description: 'View current Militant guild members and fame totals.',
-      kicker: 'Tools',
+      group: 'tools',
+      icon: Users,
       permission: 'viewMembers',
       title: 'Members',
       to: '#members',
     },
     {
       description: 'Map Discord roles to webapp access controls.',
-      kicker: 'Admin',
+      group: 'admin',
+      icon: ShieldCheck,
       permission: 'changePermissions',
       title: 'Permissions',
       to: '#permissions',
     },
     {
       description: 'Review changes and additions made across the webapp.',
-      kicker: 'Admin',
+      group: 'admin',
+      icon: History,
       permission: 'viewActionLog',
       title: 'Action Logs',
       to: '#action-logs',
     },
   ].filter((tool) => permissions[tool.permission]);
+  const toolGroups = [
+    { key: 'tools', label: 'Tools' },
+    { key: 'admin', label: 'Administration' },
+  ].map((group) => ({
+    ...group,
+    tools: tools.filter((tool) => tool.group === group.key),
+  })).filter((group) => group.tools.length > 0);
 
   return (
     <>
@@ -500,16 +513,34 @@ function DashboardPage({
           <h1 id="dashboard-title">Dashboard</h1>
         </section>
 
-        <section className="tool-board" aria-label="Dashboard tools">
-          {tools.map((tool) => (
-            <button className="tool-card tool-card-button" key={tool.title} title={tool.title} type="button" onClick={() => navigateTo(tool.to)}>
-              <span className="tool-card-kicker">{tool.kicker}</span>
-              <h2>{tool.title}</h2>
-              <p>{tool.description}</p>
-            </button>
-          ))}
-          {tools.length === 0 ? <p className="dashboard-empty">No webapp permissions assigned.</p> : null}
-        </section>
+        {toolGroups.length > 0 ? (
+          <div className="dashboard-tool-groups">
+            {toolGroups.map((group) => (
+              <section className={`dashboard-tool-group ${group.key}`} aria-labelledby={`dashboard-${group.key}-title`} key={group.key}>
+                <div className="dashboard-tool-group-heading">
+                  <h2 id={`dashboard-${group.key}-title`}>{group.label}</h2>
+                  <span>{group.tools.length}</span>
+                </div>
+                <div className="tool-board">
+                  {group.tools.map((tool) => {
+                    const ToolIcon = tool.icon;
+                    return (
+                      <button className="tool-card tool-card-button" key={tool.title} title={tool.title} type="button" onClick={() => navigateTo(tool.to)}>
+                        <span className={tool.image ? 'tool-card-icon image' : 'tool-card-icon'} aria-hidden="true">
+                          {tool.image ? <img src={tool.image} alt="" /> : <ToolIcon size={28} strokeWidth={1.8} />}
+                        </span>
+                        <span className="tool-card-copy">
+                          <h3>{tool.title}</h3>
+                          <p>{tool.description}</p>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : <p className="dashboard-empty">No webapp permissions assigned.</p>}
       </main>
     </>
   );

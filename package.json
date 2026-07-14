@@ -1,6 +1,6 @@
 {
   "name": "militant-webapp",
-  "version": "1.8.66",
+  "version": "1.8.67",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,6 +16,7 @@
     "discord.js": "^14.26.5",
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
+    "lucide-react": "^1.24.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
