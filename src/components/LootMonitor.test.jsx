@@ -876,7 +876,7 @@ describe('LootMonitor', () => {
     expect(screen.queryByText('2 looted')).not.toBeInTheDocument();
     expect(screen.queryByText('0 kept')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add chest log/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /(?:add|upload) chest log/i })).toBeInTheDocument();
     expect([...container.querySelector('.saved-log-actions').querySelectorAll('button')]
       .map((button) => button.textContent)).toEqual(['Edit', 'Download', 'Delete', 'View']);
 
@@ -910,10 +910,13 @@ describe('LootMonitor', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Loot Logs' })).not.toBeInTheDocument());
 
     submitLootLog.mockClear();
-    const addLootInput = container.querySelector('input[accept^=".csv"]');
+    fireEvent.click(screen.getByRole('button', { name: 'Add Loot Log' }));
+    uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
+    const addLootInput = uploadDialog.querySelector('input[accept^=".csv"]');
     fireEvent.change(addLootInput, {
       target: { files: [new File([lootText], 'additional-loot-events.txt', { type: 'text/plain' })] },
     });
+    fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
       actorName: 'manual-web-upload',
       bundleId: 'bundle-18',
@@ -921,6 +924,7 @@ describe('LootMonitor', () => {
       originalFileName: 'additional-loot-events.txt',
       username: 'manual-web-upload',
     }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Loot Logs' })).not.toBeInTheDocument());
 
     submitLootLog.mockClear();
     const secondLootText = lootText.replace('Windyyyzz', 'SecondLogger');
@@ -972,10 +976,27 @@ describe('LootMonitor', () => {
     }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Loot Logs' })).not.toBeInTheDocument());
 
-    const chestInput = container.querySelector('input[accept^=".txt"]');
+    fireEvent.click(screen.getByRole('button', { name: /(?:add|upload) chest log/i }));
+    let chestDialog = screen.getByRole('dialog', { name: 'Upload Chest Log' });
+    fireEvent.change(within(chestDialog).getByLabelText('Paste chest log'), { target: { value: chestText } });
+    fireEvent.click(within(chestDialog).getByRole('button', { name: 'Upload' }));
+    await waitFor(() => expect(submitChestLog).toHaveBeenCalledWith({
+      actorName: 'manual-web-upload',
+      bundleId: 'bundle-18',
+      chestLogText: chestText,
+      lootLogName: 'loot-events-original',
+      username: 'manual-web-upload',
+    }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Chest Log' })).not.toBeInTheDocument());
+
+    submitChestLog.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /(?:add|upload) chest log/i }));
+    chestDialog = screen.getByRole('dialog', { name: 'Upload Chest Log' });
+    const chestInput = chestDialog.querySelector('input[accept^=".txt"]');
     fireEvent.change(chestInput, {
       target: { files: [new File([chestText], 'chest.txt', { type: 'text/plain' })] },
     });
+    fireEvent.click(within(chestDialog).getByRole('button', { name: 'Upload' }));
     await waitFor(() => expect(submitChestLog).toHaveBeenCalledWith({
       actorName: 'manual-web-upload',
       bundleId: 'bundle-18',
@@ -985,7 +1006,11 @@ describe('LootMonitor', () => {
     }));
 
     submitChestLog.mockClear();
-    fireEvent.change(chestInput, {
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Chest Log' })).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /(?:add|upload) chest log/i }));
+    chestDialog = screen.getByRole('dialog', { name: 'Upload Chest Log' });
+    const multiChestInput = chestDialog.querySelector('input[accept^=".txt"]');
+    fireEvent.change(multiChestInput, {
       target: {
         files: [
           new File([chestText], 'first-chest.txt', { type: 'text/plain' }),
@@ -993,6 +1018,7 @@ describe('LootMonitor', () => {
         ],
       },
     });
+    fireEvent.click(within(chestDialog).getByRole('button', { name: 'Upload' }));
     await waitFor(() => expect(submitChestLog).toHaveBeenCalledTimes(2));
     expect(submitChestLog).toHaveBeenNthCalledWith(1, {
       actorName: 'manual-web-upload',
@@ -1113,7 +1139,7 @@ describe('LootMonitor', () => {
   });
 
   it('stores the logged-in username as the loot and chest uploader', async () => {
-    const { container } = render(<LootLogArchive uploadUsername="Onslawht" />);
+    render(<LootLogArchive uploadUsername="Onslawht" />);
 
     fireEvent.click(await screen.findByRole('button', { name: /upload log/i }));
     const uploadDialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
@@ -1130,10 +1156,13 @@ describe('LootMonitor', () => {
       username: 'Onslawht',
     }));
 
-    const chestInput = container.querySelector('input[accept^=".txt"]');
+    fireEvent.click(screen.getByRole('button', { name: /add chest log/i }));
+    const chestDialog = screen.getByRole('dialog', { name: 'Upload Chest Log' });
+    const chestInput = chestDialog.querySelector('input[accept^=".txt"]');
     fireEvent.change(chestInput, {
       target: { files: [new File([chestText], 'chest.txt', { type: 'text/plain' })] },
     });
+    fireEvent.click(within(chestDialog).getByRole('button', { name: 'Upload' }));
 
     await waitFor(() => expect(submitChestLog).toHaveBeenCalledWith({
       actorName: 'Onslawht',

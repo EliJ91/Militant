@@ -496,11 +496,24 @@ function parseLootEvents(text: string) {
   };
 }
 
-function parseChestLog(text: string) {
+function chestTimestampMs(value: unknown) {
+  const text = String(value || '').trim();
+  const localMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (localMatch) {
+    const [, month, day, year, hour, minute, second = '0'] = localMatch;
+    return Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+  }
+  return new Date(text).getTime();
+}
+
+function parseChestLog(text: string, timeWindow: { endAt?: string; startAt?: string } = {}) {
   const records = rowsToObjects(parseDelimited(text, '\t'));
   const rows: Array<Record<string, unknown>> = [];
   const withdrawals: Array<Record<string, unknown>> = [];
   const skippedRows: number[] = [];
+  const rangeStart = chestTimestampMs(timeWindow.startAt);
+  const rangeEnd = chestTimestampMs(timeWindow.endAt);
+  const hasTimeWindow = Number.isFinite(rangeStart) && Number.isFinite(rangeEnd);
 
   records.forEach((record, index) => {
     const player = record.Player;
@@ -512,6 +525,11 @@ function parseChestLog(text: string) {
     if (record.Date === 'Date' || player === 'Player') return;
     if (!player || !item || amount === null) {
       skippedRows.push(index + 2);
+      return;
+    }
+
+    const eventTime = chestTimestampMs(record.Date);
+    if (hasTimeWindow && (!Number.isFinite(eventTime) || eventTime < rangeStart || eventTime > rangeEnd + (2 * ONE_HOUR_MS))) {
       return;
     }
 
@@ -1524,18 +1542,21 @@ Deno.serve(async (request) => {
       if (!bundleId) throw new Error('bundleId is required.');
       if (!chestLogText || typeof chestLogText !== 'string') throw new Error('chestLogText is required.');
 
-      const parsedChest = parseChestLog(chestLogText);
-      if (parsedChest.rows.length === 0 && parsedChest.withdrawals.length === 0) {
-        throw new Error('The chest log does not contain any valid item rows.');
-      }
-
       const { data: chestBundle, error: chestBundleError } = await supabase
         .from('loot_log_bundles')
-        .select('id,start_at,combined_loot_summary')
+        .select('id,start_at,end_at,combined_loot_summary')
         .eq('id', bundleId)
         .single();
 
       if (chestBundleError) throw chestBundleError;
+
+      const parsedChest = parseChestLog(chestLogText, {
+        endAt: chestBundle.end_at,
+        startAt: chestBundle.start_at,
+      });
+      if (parsedChest.rows.length === 0 && parsedChest.withdrawals.length === 0) {
+        throw new Error('The chest log does not contain any item rows within the loot log time window.');
+      }
 
       const fileNames = getBundleFileNames(chestBundle);
       const parsedSummary = {

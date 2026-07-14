@@ -1696,6 +1696,113 @@ function LootLogUploadDialog({
   );
 }
 
+function ChestLogUploadDialog({
+  disabled,
+  files,
+  onAddFiles,
+  onClose,
+  onRemoveFile,
+  onSubmit,
+  onTextChange,
+  text,
+}) {
+  const inputRef = useRef(null);
+
+  return (
+    <div
+      className="loot-upload-modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !disabled) onClose();
+      }}
+    >
+      <section
+        aria-labelledby="chest-upload-title"
+        aria-modal="true"
+        className="loot-upload-modal"
+        role="dialog"
+      >
+        <div className="loot-upload-modal-heading">
+          <div>
+            <p className="eyebrow">Chest Log</p>
+            <h2 id="chest-upload-title">Upload Chest Log</h2>
+          </div>
+          <button
+            aria-label="Close upload chest log"
+            className="energy-modal-close"
+            disabled={disabled}
+            type="button"
+            onClick={onClose}
+          >
+            &times;
+          </button>
+        </div>
+        <label className="chest-upload-paste">
+          <span>Paste chest log</span>
+          <textarea
+            aria-label="Paste chest log"
+            disabled={disabled}
+            placeholder="Paste the copied chest log here"
+            value={text}
+            onChange={(event) => onTextChange(event.target.value)}
+          />
+        </label>
+        <div className="chest-upload-divider"><span>or upload files</span></div>
+        <input
+          accept=".txt,.tsv,text/plain,text/tab-separated-values"
+          className="file-input-hidden"
+          disabled={disabled}
+          multiple
+          ref={inputRef}
+          type="file"
+          onChange={(event) => {
+            onAddFiles([...(event.target.files || [])]);
+            event.target.value = '';
+          }}
+        />
+        <button
+          className="secondary-button chest-upload-file-button"
+          disabled={disabled}
+          type="button"
+          onClick={() => inputRef.current?.click()}
+        >
+          Choose files
+        </button>
+        {files.length > 0 ? (
+          <ul className="loot-upload-file-list">
+            {files.map((file, index) => (
+              <li key={`${file.name}-${file.size}-${index}`}>
+                <span>{file.name}</span>
+                <button
+                  aria-label={`Remove ${file.name}`}
+                  disabled={disabled}
+                  type="button"
+                  onClick={() => onRemoveFile(index)}
+                >
+                  &times;
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="loot-upload-actions">
+          <button className="secondary-button" disabled={disabled} type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="primary-button"
+            disabled={disabled || (!text.trim() && files.length === 0)}
+            type="button"
+            onClick={onSubmit}
+          >
+            {disabled ? 'Uploading...' : 'Upload'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function StatusToasts({ messages }) {
   const visibleMessages = messages
     .filter((status) => status?.message)
@@ -1908,16 +2015,16 @@ function LootLogBundleList({
                       <small>Loot Log</small>
                       {bundle.summary?.isMerged ? <span className="saved-log-merged-badge">Merged</span> : null}
                       {!isEditing && canUploadLootLogs ? (
-                        <FileUploadButton
-                          accept=".csv,.txt,text/csv,text/plain"
+                        <button
+                          aria-label="Add Loot Log"
                           className="saved-log-title-upload"
                           disabled={uploadingBundleId === bundle.id}
-                          label="Add Loot Log"
-                          loadingLabel="Uploading..."
-                          multiple
                           title="Add loot log"
-                          onFiles={(files) => onUploadLoot(files, bundle)}
-                        />
+                          type="button"
+                          onClick={() => onUploadLoot(bundle)}
+                        >
+                          +
+                        </button>
                       ) : null}
                     </div>
                     {isEditing ? (
@@ -1939,16 +2046,16 @@ function LootLogBundleList({
                         <div className="saved-log-chest-status">
                           <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
                           {canUploadChestLogs ? (
-                            <FileUploadButton
-                              accept=".txt,.tsv,text/plain,text/tab-separated-values"
+                            <button
+                              aria-label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
                               className="saved-log-title-upload"
                               disabled={uploadingBundleId === bundle.id}
-                              label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
-                              loadingLabel="Uploading..."
-                              multiple
                               title="Add chest log"
-                              onFiles={(files) => onUploadChest(bundle, files)}
-                            />
+                              type="button"
+                              onClick={() => onUploadChest(bundle)}
+                            >
+                              +
+                            </button>
                           ) : null}
                         </div>
                         <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
@@ -2090,6 +2197,10 @@ export function LootLogArchive({
   const [lootUploadFiles, setLootUploadFiles] = useState([]);
   const [lootUploadHelpOpen, setLootUploadHelpOpen] = useState(false);
   const [lootUploadModalOpen, setLootUploadModalOpen] = useState(false);
+  const [lootUploadTargetBundle, setLootUploadTargetBundle] = useState(null);
+  const [chestUploadBundle, setChestUploadBundle] = useState(null);
+  const [chestUploadFiles, setChestUploadFiles] = useState([]);
+  const [chestUploadText, setChestUploadText] = useState('');
   const [mergingLogs, setMergingLogs] = useState(false);
   const [selectedBundleIds, setSelectedBundleIds] = useState([]);
   const [updatingBundleId, setUpdatingBundleId] = useState('');
@@ -2172,11 +2283,36 @@ export function LootLogArchive({
   }
 
   async function uploadSelectedLootLogs() {
-    const uploaded = await uploadLootLogs(lootUploadFiles);
+    const uploaded = await uploadLootLogs(lootUploadFiles, lootUploadTargetBundle);
     if (!uploaded) return;
 
     setLootUploadFiles([]);
+    setLootUploadTargetBundle(null);
     setLootUploadModalOpen(false);
+  }
+
+  function openLootUpload(bundle = null) {
+    setLootUploadFiles([]);
+    setLootUploadTargetBundle(bundle);
+    setLootUploadModalOpen(true);
+  }
+
+  function closeLootUpload() {
+    setLootUploadFiles([]);
+    setLootUploadTargetBundle(null);
+    setLootUploadModalOpen(false);
+  }
+
+  function openChestUpload(bundle) {
+    setChestUploadBundle(bundle);
+    setChestUploadFiles([]);
+    setChestUploadText('');
+  }
+
+  function closeChestUpload() {
+    setChestUploadBundle(null);
+    setChestUploadFiles([]);
+    setChestUploadText('');
   }
 
   function toggleSelectedBundle(bundleId) {
@@ -2215,50 +2351,63 @@ export function LootLogArchive({
     }
   }
 
-  async function uploadChestLog(bundle, files) {
+  async function uploadChestLog(bundle, files, pastedText = '') {
     const selectedFiles = [...(Array.isArray(files) ? files : [files])].filter(Boolean);
-    if (selectedFiles.length === 0) return;
+    const cleanPastedText = String(pastedText || '').trim();
+    const uploadCount = selectedFiles.length + (cleanPastedText ? 1 : 0);
+    if (uploadCount === 0) return false;
 
     setUploadingBundleId(bundle.id);
     setActionStatus({
-      message: selectedFiles.length === 1
+      message: uploadCount === 1
         ? `Uploading ${bundle.chestFileName || 'chest log'}...`
-        : `Uploading ${selectedFiles.length} chest logs...`,
+        : `Uploading ${uploadCount} chest logs...`,
       state: 'loading',
     });
 
     try {
       const uploadedNames = [];
+      const entries = [
+        ...(cleanPastedText ? [{ name: 'Pasted Chest Log', text: cleanPastedText }] : []),
+        ...await Promise.all(selectedFiles.map(async (file) => ({ name: file.name, text: await file.text() }))),
+      ];
 
-      for (const file of selectedFiles) {
-        const text = await file.text();
-        if (detectFileKind(text) !== 'chest') throw new Error(`${file.name} is not a valid chest log file.`);
+      for (const entry of entries) {
+        if (detectFileKind(entry.text) !== 'chest') throw new Error(`${entry.name} is not a valid chest log file.`);
 
         const result = await submitChestLog({
           actorName: uploadUsername,
           bundleId: bundle.id,
-          chestLogText: text,
+          chestLogText: entry.text,
           lootLogName: bundle.lootFileName || bundle.displayLootFileName || bundle.fileName || '',
           username: uploadUsername,
         });
-        uploadedNames.push(result.fileName || file.name || 'Chest Log');
+        uploadedNames.push(result.fileName || entry.name || 'Chest Log');
       }
 
       setActionStatus({
-        message: selectedFiles.length === 1
+        message: uploadCount === 1
           ? `${uploadedNames[0]} uploaded.`
-          : `${selectedFiles.length} chest logs uploaded.`,
+          : `${uploadCount} chest logs uploaded.`,
         state: 'success',
       });
       await loadSavedLogs();
+      return true;
     } catch (uploadError) {
       setActionStatus({
         message: uploadError.message || 'Could not upload the chest logs.',
         state: 'error',
       });
+      return false;
     } finally {
       setUploadingBundleId('');
     }
+  }
+
+  async function uploadSelectedChestLogs() {
+    if (!chestUploadBundle) return;
+    const uploaded = await uploadChestLog(chestUploadBundle, chestUploadFiles, chestUploadText);
+    if (uploaded) closeChestUpload();
   }
 
   async function deleteBundle(bundle) {
@@ -2470,10 +2619,7 @@ export function LootLogArchive({
               disabled={actionStatus.state === 'loading'}
               title="Upload log"
               type="button"
-              onClick={() => {
-                setLootUploadFiles([]);
-                setLootUploadModalOpen(true);
-              }}
+              onClick={() => openLootUpload()}
             >
               {actionStatus.state === 'loading' ? 'Uploading' : 'Upload'}
             </button>
@@ -2507,9 +2653,22 @@ export function LootLogArchive({
           disabled={actionStatus.state === 'loading'}
           files={lootUploadFiles}
           onAddFiles={(files) => setLootUploadFiles((current) => [...current, ...files])}
-          onClose={() => setLootUploadModalOpen(false)}
+          onClose={closeLootUpload}
           onRemoveFile={(index) => setLootUploadFiles((current) => current.filter((_, currentIndex) => currentIndex !== index))}
           onSubmit={uploadSelectedLootLogs}
+        />
+      ) : null}
+
+      {chestUploadBundle ? (
+        <ChestLogUploadDialog
+          disabled={uploadingBundleId === chestUploadBundle.id}
+          files={chestUploadFiles}
+          text={chestUploadText}
+          onAddFiles={(files) => setChestUploadFiles((current) => [...current, ...files])}
+          onClose={closeChestUpload}
+          onRemoveFile={(index) => setChestUploadFiles((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+          onSubmit={uploadSelectedChestLogs}
+          onTextChange={setChestUploadText}
         />
       ) : null}
 
@@ -2533,9 +2692,9 @@ export function LootLogArchive({
         onDelete={deleteBundle}
         onDownload={downloadBundle}
         onSelectBundle={toggleSelectedBundle}
-        onUploadLoot={uploadLootLogs}
+        onUploadLoot={openLootUpload}
         onSaveEdit={saveEditedBundle}
-        onUploadChest={uploadChestLog}
+        onUploadChest={openChestUpload}
         onView={onView}
         status={savedLogStatus}
         selectedBundleIds={selectedBundleIds}
@@ -2628,6 +2787,7 @@ export default function LootMonitor({
     const baseReport = buildLootMonitorReportFromEvents(
       selectedBundle.events || [],
       selectedBundle.chestLogReportText || selectedBundle.chestLogText || '',
+      { endAt: selectedBundle.endAt, startAt: selectedBundle.startAt },
     );
     return applyLootDeathChecks(baseReport, selectedBundle.deathChecks || []);
   }, [selectedBundle]);

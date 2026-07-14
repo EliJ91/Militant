@@ -1463,6 +1463,54 @@ button:focus-visible {
   letter-spacing: 0;
 }
 
+.chest-upload-paste {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.chest-upload-paste textarea {
+  width: 100%;
+  min-height: 190px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid rgba(87, 216, 120, 0.34);
+  border-radius: 7px;
+  background: rgba(2, 4, 3, 0.78);
+  color: var(--white);
+  font: 500 0.78rem/1.45 Consolas, monospace;
+}
+
+.chest-upload-paste textarea:focus {
+  border-color: var(--green-hot);
+  outline: none;
+}
+
+.chest-upload-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.chest-upload-divider::before,
+.chest-upload-divider::after {
+  flex: 1;
+  height: 1px;
+  background: rgba(247, 250, 245, 0.12);
+  content: '';
+}
+
+.chest-upload-file-button {
+  justify-self: center;
+}
+
 .upload-instructions-modal-backdrop {
   position: fixed;
   z-index: 1050;

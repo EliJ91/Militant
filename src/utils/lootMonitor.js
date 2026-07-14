@@ -216,7 +216,7 @@ export function parseLootEvents(text) {
   };
 }
 
-export function parseChestLog(text) {
+export function parseChestLog(text, { endAt = '', graceMs = 2 * 60 * 60 * 1000, startAt = '' } = {}) {
   const tableRows = parseDelimited(text, '\t');
   const skippedRows = [];
   const withdrawals = [];
@@ -225,6 +225,9 @@ export function parseChestLog(text) {
   const sourceStats = new Map();
   let sourceIndex = -1;
   let headers = [];
+  const rangeStart = timestampMs(startAt);
+  const rangeEnd = timestampMs(endAt);
+  const hasTimeWindow = Number.isFinite(rangeStart) && Number.isFinite(rangeEnd);
 
   tableRows.forEach((cells, index) => {
     const normalizedCells = cells.map((cell) => cell.trim());
@@ -266,6 +269,11 @@ export function parseChestLog(text) {
       sourceIndex: Math.max(sourceIndex, 0),
       timestamp: parseTimestamp(record.Date),
     };
+
+    if (hasTimeWindow) {
+      const eventTime = timestampMs(row.timestamp);
+      if (!Number.isFinite(eventTime) || eventTime < rangeStart || eventTime > rangeEnd + graceMs) return;
+    }
 
     const stats = sourceStats.get(row.sourceIndex) || {
       hasDeposit: false,
@@ -623,8 +631,8 @@ function consumePoolLots(pool, itemKey, quantity) {
   return { consumed, missing };
 }
 
-function buildLootMonitorReportFromParsedLoot(loot, chestText) {
-  const chest = parseChestLog(chestText);
+function buildLootMonitorReportFromParsedLoot(loot, chestText, chestTimeWindow) {
+  const chest = parseChestLog(chestText, chestTimeWindow);
   const itemIdLookup = buildItemIdLookup([...loot.rows, ...loot.lostRows]);
   const playerIdentity = buildPlayerIdentity([...loot.rows, ...loot.lostRows]);
   const rowMap = new Map();
@@ -784,8 +792,8 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
   };
 }
 
-export function buildLootMonitorReport(lootText, chestText) {
-  return buildLootMonitorReportFromParsedLoot(parseLootEvents(lootText), chestText);
+export function buildLootMonitorReport(lootText, chestText, chestTimeWindow) {
+  return buildLootMonitorReportFromParsedLoot(parseLootEvents(lootText), chestText, chestTimeWindow);
 }
 
 function getReportStatus(row) {
@@ -860,7 +868,7 @@ export function applyLootDeathChecks(report, deathChecks) {
   };
 }
 
-export function buildLootMonitorReportFromEvents(events, chestText) {
+export function buildLootMonitorReportFromEvents(events, chestText, chestTimeWindow) {
   const loot = {
     lostRows: [],
     rows: [],
@@ -890,7 +898,7 @@ export function buildLootMonitorReportFromEvents(events, chestText) {
     }
   });
 
-  return buildLootMonitorReportFromParsedLoot(loot, chestText);
+  return buildLootMonitorReportFromParsedLoot(loot, chestText, chestTimeWindow);
 }
 
 function exportTimestamp(value) {

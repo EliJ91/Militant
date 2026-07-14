@@ -975,19 +975,19 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
   if (!bundleId) throw new Error('bundleId is required.');
   if (!chestLogText || typeof chestLogText !== 'string') throw new Error('chestLogText is required.');
 
-  const parsed = parseChestLog(chestLogText);
-  if (parsed.rows.length === 0 && parsed.withdrawals.length === 0) {
-    throw new Error('The chest log does not contain any valid item rows.');
-  }
-
   const supabase = createSupabaseAdmin();
   const { data: bundle, error: bundleError } = await supabase
     .from('loot_log_bundles')
-    .select('id,start_at,combined_loot_summary')
+    .select('id,start_at,end_at,combined_loot_summary')
     .eq('id', bundleId)
     .single();
 
   if (bundleError) throw bundleError;
+
+  const parsed = parseChestLog(chestLogText, { endAt: bundle.end_at, startAt: bundle.start_at });
+  if (parsed.rows.length === 0 && parsed.withdrawals.length === 0) {
+    throw new Error('The chest log does not contain any item rows within the loot log time window.');
+  }
 
   const fileNames = getBundleFileNames(bundle);
   const parsedSummary = {
