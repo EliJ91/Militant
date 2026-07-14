@@ -111,19 +111,23 @@ function formatUtcDate(value) {
   }).format(date);
 }
 
-function formatUtcDateTime(value) {
+function formatEasternDateTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Unknown';
 
-  const day = new Intl.DateTimeFormat('en-US', {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
     day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+    minute: '2-digit',
     month: 'short',
-    timeZone: 'UTC',
+    second: '2-digit',
+    timeZone: 'America/New_York',
+    timeZoneName: 'short',
     year: 'numeric',
-  }).format(date);
-  const time = `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+  }).formatToParts(date).map((part) => [part.type, part.value]));
 
-  return `${day} ${time}`;
+  return `${parts.month} ${parts.day}, ${parts.year} ${parts.hour}:${parts.minute}:${parts.second} ${parts.timeZoneName}`;
 }
 
 function getBundleUploadedAt(bundle) {
@@ -1891,7 +1895,7 @@ function LootLogBundleList({
                     <div className="saved-log-time">
                       {isSelected ? <span className="saved-log-selected-badge">Selected</span> : null}
                       <strong>Uploaded</strong>
-                      <small>{formatUtcDateTime(uploadedAt)}</small>
+                      <small>{formatEasternDateTime(uploadedAt)}</small>
                       {!isEditing && retention ? (
                         <small className="saved-log-countdown" title={`Scheduled deletion: ${formatUtcDate(retention.expiresAt)}`}>
                           {formatDeletionCountdown(retention.daysUntilDeletion)}
