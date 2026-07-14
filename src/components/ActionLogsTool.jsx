@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { fetchActionLogs } from '../services/actionLogsApi';
+import { Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { deleteActionLog, fetchActionLogs } from '../services/actionLogsApi';
 import { fetchLootLogBundles } from '../services/lootLogApi';
 
 function formatDateTime(value) {
@@ -157,13 +158,16 @@ function flattenLogs(logs, bundleById) {
   });
 }
 
-export default function ActionLogsTool() {
+export default function ActionLogsTool({ canDelete = false }) {
   const [logs, setLogs] = useState([]);
   const [nextCursor, setNextCursor] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const [bundleById, setBundleById] = useState(new Map());
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState({ message: '', state: 'loading' });
+  const [contextMenu, setContextMenu] = useState(null);
+  const [deleteStatus, setDeleteStatus] = useState('');
+  const contextMenuRef = useRef(null);
 
   async function loadLogs({ append = false, before = '' } = {}) {
     setStatus({ message: '', state: append ? 'loading-more' : 'loading' });
@@ -191,6 +195,37 @@ export default function ActionLogsTool() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!contextMenu) return undefined;
+    function closeContextMenu(event) {
+      if (!contextMenuRef.current?.contains(event.target)) setContextMenu(null);
+    }
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') setContextMenu(null);
+    }
+    document.addEventListener('mousedown', closeContextMenu);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeContextMenu);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [contextMenu]);
+
+  async function handleDeleteActionLog() {
+    const actionLogId = contextMenu?.id;
+    if (!actionLogId) return;
+    setContextMenu(null);
+    setDeleteStatus('Deleting entry...');
+    try {
+      await deleteActionLog(actionLogId);
+      setLogs((current) => current.filter((log) => String(log.id) !== String(actionLogId)));
+      setTotal((current) => Math.max(0, current - 1));
+      setDeleteStatus('Action log entry deleted');
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not delete action log entry.');
+    }
+  }
 
   const rows = useMemo(() => flattenLogs(logs, bundleById), [bundleById, logs]);
   const visibleCount = useMemo(() => rows.length.toLocaleString(), [rows.length]);
@@ -233,7 +268,18 @@ export default function ActionLogsTool() {
               </thead>
               <tbody>
                 {rows.map((log) => (
-                  <tr key={log.rowId}>
+                  <tr
+                    className={canDelete ? 'action-log-deletable' : ''}
+                    key={log.rowId}
+                    onContextMenu={canDelete ? (event) => {
+                      event.preventDefault();
+                      setContextMenu({
+                        id: log.id,
+                        left: Math.min(event.clientX, window.innerWidth - 180),
+                        top: Math.min(event.clientY, window.innerHeight - 64),
+                      });
+                    } : undefined}
+                  >
                     <td className="action-logs-actor">{cleanText(log.actorName, 'System')}</td>
                     <td className="action-logs-action-text">{log.actionText || formatAction(log, bundleById)}</td>
                     <td><time dateTime={log.createdAt}>{formatDateTime(log.createdAt)}</time></td>
@@ -255,6 +301,21 @@ export default function ActionLogsTool() {
           </button>
         ) : null}
       </section>
+
+      {contextMenu ? (
+        <div
+          className="action-log-context-menu"
+          ref={contextMenuRef}
+          role="menu"
+          style={{ left: contextMenu.left, top: contextMenu.top }}
+        >
+          <button role="menuitem" type="button" onClick={handleDeleteActionLog}>
+            <Trash2 aria-hidden="true" size={16} />
+            Delete
+          </button>
+        </div>
+      ) : null}
+      {deleteStatus ? <div className="action-logs-toast" role="status">{deleteStatus}</div> : null}
     </main>
   );
 }

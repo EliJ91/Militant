@@ -325,13 +325,19 @@ function actionLogsApi() {
     }
 
     try {
-      const { listActionLogs, recordActionLog } = await import('./src/server/supabaseActionLogs.js');
+      const { deleteActionLog, listActionLogs, recordActionLog } = await import('./src/server/supabaseActionLogs.js');
       if (req.method === 'GET') {
         const requestUrl = new URL(req.url || '/', 'http://127.0.0.1');
         sendJson(res, 200, await listActionLogs({
           before: requestUrl.searchParams.get('before') || '',
           limit: requestUrl.searchParams.get('limit') || 100,
         }));
+        return;
+      }
+
+      if (req.method === 'DELETE') {
+        const body = await readJsonBody(req);
+        sendJson(res, 200, await deleteActionLog(body.id));
         return;
       }
 

@@ -101,6 +101,56 @@
   background: rgba(69, 220, 111, 0.05);
 }
 
+.action-log-deletable {
+  cursor: context-menu;
+}
+
+.action-log-context-menu {
+  position: fixed;
+  z-index: 120;
+  min-width: 164px;
+  padding: 6px;
+  border: 1px solid rgba(244, 63, 94, 0.55);
+  border-radius: 6px;
+  background: #0b0e0c;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.48);
+}
+
+.action-log-context-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #fb7185;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.action-log-context-menu button:hover,
+.action-log-context-menu button:focus-visible {
+  background: rgba(244, 63, 94, 0.14);
+}
+
+.action-logs-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 125;
+  padding: 10px 13px;
+  border: 1px solid rgba(69, 220, 111, 0.5);
+  border-radius: 6px;
+  background: #07110b;
+  color: var(--white);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .action-logs-table time {
   white-space: nowrap;
 }

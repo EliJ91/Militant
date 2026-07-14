@@ -28,6 +28,20 @@ export async function fetchActionLogs({ before = '', limit = 100 } = {}) {
   return result;
 }
 
+export async function deleteActionLog(actionLogId) {
+  const id = Number(actionLogId);
+  if (!Number.isInteger(id) || id < 1) throw new Error('Invalid action log entry.');
+  const authSession = currentAuthSession || await getCurrentAuthSession().catch(() => null);
+  const response = await fetch(getActionLogsApiUrl(), {
+    body: JSON.stringify({ id }),
+    headers: { 'Content-Type': 'application/json', ...getActionLogAuthHeaders(authSession) },
+    method: 'DELETE',
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Could not delete action log entry.');
+  return result;
+}
+
 export function setActionLogActorName(actorName) {
   currentActorName = String(actorName || '').trim() || 'System';
 }

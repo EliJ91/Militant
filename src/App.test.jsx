@@ -97,7 +97,7 @@ describe('App', () => {
       'src',
       '/assets/siphoned-energy.png',
     );
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.71');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.72');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',

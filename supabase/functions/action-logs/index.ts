@@ -3,9 +3,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 250;
 const DISCORD_GUILD_ID = '805908199541702666';
+const SUPERUSER_DISCORD_USER_ID = '264193431830528006';
 const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-discord-access-token',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'DELETE, GET, POST, OPTIONS',
   'Access-Control-Allow-Origin': '*',
 };
 
@@ -136,6 +137,13 @@ async function resolveActionActorName(
     || fallbackActorName(requestedActorName);
 }
 
+async function getAuthenticatedDiscordUserId(supabase: any, request: Request) {
+  const accessToken = getBearerToken(request);
+  const discordAccessToken = request.headers.get('x-discord-access-token') || '';
+  const supabaseUserId = accessToken ? await getDiscordUserIdFromToken(supabase, accessToken) : '';
+  return supabaseUserId || await getDiscordUserIdFromOAuth(discordAccessToken);
+}
+
 function bundleTitle(bundle: any) {
   const summary = bundle?.combined_loot_summary || {};
   const fileNames = summary.fileNames || {};
@@ -199,13 +207,24 @@ async function enrichActionRows(supabase: any, rows: any[]) {
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders, status: 204 });
-  if (!['GET', 'POST'].includes(request.method)) return jsonResponse(405, { error: 'Method not allowed.' });
+  if (!['DELETE', 'GET', 'POST'].includes(request.method)) return jsonResponse(405, { error: 'Method not allowed.' });
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !serviceRoleKey) throw new Error('Missing Supabase server credentials.');
     const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+
+    if (request.method === 'DELETE') {
+      const discordUserId = await getAuthenticatedDiscordUserId(supabase, request);
+      if (discordUserId !== SUPERUSER_DISCORD_USER_ID) return jsonResponse(403, { error: 'SuperUser access required.' });
+      const body = await request.json();
+      const id = Number(body.id);
+      if (!Number.isInteger(id) || id < 1) return jsonResponse(400, { error: 'Invalid action log entry.' });
+      const { error } = await supabase.from('webapp_action_logs').delete().eq('id', id);
+      if (error) throw error;
+      return jsonResponse(200, { deleted: true, id });
+    }
 
     if (request.method === 'POST') {
       const body = await request.json();

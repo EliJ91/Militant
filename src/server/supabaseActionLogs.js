@@ -105,6 +105,15 @@ export async function recordActionLog({
   return data;
 }
 
+export async function deleteActionLog(actionLogId) {
+  const id = Number(actionLogId);
+  if (!Number.isInteger(id) || id < 1) throw new Error('Invalid action log entry.');
+  const admin = createSupabaseAdmin();
+  const { error } = await admin.from('webapp_action_logs').delete().eq('id', id);
+  if (error) throw error;
+  return { deleted: true, id };
+}
+
 export async function listActionLogs({ before = '', limit = DEFAULT_PAGE_SIZE } = {}) {
   const admin = createSupabaseAdmin();
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(limit) || DEFAULT_PAGE_SIZE));

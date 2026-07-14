@@ -1,14 +1,19 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ActionLogsTool from './ActionLogsTool';
-import { fetchActionLogs } from '../services/actionLogsApi';
+import { deleteActionLog, fetchActionLogs } from '../services/actionLogsApi';
 import { fetchLootLogBundles } from '../services/lootLogApi';
 
-vi.mock('../services/actionLogsApi', () => ({ fetchActionLogs: vi.fn() }));
+vi.mock('../services/actionLogsApi', () => ({
+  deleteActionLog: vi.fn(),
+  fetchActionLogs: vi.fn(),
+}));
 vi.mock('../services/lootLogApi', () => ({ fetchLootLogBundles: vi.fn() }));
 
 describe('ActionLogsTool', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    deleteActionLog.mockResolvedValue({ deleted: true });
     fetchLootLogBundles.mockResolvedValue({
       bundles: [{ id: 'bundle-1', logNumber: 22, lootFileName: '02 CTA 7-13' }],
     });
@@ -48,6 +53,8 @@ describe('ActionLogsTool', () => {
     });
   });
 
+  afterEach(() => cleanup());
+
   it('shows the command user, file poster, player, title, and loot log number', async () => {
     render(<ActionLogsTool />);
 
@@ -55,5 +62,25 @@ describe('ActionLogsTool', () => {
     expect(screen.getByText('Uploaded Chapper log from Discord to Loot Log #22: 02 CTA 7-13')).toBeInTheDocument();
     expect(screen.getByText('Checked MarkMPM death for Loot Log #22: 02 CTA 7-13')).toBeInTheDocument();
     expect(screen.getByText('Deleted Loot Log #22: 02 CTA 7-13 (Jul 13, 2026)')).toBeInTheDocument();
+  });
+
+  it('lets the SuperUser delete an entry from its right-click menu', async () => {
+    render(<ActionLogsTool canDelete />);
+    const actionText = await screen.findByText('Uploaded Chapper log from Discord to Loot Log #22: 02 CTA 7-13');
+
+    fireEvent.contextMenu(actionText, { clientX: 200, clientY: 180 });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+
+    await waitFor(() => expect(deleteActionLog).toHaveBeenCalledWith('action-1'));
+    await waitFor(() => expect(actionText).not.toBeInTheDocument());
+  });
+
+  it('does not open a delete menu for other users', async () => {
+    render(<ActionLogsTool />);
+    const actionText = await screen.findByText('Uploaded Chapper log from Discord to Loot Log #22: 02 CTA 7-13');
+
+    fireEvent.contextMenu(actionText, { clientX: 200, clientY: 180 });
+
+    expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument();
   });
 });

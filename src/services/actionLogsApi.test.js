@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  deleteActionLog,
   recordActionLog,
   setActionLogActorName,
   setActionLogAuthSession,
@@ -74,5 +75,22 @@ describe('action log identity', () => {
     expect(request.headers).not.toHaveProperty('Authorization');
     expect(request.headers['X-Discord-Access-Token']).toBe('discord-oauth-token');
     expect(JSON.parse(request.body).discordUserId).toBe('264193431830528006');
+  });
+
+  it('authenticates action log deletions with the current session', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({ deleted: true, id: 42 }),
+      ok: true,
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    setActionLogAuthSession({ access_token: 'supabase-token' });
+
+    await deleteActionLog(42);
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/action-logs', expect.objectContaining({
+      body: JSON.stringify({ id: 42 }),
+      headers: expect.objectContaining({ Authorization: 'Bearer supabase-token' }),
+      method: 'DELETE',
+    }));
   });
 });

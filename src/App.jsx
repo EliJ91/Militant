@@ -750,7 +750,7 @@ function ActionLogsPage({
       viewAsRoleIds={viewAsRoleIds}
       viewAsRoles={viewAsRoles}
     >
-      <ActionLogsTool />
+      <ActionLogsTool canDelete={isSuperUserProfile} />
     </ToolPage>
   );
 }
