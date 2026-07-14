@@ -527,6 +527,7 @@ function LootMonitorPage({
         canCheckDeaths={canCheckDeaths}
         canResetDeathChecks={canResetDeathChecks}
         onViewLogs={() => navigateTo('#loot-logs')}
+        uploadUsername={getUploadUsername(currentUser)}
       />
     </>
   );
@@ -796,6 +797,8 @@ export default function App() {
         fetchDiscordMemberRoles(session)
           .then((result) => {
             if (cancelled) return;
+            const fetchedGuildNickname = result.guildNickname || result.serverNickname || result.nick || '';
+            if (fetchedGuildNickname) setActionLogActorName(fetchedGuildNickname);
             setAuthSession((currentSession) => {
               if (!currentSession) return currentSession;
               const currentLookupToken = currentSession.access_token

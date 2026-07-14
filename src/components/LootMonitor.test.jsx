@@ -304,6 +304,7 @@ describe('LootMonitor', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Check Death' }));
 
     await waitFor(() => expect(checkLootLogDeath).toHaveBeenCalledWith({
+      actorName: 'Unknown Server Member',
       bundleId: 'bundle-18',
       keptItems: [{
         itemId: 'T4_CAPEITEM_FW_LYMHURST@3',
@@ -448,6 +449,7 @@ describe('LootMonitor', () => {
 
     expect(await screen.findByRole('dialog', { name: 'Checking deaths' })).toHaveTextContent('Checking 0 of 2 visible players.');
     expect(checkLootLogDeaths).toHaveBeenCalledWith({
+      actorName: 'Unknown Server Member',
       bundleId: 'bundle-18',
       checks: [
         {
@@ -472,6 +474,7 @@ describe('LootMonitor', () => {
 
     await waitFor(() => expect(checkLootLogDeaths).toHaveBeenCalledTimes(2));
     expect(checkLootLogDeaths.mock.calls[1][0]).toEqual({
+      actorName: 'Unknown Server Member',
       bundleId: 'bundle-18',
       checks: [
         {
@@ -886,6 +889,7 @@ describe('LootMonitor', () => {
     });
     fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
+      actorName: 'manual-web-upload',
       bundleId: null,
       lootLogText: lootText,
       originalFileName: 'loot-events.txt',
@@ -899,6 +903,7 @@ describe('LootMonitor', () => {
       target: { files: [new File([lootText], 'additional-loot-events.txt', { type: 'text/plain' })] },
     });
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
+      actorName: 'manual-web-upload',
       bundleId: 'bundle-18',
       lootLogText: lootText,
       originalFileName: 'additional-loot-events.txt',
@@ -921,12 +926,14 @@ describe('LootMonitor', () => {
     fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledTimes(2));
     expect(submitLootLog).toHaveBeenNthCalledWith(1, {
+      actorName: 'manual-web-upload',
       bundleId: null,
       lootLogText: lootText,
       originalFileName: 'first-loot-events.txt',
       username: 'manual-web-upload',
     });
     expect(submitLootLog).toHaveBeenNthCalledWith(2, {
+      actorName: 'manual-web-upload',
       bundleId: null,
       lootLogText: secondLootText,
       originalFileName: 'second-loot-events.txt',
@@ -945,6 +952,7 @@ describe('LootMonitor', () => {
     fireEvent.drop(dropzone, { dataTransfer: { files: [droppedLootFile] } });
     fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
+      actorName: 'manual-web-upload',
       bundleId: null,
       lootLogText: lootText,
       originalFileName: 'dropped-loot-events.txt',
@@ -957,6 +965,7 @@ describe('LootMonitor', () => {
       target: { files: [new File([chestText], 'chest.txt', { type: 'text/plain' })] },
     });
     await waitFor(() => expect(submitChestLog).toHaveBeenCalledWith({
+      actorName: 'manual-web-upload',
       bundleId: 'bundle-18',
       chestLogText: chestText,
       lootLogName: 'loot-events-original',
@@ -974,12 +983,14 @@ describe('LootMonitor', () => {
     });
     await waitFor(() => expect(submitChestLog).toHaveBeenCalledTimes(2));
     expect(submitChestLog).toHaveBeenNthCalledWith(1, {
+      actorName: 'manual-web-upload',
       bundleId: 'bundle-18',
       chestLogText: chestText,
       lootLogName: 'loot-events-original',
       username: 'manual-web-upload',
     });
     expect(submitChestLog).toHaveBeenNthCalledWith(2, {
+      actorName: 'manual-web-upload',
       bundleId: 'bundle-18',
       chestLogText: chestText,
       lootLogName: 'loot-events-original',
@@ -1008,6 +1019,7 @@ describe('LootMonitor', () => {
     fireEvent.click(mergeButton);
 
     await waitFor(() => expect(mergeLootLogBundles).toHaveBeenCalledWith({
+      actorName: 'Frontline Soldier',
       bundleIds: ['bundle-18', 'bundle-20'],
       username: 'Frontline Soldier',
     }));
@@ -1044,7 +1056,13 @@ describe('LootMonitor', () => {
     expect(deleteLootLogBundle).not.toHaveBeenCalled();
 
     fireEvent.click(deleteButton);
-    await waitFor(() => expect(deleteLootLogBundle).toHaveBeenCalledWith('bundle-18'));
+    await waitFor(() => expect(deleteLootLogBundle).toHaveBeenCalledWith(
+      'bundle-18',
+      expect.objectContaining({
+        actorName: 'manual-web-upload',
+        bundle: expect.objectContaining({ id: 'bundle-18', lootFileName: '18UTC-JUN-18' }),
+      }),
+    ));
     expect(confirm).toHaveBeenCalledTimes(2);
     confirm.mockRestore();
   });
@@ -1093,6 +1111,7 @@ describe('LootMonitor', () => {
     fireEvent.click(within(uploadDialog).getByRole('button', { name: 'Upload' }));
 
     await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
+      actorName: 'Onslawht',
       bundleId: null,
       lootLogText: lootText,
       originalFileName: 'loot-events.txt',
@@ -1105,6 +1124,7 @@ describe('LootMonitor', () => {
     });
 
     await waitFor(() => expect(submitChestLog).toHaveBeenCalledWith({
+      actorName: 'Onslawht',
       bundleId: 'bundle-18',
       chestLogText: chestText,
       lootLogName: '18UTC-JUN-18',
@@ -1145,6 +1165,7 @@ describe('LootMonitor', () => {
     fireEvent.keyDown(screen.getByLabelText('Chest Log Uploaded By'), { key: 'Enter' });
 
     await waitFor(() => expect(updateLootLogBundle).toHaveBeenCalledWith({
+      actorName: 'manual-web-upload',
       bundleId: 'bundle-18',
       ctaHour: 18,
       dateUtc: '2026-06-18',

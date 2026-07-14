@@ -30,17 +30,30 @@ describe('ActionLogsTool', () => {
           id: 'action-2',
           targetId: 'bundle-1',
         },
+        {
+          action: 'Loot log deleted',
+          actorName: 'Onslawht',
+          createdAt: '2026-07-14T16:42:37.000Z',
+          details: {
+            lootLogDate: '2026-07-13T02:00:00.000Z',
+            lootLogName: '02 CTA 7-13',
+            lootLogNumber: 22,
+          },
+          id: 'action-3',
+          targetId: 'bundle-1',
+        },
       ],
       hasMore: false,
-      total: 2,
+      total: 3,
     });
   });
 
   it('shows the command user, file poster, player, title, and loot log number', async () => {
     render(<ActionLogsTool />);
 
-    await waitFor(() => expect(screen.getAllByText('Onslawht')).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByText('Onslawht')).toHaveLength(3));
     expect(screen.getByText('Uploaded Chapper log from Discord to Loot Log #22: 02 CTA 7-13')).toBeInTheDocument();
     expect(screen.getByText('Checked MarkMPM death for Loot Log #22: 02 CTA 7-13')).toBeInTheDocument();
+    expect(screen.getByText('Deleted Loot Log #22: 02 CTA 7-13 (Jul 13, 2026)')).toBeInTheDocument();
   });
 });

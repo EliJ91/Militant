@@ -2143,6 +2143,7 @@ export function LootLogArchive({
         if (detectFileKind(text) !== 'loot') throw new Error(`${file.name} is not a valid loot-events file.`);
 
         const result = await submitLootLog({
+          actorName: uploadUsername,
           bundleId: targetBundleId,
           lootLogText: text,
           originalFileName: file.name,
@@ -2194,6 +2195,7 @@ export function LootLogArchive({
 
     try {
       const result = await mergeLootLogBundles({
+        actorName: uploadUsername,
         bundleIds: selectedBundleIds,
         username: uploadUsername,
       });
@@ -2233,6 +2235,7 @@ export function LootLogArchive({
         if (detectFileKind(text) !== 'chest') throw new Error(`${file.name} is not a valid chest log file.`);
 
         const result = await submitChestLog({
+          actorName: uploadUsername,
           bundleId: bundle.id,
           chestLogText: text,
           lootLogName: bundle.lootFileName || bundle.displayLootFileName || bundle.fileName || '',
@@ -2268,7 +2271,7 @@ export function LootLogArchive({
     setActionStatus({ message: `Deleting ${bundle.lootFileName || 'loot log'}...`, state: 'deleting' });
 
     try {
-      await deleteLootLogBundle(bundle.id);
+      await deleteLootLogBundle(bundle.id, { actorName: uploadUsername, bundle });
       setActionStatus({ message: `${bundle.lootFileName || 'Loot log'} deleted.`, state: 'success' });
       await loadSavedLogs();
     } catch (deleteError) {
@@ -2347,6 +2350,7 @@ export function LootLogArchive({
       };
 
       const result = await updateLootLogBundle({
+        actorName: uploadUsername,
         bundleId: bundle.id,
         ctaHour: editValues.ctaHour,
         dateUtc: editValues.dateUtc,
@@ -2548,6 +2552,7 @@ export default function LootMonitor({
   canResetDeathChecks = false,
   onViewLogs = () => {},
   showShare = true,
+  uploadUsername = 'Unknown Server Member',
 }) {
   const boardRef = useRef(null);
   const [filters, setFilters] = useState(loadInitialFilters);
@@ -2762,6 +2767,7 @@ export default function LootMonitor({
     setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'loading' }));
     try {
       const result = await checkLootLogDeath({
+        actorName: uploadUsername,
         bundleId: selectedBundle.id,
         keptItems,
         lootLogName: selectedBundle.lootFileName || selectedBundle.fileName || '',
@@ -2815,6 +2821,7 @@ export default function LootMonitor({
 
       try {
         const result = await checkLootLogDeaths({
+          actorName: uploadUsername,
           bundleId: selectedBundle.id,
           checks: batch.map(({ keptItems, player }) => ({ keptItems, player })),
           lootLogName: selectedBundle.lootFileName || selectedBundle.fileName || '',

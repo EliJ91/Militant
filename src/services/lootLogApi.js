@@ -9,7 +9,13 @@ function getLootLogApiUrl() {
   return import.meta.env.VITE_LOCAL_LOOT_LOG_API_URL || DEFAULT_LOOT_LOG_API_URL;
 }
 
-export async function submitLootLog({ bundleId = null, lootLogText, originalFileName, username }) {
+export async function submitLootLog({
+  actorName = username,
+  bundleId = null,
+  lootLogText,
+  originalFileName,
+  username,
+}) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
       bundleId,
@@ -28,6 +34,7 @@ export async function submitLootLog({ bundleId = null, lootLogText, originalFile
 
   void recordActionLog({
     action: 'Loot log uploaded',
+    actorName,
     details: { fileName: originalFileName, source: 'webapp' },
     targetId: result.bundleId || bundleId,
     targetName: result.lootFileName || result.summary?.displayLootFileName || originalFileName,
@@ -37,7 +44,13 @@ export async function submitLootLog({ bundleId = null, lootLogText, originalFile
   return result;
 }
 
-export async function submitChestLog({ bundleId, chestLogText, lootLogName = '', username }) {
+export async function submitChestLog({
+  actorName = username,
+  bundleId,
+  chestLogText,
+  lootLogName = '',
+  username,
+}) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
       action: 'chest',
@@ -56,6 +69,7 @@ export async function submitChestLog({ bundleId, chestLogText, lootLogName = '',
 
   void recordActionLog({
     action: 'Chest log uploaded',
+    actorName,
     details: { lootLogName },
     targetId: result.bundleId || bundleId,
     targetName: result.fileName || 'Chest log',
@@ -65,7 +79,7 @@ export async function submitChestLog({ bundleId, chestLogText, lootLogName = '',
   return result;
 }
 
-export async function mergeLootLogBundles({ bundleIds, username }) {
+export async function mergeLootLogBundles({ actorName = username, bundleIds, username }) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
       action: 'merge',
@@ -83,6 +97,7 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
 
   void recordActionLog({
     action: 'Loot logs merged',
+    actorName,
     details: { count: bundleIds.length, sourceBundleIds: bundleIds },
     targetId: result.bundleId,
     targetName: result.lootFileName || 'Merged loot log',
@@ -92,7 +107,13 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
   return result;
 }
 
-export async function checkLootLogDeath({ bundleId, keptItems, lootLogName = '', player }) {
+export async function checkLootLogDeath({
+  actorName,
+  bundleId,
+  keptItems,
+  lootLogName = '',
+  player,
+}) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
       action: 'death-check',
@@ -111,6 +132,7 @@ export async function checkLootLogDeath({ bundleId, keptItems, lootLogName = '',
 
   void recordActionLog({
     action: 'Death check completed',
+    actorName,
     details: {
       lootLogName,
       players: [player],
@@ -124,7 +146,12 @@ export async function checkLootLogDeath({ bundleId, keptItems, lootLogName = '',
   return result;
 }
 
-export async function checkLootLogDeaths({ bundleId, checks, lootLogName = '' }) {
+export async function checkLootLogDeaths({
+  actorName,
+  bundleId,
+  checks,
+  lootLogName = '',
+}) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
       action: 'death-check-batch',
@@ -142,6 +169,7 @@ export async function checkLootLogDeaths({ bundleId, checks, lootLogName = '' })
 
   void recordActionLog({
     action: 'Death checks completed',
+    actorName,
     details: {
       count: checks.length,
       lootLogName,
@@ -161,7 +189,7 @@ export async function checkLootLogDeaths({ bundleId, checks, lootLogName = '' })
   return result;
 }
 
-export async function deleteLootLogBundle(bundleId) {
+export async function deleteLootLogBundle(bundleId, { actorName, bundle = {} } = {}) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({ bundleId }),
     headers: { 'Content-Type': 'application/json' },
@@ -175,15 +203,28 @@ export async function deleteLootLogBundle(bundleId) {
 
   void recordActionLog({
     action: 'Loot log deleted',
+    actorName,
+    details: {
+      lootLogDate: bundle.startAt || bundle.start_at || '',
+      lootLogName: bundle.lootFileName || bundle.displayLootFileName || bundle.fileName || '',
+      lootLogNumber: bundle.logNumber || null,
+    },
     targetId: bundleId,
-    targetName: result.lootFileName || bundleId,
+    targetName: bundle.lootFileName || bundle.displayLootFileName || bundle.fileName || result.lootFileName || bundleId,
     targetType: 'loot-log',
   });
 
   return result;
 }
 
-export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileNames, submitters }) {
+export async function updateLootLogBundle({
+  actorName,
+  bundleId,
+  ctaHour,
+  dateUtc,
+  fileNames,
+  submitters,
+}) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({ bundleId, ctaHour, dateUtc, fileNames, submitters }),
     headers: { 'Content-Type': 'application/json' },
@@ -197,6 +238,7 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
 
   void recordActionLog({
     action: 'Loot log updated',
+    actorName,
     details: { ctaHour, dateUtc },
     targetId: bundleId,
     targetName: result.displayLootFileName || fileNames?.baseName || fileNames?.loot || bundleId,

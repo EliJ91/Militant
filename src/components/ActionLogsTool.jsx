@@ -21,6 +21,17 @@ function cleanText(value, fallback = '') {
   return String(value || '').trim() || fallback;
 }
 
+function formatLogDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-US', {
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'UTC',
+    year: 'numeric',
+  }).format(date);
+}
+
 function permissionChangeText(change) {
   const text = cleanText(change);
   let match = text.match(/^Enabled (.+) for (.+)$/i);
@@ -105,7 +116,11 @@ function formatAction(log, bundleById) {
   }
 
   if (action === 'Loot log deleted') {
-    return `Deleted loot log ${cleanText(log.targetName, 'Untitled')}`;
+    const number = Number(details.lootLogNumber) || null;
+    const name = cleanText(details.lootLogName || log.targetName, 'Untitled');
+    const date = formatLogDate(details.lootLogDate);
+    const reference = `${number ? `Loot Log #${number}: ` : ''}${name}`;
+    return date ? `Deleted ${reference} (${date})` : `Deleted ${reference}`;
   }
 
   if (action === 'Siphoned Energy updated') {
