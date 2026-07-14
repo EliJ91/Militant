@@ -21,7 +21,6 @@ import {
 import { warmItemImageCache } from '../utils/itemImageCache';
 
 const FILTER_STORAGE_KEY = 'militant.lootMonitor.filters.v3';
-const UPLOAD_INSTRUCTIONS_IMAGE_URL = `${import.meta.env.BASE_URL}assets/upload-loot-log-instructions.png`;
 const LEGACY_FILTER_STORAGE_KEY = 'militant.lootMonitor.filters.v2';
 const GUILDLESS_VALUE = '__guildless__';
 const NO_ALLIANCE_VALUE = '__no_alliance__';
@@ -1833,6 +1832,62 @@ function submitterNamesFromSubmissions(submissions = []) {
 }
 
 function UploadInstructionsModal({ onClose }) {
+  const guideSections = [
+    {
+      steps: [
+        <>Open <strong>Loot Logs</strong> and select <strong>Upload</strong>.</>,
+        <>Drag in one or more loot logger <strong>.csv</strong> files, or select <strong>Choose files</strong>.</>,
+        <>Review the file list, then select <strong>Upload</strong>. Multiple files for the same CTA are grouped together.</>,
+      ],
+      title: 'Upload From The Webapp',
+    },
+    {
+      steps: [
+        <>Open or create the CTA thread in the designated Discord loot-log channel.</>,
+        <>Post every loot logger <strong>.csv</strong> file in that thread. Multiple members can post files.</>,
+        <>A member with <strong>Upload Loot Logs From Discord</strong> permission runs <code>/upload</code> inside the thread.</>,
+        <>A check reaction means the command was accepted. An X means the upload was rejected. The thread title becomes the loot log title.</>,
+      ],
+      title: 'Upload From Discord',
+    },
+    {
+      steps: [
+        <>Select the <strong>+</strong> beside <strong>Loot Log</strong> on an existing entry.</>,
+        <>Add the missing <strong>.csv</strong> files in the same upload window and submit them.</>,
+        <>The existing entry is updated and all item custody and player details are calculated again.</>,
+      ],
+      title: 'Add Loot Files Later',
+    },
+    {
+      steps: [
+        <>In Albion, open the bank tab, select <strong>Actions</strong>, then open its chest log.</>,
+        <>Choose the <strong>4 weeks</strong> view and copy every relevant page into one text block or text file.</>,
+        <>Select the <strong>+</strong> beside <strong>Chest linked</strong> or <strong>No chest log</strong>.</>,
+        <>Paste the log into the box or upload one or more <strong>.txt/.tsv</strong> files, then select <strong>Upload</strong>.</>,
+      ],
+      note: 'Entries before the loot log starts or more than two hours after it ends are ignored automatically.',
+      title: 'Upload Chest Logs',
+    },
+    {
+      steps: [
+        <>Right-click a loot log on desktop, or press and hold it on mobile. Selected logs are outlined in yellow.</>,
+        <>Select at least two entries, then select <strong>Merge</strong> beside the Upload button.</>,
+        <>The merged entry contains copies of all selected loot and chest logs. The original entries remain unchanged.</>,
+      ],
+      note: 'Death checks use each original CTA time window and do not search the gaps between CTAs.',
+      title: 'Merge Loot Logs',
+    },
+    {
+      steps: [
+        <><strong>View</strong> opens the full item report. Use Tier, Item Type, Guild, Alliance, Sort, and Status to narrow it down.</>,
+        <><strong>Check Deaths</strong> checks unaccounted items. <strong>Copy Screenshot</strong> captures only the displayed report.</>,
+        <><strong>View Raw</strong> shows the source logs. <strong>Share</strong> copies a link to the current report.</>,
+        <><strong>Edit</strong>, <strong>Download</strong>, and <strong>Delete</strong> appear only when your Discord roles grant those permissions.</>,
+      ],
+      title: 'Review And Manage',
+    },
+  ];
+
   return (
     <div className="upload-instructions-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -1855,7 +1910,29 @@ function UploadInstructionsModal({ onClose }) {
           </button>
         </div>
         <div className="upload-instructions-body">
-          <img src={UPLOAD_INSTRUCTIONS_IMAGE_URL} alt="Loot log upload instructions" />
+          <section className="upload-guide-intro">
+            <p className="eyebrow">Loot Log Guide</p>
+            <h3>From raw files to a complete CTA report</h3>
+            <p>Use the method that matches where your files are. Available actions depend on your Discord role.</p>
+            <div className="upload-guide-formats" aria-label="Supported file formats">
+              <span><strong>Loot logs</strong> .csv</span>
+              <span><strong>Chest logs</strong> paste, .txt, or .tsv</span>
+            </div>
+          </section>
+          <div className="upload-guide-sections">
+            {guideSections.map((section, sectionIndex) => (
+              <section className="upload-guide-section" key={section.title}>
+                <header>
+                  <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
+                  <h3>{section.title}</h3>
+                </header>
+                <ol>
+                  {section.steps.map((step, stepIndex) => <li key={`${section.title}-${stepIndex}`}>{step}</li>)}
+                </ol>
+                {section.note ? <p className="upload-guide-note">{section.note}</p> : null}
+              </section>
+            ))}
+          </div>
         </div>
       </section>
     </div>
