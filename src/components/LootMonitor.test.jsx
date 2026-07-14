@@ -959,6 +959,7 @@ describe('LootMonitor', () => {
     await waitFor(() => expect(submitChestLog).toHaveBeenCalledWith({
       bundleId: 'bundle-18',
       chestLogText: chestText,
+      lootLogName: 'loot-events-original',
       username: 'manual-web-upload',
     }));
 
@@ -975,11 +976,13 @@ describe('LootMonitor', () => {
     expect(submitChestLog).toHaveBeenNthCalledWith(1, {
       bundleId: 'bundle-18',
       chestLogText: chestText,
+      lootLogName: 'loot-events-original',
       username: 'manual-web-upload',
     });
     expect(submitChestLog).toHaveBeenNthCalledWith(2, {
       bundleId: 'bundle-18',
       chestLogText: chestText,
+      lootLogName: 'loot-events-original',
       username: 'manual-web-upload',
     });
   });
@@ -1104,6 +1107,7 @@ describe('LootMonitor', () => {
     await waitFor(() => expect(submitChestLog).toHaveBeenCalledWith({
       bundleId: 'bundle-18',
       chestLogText: chestText,
+      lootLogName: '18UTC-JUN-18',
       username: 'Onslawht',
     }));
   });

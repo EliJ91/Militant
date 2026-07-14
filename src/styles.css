@@ -86,7 +86,7 @@
   padding: 13px 16px;
   border-bottom: 1px solid rgba(247, 250, 245, 0.09);
   text-align: left;
-  vertical-align: middle;
+  vertical-align: top;
 }
 
 .action-logs-table th {
@@ -103,6 +103,22 @@
 
 .action-logs-table time {
   white-space: nowrap;
+}
+
+.action-logs-table th:first-child,
+.action-logs-table td:first-child {
+  width: 190px;
+}
+
+.action-logs-table th:last-child,
+.action-logs-table td:last-child {
+  width: 230px;
+}
+
+.action-logs-action-text {
+  color: var(--white);
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .action-log-list {

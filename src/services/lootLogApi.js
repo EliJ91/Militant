@@ -37,7 +37,7 @@ export async function submitLootLog({ bundleId = null, lootLogText, originalFile
   return result;
 }
 
-export async function submitChestLog({ bundleId, chestLogText, username }) {
+export async function submitChestLog({ bundleId, chestLogText, lootLogName = '', username }) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
       action: 'chest',
@@ -56,6 +56,7 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
 
   void recordActionLog({
     action: 'Chest log uploaded',
+    details: { lootLogName },
     targetId: result.bundleId || bundleId,
     targetName: result.fileName || 'Chest log',
     targetType: 'chest-log',

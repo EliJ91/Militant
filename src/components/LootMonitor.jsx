@@ -2230,6 +2230,7 @@ export function LootLogArchive({
         const result = await submitChestLog({
           bundleId: bundle.id,
           chestLogText: text,
+          lootLogName: bundle.lootFileName || bundle.displayLootFileName || bundle.fileName || '',
           username: uploadUsername,
         });
         uploadedNames.push(result.fileName || file.name || 'Chest Log');

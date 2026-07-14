@@ -16,50 +16,116 @@ function formatDateTime(value) {
   }).format(date);
 }
 
-function detailSummary(details = {}) {
-  const parts = [];
-  if (details.fileName) parts.push(`File: ${details.fileName}`);
-  if (details.uploadedBy) parts.push(`Log by: ${details.uploadedBy}`);
-  if (details.lootLogName) parts.push(`Log: ${details.lootLogName}`);
-  if (Array.isArray(details.players) && details.players.length > 0) {
-    parts.push(`Players: ${details.players.slice(0, 8).join(', ')}${details.players.length > 8 ? ` +${details.players.length - 8}` : ''}`);
-  } else if (details.player) {
-    parts.push(`Player: ${details.player}`);
-  }
-  if (Array.isArray(details.changes) && details.changes.length > 0) {
-    parts.push(...details.changes.slice(0, 5));
-    if (details.changes.length > 5) parts.push(`+${details.changes.length - 5} more changes`);
-  }
-  if (Number.isFinite(Number(details.count))) parts.push(`${Number(details.count).toLocaleString()} affected`);
-  if (Number.isFinite(Number(details.insertedRows))) parts.push(`${Number(details.insertedRows).toLocaleString()} added`);
-  if (details.status) parts.push(String(details.status).replaceAll('_', ' '));
-  if (details.source) parts.push(String(details.source));
-  return parts.join(' / ');
+function cleanText(value, fallback = '') {
+  return String(value || '').trim() || fallback;
 }
 
-function actionClass(action) {
-  const text = String(action || '').toLowerCase();
-  if (text.includes('delete') || text.includes('removed')) return 'danger';
-  if (text.includes('death')) return 'warn';
-  if (text.includes('permission')) return 'info';
-  return 'success';
+function permissionChangeText(change) {
+  const text = cleanText(change);
+  let match = text.match(/^Enabled (.+) for (.+)$/i);
+  if (match) return `Added ${match[1]} permission to ${match[2]} Role`;
+
+  match = text.match(/^Disabled (.+) for (.+)$/i);
+  if (match) return `Removed ${match[1]} permission from ${match[2]} Role`;
+
+  match = text.match(/^Added role (.+)$/i);
+  if (match) return `Added ${match[1]} Role`;
+
+  match = text.match(/^Deleted role (.+)$/i);
+  if (match) return `Deleted ${match[1]} Role`;
+
+  match = text.match(/^Renamed (.+) to (.+)$/i);
+  if (match) return `Renamed ${match[1]} Role to ${match[2]}`;
+
+  match = text.match(/^Moved (.+) to column (.+)$/i);
+  if (match) return `Moved ${match[1]} Role to column ${match[2]}`;
+
+  return text;
 }
 
-function detailChips(details = {}) {
-  const chips = [];
-  if (details.fileName) chips.push({ label: 'File', value: details.fileName });
-  if (details.uploadedBy) chips.push({ label: 'Log By', value: details.uploadedBy });
-  if (details.lootLogName) chips.push({ label: 'Loot Log', value: details.lootLogName });
-  if (Array.isArray(details.players) && details.players.length > 0) {
-    chips.push({ label: 'Players', value: details.players.join(', ') });
+function deathCheckRows(log) {
+  const details = log.details || {};
+  const players = Array.isArray(details.players) && details.players.length > 0
+    ? details.players
+    : [details.player].filter(Boolean);
+  const lootLogName = cleanText(details.lootLogName || log.targetName || log.targetId, 'selected loot log');
+
+  if (players.length === 0) {
+    return [{
+      ...log,
+      actionText: `Checked death for loot log: ${lootLogName}`,
+      rowId: `${log.id || log.createdAt}-death`,
+    }];
   }
-  if (details.status) chips.push({ label: 'Status', value: String(details.status).replaceAll('_', ' ') });
-  if (details.source) chips.push({ label: 'Source', value: details.source });
-  if (Number.isFinite(Number(details.insertedRows))) chips.push({ label: 'Added', value: Number(details.insertedRows).toLocaleString() });
-  if (Number.isFinite(Number(details.count)) && !Array.isArray(details.changes)) {
-    chips.push({ label: 'Affected', value: Number(details.count).toLocaleString() });
+
+  return players.map((player, index) => ({
+    ...log,
+    actionText: `Checked ${player} death for loot log: ${lootLogName}`,
+    rowId: `${log.id || log.createdAt}-death-${index}`,
+  }));
+}
+
+function formatAction(log) {
+  const action = cleanText(log.action);
+  const details = log.details || {};
+
+  if (action === 'Loot log uploaded from Discord') {
+    const uploadedBy = cleanText(details.uploadedBy);
+    return uploadedBy ? `Uploaded ${uploadedBy} log from Discord` : 'Uploaded loot log from Discord';
   }
-  return chips;
+
+  if (action === 'Loot log uploaded') {
+    return `Uploaded loot log ${cleanText(log.targetName || details.fileName, 'Untitled')}`;
+  }
+
+  if (action === 'Chest log uploaded') {
+    return `Uploaded chest log for loot log ${cleanText(details.lootLogName || log.targetName, 'Untitled')}`;
+  }
+
+  if (action === 'Loot logs merged') {
+    return `Merged loot logs into ${cleanText(log.targetName, 'new loot log')}`;
+  }
+
+  if (action === 'Loot log updated') {
+    return `Updated loot log ${cleanText(log.targetName, 'Untitled')}`;
+  }
+
+  if (action === 'Loot log deleted') {
+    return `Deleted loot log ${cleanText(log.targetName, 'Untitled')}`;
+  }
+
+  if (action === 'Siphoned Energy updated') {
+    return `Updated Siphoned Energy log`;
+  }
+
+  if (action === 'Members updated') {
+    return `Updated members list`;
+  }
+
+  return cleanText(log.action, 'Updated webapp');
+}
+
+function flattenLogs(logs) {
+  return logs.flatMap((log) => {
+    const details = log.details || {};
+    if (log.action === 'Permissions updated' && Array.isArray(details.changes) && details.changes.length > 0) {
+      return details.changes.map((change, index) => ({
+        ...log,
+        actionText: permissionChangeText(change),
+        rowId: `${log.id || log.createdAt}-permission-${index}`,
+      }));
+    }
+
+    if (log.action === 'Death check completed' || log.action === 'Death checks completed') {
+      return deathCheckRows(log);
+    }
+
+    return [{
+      ...log,
+      actionText: formatAction(log),
+      rowId: log.id || `${log.createdAt}-${log.action}`,
+    }];
+  });
 }
 
 export default function ActionLogsTool() {
@@ -87,7 +153,8 @@ export default function ActionLogsTool() {
     loadLogs();
   }, []);
 
-  const visibleCount = useMemo(() => logs.length.toLocaleString(), [logs.length]);
+  const rows = useMemo(() => flattenLogs(logs), [logs]);
+  const visibleCount = useMemo(() => rows.length.toLocaleString(), [rows.length]);
 
   return (
     <main className="dashboard-shell action-logs-shell">
@@ -115,39 +182,26 @@ export default function ActionLogsTool() {
         {status.state === 'error' ? <p className="loot-message error">{status.message}</p> : null}
         {status.state === 'ready' && logs.length === 0 ? <p className="action-logs-empty">No actions recorded yet.</p> : null}
 
-        {logs.length > 0 ? (
-          <div className="action-log-list">
-            {logs.map((log) => (
-              <article className="action-log-card" key={log.id}>
-                <div className="action-log-meta">
-                  <time dateTime={log.createdAt}>{formatDateTime(log.createdAt)}</time>
-                  <strong>{log.actorName || 'System'}</strong>
-                </div>
-                <div className="action-log-main">
-                  <div className="action-log-title-row">
-                    <span className={`action-log-pill ${actionClass(log.action)}`}>{log.action}</span>
-                    <strong>{log.targetName || log.targetType || 'Webapp'}</strong>
-                  </div>
-                  <p>{detailSummary(log.details) || 'No extra details recorded.'}</p>
-                  {Array.isArray(log.details?.changes) && log.details.changes.length > 0 ? (
-                    <ul className="action-log-change-list">
-                      {log.details.changes.slice(0, 10).map((change, index) => <li key={`${change}-${index}`}>{change}</li>)}
-                      {log.details.changes.length > 10 ? <li>{log.details.changes.length - 10} more changes</li> : null}
-                    </ul>
-                  ) : null}
-                  {detailChips(log.details).length > 0 ? (
-                    <div className="action-log-chips">
-                      {detailChips(log.details).map((chip) => (
-                        <span key={`${chip.label}-${chip.value}`}>
-                          <small>{chip.label}</small>
-                          {chip.value}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </article>
-            ))}
+        {rows.length > 0 ? (
+          <div className="action-logs-table-wrap">
+            <table className="action-logs-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Date and Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((log) => (
+                  <tr key={log.rowId}>
+                    <td className="action-logs-actor">{cleanText(log.actorName, 'System')}</td>
+                    <td className="action-logs-action-text">{log.actionText || formatAction(log)}</td>
+                    <td><time dateTime={log.createdAt}>{formatDateTime(log.createdAt)}</time></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : null}
 
