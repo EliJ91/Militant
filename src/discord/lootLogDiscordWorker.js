@@ -210,10 +210,43 @@ async function saveThreadBundle(supabase, thread, bundleId) {
     .single();
 
   if (error) throw error;
+  const { error: trackingError } = await supabase
+    .from('discord_loot_threads')
+    .upsert({
+      bundle_id: bundleId,
+      channel_id: thread.parentId,
+      thread_id: thread.id,
+      thread_name: cleanString(thread.name),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'thread_id' });
+  if (trackingError) throw trackingError;
   return {
     bundle_id: data.id,
     processedAttachmentIds: data.combined_loot_summary?.discordProcessedAttachmentIds || [],
   };
+}
+
+async function registerNewThread(supabase, thread) {
+  const { error } = await supabase
+    .from('discord_loot_threads')
+    .upsert({
+      bundle_id: null,
+      channel_id: thread.parentId,
+      thread_id: thread.id,
+      thread_name: cleanString(thread.name),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'thread_id' });
+  if (error) throw error;
+}
+
+async function isRegisteredThread(supabase, threadId) {
+  const { data, error } = await supabase
+    .from('discord_loot_threads')
+    .select('thread_id')
+    .eq('thread_id', threadId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
 }
 
 async function getProcessedAttachmentIds(supabase, attachmentIds, threadRecord) {
@@ -388,17 +421,6 @@ export async function processLootLogThread({
   return { bundleId, processedAttachments, skippedAttachments };
 }
 
-async function scanActiveThreads(client, channelId, handler) {
-  const channel = await client.channels.fetch(channelId);
-  if (!channel?.threads?.fetchActive) return;
-
-  const active = await channel.threads.fetchActive();
-  const threads = [...(active?.threads?.values?.() || [])];
-  for (const thread of threads) {
-    await handler(thread);
-  }
-}
-
 export function createLootLogDiscordWorker({
   channelId = process.env.DISCORD_LOOT_LOG_CHANNEL_ID || DEFAULT_LOOT_LOG_THREAD_CHANNEL_ID,
   client = null,
@@ -430,20 +452,24 @@ export function createLootLogDiscordWorker({
     }
   };
 
-  botClient.once('ready', async () => {
+  botClient.once('ready', () => {
     console.log(`[loot-discord-worker] Logged in as ${botClient.user?.tag || botClient.user?.id}.`);
-    try {
-      await scanActiveThreads(botClient, channelId, handleThread);
-    } catch (error) {
-      console.error('[loot-discord-worker] Active thread scan failed:', error);
-    }
   });
 
-  botClient.on('threadCreate', handleThread);
+  botClient.on('threadCreate', async (thread) => {
+    if (!isTargetThread(thread, channelId)) return;
+    try {
+      await registerNewThread(admin, thread);
+      await handleThread(thread);
+    } catch (error) {
+      console.error(`[loot-discord-worker] Could not register new thread ${thread?.id || 'unknown'}.`, error);
+    }
+  });
   botClient.on('messageCreate', async (message) => {
     const thread = message?.channel;
     if (!isTargetThread(thread, channelId)) return;
     if (!message.attachments || message.attachments.size === 0) return;
+    if (!await isRegisteredThread(admin, thread.id)) return;
     await handleThread(thread);
   });
 
