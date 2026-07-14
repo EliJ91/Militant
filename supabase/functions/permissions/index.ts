@@ -54,6 +54,22 @@ function createSupabaseAdmin() {
   return createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 }
 
+async function getDiscordMemberFromWorker(discordUserId: string) {
+  const memberLookupUrl = String(Deno.env.get('MEMBER_LOOKUP_URL') || '').trim();
+  const memberLookupSecret = String(Deno.env.get('MEMBER_LOOKUP_SECRET') || '').trim();
+  if (!memberLookupUrl || !memberLookupSecret) return null;
+
+  const response = await fetch(memberLookupUrl, {
+    body: JSON.stringify({ guildId: DISCORD_GUILD_ID, userId: discordUserId }),
+    headers: {
+      Authorization: `Bearer ${memberLookupSecret}`,
+      'Content-Type': 'application/json',
+    },
+    method: 'POST',
+  });
+  return response.ok ? await response.json() : null;
+}
+
 async function getPermissionSettings(supabase: any) {
   const { data, error } = await supabase
     .from('webapp_permission_settings')
@@ -86,20 +102,17 @@ async function getDiscordMemberRoles(supabase: any, request: Request) {
   }
 
   const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
-  if (!botToken) throw new Error('Discord bot token is not configured.');
-
-  const response = await fetch(
-    `https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`,
-    { headers: { Authorization: `Bot ${botToken}` } },
-  );
-
-  if (response.status === 404) {
-    return { discordGuildId: DISCORD_GUILD_ID, discordUserId, roleIds: [] };
+  if (botToken) {
+    const response = await fetch(
+      `https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`,
+      { headers: { Authorization: `Bot ${botToken}` } },
+    );
+    if (response.ok) return formatDiscordMember(discordUserId, await response.json());
   }
 
-  if (!response.ok) throw new Error('Could not load Discord member roles.');
-
-  return formatDiscordMember(discordUserId, await response.json());
+  const workerMember = await getDiscordMemberFromWorker(discordUserId);
+  if (workerMember) return workerMember;
+  throw new Error('Could not load Discord member roles.');
 }
 
 async function getDiscordMemberFromOAuth(accessToken: string, expectedUserId: string) {

@@ -71,6 +71,22 @@ function discordMemberDisplayName(member: any) {
   return clean(member?.nick || member?.user?.global_name || member?.user?.username);
 }
 
+async function getDiscordMemberFromWorker(discordUserId: string) {
+  const memberLookupUrl = clean(Deno.env.get('MEMBER_LOOKUP_URL'));
+  const memberLookupSecret = clean(Deno.env.get('MEMBER_LOOKUP_SECRET'));
+  if (!memberLookupUrl || !memberLookupSecret) return null;
+
+  const response = await fetch(memberLookupUrl, {
+    body: JSON.stringify({ guildId: DISCORD_GUILD_ID, userId: discordUserId }),
+    headers: {
+      Authorization: `Bearer ${memberLookupSecret}`,
+      'Content-Type': 'application/json',
+    },
+    method: 'POST',
+  });
+  return response.ok ? await response.json() : null;
+}
+
 function fallbackActorName(value: unknown) {
   const actorName = clean(value);
   return !actorName || /^unknown(?:\s+server)?\s+(?:member|user)$/i.test(actorName) ? 'System' : actorName;
@@ -104,13 +120,20 @@ async function resolveActionActorName(
   }
 
   const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
-  if (!botToken) return fallbackActorName(requestedActorName);
-  const memberResponse = await fetch(
-    `https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`,
-    { headers: { Authorization: `Bot ${botToken}` } },
-  );
-  if (!memberResponse.ok) return fallbackActorName(requestedActorName);
-  return discordMemberDisplayName(await memberResponse.json()) || fallbackActorName(requestedActorName);
+  if (botToken) {
+    const memberResponse = await fetch(
+      `https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`,
+      { headers: { Authorization: `Bot ${botToken}` } },
+    );
+    if (memberResponse.ok) {
+      const botName = discordMemberDisplayName(await memberResponse.json());
+      if (botName) return botName;
+    }
+  }
+
+  const workerMember = await getDiscordMemberFromWorker(discordUserId).catch(() => null);
+  return clean(workerMember?.guildNickname || workerMember?.serverNickname)
+    || fallbackActorName(requestedActorName);
 }
 
 function bundleTitle(bundle: any) {
