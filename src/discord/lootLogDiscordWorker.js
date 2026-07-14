@@ -7,6 +7,7 @@ import {
   Partials,
 } from 'discord.js';
 import { submitLootLog } from '../server/supabaseLootLogs.js';
+import { recordActionLog } from '../server/supabaseActionLogs.js';
 import { buildLootLogEvents } from '../utils/lootLogMerge.js';
 
 export const DEFAULT_LOOT_LOG_THREAD_CHANNEL_ID = '1492400020958351391';
@@ -315,6 +316,23 @@ async function processPreparedJob({ bundleId, job, submitLootLogFn, supabase, th
       logType: job.logType,
       submittedBy: job.submittedBy,
     });
+    try {
+      await recordActionLog({
+        action: 'Loot log uploaded from Discord',
+        actorName: job.submittedBy,
+        details: {
+          fileName: job.fileName,
+          source: 'Discord thread',
+          threadName: cleanString(thread.name),
+        },
+        supabase,
+        targetId: nextBundleId,
+        targetName: cleanString(thread.name) || job.fileName,
+        targetType: 'loot-log',
+      });
+    } catch (error) {
+      console.warn('[loot-discord-worker] Could not record action log.', error.message || error);
+    }
     return { bundleId: nextBundleId, processed: true, type: job.logType };
   }
 

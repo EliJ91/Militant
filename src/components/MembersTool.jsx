@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchSiphonedEnergyMembers } from '../services/siphonedEnergyApi';
+import { recordActionLog } from '../services/actionLogsApi';
 
 const SORT_COLUMNS = [
   { align: 'left', key: 'playerName', label: 'Username', type: 'text' },
@@ -63,13 +64,21 @@ export default function MembersTool({ canUpdate = false }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortState, setSortState] = useState({ direction: 'desc', key: 'dateAdded' });
 
-  async function loadMembers() {
+  async function loadMembers({ recordUpdate = false } = {}) {
     setLoadStatus({ message: '', state: 'loading' });
 
     try {
       const result = await fetchSiphonedEnergyMembers();
       setMembers(result.members || []);
       setLoadStatus({ message: '', state: 'loaded' });
+      if (recordUpdate) {
+        void recordActionLog({
+          action: 'Members list updated',
+          details: { count: result.members?.length || 0 },
+          targetName: 'Militant Members',
+          targetType: 'members',
+        });
+      }
     } catch (error) {
       setLoadStatus({
         message: error.message || 'Could not load Militant members.',
@@ -162,7 +171,7 @@ export default function MembersTool({ canUpdate = false }) {
           disabled={!canUpdate || loadStatus.state === 'loading' || updateCoolingDown}
           title={updateCoolingDown ? 'Member list was updated within the last 3 days' : 'Update members'}
           type="button"
-          onClick={loadMembers}
+          onClick={() => loadMembers({ recordUpdate: true })}
         >
           {loadStatus.state === 'loading' ? 'Updating' : 'Update'}
         </button>

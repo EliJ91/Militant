@@ -20,6 +20,128 @@
   --line: rgba(247, 250, 245, 0.16);
 }
 
+.action-logs-shell {
+  gap: 18px;
+}
+
+.action-logs-heading {
+  align-items: end;
+}
+
+.action-logs-count {
+  display: grid;
+  min-width: 132px;
+  padding: 12px 16px;
+  border: 1px solid rgba(69, 220, 111, 0.34);
+  border-radius: 6px;
+  background: #07110b;
+  text-align: right;
+}
+
+.action-logs-count span,
+.action-logs-board-heading > strong {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.action-logs-count strong {
+  color: var(--white);
+  font-size: 1.35rem;
+}
+
+.action-logs-board {
+  overflow: hidden;
+  border: 1px solid rgba(69, 220, 111, 0.28);
+  border-radius: 7px;
+  background: #050d08;
+}
+
+.action-logs-board-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.12);
+}
+
+.action-logs-board-heading h2 {
+  margin: 3px 0 0;
+  font-size: 1.2rem;
+}
+
+.action-logs-table-wrap {
+  overflow-x: auto;
+}
+
+.action-logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.action-logs-table th,
+.action-logs-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.09);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.action-logs-table th {
+  color: var(--muted);
+  background: #09130d;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.action-logs-table tbody tr:hover {
+  background: rgba(69, 220, 111, 0.05);
+}
+
+.action-logs-table time {
+  white-space: nowrap;
+}
+
+.action-logs-actor,
+.action-logs-action {
+  color: var(--green-hot);
+  font-weight: 800;
+}
+
+.action-logs-empty {
+  margin: 0;
+  padding: 28px 20px;
+  color: var(--muted);
+}
+
+.action-logs-more {
+  display: block;
+  margin: 16px auto;
+}
+
+@media (max-width: 720px) {
+  .action-logs-heading {
+    align-items: stretch;
+  }
+
+  .action-logs-count {
+    width: 100%;
+    text-align: left;
+  }
+
+  .action-logs-board-heading {
+    padding: 14px;
+  }
+
+  .action-logs-table th,
+  .action-logs-table td {
+    padding: 11px 12px;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

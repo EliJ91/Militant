@@ -3,6 +3,8 @@ import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import MembersTool from './components/MembersTool';
 import PermissionsTool from './components/PermissionsTool';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
+import ActionLogsTool from './components/ActionLogsTool';
+import { setActionLogActorName } from './services/actionLogsApi';
 import {
   clearPendingAuthRoute,
   getCurrentAuthSession,
@@ -37,6 +39,7 @@ function getRoute() {
   if (route === 'siphoned-energy') return 'siphoned-energy';
   if (route === 'members') return 'members';
   if (route === 'permissions') return 'permissions';
+  if (route === 'action-logs') return 'action-logs';
   return route === 'dashboard' ? 'dashboard' : 'landing';
 }
 
@@ -452,6 +455,13 @@ function DashboardPage({
       title: 'Permissions',
       to: '#permissions',
     },
+    {
+      description: 'Review changes and additions made across the webapp.',
+      kicker: 'Admin',
+      permission: 'viewActionLog',
+      title: 'Action Logs',
+      to: '#action-logs',
+    },
   ].filter((tool) => permissions[tool.permission]);
 
   return (
@@ -655,6 +665,34 @@ function PermissionsPage({
   );
 }
 
+function ActionLogsPage({
+  currentUser = null,
+  isSuperUserProfile = false,
+  onResetViewAsRole = () => {},
+  onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
+}) {
+  return (
+    <>
+      <Topbar
+        actions={[
+          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
+          { label: 'Sign Out', onClick: onSignOut },
+        ]}
+        currentUser={currentUser}
+        isSuperUserProfile={isSuperUserProfile}
+        onResetViewAsRole={onResetViewAsRole}
+        onToggleViewAsRole={onToggleViewAsRole}
+        viewAsRoleIds={viewAsRoleIds}
+        viewAsRoles={viewAsRoles}
+      />
+      <ActionLogsTool />
+    </>
+  );
+}
+
 export default function App() {
   const [route, setRoute] = useState(getRoute);
   const [isDiscordAuthenticated, setIsDiscordAuthenticated] = useState(false);
@@ -696,6 +734,10 @@ export default function App() {
     viewAsRoleIds,
     viewAsRoles: permissionSettings.roles,
   };
+
+  useEffect(() => {
+    setActionLogActorName(getUploadUsername(currentUser || {}));
+  }, [currentUser]);
 
   useEffect(() => {
     const updateRoute = () => {
@@ -814,6 +856,7 @@ export default function App() {
       : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
       : route === 'members' ? 'Members'
       : route === 'permissions' ? 'Permissions'
+      : route === 'action-logs' ? 'Action Logs'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);
@@ -889,6 +932,12 @@ export default function App() {
   } else if (route === 'permissions') {
     page = effectivePermissions.changePermissions ? (
       <PermissionsPage currentUser={currentUser} onSignOut={handleSignOut} {...topbarContext} />
+    ) : (
+      <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
+    );
+  } else if (route === 'action-logs') {
+    page = effectivePermissions.viewActionLog ? (
+      <ActionLogsPage currentUser={currentUser} onSignOut={handleSignOut} {...topbarContext} />
     ) : (
       <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
     );

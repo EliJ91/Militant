@@ -1,4 +1,5 @@
 const DEFAULT_API_URL = '/api/siphoned-energy';
+import { recordActionLog } from './actionLogsApi';
 export const PRODUCTION_API_URL = 'https://maeljnrgffgrljqusnre.supabase.co/functions/v1/siphoned-energy';
 
 export function getSiphonedEnergyApiUrl() {
@@ -37,7 +38,14 @@ export async function updateSiphonedEnergyTransactions(logText) {
     headers: { 'Content-Type': 'application/json' },
     method: 'POST',
   });
-  return readResult(response, 'Could not update Siphoned Energy transactions.');
+  const result = await readResult(response, 'Could not update Siphoned Energy transactions.');
+  void recordActionLog({
+    action: 'Siphoned Energy log updated',
+    details: { insertedRows: result.inserted || result.insertedRows || 0 },
+    targetName: 'Siphoned Energy Ledger',
+    targetType: 'siphoned-energy',
+  });
+  return result;
 }
 
 export async function updateSiphonedEnergyPlayerStar({ player, starred }) {
@@ -46,7 +54,14 @@ export async function updateSiphonedEnergyPlayerStar({ player, starred }) {
     headers: { 'Content-Type': 'application/json' },
     method: 'PATCH',
   });
-  return readResult(response, 'Could not update player star.');
+  const result = await readResult(response, 'Could not update player star.');
+  void recordActionLog({
+    action: starred ? 'Siphoned Energy player starred' : 'Siphoned Energy player unstarred',
+    details: { player },
+    targetName: player,
+    targetType: 'siphoned-energy-player',
+  });
+  return result;
 }
 
 export async function purgeSiphonedEnergyTransactions({ date }) {
@@ -55,5 +70,12 @@ export async function purgeSiphonedEnergyTransactions({ date }) {
     headers: { 'Content-Type': 'application/json' },
     method: 'DELETE',
   });
-  return readResult(response, 'Could not purge Siphoned Energy transactions.');
+  const result = await readResult(response, 'Could not purge Siphoned Energy transactions.');
+  void recordActionLog({
+    action: 'Siphoned Energy transactions purged',
+    details: { count: result.deleted || result.deletedRows || 0 },
+    targetName: date,
+    targetType: 'siphoned-energy',
+  });
+  return result;
 }

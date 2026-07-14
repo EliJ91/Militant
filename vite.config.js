@@ -300,6 +300,48 @@ function permissionsApi() {
   };
 }
 
+function actionLogsApi() {
+  async function handleActionLogs(req, res) {
+    if (req.method === 'OPTIONS') {
+      sendJson(res, 204, {});
+      return;
+    }
+
+    try {
+      const { listActionLogs, recordActionLog } = await import('./src/server/supabaseActionLogs.js');
+      if (req.method === 'GET') {
+        const requestUrl = new URL(req.url || '/', 'http://127.0.0.1');
+        sendJson(res, 200, await listActionLogs({
+          before: requestUrl.searchParams.get('before') || '',
+          limit: requestUrl.searchParams.get('limit') || 100,
+        }));
+        return;
+      }
+
+      if (req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const actionLog = await recordActionLog(body);
+        sendJson(res, 201, { actionLog });
+        return;
+      }
+
+      sendJson(res, 405, { error: 'Method not allowed.' });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || 'Could not update action logs.' });
+    }
+  }
+
+  return {
+    name: 'action-logs-api',
+    configureServer(server) {
+      server.middlewares.use('/api/action-logs', handleActionLogs);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use('/api/action-logs', handleActionLogs);
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   process.env.SUPABASE_URL ||= env.SUPABASE_URL || env.VITE_SUPABASE_URL;
@@ -307,7 +349,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',
-    plugins: [react(), albionItemProxy(), lootLogApi(), siphonedEnergyApi(), permissionsApi()],
+    plugins: [react(), albionItemProxy(), lootLogApi(), siphonedEnergyApi(), permissionsApi(), actionLogsApi()],
     server: {
       host: '127.0.0.1',
       port: 5173,

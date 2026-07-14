@@ -1,4 +1,5 @@
 const DEFAULT_API_URL = '/api/permissions';
+import { recordActionLog } from './actionLogsApi';
 export const PRODUCTION_API_URL = 'https://maeljnrgffgrljqusnre.supabase.co/functions/v1/permissions';
 
 export function getPermissionsApiUrl() {
@@ -50,7 +51,14 @@ export async function updatePermissionSettings(settings) {
       headers: { 'Content-Type': 'application/json' },
       method: 'PUT',
     });
-    return readResult(response, 'Could not save permissions.');
+    const result = await readResult(response, 'Could not save permissions.');
+    void recordActionLog({
+      action: 'Permissions updated',
+      details: { count: Array.isArray(settings?.roles) ? settings.roles.length : 0 },
+      targetName: 'Role Access Matrix',
+      targetType: 'permissions',
+    });
+    return result;
   } catch (error) {
     throw new Error(error.message === 'Failed to fetch' ? 'Could not reach permissions database.' : error.message);
   }

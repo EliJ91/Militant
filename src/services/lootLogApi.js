@@ -1,4 +1,5 @@
 const DEFAULT_LOOT_LOG_API_URL = '/api/loot-logs';
+import { recordActionLog } from './actionLogsApi';
 
 export function getLootLogApiUrl() {
   if (import.meta.env.PROD) {
@@ -25,6 +26,14 @@ export async function submitLootLog({ bundleId = null, lootLogText, originalFile
     throw new Error(result.error || 'Could not upload loot log.');
   }
 
+  void recordActionLog({
+    action: 'Loot log uploaded',
+    details: { fileName: originalFileName, source: 'webapp' },
+    targetId: result.bundleId || bundleId,
+    targetName: result.lootFileName || result.summary?.displayLootFileName || originalFileName,
+    targetType: 'loot-log',
+  });
+
   return result;
 }
 
@@ -45,6 +54,13 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
     throw new Error(result.error || 'Could not upload chest log.');
   }
 
+  void recordActionLog({
+    action: 'Chest log uploaded',
+    targetId: result.bundleId || bundleId,
+    targetName: result.fileName || 'Chest log',
+    targetType: 'chest-log',
+  });
+
   return result;
 }
 
@@ -63,6 +79,14 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
   if (!response.ok) {
     throw new Error(result.error || 'Could not merge loot logs.');
   }
+
+  void recordActionLog({
+    action: 'Loot logs merged',
+    details: { count: bundleIds.length, sourceBundleIds: bundleIds },
+    targetId: result.bundleId,
+    targetName: result.lootFileName || 'Merged loot log',
+    targetType: 'loot-log',
+  });
 
   return result;
 }
@@ -84,6 +108,14 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
     throw new Error(result.error || 'Could not check the player death log.');
   }
 
+  void recordActionLog({
+    action: 'Death check completed',
+    details: { player, status: result.deathCheck?.status || 'checked' },
+    targetId: bundleId,
+    targetName: player,
+    targetType: 'death-check',
+  });
+
   return result;
 }
 
@@ -102,6 +134,14 @@ export async function checkLootLogDeaths({ bundleId, checks }) {
   if (!response.ok) {
     throw new Error(result.error || 'Could not check the visible player deaths.');
   }
+
+  void recordActionLog({
+    action: 'Death checks completed',
+    details: { count: checks.length },
+    targetId: bundleId,
+    targetName: `${checks.length} players`,
+    targetType: 'death-check',
+  });
 
   return result;
 }
@@ -122,6 +162,14 @@ export async function clearLootLogDeath({ bundleId, player }) {
     throw new Error(result.error || 'Could not remove the saved death check.');
   }
 
+  void recordActionLog({
+    action: 'Death check reset',
+    details: { player },
+    targetId: bundleId,
+    targetName: player,
+    targetType: 'death-check',
+  });
+
   return result;
 }
 
@@ -137,6 +185,13 @@ export async function deleteLootLogBundle(bundleId) {
     throw new Error(result.error || 'Could not delete loot log.');
   }
 
+  void recordActionLog({
+    action: 'Loot log deleted',
+    targetId: bundleId,
+    targetName: result.lootFileName || bundleId,
+    targetType: 'loot-log',
+  });
+
   return result;
 }
 
@@ -151,6 +206,14 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
   if (!response.ok) {
     throw new Error(result.error || 'Could not update loot log.');
   }
+
+  void recordActionLog({
+    action: 'Loot log updated',
+    details: { ctaHour, dateUtc },
+    targetId: bundleId,
+    targetName: result.displayLootFileName || fileNames?.baseName || fileNames?.loot || bundleId,
+    targetType: 'loot-log',
+  });
 
   return result;
 }

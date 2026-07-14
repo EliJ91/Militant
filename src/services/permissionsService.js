@@ -5,6 +5,7 @@ export const PERMISSIONS_CHANGED_EVENT = 'militant-permissions-change';
 
 export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'changePermissions', label: 'Change Permissions', area: 'Admin' },
+  { key: 'viewActionLog', label: 'View Action Log', area: 'Admin' },
   { key: 'viewLogs', label: 'View Logs', area: 'Loot Logs' },
   { key: 'viewLootLog', label: 'View A Loot Log', area: 'Loot Logs' },
   { key: 'uploadLootLogs', label: 'Upload Loot Logs', area: 'Loot Logs' },
