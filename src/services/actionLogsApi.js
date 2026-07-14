@@ -51,6 +51,30 @@ function getActionLogAuthHeaders(session) {
   };
 }
 
+function getSessionDiscordUserId(session) {
+  const user = session?.user || {};
+  const metadata = user.user_metadata || user.userMetadata || {};
+  const identity = Array.isArray(user.identities)
+    ? user.identities.find((currentIdentity) => currentIdentity.provider === 'discord') || user.identities[0]
+    : null;
+  const identityData = identity?.identity_data || {};
+  const userId = session?.provider === 'discord' ? user.id : '';
+  const discordUserId = String(
+    user.discordUserId
+      || metadata.discordUserId
+      || metadata.discord_user_id
+      || metadata.provider_id
+      || metadata.providerId
+      || metadata.sub
+      || identityData.sub
+      || identityData.provider_id
+      || identity?.id
+      || userId
+      || '',
+  ).trim();
+  return /^\d{15,25}$/.test(discordUserId) ? discordUserId : '';
+}
+
 export async function recordActionLog({
   action,
   actorName = currentActorName,
@@ -62,7 +86,15 @@ export async function recordActionLog({
   try {
     const authSession = currentAuthSession || await getCurrentAuthSession().catch(() => null);
     const response = await fetch(getActionLogsApiUrl(), {
-      body: JSON.stringify({ action, actorName, details, targetId, targetName, targetType }),
+      body: JSON.stringify({
+        action,
+        actorName,
+        details,
+        discordUserId: getSessionDiscordUserId(authSession),
+        targetId,
+        targetName,
+        targetType,
+      }),
       headers: { 'Content-Type': 'application/json', ...getActionLogAuthHeaders(authSession) },
       method: 'POST',
     });

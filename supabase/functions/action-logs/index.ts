@@ -76,12 +76,20 @@ function fallbackActorName(value: unknown) {
   return !actorName || /^unknown(?:\s+server)?\s+(?:member|user)$/i.test(actorName) ? 'System' : actorName;
 }
 
-async function resolveActionActorName(supabase: any, request: Request, requestedActorName: unknown) {
+async function resolveActionActorName(
+  supabase: any,
+  request: Request,
+  requestedActorName: unknown,
+  requestedDiscordUserId: unknown,
+) {
   const accessToken = getBearerToken(request);
   const discordAccessToken = request.headers.get('x-discord-access-token') || '';
-  const discordUserId = accessToken
+  const authenticatedDiscordUserId = accessToken
     ? await getDiscordUserIdFromToken(supabase, accessToken)
     : await getDiscordUserIdFromOAuth(discordAccessToken);
+  const claimedDiscordUserId = clean(requestedDiscordUserId);
+  const discordUserId = authenticatedDiscordUserId
+    || (/^\d{15,25}$/.test(claimedDiscordUserId) ? claimedDiscordUserId : '');
   if (!discordUserId) return fallbackActorName(requestedActorName);
 
   if (discordAccessToken) {
@@ -180,7 +188,7 @@ Deno.serve(async (request) => {
       const body = await request.json();
       const action = String(body.action || '').trim();
       if (!action) throw new Error('Action is required.');
-      const actorName = await resolveActionActorName(supabase, request, body.actorName);
+      const actorName = await resolveActionActorName(supabase, request, body.actorName, body.discordUserId);
       const { data, error } = await supabase
         .from('webapp_action_logs')
         .insert({

@@ -23,7 +23,11 @@ describe('action log identity', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
     setActionLogActorName('Unknown Server Member');
-    setActionLogAuthSession({ access_token: 'supabase-token', provider_token: 'discord-token' });
+    setActionLogAuthSession({
+      access_token: 'supabase-token',
+      provider_token: 'discord-token',
+      user: { user_metadata: { provider_id: '264193431830528006' } },
+    });
 
     await recordActionLog({ action: 'Permissions updated' });
 
@@ -33,6 +37,7 @@ describe('action log identity', () => {
         'X-Discord-Access-Token': 'discord-token',
       }),
     }));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).discordUserId).toBe('264193431830528006');
   });
 
   it('uses System for unauthenticated automatic actions', async () => {
@@ -57,12 +62,17 @@ describe('action log identity', () => {
       ok: true,
     });
     vi.stubGlobal('fetch', fetchMock);
-    setActionLogAuthSession({ accessToken: 'discord-oauth-token', provider: 'discord' });
+    setActionLogAuthSession({
+      accessToken: 'discord-oauth-token',
+      provider: 'discord',
+      user: { id: '264193431830528006' },
+    });
 
     await recordActionLog({ action: 'Role added' });
 
     const request = fetchMock.mock.calls[0][1];
     expect(request.headers).not.toHaveProperty('Authorization');
     expect(request.headers['X-Discord-Access-Token']).toBe('discord-oauth-token');
+    expect(JSON.parse(request.body).discordUserId).toBe('264193431830528006');
   });
 });
