@@ -286,7 +286,7 @@ function Topbar({
       <BrandLockup compact />
       {hasMenuContent ? (
         <div className="topbar-menu-region">
-          {hasMenuContent ? (
+          {actions.length > 0 ? (
             <button
               aria-expanded={isMenuOpen}
               aria-label="Toggle navigation menu"
@@ -300,30 +300,32 @@ function Topbar({
               <span aria-hidden="true" />
             </button>
           ) : null}
-          <div className={isMenuOpen ? 'topbar-actions is-open' : 'topbar-actions'}>
-            <div className="topbar-links">
-              {actions.map((action) => (
-                <button
-                  className="navigation-button"
-                  key={action.label}
-                  title={action.title || action.label}
-                  type="button"
-                  onClick={() => runAction(action)}
-                >
-                  {action.label}
-                </button>
-              ))}
+          {actions.length > 0 ? (
+            <div className={isMenuOpen ? 'topbar-actions is-open' : 'topbar-actions'}>
+              <div className="topbar-links">
+                {actions.map((action) => (
+                  <button
+                    className="navigation-button"
+                    key={action.label}
+                    title={action.title || action.label}
+                    type="button"
+                    onClick={() => runAction(action)}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <UserProfileChip
-              isSuperUserProfile={isSuperUserProfile}
-              user={currentUser}
-              onResetViewAsRole={onResetViewAsRole}
-              onSignOut={onSignOut}
-              onToggleViewAsRole={onToggleViewAsRole}
-              viewAsRoleIds={viewAsRoleIds}
-              viewAsRoles={viewAsRoles}
-            />
-          </div>
+          ) : null}
+          <UserProfileChip
+            isSuperUserProfile={isSuperUserProfile}
+            user={currentUser}
+            onResetViewAsRole={onResetViewAsRole}
+            onSignOut={onSignOut}
+            onToggleViewAsRole={onToggleViewAsRole}
+            viewAsRoleIds={viewAsRoleIds}
+            viewAsRoles={viewAsRoles}
+          />
         </div>
       ) : null}
     </header>

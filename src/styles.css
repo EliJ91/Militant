@@ -538,6 +538,9 @@ button:focus-visible {
 }
 
 .topbar-menu-region {
+  align-items: center;
+  display: flex;
+  gap: 8px;
   margin-left: auto;
   position: relative;
 }
@@ -4484,8 +4487,8 @@ button:focus-visible {
   .topbar-profile {
     justify-self: end;
     margin-left: 0;
-    padding-top: 8px;
-    border-top: 1px solid rgba(247, 250, 245, 0.1);
+    padding-top: 0;
+    border-top: 0;
   }
 
   .brand-lockup-compact .brand-wordmark {

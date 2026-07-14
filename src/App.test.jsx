@@ -91,19 +91,21 @@ describe('App', () => {
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.63');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.64');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
       'https://cdn.discordapp.com/avatars/264193431830528006/avatar-hash.png?size=80',
     );
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Toggle navigation menu' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /view loot logs/i }));
 
     expect(screen.getByRole('heading', { level: 1, name: 'Loot Logs' })).toBeInTheDocument();
     expect(window.location.hash).toBe('#loot-logs');
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Toggle navigation menu' })).toBeInTheDocument();
     expect(withinTopbar(container, 'Dashboard')).toBeInTheDocument();
     expect(withinTopbar(container, 'Sign Out')).toBeUndefined();
     fireEvent.click(container.querySelector('.topbar-profile-button'));
