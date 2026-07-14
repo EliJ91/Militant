@@ -57,7 +57,7 @@ describe('PermissionsTool', () => {
     expect(screen.queryByLabelText('CTA Lead role name')).not.toBeInTheDocument();
     expect(screen.queryByText('ID role-123')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
-    const uploadLootLogsRow = screen.getByRole('row', { name: /Upload Loot Logs/i });
+    const uploadLootLogsRow = screen.getByRole('rowheader', { name: 'Upload Loot Logs' }).closest('tr');
     fireEvent.click(within(uploadLootLogsRow).getByLabelText('Upload Loot Logs for CTA Lead'));
 
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Permissions saved'));

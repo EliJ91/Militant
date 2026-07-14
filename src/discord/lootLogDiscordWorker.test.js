@@ -4,7 +4,10 @@ import {
   classifyLogText,
   collectLogAttachmentJobs,
   DEFAULT_LOOT_LOG_THREAD_CHANNEL_ID,
+  handleUploadCommand,
   isSupportedLogAttachment,
+  isUploadCommandMessage,
+  memberCanUploadLootLogsFromDiscord,
   processLootLogThread,
 } from './lootLogDiscordWorker.js';
 
@@ -32,7 +35,7 @@ function createMessage({ attachment, author = {}, id, timestamp }) {
   };
 }
 
-function createSupabaseMock({ processedAttachmentIds = [], threadRecord = null } = {}) {
+function createSupabaseMock({ permissionRoles = [], processedAttachmentIds = [], threadRecord = null } = {}) {
   const state = {
     attachments: [],
     bundleSummary: threadRecord?.bundle_id ? {
@@ -69,6 +72,12 @@ function createSupabaseMock({ processedAttachmentIds = [], threadRecord = null }
         return this;
       },
       maybeSingle() {
+        if (table === 'webapp_permission_settings') {
+          return Promise.resolve({
+            data: { settings: { roles: permissionRoles } },
+            error: null,
+          });
+        }
         if (table === 'loot_log_bundles' && state.threadRecord?.bundle_id) {
           return Promise.resolve({
             data: {
@@ -183,6 +192,30 @@ describe('Discord loot log worker helpers', () => {
     expect(collectLogAttachmentJobs([first, second]).map((job) => job.attachmentId))
       .toEqual(['loot-2', 'loot-1']);
   });
+
+  it('recognizes the explicit upload command', () => {
+    expect(isUploadCommandMessage({ content: '!upload' })).toBe(true);
+    expect(isUploadCommandMessage({ content: '!upload now' })).toBe(true);
+    expect(isUploadCommandMessage({ content: 'upload' })).toBe(false);
+  });
+
+  it('checks the Discord upload permission against member roles', async () => {
+    const supabase = createSupabaseMock({
+      permissionRoles: [
+        { roleId: 'role-soldier', permissions: { uploadLootLogsFromDiscord: false } },
+        { roleId: 'role-logger', permissions: { uploadLootLogsFromDiscord: true } },
+      ],
+    });
+
+    await expect(memberCanUploadLootLogsFromDiscord({
+      member: { id: 'discord-user', roles: { cache: new Map([['role-logger', {}]]) } },
+      supabase,
+    })).resolves.toBe(true);
+    await expect(memberCanUploadLootLogsFromDiscord({
+      member: { id: 'discord-user', roles: { cache: new Map([['role-soldier', {}]]) } },
+      supabase,
+    })).resolves.toBe(false);
+  });
 });
 
 describe('processLootLogThread', () => {
@@ -256,6 +289,64 @@ describe('processLootLogThread', () => {
 
     expect(result).toEqual({ bundleId: 'bundle-1', processedAttachments: 0, skippedAttachments: 0 });
     expect(fetchAttachmentTextFn).not.toHaveBeenCalled();
+    expect(submitLootLogFn).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleUploadCommand', () => {
+  it('uploads thread loot csv files only when !upload is used by a permitted member', async () => {
+    const lootAttachment = createAttachment('loot-1', 'loot.csv');
+    const attachmentMessage = createMessage({ attachment: lootAttachment, id: 'message-1', timestamp: 100 });
+    const thread = createThread([attachmentMessage]);
+    const commandMessage = {
+      author: { id: 'discord-user' },
+      channel: thread,
+      content: '!upload',
+      guild: attachmentMessage.guild,
+      member: { id: 'discord-user', roles: { cache: new Map([['role-logger', {}]]) } },
+    };
+    const supabase = createSupabaseMock({
+      permissionRoles: [
+        { roleId: 'role-logger', permissions: { uploadLootLogsFromDiscord: true } },
+      ],
+    });
+    const submitLootLogFn = vi.fn().mockResolvedValue({ bundleId: 'bundle-1' });
+    const fetchAttachmentTextFn = vi.fn().mockResolvedValue(lootLogText);
+
+    const result = await handleUploadCommand({
+      fetchAttachmentTextFn,
+      message: commandMessage,
+      submitLootLogFn,
+      supabase,
+    });
+
+    expect(result).toEqual({ bundleId: 'bundle-1', processedAttachments: 1, skippedAttachments: 0 });
+    expect(submitLootLogFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not upload when the member lacks the Discord upload permission', async () => {
+    const lootAttachment = createAttachment('loot-1', 'loot.csv');
+    const attachmentMessage = createMessage({ attachment: lootAttachment, id: 'message-1', timestamp: 100 });
+    const thread = createThread([attachmentMessage]);
+    const supabase = createSupabaseMock({
+      permissionRoles: [
+        { roleId: 'role-soldier', permissions: { uploadLootLogsFromDiscord: false } },
+      ],
+    });
+    const submitLootLogFn = vi.fn();
+
+    const result = await handleUploadCommand({
+      message: {
+        author: { id: 'discord-user' },
+        channel: thread,
+        content: '!upload',
+        member: { id: 'discord-user', roles: { cache: new Map([['role-soldier', {}]]) } },
+      },
+      submitLootLogFn,
+      supabase,
+    });
+
+    expect(result).toEqual({ forbidden: true, processedAttachments: 0, skippedAttachments: 0 });
     expect(submitLootLogFn).not.toHaveBeenCalled();
   });
 });

@@ -13,8 +13,10 @@ import { buildLootLogEvents } from '../utils/lootLogMerge.js';
 export const DEFAULT_LOOT_LOG_THREAD_CHANNEL_ID = '1492400020958351391';
 
 const SUPPORTED_ATTACHMENT_EXTENSIONS = new Set(['.csv']);
+const DISCORD_UPLOAD_PERMISSION_KEY = 'uploadLootLogsFromDiscord';
 const MAX_MESSAGES_PER_THREAD_SCAN = 500;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const SUPERUSER_DISCORD_USER_IDS = new Set(['264193431830528006']);
 
 function cleanString(value) {
   return String(value || '').trim();
@@ -60,6 +62,12 @@ function normalizeAttachment(attachment, message) {
     messageId: cleanString(message?.id),
     timestamp: messageTimestamp(message),
   };
+}
+
+export function isUploadCommandMessage(message) {
+  const content = cleanString(message?.content).toLowerCase();
+  if (!content) return false;
+  return content === '!upload' || content.startsWith('!upload ');
 }
 
 export function collectLogAttachmentJobs(messages) {
@@ -239,14 +247,48 @@ async function registerNewThread(supabase, thread) {
   if (error) throw error;
 }
 
-async function isRegisteredThread(supabase, threadId) {
+async function loadPermissionSettings(supabase) {
   const { data, error } = await supabase
-    .from('discord_loot_threads')
-    .select('thread_id')
-    .eq('thread_id', threadId)
+    .from('webapp_permission_settings')
+    .select('settings')
+    .eq('id', 'default')
     .maybeSingle();
   if (error) throw error;
-  return Boolean(data);
+  return Array.isArray(data?.settings?.roles) ? data.settings.roles : [];
+}
+
+function getRolePermission(role, permissionKey) {
+  return Boolean(role?.permissions?.[permissionKey]);
+}
+
+function getMemberRoleIds(member) {
+  const roles = member?.roles;
+  if (Array.isArray(roles)) return roles.map(String);
+  if (Array.isArray(roles?.cache)) return roles.cache.map(String);
+  if (roles?.cache && typeof roles.cache.keys === 'function') return [...roles.cache.keys()].map(String);
+  return [];
+}
+
+async function getCommandMember(message) {
+  if (message?.member) return message.member;
+  if (message?.guild?.members?.fetch && message?.author?.id) {
+    return message.guild.members.fetch(message.author.id);
+  }
+  return null;
+}
+
+export async function memberCanUploadLootLogsFromDiscord({ member, supabase }) {
+  const userId = cleanString(member?.id || member?.user?.id);
+  if (SUPERUSER_DISCORD_USER_IDS.has(userId)) return true;
+
+  const memberRoleIds = new Set(getMemberRoleIds(member).map((roleId) => cleanString(roleId)).filter(Boolean));
+  if (memberRoleIds.size === 0) return false;
+
+  const roles = await loadPermissionSettings(supabase);
+  return roles.some((role) => (
+    memberRoleIds.has(cleanString(role?.roleId))
+    && getRolePermission(role, DISCORD_UPLOAD_PERMISSION_KEY)
+  ));
 }
 
 async function getProcessedAttachmentIds(supabase, attachmentIds, threadRecord) {
@@ -421,6 +463,35 @@ export async function processLootLogThread({
   return { bundleId, processedAttachments, skippedAttachments };
 }
 
+export async function handleUploadCommand({
+  channelId = DEFAULT_LOOT_LOG_THREAD_CHANNEL_ID,
+  fetchAttachmentTextFn = fetchAttachmentText,
+  message,
+  submitLootLogFn = submitLootLog,
+  supabase,
+}) {
+  const thread = message?.channel;
+  if (!isUploadCommandMessage(message) || !isTargetThread(thread, channelId)) {
+    return { ignored: true, processedAttachments: 0, skippedAttachments: 0 };
+  }
+
+  const member = await getCommandMember(message);
+  const allowed = await memberCanUploadLootLogsFromDiscord({ member, supabase });
+  if (!allowed) {
+    console.warn(`[loot-discord-worker] ${message?.author?.id || 'unknown user'} tried !upload without permission.`);
+    return { forbidden: true, processedAttachments: 0, skippedAttachments: 0 };
+  }
+
+  await registerNewThread(supabase, thread);
+  return processLootLogThread({
+    channelId,
+    fetchAttachmentTextFn,
+    submitLootLogFn,
+    supabase,
+    thread,
+  });
+}
+
 export function createLootLogDiscordWorker({
   channelId = process.env.DISCORD_LOOT_LOG_CHANNEL_ID || DEFAULT_LOOT_LOG_THREAD_CHANNEL_ID,
   client = null,
@@ -437,21 +508,6 @@ export function createLootLogDiscordWorker({
   });
   const admin = supabase || createSupabaseAdmin();
 
-  const handleThread = async (thread) => {
-    try {
-      const result = await processLootLogThread({
-        channelId,
-        supabase: admin,
-        thread,
-      });
-      if (result.processedAttachments > 0) {
-        console.log(`[loot-discord-worker] ${thread.id}: processed ${result.processedAttachments} attachment(s).`);
-      }
-    } catch (error) {
-      console.error(`[loot-discord-worker] ${thread?.id || 'unknown thread'}:`, error);
-    }
-  };
-
   botClient.once('ready', () => {
     console.log(`[loot-discord-worker] Logged in as ${botClient.user?.tag || botClient.user?.id}.`);
   });
@@ -460,17 +516,24 @@ export function createLootLogDiscordWorker({
     if (!isTargetThread(thread, channelId)) return;
     try {
       await registerNewThread(admin, thread);
-      await handleThread(thread);
     } catch (error) {
       console.error(`[loot-discord-worker] Could not register new thread ${thread?.id || 'unknown'}.`, error);
     }
   });
   botClient.on('messageCreate', async (message) => {
-    const thread = message?.channel;
-    if (!isTargetThread(thread, channelId)) return;
-    if (!message.attachments || message.attachments.size === 0) return;
-    if (!await isRegisteredThread(admin, thread.id)) return;
-    await handleThread(thread);
+    if (!isUploadCommandMessage(message)) return;
+    try {
+      const result = await handleUploadCommand({
+        channelId,
+        message,
+        supabase: admin,
+      });
+      if (result.processedAttachments > 0) {
+        console.log(`[loot-discord-worker] ${message.channel.id}: processed ${result.processedAttachments} attachment(s) from !upload.`);
+      }
+    } catch (error) {
+      console.error(`[loot-discord-worker] Could not process !upload in ${message?.channel?.id || 'unknown thread'}.`, error);
+    }
   });
 
   return {
