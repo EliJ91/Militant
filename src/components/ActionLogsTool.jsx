@@ -18,13 +18,48 @@ function formatDateTime(value) {
 
 function detailSummary(details = {}) {
   const parts = [];
-  if (details.fileName) parts.push(details.fileName);
+  if (details.fileName) parts.push(`File: ${details.fileName}`);
+  if (details.uploadedBy) parts.push(`Log by: ${details.uploadedBy}`);
+  if (details.lootLogName) parts.push(`Log: ${details.lootLogName}`);
+  if (Array.isArray(details.players) && details.players.length > 0) {
+    parts.push(`Players: ${details.players.slice(0, 8).join(', ')}${details.players.length > 8 ? ` +${details.players.length - 8}` : ''}`);
+  } else if (details.player) {
+    parts.push(`Player: ${details.player}`);
+  }
+  if (Array.isArray(details.changes) && details.changes.length > 0) {
+    parts.push(...details.changes.slice(0, 5));
+    if (details.changes.length > 5) parts.push(`+${details.changes.length - 5} more changes`);
+  }
   if (Number.isFinite(Number(details.count))) parts.push(`${Number(details.count).toLocaleString()} affected`);
   if (Number.isFinite(Number(details.insertedRows))) parts.push(`${Number(details.insertedRows).toLocaleString()} added`);
-  if (details.player) parts.push(details.player);
   if (details.status) parts.push(String(details.status).replaceAll('_', ' '));
   if (details.source) parts.push(String(details.source));
   return parts.join(' / ');
+}
+
+function actionClass(action) {
+  const text = String(action || '').toLowerCase();
+  if (text.includes('delete') || text.includes('removed')) return 'danger';
+  if (text.includes('death')) return 'warn';
+  if (text.includes('permission')) return 'info';
+  return 'success';
+}
+
+function detailChips(details = {}) {
+  const chips = [];
+  if (details.fileName) chips.push({ label: 'File', value: details.fileName });
+  if (details.uploadedBy) chips.push({ label: 'Log By', value: details.uploadedBy });
+  if (details.lootLogName) chips.push({ label: 'Loot Log', value: details.lootLogName });
+  if (Array.isArray(details.players) && details.players.length > 0) {
+    chips.push({ label: 'Players', value: details.players.join(', ') });
+  }
+  if (details.status) chips.push({ label: 'Status', value: String(details.status).replaceAll('_', ' ') });
+  if (details.source) chips.push({ label: 'Source', value: details.source });
+  if (Number.isFinite(Number(details.insertedRows))) chips.push({ label: 'Added', value: Number(details.insertedRows).toLocaleString() });
+  if (Number.isFinite(Number(details.count)) && !Array.isArray(details.changes)) {
+    chips.push({ label: 'Affected', value: Number(details.count).toLocaleString() });
+  }
+  return chips;
 }
 
 export default function ActionLogsTool() {
@@ -81,29 +116,38 @@ export default function ActionLogsTool() {
         {status.state === 'ready' && logs.length === 0 ? <p className="action-logs-empty">No actions recorded yet.</p> : null}
 
         {logs.length > 0 ? (
-          <div className="action-logs-table-wrap">
-            <table className="action-logs-table">
-              <thead>
-                <tr>
-                  <th scope="col">Date and Time</th>
-                  <th scope="col">User</th>
-                  <th scope="col">Action</th>
-                  <th scope="col">File or Item</th>
-                  <th scope="col">Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id}>
-                    <td><time dateTime={log.createdAt}>{formatDateTime(log.createdAt)}</time></td>
-                    <td className="action-logs-actor">{log.actorName || 'System'}</td>
-                    <td><span className="action-logs-action">{log.action}</span></td>
-                    <td>{log.targetName || '-'}</td>
-                    <td>{detailSummary(log.details) || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="action-log-list">
+            {logs.map((log) => (
+              <article className="action-log-card" key={log.id}>
+                <div className="action-log-meta">
+                  <time dateTime={log.createdAt}>{formatDateTime(log.createdAt)}</time>
+                  <strong>{log.actorName || 'System'}</strong>
+                </div>
+                <div className="action-log-main">
+                  <div className="action-log-title-row">
+                    <span className={`action-log-pill ${actionClass(log.action)}`}>{log.action}</span>
+                    <strong>{log.targetName || log.targetType || 'Webapp'}</strong>
+                  </div>
+                  <p>{detailSummary(log.details) || 'No extra details recorded.'}</p>
+                  {Array.isArray(log.details?.changes) && log.details.changes.length > 0 ? (
+                    <ul className="action-log-change-list">
+                      {log.details.changes.slice(0, 10).map((change, index) => <li key={`${change}-${index}`}>{change}</li>)}
+                      {log.details.changes.length > 10 ? <li>{log.details.changes.length - 10} more changes</li> : null}
+                    </ul>
+                  ) : null}
+                  {detailChips(log.details).length > 0 ? (
+                    <div className="action-log-chips">
+                      {detailChips(log.details).map((chip) => (
+                        <span key={`${chip.label}-${chip.value}`}>
+                          <small>{chip.label}</small>
+                          {chip.value}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+            ))}
           </div>
         ) : null}
 
@@ -121,4 +165,3 @@ export default function ActionLogsTool() {
     </main>
   );
 }
-

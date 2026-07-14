@@ -376,7 +376,7 @@ async function prepareJob({ fetchAttachmentTextFn, job }) {
   };
 }
 
-async function processPreparedJob({ bundleId, job, submitLootLogFn, supabase, thread }) {
+async function processPreparedJob({ bundleId, commandActorName, job, submitLootLogFn, supabase, thread }) {
   if (job.logType === 'loot') {
     const result = await submitLootLogFn({
       bundleId,
@@ -394,9 +394,10 @@ async function processPreparedJob({ bundleId, job, submitLootLogFn, supabase, th
     try {
       await recordActionLog({
         action: 'Loot log uploaded from Discord',
-        actorName: job.submittedBy,
+        actorName: commandActorName || job.submittedBy,
         details: {
           fileName: job.fileName,
+          uploadedBy: job.submittedBy,
           source: 'Discord thread',
           threadName: cleanString(thread.name),
         },
@@ -418,6 +419,7 @@ export async function processLootLogThread({
   channelId = DEFAULT_LOOT_LOG_THREAD_CHANNEL_ID,
   fetchAttachmentTextFn = fetchAttachmentText,
   messages = null,
+  commandActorName = '',
   submitLootLogFn = submitLootLog,
   supabase,
   thread,
@@ -447,6 +449,7 @@ export async function processLootLogThread({
   for (const job of preparedJobs.filter((candidate) => candidate.logType === 'loot')) {
     const result = await processPreparedJob({
       bundleId,
+      commandActorName,
       job,
       submitLootLogFn,
       supabase,
@@ -483,8 +486,10 @@ export async function handleUploadCommand({
   }
 
   await registerNewThread(supabase, thread);
+  const commandActorName = await getDisplayName(message);
   return processLootLogThread({
     channelId,
+    commandActorName,
     fetchAttachmentTextFn,
     submitLootLogFn,
     supabase,

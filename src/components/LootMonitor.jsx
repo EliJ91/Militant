@@ -2758,6 +2758,7 @@ export default function LootMonitor({
       const result = await checkLootLogDeath({
         bundleId: selectedBundle.id,
         keptItems,
+        lootLogName: selectedBundle.lootFileName || selectedBundle.fileName || '',
         player: player.player,
       });
       const deathCheck = result.deathCheck;
@@ -2810,6 +2811,7 @@ export default function LootMonitor({
         const result = await checkLootLogDeaths({
           bundleId: selectedBundle.id,
           checks: batch.map(({ keptItems, player }) => ({ keptItems, player })),
+          lootLogName: selectedBundle.lootFileName || selectedBundle.fileName || '',
         });
         const deathChecks = Array.isArray(result.deathChecks) ? result.deathChecks : [];
         const batchErrors = Array.isArray(result.errors) ? result.errors : [];

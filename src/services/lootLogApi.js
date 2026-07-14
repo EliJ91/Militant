@@ -91,7 +91,7 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
   return result;
 }
 
-export async function checkLootLogDeath({ bundleId, keptItems, player }) {
+export async function checkLootLogDeath({ bundleId, keptItems, lootLogName = '', player }) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
       action: 'death-check',
@@ -110,16 +110,20 @@ export async function checkLootLogDeath({ bundleId, keptItems, player }) {
 
   void recordActionLog({
     action: 'Death check completed',
-    details: { player, status: result.deathCheck?.status || 'checked' },
+    details: {
+      lootLogName,
+      players: [player],
+      status: result.deathCheck?.status || 'checked',
+    },
     targetId: bundleId,
-    targetName: player,
+    targetName: lootLogName || player,
     targetType: 'death-check',
   });
 
   return result;
 }
 
-export async function checkLootLogDeaths({ bundleId, checks }) {
+export async function checkLootLogDeaths({ bundleId, checks, lootLogName = '' }) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
       action: 'death-check-batch',
@@ -137,9 +141,19 @@ export async function checkLootLogDeaths({ bundleId, checks }) {
 
   void recordActionLog({
     action: 'Death checks completed',
-    details: { count: checks.length },
+    details: {
+      count: checks.length,
+      lootLogName,
+      players: checks.map((check) => check.player).filter(Boolean),
+      statuses: Array.isArray(result.deathChecks)
+        ? result.deathChecks.map((check) => ({
+          player: check.playerName || check.player,
+          status: check.status,
+        }))
+        : [],
+    },
     targetId: bundleId,
-    targetName: `${checks.length} players`,
+    targetName: lootLogName || `${checks.length} players`,
     targetType: 'death-check',
   });
 

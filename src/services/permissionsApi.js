@@ -55,6 +55,13 @@ export async function fetchDiscordMemberRoles(sessionOrToken) {
 }
 
 export async function updatePermissionSettings(settings) {
+  let previousSettings = null;
+  try {
+    previousSettings = await fetchPermissionSettings();
+  } catch {
+    previousSettings = null;
+  }
+
   try {
     const response = await fetch(getPermissionsApiUrl(), {
       body: JSON.stringify({ settings }),
@@ -64,7 +71,7 @@ export async function updatePermissionSettings(settings) {
     const result = await readResult(response, 'Could not save permissions.');
     void recordActionLog({
       action: 'Permissions updated',
-      details: { count: Array.isArray(settings?.roles) ? settings.roles.length : 0 },
+      details: buildPermissionChangeDetails(previousSettings?.settings || previousSettings, settings),
       targetName: 'Role Access Matrix',
       targetType: 'permissions',
     });
@@ -72,4 +79,56 @@ export async function updatePermissionSettings(settings) {
   } catch (error) {
     throw new Error(error.message === 'Failed to fetch' ? 'Could not reach permissions database.' : error.message);
   }
+}
+
+function roleKey(role) {
+  return String(role?.roleId || role?.id || role?.name || '').trim();
+}
+
+function permissionLabel(key) {
+  return String(key || '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function buildPermissionChangeDetails(previousSettings, nextSettings) {
+  const previousRoles = Array.isArray(previousSettings?.roles) ? previousSettings.roles : [];
+  const nextRoles = Array.isArray(nextSettings?.roles) ? nextSettings.roles : [];
+  const previousByKey = new Map(previousRoles.map((role, index) => [roleKey(role), { index, role }]));
+  const nextByKey = new Map(nextRoles.map((role, index) => [roleKey(role), { index, role }]));
+  const changes = [];
+
+  nextByKey.forEach(({ index, role }, key) => {
+    const previous = previousByKey.get(key);
+    const roleName = String(role?.name || 'Unnamed role').trim();
+    if (!previous) {
+      changes.push(`Added role ${roleName}`);
+      return;
+    }
+
+    const previousName = String(previous.role?.name || '').trim();
+    if (previousName && previousName !== roleName) changes.push(`Renamed ${previousName} to ${roleName}`);
+    if (previous.index !== index) changes.push(`Moved ${roleName} to column ${index + 1}`);
+
+    const permissionKeys = new Set([
+      ...Object.keys(previous.role?.permissions || {}),
+      ...Object.keys(role?.permissions || {}),
+    ]);
+    permissionKeys.forEach((permissionKey) => {
+      const before = Boolean(previous.role?.permissions?.[permissionKey]);
+      const after = Boolean(role?.permissions?.[permissionKey]);
+      if (before === after) return;
+      changes.push(`${after ? 'Enabled' : 'Disabled'} ${permissionLabel(permissionKey)} for ${roleName}`);
+    });
+  });
+
+  previousByKey.forEach(({ role }, key) => {
+    if (!nextByKey.has(key)) changes.push(`Deleted role ${String(role?.name || 'Unnamed role').trim()}`);
+  });
+
+  return {
+    changes,
+    count: changes.length,
+    roleCount: nextRoles.length,
+  };
 }

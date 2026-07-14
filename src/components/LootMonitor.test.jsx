@@ -311,6 +311,7 @@ describe('LootMonitor', () => {
         lootTimestamps: ['2026-06-18T18:33:30.420Z'],
         quantity: 2,
       }],
+      lootLogName: '18UTC-JUN-18',
       player: 'Windyyyzz',
     }));
     expect(await screen.findByRole('link', { name: 'Death' })).toHaveAttribute(
@@ -459,6 +460,7 @@ describe('LootMonitor', () => {
           player: 'Windyyyzz',
         },
       ],
+      lootLogName: '18UTC-JUN-18',
     });
 
     resolveFirstCheck({
@@ -482,6 +484,7 @@ describe('LootMonitor', () => {
           player: 'Kaelys',
         },
       ],
+      lootLogName: '18UTC-JUN-18',
     });
 
     resolveSecondCheck({

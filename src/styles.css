@@ -105,6 +105,129 @@
   white-space: nowrap;
 }
 
+.action-log-list {
+  display: grid;
+}
+
+.action-log-card {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.22fr) minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.09);
+  background: linear-gradient(90deg, rgba(69, 220, 111, 0.06), rgba(2, 8, 6, 0));
+}
+
+.action-log-card:hover {
+  background: linear-gradient(90deg, rgba(69, 220, 111, 0.1), rgba(2, 8, 6, 0.03));
+}
+
+.action-log-meta {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.action-log-meta time {
+  color: var(--muted);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.action-log-meta strong {
+  color: var(--green-hot);
+  font-size: 1rem;
+}
+
+.action-log-main {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.action-log-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.action-log-title-row > strong {
+  color: var(--white);
+  font-size: 1rem;
+}
+
+.action-log-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border: 1px solid rgba(69, 220, 111, 0.35);
+  border-radius: 999px;
+  background: rgba(69, 220, 111, 0.12);
+  color: var(--green-hot);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.action-log-pill.info {
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.1);
+  color: #7dd3fc;
+}
+
+.action-log-pill.warn {
+  border-color: rgba(245, 158, 11, 0.42);
+  background: rgba(245, 158, 11, 0.11);
+  color: #fbbf24;
+}
+
+.action-log-pill.danger {
+  border-color: rgba(244, 63, 94, 0.42);
+  background: rgba(244, 63, 94, 0.11);
+  color: #fb7185;
+}
+
+.action-log-main p {
+  margin: 0;
+  color: #dce8dc;
+  line-height: 1.45;
+}
+
+.action-log-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-log-chips span {
+  display: inline-grid;
+  gap: 2px;
+  max-width: min(100%, 420px);
+  padding: 7px 9px;
+  border: 1px solid rgba(247, 250, 245, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--white);
+  overflow-wrap: anywhere;
+}
+
+.action-log-chips small {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.action-log-change-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: #dce8dc;
+}
+
 .action-logs-actor,
 .action-logs-action {
   color: var(--green-hot);
@@ -139,6 +262,12 @@
   .action-logs-table th,
   .action-logs-table td {
     padding: 11px 12px;
+  }
+
+  .action-log-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 15px 14px;
   }
 }
 
