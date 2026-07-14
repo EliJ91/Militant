@@ -1582,15 +1582,8 @@ button:focus-visible {
   background: rgba(10, 27, 16, 0.78);
 }
 
-.upload-guide-intro h3,
 .upload-guide-intro p {
   margin: 0;
-}
-
-.upload-guide-intro h3 {
-  color: var(--white);
-  font-size: clamp(1.25rem, 3vw, 1.75rem);
-  letter-spacing: 0;
 }
 
 .upload-guide-intro > p:last-of-type {

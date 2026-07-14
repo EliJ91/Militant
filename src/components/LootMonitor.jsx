@@ -1846,7 +1846,6 @@ function UploadInstructionsModal({ onClose }) {
         <>Open or create the CTA thread in the designated Discord loot-log channel.</>,
         <>Post every loot logger <strong>.csv</strong> file in that thread. Multiple members can post files.</>,
         <>A member with <strong>Upload Loot Logs From Discord</strong> permission runs <code>/upload</code> inside the thread.</>,
-        <>A check reaction means the command was accepted. An X means the upload was rejected. The thread title becomes the loot log title.</>,
       ],
       title: 'Upload From Discord',
     },
@@ -1912,7 +1911,6 @@ function UploadInstructionsModal({ onClose }) {
         <div className="upload-instructions-body">
           <section className="upload-guide-intro">
             <p className="eyebrow">Loot Log Guide</p>
-            <h3>From raw files to a complete CTA report</h3>
             <p>Use the method that matches where your files are. Available actions depend on your Discord role.</p>
             <div className="upload-guide-formats" aria-label="Supported file formats">
               <span><strong>Loot logs</strong> .csv</span>
