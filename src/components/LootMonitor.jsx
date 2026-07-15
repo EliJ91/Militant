@@ -1921,7 +1921,7 @@ function UploadInstructionsModal({ onClose }) {
     {
       steps: [
         <><strong>View</strong> opens the full item report. Use Tier, Item Type, Guild, Alliance, Sort, and Status to narrow it down.</>,
-        <><strong>Check Deaths</strong> checks unaccounted items. Run death checks as soon as possible because only each player's 10 most recent deaths can be checked. <strong>Copy Screenshot</strong> captures only the displayed report.</>,
+        <><strong>Check Deaths</strong> checks unaccounted items. Some deaths may not appear immediately, so wait briefly and retry if a recent death is missing. Run death checks as soon as possible because only each player's 10 most recent deaths can be checked. <strong>Copy Screenshot</strong> captures only the displayed report.</>,
         <><strong>View Raw</strong> shows the source logs. <strong>Share</strong> copies a link to the current report.</>,
         <><strong>Edit</strong>, <strong>Download</strong>, and <strong>Delete</strong> appear only when your Discord roles grant those permissions.</>,
       ],
