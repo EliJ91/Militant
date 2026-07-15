@@ -1838,14 +1838,6 @@ button:focus-visible {
   min-height: 150px;
 }
 
-.local-loot-viewer-privacy {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-align: center;
-}
-
 .loot-upload-dropzone span,
 .loot-upload-empty {
   color: var(--muted);
@@ -3033,12 +3025,20 @@ button:focus-visible {
   grid-template-columns: minmax(0, 1fr) minmax(210px, 0.34fr);
 }
 
+.selected-log-summary.local-viewer-summary.has-chest-log {
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 0.34fr) minmax(280px, 0.48fr);
+}
+
 .local-viewer-summary .selected-log-file {
   border-left: 0;
 }
 
 .loot-controls.local-viewer-controls {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.loot-controls.local-viewer-controls.has-chest-log {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .selected-log-cta,
@@ -4786,6 +4786,10 @@ button:focus-visible {
   }
 
   .loot-controls.local-viewer-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .loot-controls.local-viewer-controls.has-chest-log {
     grid-template-columns: 1fr;
   }
 

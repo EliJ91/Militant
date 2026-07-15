@@ -163,7 +163,7 @@ describe('LootMonitor', () => {
     expect(screen.queryByRole('button', { name: 'Check Deaths' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Copy Screenshot' })).not.toBeInTheDocument();
 
-    const dropzone = screen.getByText('Drag loot logs here').closest('.loot-upload-dropzone');
+    const dropzone = screen.getByText('Drag loot and chest logs here').closest('.loot-upload-dropzone');
     fireEvent.drop(dropzone, {
       dataTransfer: {
         files: [new File([lootText], 'local-loot.txt', { type: 'text/plain' })],
@@ -175,6 +175,30 @@ describe('LootMonitor', () => {
     expect(screen.getByText('Windyyyzz')).toBeInTheDocument();
     expect(screen.getByLabelText(/Windyyyzz Looted 2 Adept's Lymhurst Cape/i)).toBeInTheDocument();
     expect(screen.getByLabelText('Loot monitor controls')).not.toHaveTextContent('Status');
+    expect(screen.queryByText('Files are read in this browser tab only and are never uploaded.')).not.toBeInTheDocument();
+    expect(fetchLootLogBundle).not.toHaveBeenCalled();
+    expect(submitLootLog).not.toHaveBeenCalled();
+    expect(submitChestLog).not.toHaveBeenCalled();
+  });
+
+  it('compares local loot and chest logs and identifies kept items', async () => {
+    render(<LootMonitor localOnly />);
+
+    const dropzone = screen.getByText('Drag loot and chest logs here').closest('.loot-upload-dropzone');
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [
+          new File([lootText], 'local-loot.csv', { type: 'text/csv' }),
+          new File([chestText], 'local-chest.txt', { type: 'text/plain' }),
+        ],
+      },
+    });
+
+    const summary = await screen.findByRole('region', { name: 'Local loot log summary' });
+    expect(within(summary).getByText('1 chest log loaded')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Windyyyzz Kept 1 Adept's Lymhurst Cape/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Windyyyzz Resolved 1 Adept's Lymhurst Cape/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Loot monitor controls')).toHaveTextContent('Status');
     expect(fetchLootLogBundle).not.toHaveBeenCalled();
     expect(submitLootLog).not.toHaveBeenCalled();
     expect(submitChestLog).not.toHaveBeenCalled();

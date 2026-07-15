@@ -1729,8 +1729,8 @@ function LocalLootDropzone({ hasFiles = false, message = '', onFiles }) {
         }}
       >
         <input
-          accept=".csv,.txt,text/csv,text/plain"
-          aria-label="Choose local loot logs"
+          accept=".csv,.txt,.tsv,text/csv,text/plain,text/tab-separated-values"
+          aria-label="Choose local loot and chest logs"
           className="file-input-hidden"
           multiple
           ref={inputRef}
@@ -1740,13 +1740,12 @@ function LocalLootDropzone({ hasFiles = false, message = '', onFiles }) {
             event.target.value = '';
           }}
         />
-        <strong>{isDragging ? 'Drop loot logs to view' : hasFiles ? 'Drop new logs to replace this view' : 'Drag loot logs here'}</strong>
-        <span>.csv or .txt</span>
+        <strong>{isDragging ? 'Drop logs to view' : hasFiles ? 'Drop loot or chest logs' : 'Drag loot and chest logs here'}</strong>
+        <span>Loot: .csv or .txt | Chest: .txt or .tsv</span>
         <button className="secondary-button" type="button" onClick={() => inputRef.current?.click()}>
           Choose files
         </button>
       </div>
-      <p className="local-loot-viewer-privacy">Files are read in this browser tab only and are never uploaded.</p>
       {message ? <p className="loot-message error">{message}</p> : null}
     </section>
   );
@@ -2943,8 +2942,8 @@ export default function LootMonitor({
   }, [selectedBundle]);
   const selectedTotals = selectedBundle?.summary?.totals || report?.totals || {};
   const activeFilters = useMemo(() => (
-    localOnly ? { ...filters, status: [] } : filters
-  ), [filters, localOnly]);
+    localOnly && !hasChestLog ? { ...filters, status: [] } : filters
+  ), [filters, hasChestLog, localOnly]);
   const deathChecksByPlayer = useMemo(() => new Map(
     (selectedBundle?.deathChecks || [])
       .filter((check) => check?.playerName || check?.player)
@@ -2969,13 +2968,13 @@ export default function LootMonitor({
 
   const visiblePlayers = useMemo(() => {
     const players = buildVisiblePlayerGroups(visibleRows, activeFilters);
-    if (!localOnly) return players;
+    if (!localOnly || hasChestLog) return players;
 
     return players.map((player) => ({
       ...player,
       tiles: player.tiles.map((tile) => ({ ...tile, status: 'looted' })),
     }));
-  }, [activeFilters, localOnly, visibleRows]);
+  }, [activeFilters, hasChestLog, localOnly, visibleRows]);
   const visiblePlayersWithEmv = useMemo(() => (
     addPlayerEmv(visiblePlayers, marketPrices)
   ), [marketPrices, visiblePlayers]);
@@ -3040,13 +3039,25 @@ export default function LootMonitor({
 
     setLocalLoadError('');
     try {
-      const submissions = await Promise.all(selectedFiles.map(async (file) => {
+      const fileEntries = await Promise.all(selectedFiles.map(async (file) => {
         const rawLogText = await file.text();
-        if (detectFileKind(rawLogText) !== 'loot') {
-          throw new Error(`${file.name} is not a valid loot log.`);
-        }
-        return { fileName: file.name, rawLogText };
+        const kind = detectFileKind(rawLogText);
+        if (!kind) throw new Error(`${file.name} is not a valid loot or chest log.`);
+        return { fileName: file.name, kind, rawLogText };
       }));
+      const incomingLootSubmissions = fileEntries.filter((entry) => entry.kind === 'loot');
+      const incomingChestSubmissions = fileEntries.filter((entry) => entry.kind === 'chest');
+      const submissions = incomingLootSubmissions.length > 0
+        ? incomingLootSubmissions
+        : (selectedBundle?.submissions || []);
+      const chestSubmissions = incomingLootSubmissions.length > 0
+        ? incomingChestSubmissions
+        : [...(selectedBundle?.chestSubmissions || []), ...incomingChestSubmissions];
+
+      if (submissions.length === 0) {
+        throw new Error('Select at least one loot log before adding chest logs.');
+      }
+
       const events = submissions.flatMap((submission) => {
         const parsed = parseLootEvents(submission.rawLogText);
         return [
@@ -3062,17 +3073,19 @@ export default function LootMonitor({
         .filter(Number.isFinite);
       const lootedEvents = events.filter((event) => event.eventType !== 'lost');
       const players = new Set(lootedEvents.map((event) => String(event.player || '').trim().toLowerCase()).filter(Boolean));
+      const chestLogText = combineChestLogTexts(chestSubmissions.map((submission) => submission.rawLogText));
 
       setMarketPrices({});
       setMarketPriceError('');
       setDeathCheckStatus({});
       setDeathCheckRun(null);
       setSelectedBundle({
-        chestLogText: '',
+        chestLogText,
+        chestSubmissions,
         deathChecks: [],
         endAt: timestamps.length > 0 ? new Date(Math.max(...timestamps)).toISOString() : '',
         events,
-        hasChestLog: false,
+        hasChestLog: Boolean(chestLogText),
         lootFileName: submissions.length === 1 ? submissions[0].fileName : `${submissions.length} local loot logs`,
         startAt: timestamps.length > 0 ? new Date(Math.min(...timestamps)).toISOString() : '',
         submissions,
@@ -3339,15 +3352,24 @@ export default function LootMonitor({
       ) : null}
 
       {selectedBundle && localOnly ? (
-        <section className="selected-log-summary local-viewer-summary" aria-label="Local loot log summary">
+        <section
+          className={hasChestLog
+            ? 'selected-log-summary local-viewer-summary has-chest-log'
+            : 'selected-log-summary local-viewer-summary'}
+          aria-label="Local loot log summary"
+        >
           <div className="selected-log-file">
             <small>Local Loot Logs</small>
             <strong>{selectedBundle.lootFileName}</strong>
+            <span>{hasChestLog
+              ? `${selectedBundle.chestSubmissions?.length || 1} chest ${selectedBundle.chestSubmissions?.length === 1 ? 'log' : 'logs'} loaded`
+              : 'No chest logs loaded'}</span>
           </div>
           <div className="selected-log-totals">
             <span><strong>{formatNumber(selectedTotals.players)}</strong><small>{selectedTotals.players === 1 ? 'player' : 'players'}</small></span>
             <span><strong>{formatNumber(selectedTotals.lootedQuantity)}</strong><small>items</small></span>
           </div>
+          {hasChestLog ? <StatusLegend className="selected-log-legend" /> : null}
         </section>
       ) : selectedBundle ? (
         <section className="selected-log-summary" aria-label="Selected CTA log">
@@ -3418,7 +3440,12 @@ export default function LootMonitor({
         </section>
       ) : (
         <>
-          <section className={localOnly ? 'loot-controls local-viewer-controls' : 'loot-controls'} aria-label="Loot monitor controls">
+          <section
+            className={localOnly
+              ? `loot-controls local-viewer-controls${hasChestLog ? ' has-chest-log' : ''}`
+              : 'loot-controls'}
+            aria-label="Loot monitor controls"
+          >
             <MultiSelectDropdown
               allLabel="All tiers"
               getLabel={(value) => optionLabel(TIER_OPTIONS, value)}
@@ -3459,7 +3486,7 @@ export default function LootMonitor({
                 ))}
               </select>
             </label>
-            {!localOnly ? (
+            {!localOnly || hasChestLog ? (
               <StatusMultiSelectDropdown
                 disabledOptions={hasChestLog ? {} : {
                   kept: 'A chest log must be uploaded to select Kept.',
