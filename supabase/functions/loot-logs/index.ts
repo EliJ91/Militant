@@ -329,6 +329,43 @@ function duplicateEventTimestampMs(event: LootEvent) {
   return Number.isFinite(time) ? time : Number.NaN;
 }
 
+function duplicateItemIdentity(event: LootEvent) {
+  return normalize(event.itemId) || [normalize(event.item), String(event.enchantment || 0)].join('|');
+}
+
+function sourceActorKey(event: LootEvent, actor: unknown) {
+  return [
+    duplicateItemIdentity(event),
+    String(Number(event.quantity) || 0),
+    normalize(actor),
+  ].join('|');
+}
+
+function withInferredSources(events: LootEvent[]) {
+  const sourcesByActor = new Map<string, Array<{ player: string; time: number }>>();
+
+  (events || [])
+    .filter((event) => event.eventType === 'lost')
+    .forEach((event) => {
+      const key = sourceActorKey(event, event.lostTo);
+      const candidates = sourcesByActor.get(key) || [];
+      candidates.push({ player: event.player, time: duplicateEventTimestampMs(event) });
+      sourcesByActor.set(key, candidates);
+    });
+
+  return (events || []).map((event) => {
+    if (event.sourcePlayer || event.eventType === 'lost') {
+      return { ...event, sourcePlayer: event.sourcePlayer || event.player };
+    }
+
+    const time = duplicateEventTimestampMs(event);
+    const nearest = (sourcesByActor.get(sourceActorKey(event, event.player)) || [])
+      .filter((candidate) => Math.abs(candidate.time - time) <= NEARBY_DUPLICATE_MS)
+      .sort((left, right) => Math.abs(left.time - time) - Math.abs(right.time - time))[0];
+    return { ...event, sourcePlayer: nearest?.player || '' };
+  });
+}
+
 function nearbyDuplicateKey(event: LootEvent) {
   return [
     event.eventType,
@@ -337,7 +374,63 @@ function nearbyDuplicateKey(event: LootEvent) {
     normalize(event.itemId),
     normalize(event.item),
     String(event.enchantment || 0),
+    event.eventType === 'lost' ? normalize(event.lostTo) : '',
   ].join('|');
+}
+
+function sourceConflictKey(event: LootEvent) {
+  return [
+    event.eventType,
+    normalize(event.sourcePlayer),
+    duplicateItemIdentity(event),
+    String(Number(event.quantity) || 0),
+  ].join('|');
+}
+
+function resolveSourceConflicts(events: LootEvent[]) {
+  const groups = new Map<string, Array<{ event: LootEvent; index: number; time: number }>>();
+  const resolved: LootEvent[] = [];
+
+  events.forEach((event, index) => {
+    if (!normalize(event.sourcePlayer)) {
+      resolved.push(event);
+      return;
+    }
+    const key = sourceConflictKey(event);
+    const group = groups.get(key) || [];
+    group.push({ event, index, time: duplicateEventTimestampMs(event) });
+    groups.set(key, group);
+  });
+
+  groups.forEach((group) => {
+    const clusters: Array<{ entries: Array<{ event: LootEvent; index: number; time: number }>; lastTime: number }> = [];
+    group
+      .sort((left, right) => left.time - right.time || left.index - right.index)
+      .forEach((entry) => {
+        const cluster = clusters.find((current) => (
+          Number.isFinite(current.lastTime) && entry.time - current.lastTime <= NEARBY_DUPLICATE_MS
+        ));
+        if (cluster) {
+          cluster.entries.push(entry);
+          cluster.lastTime = Math.max(cluster.lastTime, entry.time);
+        } else {
+          clusters.push({ entries: [entry], lastTime: entry.time });
+        }
+      });
+
+    clusters.forEach((cluster) => {
+      const actors = new Set(cluster.entries.map(({ event }) => normalize(
+        event.eventType === 'lost' ? event.lostTo : event.player,
+      )).filter(Boolean));
+      if (actors.size > 1) {
+        resolved.push((cluster.entries.at(-1) || cluster.entries[0]).event);
+      } else {
+        resolved.push(...cluster.entries.map(({ event }) => event));
+      }
+    });
+  });
+
+  return resolved;
 }
 
 function bestDuplicateValue(entries: Array<{ event: LootEvent }>, field: keyof LootEvent) {
@@ -365,7 +458,7 @@ function duplicateQuantity(entries: Array<{ event: LootEvent }>) {
 function dedupeNearbyEvents(events: LootEvent[]) {
   const groups = new Map<string, Array<{ event: LootEvent; index: number; time: number }>>();
 
-  (events || []).forEach((event, index) => {
+  withInferredSources(events).forEach((event, index) => {
     const key = nearbyDuplicateKey(event);
     const group = groups.get(key) || [];
     group.push({ event, index, time: duplicateEventTimestampMs(event) });
@@ -400,17 +493,20 @@ function dedupeNearbyEvents(events: LootEvent[]) {
 
     clusters.forEach((cluster) => {
       const first = cluster.entries[0];
+      const latest = cluster.entries.at(-1) || first;
+      const usesSourceIdentity = cluster.entries.some(({ event }) => normalize(event.sourcePlayer));
+      const winner = usesSourceIdentity ? latest : first;
       deduped.push({
-        ...first.event,
-        alliance: bestDuplicateValue(cluster.entries, 'alliance'),
-        guild: bestDuplicateValue(cluster.entries, 'guild'),
-        lostTo: bestDuplicateValue(cluster.entries, 'lostTo'),
-        quantity: duplicateQuantity(cluster.entries),
+        ...winner.event,
+        alliance: winner.event.alliance || bestDuplicateValue(cluster.entries, 'alliance'),
+        guild: winner.event.guild || bestDuplicateValue(cluster.entries, 'guild'),
+        lostTo: winner.event.lostTo || bestDuplicateValue(cluster.entries, 'lostTo'),
+        quantity: usesSourceIdentity ? winner.event.quantity : duplicateQuantity(cluster.entries),
       });
     });
   });
 
-  return deduped.sort((left, right) => (
+  return resolveSourceConflicts(deduped).sort((left, right) => (
     (Number.isNaN(duplicateEventTimestampMs(left)) ? Number.POSITIVE_INFINITY : duplicateEventTimestampMs(left))
     - (Number.isNaN(duplicateEventTimestampMs(right)) ? Number.POSITIVE_INFINITY : duplicateEventTimestampMs(right))
     || nearbyDuplicateKey(left).localeCompare(nearbyDuplicateKey(right))
@@ -437,6 +533,7 @@ type LootEvent = {
   lostTo: string;
   player: string;
   quantity: number;
+  sourcePlayer?: string;
   timestamp: string;
 };
 

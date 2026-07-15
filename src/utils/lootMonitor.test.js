@@ -3,6 +3,7 @@ import {
   applyLootDeathChecks,
   buildLootLogExport,
   buildLootMonitorReport,
+  buildLootMonitorReportFromEvents,
   combineChestLogTexts,
   extractEnchantment,
   parseChestLog,
@@ -242,6 +243,56 @@ describe('loot monitor report', () => {
     });
     expect(report.totals.accountedQuantity).toBe(1);
     expect(report.totals.keptQuantity).toBe(0);
+    expect(report.totals.lootedQuantity).toBe(1);
+  });
+
+  it('uses the latest loot entry when nearby reports conflict on the looter', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-07-15T02:29:41.7387062Z;CHAIR;Militant;Onslawht;T6_2H_INFERNOSTAFF_MORGANA@2;Master's Blazing Staff;1;;R E Q U 1 E M;HideInLatam",
+      "2026-07-15T02:29:41.7695049Z;;Militant;biwwy1997;T6_2H_INFERNOSTAFF_MORGANA@2;Master's Blazing Staff;1;;R E Q U 1 E M;HideInLatam",
+    ].join('\n');
+
+    const parsed = parseLootEvents(lootText);
+
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.rows[0]).toMatchObject({
+      player: 'biwwy1997',
+      quantity: 1,
+      timestamp: '2026-07-15T02:29:41.7695049Z',
+    });
+    expect(parsed.lostRows).toHaveLength(1);
+    expect(parsed.lostRows[0]).toMatchObject({
+      lostTo: 'biwwy1997',
+      player: 'HideInLatam',
+      quantity: 1,
+      timestamp: '2026-07-15T02:29:41.7695049Z',
+    });
+  });
+
+  it('resolves conflicting looters after separate logs have already been merged', () => {
+    const common = {
+      enchantment: 2,
+      item: "Master's Blazing Staff",
+      itemId: 'T6_2H_INFERNOSTAFF_MORGANA@2',
+      quantity: 1,
+    };
+    const report = buildLootMonitorReportFromEvents([
+      { ...common, eventType: 'looted', guild: 'Militant', lostTo: '', player: 'Onslawht', timestamp: '2026-07-15T02:29:41.738Z' },
+      { ...common, eventType: 'lost', guild: 'R E Q U 1 E M', lostTo: 'Onslawht', player: 'HideInLatam', timestamp: '2026-07-15T02:29:41.738Z' },
+      { ...common, eventType: 'looted', guild: 'Militant', lostTo: '', player: 'biwwy1997', timestamp: '2026-07-15T02:29:41.869Z' },
+      { ...common, eventType: 'lost', guild: 'R E Q U 1 E M', lostTo: 'biwwy1997', player: 'HideInLatam', timestamp: '2026-07-15T02:29:41.869Z' },
+    ], '');
+
+    expect(report.rows.find((row) => row.player === 'Onslawht')).toBeUndefined();
+    expect(report.rows.find((row) => row.player === 'biwwy1997')).toMatchObject({
+      kept: 1,
+      looted: 1,
+    });
+    expect(report.rows.find((row) => row.player === 'HideInLatam')).toMatchObject({
+      lost: 1,
+      lostTo: 'biwwy1997',
+    });
     expect(report.totals.lootedQuantity).toBe(1);
   });
 
