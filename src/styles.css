@@ -1824,6 +1824,28 @@ button:focus-visible {
   font-size: 1rem;
 }
 
+.local-loot-viewer-upload {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(87, 216, 120, 0.28);
+  border-radius: 8px;
+  background: rgba(7, 16, 8, 0.78);
+}
+
+.local-loot-viewer-upload .loot-upload-dropzone {
+  min-height: 150px;
+}
+
+.local-loot-viewer-privacy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: center;
+}
+
 .loot-upload-dropzone span,
 .loot-upload-empty {
   color: var(--muted);
@@ -3007,6 +3029,18 @@ button:focus-visible {
   background: rgba(7, 16, 8, 0.78);
 }
 
+.selected-log-summary.local-viewer-summary {
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 0.34fr);
+}
+
+.local-viewer-summary .selected-log-file {
+  border-left: 0;
+}
+
+.loot-controls.local-viewer-controls {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .selected-log-cta,
 .selected-log-file,
 .selected-log-totals,
@@ -3482,6 +3516,11 @@ button:focus-visible {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55);
 }
 
+.looted-tile {
+  border: 2px solid rgba(87, 216, 120, 0.82);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55);
+}
+
 .loot-item-custody-tooltip {
   position: fixed;
   z-index: 1000;
@@ -3593,6 +3632,10 @@ button:focus-visible {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+.loot-player-row.local-viewer-row {
+  padding-bottom: 16px;
 }
 
 .loot-player-emv {
@@ -4739,6 +4782,10 @@ button:focus-visible {
 
   .loot-upload-panel,
   .loot-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .loot-controls.local-viewer-controls {
     grid-template-columns: 1fr;
   }
 

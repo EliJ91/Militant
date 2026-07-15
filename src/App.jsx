@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { History, ScrollText, ShieldCheck, Users } from 'lucide-react';
+import { Eye, History, ScrollText, ShieldCheck, Users } from 'lucide-react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import MembersTool from './components/MembersTool';
 import PermissionsTool from './components/PermissionsTool';
@@ -35,6 +35,7 @@ function getRoute() {
   const route = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '').toLowerCase();
 
   if (route === 'loot-logs') return 'loot-logs';
+  if (route === 'loot-viewer') return 'loot-viewer';
   if (route === 'loot-monitor' || route.startsWith('loot-monitor/')) return 'loot-monitor';
   if (route === 'shared-log' || route.startsWith('shared-log/')) return 'shared-log';
   if (route === 'siphoned-energy') return 'siphoned-energy';
@@ -487,7 +488,19 @@ function DashboardPage({
       title: 'Action Logs',
       to: '#action-logs',
     },
-  ].filter((tool) => permissions[tool.permission]);
+    {
+      description: 'Open loot logs locally without saving or changing any data.',
+      group: 'admin',
+      icon: Eye,
+      superuserOnly: true,
+      title: 'Loot Log Viewer',
+      to: '#loot-viewer',
+    },
+  ].filter((tool) => (
+    tool.superuserOnly
+      ? isSuperUserProfile && viewAsRoleIds.length === 0
+      : permissions[tool.permission]
+  ));
   const toolGroups = [
     { key: 'tools', label: 'Tools' },
     { key: 'admin', label: 'Administration' },
@@ -587,6 +600,32 @@ function LootMonitorPage({
 
 function SharedLootMonitorPage({ bundleId, isAuthenticated = false }) {
   return <LootMonitor bundleId={bundleId} canCheckDeaths={isAuthenticated} showShare={false} />;
+}
+
+function LocalLootViewerPage({
+  currentUser = null,
+  isAuthenticated = false,
+  isSuperUserProfile = false,
+  onResetViewAsRole = () => {},
+  onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
+}) {
+  return (
+    <ToolPage
+      currentUser={currentUser}
+      isAuthenticated={isAuthenticated}
+      isSuperUserProfile={isSuperUserProfile}
+      onResetViewAsRole={onResetViewAsRole}
+      onSignOut={onSignOut}
+      onToggleViewAsRole={onToggleViewAsRole}
+      viewAsRoleIds={viewAsRoleIds}
+      viewAsRoles={viewAsRoles}
+    >
+      <LootMonitor localOnly showShare={false} />
+    </ToolPage>
+  );
 }
 
 function ToolPage({
@@ -936,6 +975,7 @@ export default function App() {
 
   useEffect(() => {
     document.title = route === 'loot-logs' ? 'Loot Logs'
+      : route === 'loot-viewer' ? 'Loot Log Viewer'
       : route === 'loot-monitor' || route === 'shared-log' ? 'View Loot Log'
       : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
       : route === 'members' ? 'Members'
@@ -976,6 +1016,15 @@ export default function App() {
   let page;
   if (route === 'shared-log') {
     page = <SharedLootMonitorPage bundleId={selectedBundleId} isAuthenticated={isAuthenticated} />;
+  } else if (route === 'loot-viewer') {
+    page = (
+      <LocalLootViewerPage
+        currentUser={currentUser}
+        isAuthenticated={isAuthenticated}
+        onSignOut={handleSignOut}
+        {...topbarContext}
+      />
+    );
   } else if (route === 'siphoned-energy') {
     page = (
       <SiphonedEnergyPage

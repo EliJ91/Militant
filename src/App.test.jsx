@@ -91,13 +91,15 @@ describe('App', () => {
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Loot Log Viewer' })).toBeInTheDocument();
+    expect(screen.getByText('Open loot logs locally without saving or changing any data.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).toHaveAttribute(
       'src',
       '/assets/siphoned-energy.png',
     );
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.74');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.75');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -119,6 +121,17 @@ describe('App', () => {
     expect(screen.queryByText('View As Roles')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /upload log/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toBeInTheDocument();
+  });
+
+  it('opens the local loot viewer directly without Discord login', async () => {
+    window.location.hash = '#loot-viewer';
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Loot Log Viewer' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Open local loot logs' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /login with discord/i })).not.toBeInTheDocument();
+    expect(fetchLootLogBundle).not.toHaveBeenCalled();
   });
 
   it('opens the Siphoned Energy Tracker from the dashboard', async () => {
@@ -175,6 +188,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Members' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Permissions' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Loot Log Viewer' })).not.toBeInTheDocument();
     expect(fetchDiscordMemberRoles).toHaveBeenCalledWith(expect.objectContaining({ access_token: 'supabase-jwt' }));
   });
 

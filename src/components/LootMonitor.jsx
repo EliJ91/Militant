@@ -17,6 +17,7 @@ import {
   applyLootDeathChecks,
   buildLootMonitorReportFromEvents,
   combineChestLogTexts,
+  parseLootEvents,
 } from '../utils/lootMonitor';
 import { warmItemImageCache } from '../utils/itemImageCache';
 
@@ -77,6 +78,7 @@ const TILE_STATUS_LABELS = {
   accounted: 'Accounted',
   donated: 'Donated',
   kept: 'Kept',
+  looted: 'Looted',
   lost: 'Lost',
   resolved: 'Resolved',
 };
@@ -1695,6 +1697,61 @@ function LootLogUploadDialog({
   );
 }
 
+function LocalLootDropzone({ hasFiles = false, message = '', onFiles }) {
+  const inputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  function receiveFiles(fileList) {
+    const files = [...(fileList || [])];
+    if (files.length > 0) onFiles(files);
+  }
+
+  return (
+    <section className="local-loot-viewer-upload" aria-label="Open local loot logs">
+      <div
+        className={isDragging ? 'loot-upload-dropzone drag-over' : 'loot-upload-dropzone'}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setIsDragging(false);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+          setIsDragging(true);
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          setIsDragging(false);
+          receiveFiles(event.dataTransfer.files);
+        }}
+      >
+        <input
+          accept=".csv,.txt,text/csv,text/plain"
+          aria-label="Choose local loot logs"
+          className="file-input-hidden"
+          multiple
+          ref={inputRef}
+          type="file"
+          onChange={(event) => {
+            receiveFiles(event.target.files);
+            event.target.value = '';
+          }}
+        />
+        <strong>{isDragging ? 'Drop loot logs to view' : hasFiles ? 'Drop new logs to replace this view' : 'Drag loot logs here'}</strong>
+        <span>.csv or .txt</span>
+        <button className="secondary-button" type="button" onClick={() => inputRef.current?.click()}>
+          Choose files
+        </button>
+      </div>
+      <p className="local-loot-viewer-privacy">Files are read in this browser tab only and are never uploaded.</p>
+      {message ? <p className="loot-message error">{message}</p> : null}
+    </section>
+  );
+}
+
 function ChestLogUploadDialog({
   disabled,
   files,
@@ -2770,6 +2827,7 @@ export default function LootMonitor({
   bundleId = '',
   canCheckDeaths = false,
   canResetDeathChecks = false,
+  localOnly = false,
   onViewLogs = () => {},
   showShare = true,
   uploadUsername = 'Unknown Server Member',
@@ -2781,6 +2839,7 @@ export default function LootMonitor({
   const [marketPriceError, setMarketPriceError] = useState('');
   const [deathCheckStatus, setDeathCheckStatus] = useState({});
   const [deathCheckRun, setDeathCheckRun] = useState(null);
+  const [localLoadError, setLocalLoadError] = useState('');
   const [rawModalOpen, setRawModalOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState({ message: '', state: 'idle' });
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
@@ -2788,6 +2847,13 @@ export default function LootMonitor({
 
   useEffect(() => {
     let cancelled = false;
+
+    if (localOnly) {
+      setLoadStatus({ message: '', state: 'idle' });
+      return () => {
+        cancelled = true;
+      };
+    }
 
     if (!bundleId) {
       setSelectedBundle(null);
@@ -2818,7 +2884,7 @@ export default function LootMonitor({
     return () => {
       cancelled = true;
     };
-  }, [bundleId]);
+  }, [bundleId, localOnly]);
 
   useEffect(() => {
     const sharedFilters = getSharedFiltersFromHash();
@@ -2875,8 +2941,10 @@ export default function LootMonitor({
       ? rawSubmissions
       : [selectedBundle?.chestLogText || '']);
   }, [selectedBundle]);
-  const selectedTotals = selectedBundle?.summary?.totals || {};
-  const activeFilters = filters;
+  const selectedTotals = selectedBundle?.summary?.totals || report?.totals || {};
+  const activeFilters = useMemo(() => (
+    localOnly ? { ...filters, status: [] } : filters
+  ), [filters, localOnly]);
   const deathChecksByPlayer = useMemo(() => new Map(
     (selectedBundle?.deathChecks || [])
       .filter((check) => check?.playerName || check?.player)
@@ -2899,7 +2967,15 @@ export default function LootMonitor({
     report ? getVisibleRows(report.rows, activeFilters) : []
   ), [activeFilters, report]);
 
-  const visiblePlayers = useMemo(() => buildVisiblePlayerGroups(visibleRows, activeFilters), [activeFilters, visibleRows]);
+  const visiblePlayers = useMemo(() => {
+    const players = buildVisiblePlayerGroups(visibleRows, activeFilters);
+    if (!localOnly) return players;
+
+    return players.map((player) => ({
+      ...player,
+      tiles: player.tiles.map((tile) => ({ ...tile, status: 'looted' })),
+    }));
+  }, [activeFilters, localOnly, visibleRows]);
   const visiblePlayersWithEmv = useMemo(() => (
     addPlayerEmv(visiblePlayers, marketPrices)
   ), [marketPrices, visiblePlayers]);
@@ -2916,13 +2992,13 @@ export default function LootMonitor({
       .filter((target) => target.playerKey && target.keptItems.length > 0);
   }, [canCheckDeaths, report, visiblePlayers]);
   const visibleKeptItemIds = useMemo(() => (
-    [...new Set(visiblePlayers.flatMap((player) => (
+    localOnly ? [] : [...new Set(visiblePlayers.flatMap((player) => (
       player.tiles
         .filter((tile) => tile.status === 'kept')
         .map((tile) => tile.itemId)
         .filter(Boolean)
     )))]
-  ), [visiblePlayers]);
+  ), [localOnly, visiblePlayers]);
   const unfetchedKeptItemIds = useMemo(() => (
     visibleKeptItemIds.filter((itemId) => !Object.hasOwn(marketPrices, itemId))
   ), [marketPrices, visibleKeptItemIds]);
@@ -2955,6 +3031,63 @@ export default function LootMonitor({
   useEffect(() => {
     warmItemImageCache(visibleImageUrls);
   }, [visibleImageUrls]);
+
+  async function openLocalLootFiles(files) {
+    if (!localOnly) return;
+
+    const selectedFiles = [...(files || [])].filter(Boolean);
+    if (selectedFiles.length === 0) return;
+
+    setLocalLoadError('');
+    try {
+      const submissions = await Promise.all(selectedFiles.map(async (file) => {
+        const rawLogText = await file.text();
+        if (detectFileKind(rawLogText) !== 'loot') {
+          throw new Error(`${file.name} is not a valid loot log.`);
+        }
+        return { fileName: file.name, rawLogText };
+      }));
+      const events = submissions.flatMap((submission) => {
+        const parsed = parseLootEvents(submission.rawLogText);
+        return [
+          ...parsed.rows.map((row) => ({ ...row, eventType: 'looted', lostTo: '' })),
+          ...parsed.lostRows.map((row) => ({ ...row, eventType: 'lost' })),
+        ];
+      });
+
+      if (events.length === 0) throw new Error('No loot events were found in the selected files.');
+
+      const timestamps = events
+        .map((event) => new Date(event.timestamp).getTime())
+        .filter(Number.isFinite);
+      const lootedEvents = events.filter((event) => event.eventType !== 'lost');
+      const players = new Set(lootedEvents.map((event) => String(event.player || '').trim().toLowerCase()).filter(Boolean));
+
+      setMarketPrices({});
+      setMarketPriceError('');
+      setDeathCheckStatus({});
+      setDeathCheckRun(null);
+      setSelectedBundle({
+        chestLogText: '',
+        deathChecks: [],
+        endAt: timestamps.length > 0 ? new Date(Math.max(...timestamps)).toISOString() : '',
+        events,
+        hasChestLog: false,
+        lootFileName: submissions.length === 1 ? submissions[0].fileName : `${submissions.length} local loot logs`,
+        startAt: timestamps.length > 0 ? new Date(Math.min(...timestamps)).toISOString() : '',
+        submissions,
+        summary: {
+          totals: {
+            lootedQuantity: lootedEvents.reduce((sum, event) => sum + (Number(event.quantity) || 0), 0),
+            players: players.size,
+          },
+        },
+      });
+      setLoadStatus({ message: '', state: 'loaded' });
+    } catch (error) {
+      setLocalLoadError(error.message || 'Could not read the selected loot logs.');
+    }
+  }
 
   function updateFilter(key, value) {
     setFilters((current) => sanitizeFilters({ ...current, [key]: value }));
@@ -3171,9 +3304,9 @@ export default function LootMonitor({
       <section className="dashboard-heading loot-monitor-heading" aria-labelledby="loot-monitor-title">
         <div>
           <p className="eyebrow">Tool</p>
-          <h1 id="loot-monitor-title">View Loot Log</h1>
+          <h1 id="loot-monitor-title">{localOnly ? 'Loot Log Viewer' : 'View Loot Log'}</h1>
         </div>
-        <div className="loot-monitor-heading-actions">
+        {!localOnly ? <div className="loot-monitor-heading-actions">
           <button
             className="view-logs-button"
             disabled={!selectedBundle?.id}
@@ -3194,10 +3327,29 @@ export default function LootMonitor({
               {shareStatus.state === 'copying' ? 'Copying...' : 'Share'}
             </button>
           ) : null}
-        </div>
+        </div> : null}
       </section>
 
-      {selectedBundle ? (
+      {localOnly ? (
+        <LocalLootDropzone
+          hasFiles={Boolean(selectedBundle)}
+          message={localLoadError}
+          onFiles={openLocalLootFiles}
+        />
+      ) : null}
+
+      {selectedBundle && localOnly ? (
+        <section className="selected-log-summary local-viewer-summary" aria-label="Local loot log summary">
+          <div className="selected-log-file">
+            <small>Local Loot Logs</small>
+            <strong>{selectedBundle.lootFileName}</strong>
+          </div>
+          <div className="selected-log-totals">
+            <span><strong>{formatNumber(selectedTotals.players)}</strong><small>{selectedTotals.players === 1 ? 'player' : 'players'}</small></span>
+            <span><strong>{formatNumber(selectedTotals.lootedQuantity)}</strong><small>items</small></span>
+          </div>
+        </section>
+      ) : selectedBundle ? (
         <section className="selected-log-summary" aria-label="Selected CTA log">
           <div className="selected-log-cta">
             <small>CTA</small>
@@ -3225,8 +3377,8 @@ export default function LootMonitor({
       ) : null}
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
-      {marketPriceError && <p className="loot-message error">{marketPriceError}</p>}
-      <StatusToasts messages={[shareStatus, screenshotStatus]} />
+      {!localOnly && marketPriceError ? <p className="loot-message error">{marketPriceError}</p> : null}
+      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus]} /> : null}
       {rawModalOpen ? (
         <div className="raw-log-modal-backdrop" role="presentation" onMouseDown={() => setRawModalOpen(false)}>
           <section
@@ -3256,7 +3408,7 @@ export default function LootMonitor({
       ) : null}
 
       {!report ? (
-        <section className="loot-empty-state">
+        localOnly ? null : <section className="loot-empty-state">
           <h2>{loadStatus.state === 'loading' ? 'Loading Log' : 'Select a Stored Log'}</h2>
           <p>
             {loadStatus.state === 'loading'
@@ -3266,7 +3418,7 @@ export default function LootMonitor({
         </section>
       ) : (
         <>
-          <section className="loot-controls" aria-label="Loot monitor controls">
+          <section className={localOnly ? 'loot-controls local-viewer-controls' : 'loot-controls'} aria-label="Loot monitor controls">
             <MultiSelectDropdown
               allLabel="All tiers"
               getLabel={(value) => optionLabel(TIER_OPTIONS, value)}
@@ -3307,18 +3459,20 @@ export default function LootMonitor({
                 ))}
               </select>
             </label>
-            <StatusMultiSelectDropdown
-              disabledOptions={hasChestLog ? {} : {
-                kept: 'A chest log must be uploaded to select Kept.',
-              }}
-              label="Status"
-              options={STATUS_OPTIONS}
-              selectedValues={filters.status}
-              onChange={(value) => updateFilter('status', value)}
-            />
+            {!localOnly ? (
+              <StatusMultiSelectDropdown
+                disabledOptions={hasChestLog ? {} : {
+                  kept: 'A chest log must be uploaded to select Kept.',
+                }}
+                label="Status"
+                options={STATUS_OPTIONS}
+                selectedValues={filters.status}
+                onChange={(value) => updateFilter('status', value)}
+              />
+            ) : null}
           </section>
 
-          <div className="loot-board-toolbar">
+          {!localOnly ? <div className="loot-board-toolbar">
             {canCheckDeaths ? (
               <button
                 className="board-copy-button death-check-visible-button"
@@ -3339,7 +3493,7 @@ export default function LootMonitor({
             >
               {screenshotStatus.state === 'copying' ? 'Copying...' : 'Copy Screenshot'}
             </button>
-          </div>
+          </div> : null}
 
           <section className="loot-board-section" aria-label="Player loot board" ref={boardRef}>
             <header className="loot-board-header">
@@ -3352,7 +3506,7 @@ export default function LootMonitor({
             ) : (
               <div className="loot-player-list">
                 {visiblePlayersWithEmv.map((player) => (
-                  <article className="loot-player-row" key={player.player}>
+                  <article className={localOnly ? 'loot-player-row local-viewer-row' : 'loot-player-row'} key={player.player}>
                     <aside className="loot-player-name">
                       <strong>
                         {player.player} <span>({formatNumber(player.totalQuantity)})</span>
@@ -3366,7 +3520,7 @@ export default function LootMonitor({
                         <LootItemTile key={`${tile.status}:${tile.itemId}:${tile.item}:${index}`} tile={tile} />
                       ))}
                     </div>
-                    <div className="loot-player-actions">
+                    {!localOnly ? <div className="loot-player-actions">
                       <PlayerDeathControl
                         canResetDeathCheck={canResetDeathChecks}
                         deathCheck={deathChecksByPlayer.get(player.player.toLowerCase())}
@@ -3376,7 +3530,7 @@ export default function LootMonitor({
                         onCheck={() => checkPlayerDeath(player)}
                       />
                       <PlayerEmv emv={player.emv} />
-                    </div>
+                    </div> : null}
                   </article>
                 ))}
               </div>
@@ -3384,7 +3538,7 @@ export default function LootMonitor({
           </section>
         </>
       )}
-      {deathCheckRun ? <DeathCheckProgressModal {...deathCheckRun} /> : null}
+      {!localOnly && deathCheckRun ? <DeathCheckProgressModal {...deathCheckRun} /> : null}
     </main>
   );
 }
