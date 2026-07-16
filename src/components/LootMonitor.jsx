@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import { Trash2 } from 'lucide-react';
 import { fetchWestAveragePrices } from '../services/albionMarket';
 import {
+  buildLootLogShareUrl,
   checkLootLogDeath,
   checkLootLogDeaths,
   deleteChestLogs,
@@ -3313,8 +3314,7 @@ export default function LootMonitor({
   async function shareBundleLink() {
     if (!selectedBundle?.id || shareStatus.state === 'copying') return;
 
-    const shareUrl = new URL(window.location.href);
-    shareUrl.hash = `shared-log/${encodeURIComponent(selectedBundle.id)}${encodeSharedFilters(filters)}`;
+    const shareUrl = buildLootLogShareUrl(selectedBundle.id, encodeSharedFilters(filters));
     setShareStatus({ message: 'Copying...', state: 'copying' });
 
     try {

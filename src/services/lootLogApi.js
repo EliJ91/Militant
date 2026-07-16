@@ -1,4 +1,5 @@
 const DEFAULT_LOOT_LOG_API_URL = '/api/loot-logs';
+const PUBLIC_LOOT_LOG_SHARE_URL = 'https://militant-discord-interactions.ejjernigan.workers.dev/share/loot-log';
 import { recordActionLog } from './actionLogsApi';
 
 function getLootLogApiUrl() {
@@ -7,6 +8,16 @@ function getLootLogApiUrl() {
   }
 
   return import.meta.env.VITE_LOCAL_LOOT_LOG_API_URL || DEFAULT_LOOT_LOG_API_URL;
+}
+
+export function buildLootLogShareUrl(bundleId, filterQuery = '') {
+  const shareUrl = new URL(
+    import.meta.env.VITE_PRODUCTION_LOOT_LOG_SHARE_URL || PUBLIC_LOOT_LOG_SHARE_URL,
+  );
+  shareUrl.searchParams.set('bundle', String(bundleId || '').trim());
+  const filterParams = new URLSearchParams(String(filterQuery || '').replace(/^\?/, ''));
+  filterParams.forEach((value, key) => shareUrl.searchParams.append(key, value));
+  return shareUrl;
 }
 
 export async function submitLootLog({

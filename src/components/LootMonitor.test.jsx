@@ -15,6 +15,14 @@ import {
 import LootMonitor, { LootLogArchive } from './LootMonitor';
 
 vi.mock('../services/lootLogApi', () => ({
+  buildLootLogShareUrl: (bundleId, filterQuery = '') => {
+    const shareUrl = new URL('https://militant-discord-interactions.ejjernigan.workers.dev/share/loot-log');
+    shareUrl.searchParams.set('bundle', bundleId);
+    new URLSearchParams(filterQuery).forEach((value, key) => {
+      shareUrl.searchParams.append(key, value);
+    });
+    return shareUrl;
+  },
   checkLootLogDeath: vi.fn(),
   checkLootLogDeaths: vi.fn(),
   deleteChestLogs: vi.fn(),
@@ -715,19 +723,19 @@ describe('LootMonitor', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Share' }));
 
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(
-      expect.stringContaining('#shared-log/bundle-18'),
-    ));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
     const sharedUrl = new URL(writeText.mock.calls[0][0]);
-    const sharedParams = new URLSearchParams(sharedUrl.hash.split('?')[1]);
+    const sharedParams = sharedUrl.searchParams;
     expect(sharedParams.has('filters')).toBe(false);
-    expect(sharedUrl.hash).toBe('#shared-log/bundle-18?a=CHAIR&g=Militant&s=kept&t=tier4&y=cape&o=asc');
+    expect(sharedUrl.hostname).toBe('militant-discord-interactions.ejjernigan.workers.dev');
+    expect(sharedParams.get('bundle')).toBe('bundle-18');
     expect(sharedParams.getAll('a')).toEqual(['CHAIR']);
     expect(sharedParams.getAll('g')).toEqual(['Militant']);
     expect(sharedParams.getAll('s')).toEqual(['kept']);
     expect(sharedParams.getAll('t')).toEqual(['tier4']);
     expect(sharedParams.getAll('y')).toEqual(['cape']);
     expect(sharedParams.get('o')).toBe('asc');
+    expect(sharedUrl.hash).toBe('');
     expect(await screen.findByText('Link copied')).toBeInTheDocument();
   });
 
