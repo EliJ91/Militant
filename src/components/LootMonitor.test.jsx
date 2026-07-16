@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   checkLootLogDeath,
   checkLootLogDeaths,
+  deleteChestLogs,
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
@@ -16,6 +17,7 @@ import LootMonitor, { LootLogArchive } from './LootMonitor';
 vi.mock('../services/lootLogApi', () => ({
   checkLootLogDeath: vi.fn(),
   checkLootLogDeaths: vi.fn(),
+  deleteChestLogs: vi.fn(),
   deleteLootLogBundle: vi.fn(),
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
@@ -126,6 +128,7 @@ describe('LootMonitor', () => {
     mergeLootLogBundles.mockResolvedValue({ bundleId: 'merged-bundle', lootFileName: 'Merged - 18UTC-JUN-18' });
     submitLootLog.mockResolvedValue({ bundleId: 'bundle-18', summary: { fileNames: { loot: '18UTC-JUN-18 Loot Log' } } });
     submitChestLog.mockResolvedValue({ fileName: '18UTC-JUN-18 Chest Log' });
+    deleteChestLogs.mockResolvedValue({ bundleId: 'bundle-18', deleted: true, deletedChestLogs: 1 });
     deleteLootLogBundle.mockResolvedValue({ bundleId: 'bundle-18', deleted: true });
     updateLootLogBundle.mockResolvedValue({
       bundleId: 'bundle-18',
@@ -1160,6 +1163,35 @@ describe('LootMonitor', () => {
     ));
     expect(confirm).toHaveBeenCalledTimes(2);
     confirm.mockRestore();
+  });
+
+  it('deletes only linked chest logs after confirmation', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    render(<LootLogArchive />);
+
+    const deleteChestButton = await screen.findByRole('button', { name: 'Delete Chest Log' });
+    fireEvent.click(deleteChestButton);
+    expect(deleteChestLogs).not.toHaveBeenCalled();
+
+    fireEvent.click(deleteChestButton);
+    await waitFor(() => expect(deleteChestLogs).toHaveBeenCalledWith(
+      'bundle-18',
+      expect.objectContaining({
+        actorName: 'manual-web-upload',
+        bundle: expect.objectContaining({ id: 'bundle-18', lootFileName: '18UTC-JUN-18' }),
+      }),
+    ));
+    expect(deleteLootLogBundle).not.toHaveBeenCalled();
+    expect(confirm).toHaveBeenCalledTimes(2);
+    confirm.mockRestore();
+  });
+
+  it('hides both delete actions without delete permission', async () => {
+    render(<LootLogArchive canDeleteLogs={false} />);
+
+    await screen.findByRole('button', { name: 'View' });
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete Chest Log' })).not.toBeInTheDocument();
   });
 
   it('orders saved bundles by uploaded date newest first', async () => {

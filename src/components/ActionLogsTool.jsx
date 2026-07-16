@@ -124,6 +124,10 @@ function formatAction(log, bundleById) {
     return date ? `Deleted ${reference} (${date})` : `Deleted ${reference}`;
   }
 
+  if (action === 'Chest log deleted') {
+    return `Deleted chest logs from ${lootLogReference}`;
+  }
+
   if (action === 'Siphoned Energy updated') {
     return `Updated Siphoned Energy log`;
   }

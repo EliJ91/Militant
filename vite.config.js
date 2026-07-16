@@ -90,11 +90,17 @@ function lootLogApi() {
 
     if (req.method === 'DELETE') {
       try {
-        const { deleteExpiredLootLogBundles, deleteLootLogBundle } = await import('./src/server/supabaseLootLogs.js');
+        const {
+          deleteChestLogs,
+          deleteExpiredLootLogBundles,
+          deleteLootLogBundle,
+        } = await import('./src/server/supabaseLootLogs.js');
         const body = await readJsonBody(req);
         const result = body.deleteExpired
           ? await deleteExpiredLootLogBundles()
-          : await deleteLootLogBundle(body.bundleId);
+          : body.deleteChestLogs
+            ? await deleteChestLogs(body.bundleId)
+            : await deleteLootLogBundle(body.bundleId);
         sendJson(res, 200, result);
       } catch (error) {
         sendJson(res, 400, { error: error.message || 'Could not delete loot log.' });

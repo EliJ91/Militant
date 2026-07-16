@@ -1497,6 +1497,46 @@ Deno.serve(async (request) => {
       const bundleId = String(body.bundleId || '').trim();
       if (!bundleId) throw new Error('bundleId is required.');
 
+      if (body.deleteChestLogs) {
+        const { data: bundle, error: bundleError } = await supabase
+          .from('loot_log_bundles')
+          .select('id,combined_loot_summary')
+          .eq('id', bundleId)
+          .single();
+
+        if (bundleError) throw bundleError;
+
+        const { data: deletedLogs, error: deleteError } = await supabase
+          .from('chest_log_submissions')
+          .delete()
+          .eq('bundle_id', bundleId)
+          .select('id');
+
+        if (deleteError) throw deleteError;
+
+        const displaySubmitters = { ...(bundle.combined_loot_summary?.displaySubmitters || {}) };
+        delete displaySubmitters.chest;
+        const { error: updateError } = await supabase
+          .from('loot_log_bundles')
+          .update({
+            combined_loot_summary: {
+              ...(bundle.combined_loot_summary || {}),
+              displaySubmitters,
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', bundleId);
+
+        if (updateError) throw updateError;
+        await clearLootLogDeathChecks(supabase, bundleId);
+
+        return jsonResponse(200, {
+          bundleId,
+          deleted: true,
+          deletedChestLogs: (deletedLogs || []).length,
+        });
+      }
+
       const { data, error } = await supabase
         .from('loot_log_bundles')
         .delete()

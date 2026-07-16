@@ -217,6 +217,34 @@ export async function deleteLootLogBundle(bundleId, { actorName, bundle = {} } =
   return result;
 }
 
+export async function deleteChestLogs(bundleId, { actorName, bundle = {} } = {}) {
+  const response = await fetch(getLootLogApiUrl(), {
+    body: JSON.stringify({ bundleId, deleteChestLogs: true }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'DELETE',
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not delete chest logs.');
+  }
+
+  void recordActionLog({
+    action: 'Chest log deleted',
+    actorName,
+    details: {
+      lootLogDate: bundle.startAt || bundle.start_at || '',
+      lootLogName: bundle.lootFileName || bundle.displayLootFileName || bundle.fileName || '',
+      lootLogNumber: bundle.logNumber || null,
+    },
+    targetId: bundleId,
+    targetName: bundle.lootFileName || bundle.displayLootFileName || bundle.fileName || bundleId,
+    targetType: 'chest-log',
+  });
+
+  return result;
+}
+
 export async function updateLootLogBundle({
   actorName,
   bundleId,

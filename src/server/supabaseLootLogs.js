@@ -1212,6 +1212,49 @@ export async function deleteLootLogBundle(bundleId) {
   return { bundleId: data.id, deleted: true };
 }
 
+export async function deleteChestLogs(bundleId) {
+  if (!bundleId) throw new Error('bundleId is required.');
+
+  const supabase = createSupabaseAdmin();
+  const { data: bundle, error: bundleError } = await supabase
+    .from('loot_log_bundles')
+    .select('id,combined_loot_summary')
+    .eq('id', bundleId)
+    .single();
+
+  if (bundleError) throw bundleError;
+
+  const { data: deletedLogs, error: deleteError } = await supabase
+    .from('chest_log_submissions')
+    .delete()
+    .eq('bundle_id', bundleId)
+    .select('id');
+
+  if (deleteError) throw deleteError;
+
+  const displaySubmitters = { ...(bundle.combined_loot_summary?.displaySubmitters || {}) };
+  delete displaySubmitters.chest;
+  const { error: updateError } = await supabase
+    .from('loot_log_bundles')
+    .update({
+      combined_loot_summary: {
+        ...(bundle.combined_loot_summary || {}),
+        displaySubmitters,
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bundleId);
+
+  if (updateError) throw updateError;
+  await clearLootLogDeathChecks(supabase, bundleId);
+
+  return {
+    bundleId,
+    deleted: true,
+    deletedChestLogs: (deletedLogs || []).length,
+  };
+}
+
 export async function deleteExpiredLootLogBundles() {
   const supabase = createSupabaseAdmin();
   const cutoff = new Date(Date.now() - (RETENTION_DAYS * DAY_MS)).toISOString();

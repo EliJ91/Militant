@@ -1,10 +1,12 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
+import { Trash2 } from 'lucide-react';
 import { fetchWestAveragePrices } from '../services/albionMarket';
 import {
   checkLootLogDeath,
   checkLootLogDeaths,
+  deleteChestLogs,
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
@@ -1989,6 +1991,7 @@ function LootLogBundleList({
   canMergeLogs = false,
   canUploadChestLogs = true,
   canUploadLootLogs = true,
+  deletingChestBundleId,
   deletingBundleId,
   downloadingBundleId,
   editingBundleId,
@@ -1998,6 +2001,7 @@ function LootLogBundleList({
   onEdit,
   onEditValue,
   onDelete,
+  onDeleteChest,
   onDownload,
   onSelectBundle,
   onUploadLoot,
@@ -2175,6 +2179,18 @@ function LootLogBundleList({
                               +
                             </button>
                           ) : null}
+                          {bundle.hasChestLog && canDeleteLogs ? (
+                            <button
+                              aria-label="Delete Chest Log"
+                              className="saved-log-title-delete"
+                              disabled={deletingChestBundleId === bundle.id}
+                              title="Delete chest logs"
+                              type="button"
+                              onClick={() => onDeleteChest(bundle)}
+                            >
+                              <Trash2 aria-hidden="true" size={12} strokeWidth={2.2} />
+                            </button>
+                          ) : null}
                         </div>
                         <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
                       </div>
@@ -2298,6 +2314,7 @@ export function LootLogArchive({
   uploadUsername = 'manual-web-upload',
 }) {
   const [actionStatus, setActionStatus] = useState({ message: '', state: 'idle' });
+  const [deletingChestBundleId, setDeletingChestBundleId] = useState('');
   const [deletingBundleId, setDeletingBundleId] = useState('');
   const [downloadingBundleId, setDownloadingBundleId] = useState('');
   const [editingBundleId, setEditingBundleId] = useState('');
@@ -2551,6 +2568,29 @@ export function LootLogArchive({
     }
   }
 
+  async function deleteBundleChestLogs(bundle) {
+    const confirmed = window.confirm(
+      `Delete all chest logs linked to ${bundle.lootFileName || 'this loot log'}? The loot log will remain.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingChestBundleId(bundle.id);
+    setActionStatus({ message: `Deleting chest logs from ${bundle.lootFileName || 'loot log'}...`, state: 'deleting' });
+
+    try {
+      await deleteChestLogs(bundle.id, { actorName: uploadUsername, bundle });
+      setActionStatus({ message: 'Chest logs deleted.', state: 'success' });
+      await loadSavedLogs();
+    } catch (deleteError) {
+      setActionStatus({
+        message: deleteError.message || 'Could not delete the chest logs.',
+        state: 'error',
+      });
+    } finally {
+      setDeletingChestBundleId('');
+    }
+  }
+
   function editBundle(bundle) {
     const lootSubmitters = bundle.submitters?.length
       ? bundle.submitters
@@ -2799,6 +2839,7 @@ export function LootLogArchive({
         canMergeLogs={canMergeLogs}
         canUploadChestLogs={canUploadChestLogs}
         canUploadLootLogs={canUploadLootLogs}
+        deletingChestBundleId={deletingChestBundleId}
         deletingBundleId={deletingBundleId}
         downloadingBundleId={downloadingBundleId}
         editingBundleId={editingBundleId}
@@ -2808,6 +2849,7 @@ export function LootLogArchive({
         onEdit={editBundle}
         onEditValue={updateEditValue}
         onDelete={deleteBundle}
+        onDeleteChest={deleteBundleChestLogs}
         onDownload={downloadBundle}
         onSelectBundle={toggleSelectedBundle}
         onUploadLoot={openLootUpload}

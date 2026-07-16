@@ -2829,6 +2829,7 @@ button:focus-visible {
 
 .saved-log-inline-button,
 .saved-log-title-upload,
+.saved-log-title-delete,
 .saved-log-view-button,
 .saved-log-download-button,
 .saved-log-edit-button,
@@ -2860,6 +2861,31 @@ button:focus-visible {
   color: transparent;
   font-size: 0;
   line-height: 1;
+}
+
+.saved-log-title-delete {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  align-items: center;
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 0;
+  border-color: rgba(255, 79, 103, 0.55);
+  background: rgba(255, 79, 103, 0.08);
+  color: #ff4f67;
+}
+
+.saved-log-title-delete:hover:not(:disabled) {
+  border-color: #ff4f67;
+  background: #ff4f67;
+  color: var(--white);
+}
+
+.saved-log-title-delete:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .saved-log-title-upload::before {

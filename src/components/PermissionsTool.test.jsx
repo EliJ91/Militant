@@ -41,6 +41,7 @@ describe('PermissionsTool', () => {
     expect(screen.queryByPlaceholderText('Role ID later')).not.toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Change Permissions' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'View Logs' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'Delete Chest/Loot Logs' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Update Siphoned Energy Tracker' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Area' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();

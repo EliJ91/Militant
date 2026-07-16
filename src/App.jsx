@@ -680,7 +680,7 @@ function LootLogsPage({
       viewAsRoles={viewAsRoles}
     >
       <LootLogArchive
-        canDeleteLogs={Boolean(permissions.editLootLogs)}
+        canDeleteLogs={Boolean(permissions.deleteChestLootLogs)}
         canChangeLootLogTitle={Boolean(permissions.changeLootLogTitle)}
         canDownloadLogs={Boolean(permissions.viewLogs)}
         canEditLogs={Boolean(permissions.editLootLogs)}
