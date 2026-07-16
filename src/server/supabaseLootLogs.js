@@ -5,7 +5,11 @@ import {
   buildLootLogEvents,
   getLootLogTimeRange,
 } from '../utils/lootLogMerge.js';
-import { combineChestLogTexts, parseChestLog } from '../utils/lootMonitor.js';
+import {
+  combineChestLogTexts,
+  filterChestLogTextByWindow,
+  parseChestLog,
+} from '../utils/lootMonitor.js';
 
 function requireConfig() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -984,7 +988,11 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
 
   if (bundleError) throw bundleError;
 
-  const parsed = parseChestLog(chestLogText, { endAt: bundle.end_at, startAt: bundle.start_at });
+  const filteredChestLogText = filterChestLogTextByWindow(chestLogText, {
+    endAt: bundle.end_at,
+    startAt: bundle.start_at,
+  });
+  const parsed = parseChestLog(filteredChestLogText);
   if (parsed.rows.length === 0 && parsed.withdrawals.length === 0) {
     throw new Error('The chest log does not contain any item rows within the loot log time window.');
   }
@@ -1005,7 +1013,7 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
     .insert({
       bundle_id: bundleId,
       parsed_chest_summary: parsedSummary,
-      raw_log_text: chestLogText,
+      raw_log_text: filteredChestLogText,
       submitted_by: cleanUsername,
     })
     .select('id,created_at')
@@ -1345,7 +1353,13 @@ export async function getLootLogBundle(bundleId) {
   if (deathChecksResult.error) throw deathChecksResult.error;
 
   const summary = aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent));
-  const chestLogs = chestResult.data || [];
+  const chestLogs = (chestResult.data || []).map((log) => ({
+    ...log,
+    raw_log_text: filterChestLogTextByWindow(log.raw_log_text, {
+      endAt: bundle.end_at,
+      startAt: bundle.start_at,
+    }),
+  }));
   const rawChestLogTexts = chestLogs.map((log) => log.raw_log_text || '').filter(Boolean);
   const rawLootLogTexts = (lootSubmissionsResult.data || [])
     .map((submission) => submission.raw_log_text || '')

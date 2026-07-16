@@ -17,6 +17,7 @@ import {
   applyLootDeathChecks,
   buildLootMonitorReportFromEvents,
   combineChestLogTexts,
+  filterChestLogTextByWindow,
   parseLootEvents,
 } from '../utils/lootMonitor';
 import { warmItemImageCache } from '../utils/itemImageCache';
@@ -2936,9 +2937,15 @@ export default function LootMonitor({
     const rawSubmissions = (selectedBundle?.chestSubmissions || [])
       .map((submission) => submission.rawLogText || '')
       .filter(Boolean);
-    return combineChestLogTexts(rawSubmissions.length > 0
+    const filteredSubmissions = (rawSubmissions.length > 0
       ? rawSubmissions
-      : [selectedBundle?.chestLogText || '']);
+      : [selectedBundle?.chestLogText || ''])
+      .map((text) => filterChestLogTextByWindow(text, {
+        endAt: selectedBundle?.endAt,
+        startAt: selectedBundle?.startAt,
+      }))
+      .filter(Boolean);
+    return combineChestLogTexts(filteredSubmissions);
   }, [selectedBundle]);
   const selectedTotals = selectedBundle?.summary?.totals || report?.totals || {};
   const activeFilters = useMemo(() => (

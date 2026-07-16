@@ -150,6 +150,43 @@ function isChestHeader(cells) {
   return normalizedCells[0] === 'Date' && normalizedCells.includes('Player') && normalizedCells.includes('Amount');
 }
 
+export function filterChestLogTextByWindow(
+  text,
+  { endAt = '', graceMs = 2 * 60 * 60 * 1000, startAt = '' } = {},
+) {
+  const source = String(text || '');
+  const rangeStart = timestampMs(startAt);
+  const rangeEnd = timestampMs(endAt);
+  if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd)) return source;
+
+  const sections = [];
+  let activeSection = null;
+
+  parseDelimited(source, '\t').forEach((cells) => {
+    if (isChestHeader(cells)) {
+      activeSection = {
+        header: cells.map((cell) => cell.replace(/^\uFEFF/, '').trim()),
+        rows: [],
+      };
+      sections.push(activeSection);
+      return;
+    }
+
+    if (!activeSection || !cells.some((cell) => cell.trim())) return;
+    const dateIndex = activeSection.header.findIndex((cell) => cell === 'Date');
+    const eventTime = timestampMs(parseTimestamp(cells[dateIndex] || ''));
+    if (Number.isFinite(eventTime) && eventTime >= rangeStart && eventTime <= rangeEnd + graceMs) {
+      activeSection.rows.push(cells);
+    }
+  });
+
+  return sections
+    .filter((section) => section.rows.length > 0)
+    .flatMap((section) => [section.header, ...section.rows])
+    .map((row) => row.map(escapeTabCell).join('\t'))
+    .join('\n');
+}
+
 function resolveChestItemId(item, enchantment) {
   const baseId = albionItemLookup[normalizeItemLookupName(item)] || '';
   if (!baseId) return '';

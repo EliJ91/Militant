@@ -603,6 +603,52 @@ function chestTimestampMs(value: unknown) {
   return new Date(text).getTime();
 }
 
+function escapeChestCell(value: unknown) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function isChestHeader(cells: string[]) {
+  const normalized = cells.map((cell) => cell.trim());
+  return normalized[0] === 'Date' && normalized.includes('Player') && normalized.includes('Amount');
+}
+
+function filterChestLogTextByWindow(
+  text: string,
+  timeWindow: { endAt?: string; startAt?: string },
+) {
+  const source = String(text || '');
+  const rangeStart = chestTimestampMs(timeWindow.startAt);
+  const rangeEnd = chestTimestampMs(timeWindow.endAt);
+  if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd)) return source;
+
+  const sections: Array<{ header: string[]; rows: string[][] }> = [];
+  let activeSection: { header: string[]; rows: string[][] } | null = null;
+
+  parseDelimited(source, '\t').forEach((cells) => {
+    if (isChestHeader(cells)) {
+      activeSection = {
+        header: cells.map((cell) => cell.replace(/^\uFEFF/, '').trim()),
+        rows: [],
+      };
+      sections.push(activeSection);
+      return;
+    }
+
+    if (!activeSection || !cells.some((cell) => cell.trim())) return;
+    const dateIndex = activeSection.header.findIndex((cell) => cell === 'Date');
+    const eventTime = chestTimestampMs(cells[dateIndex] || '');
+    if (Number.isFinite(eventTime) && eventTime >= rangeStart && eventTime <= rangeEnd + (2 * ONE_HOUR_MS)) {
+      activeSection.rows.push(cells);
+    }
+  });
+
+  return sections
+    .filter((section) => section.rows.length > 0)
+    .flatMap((section) => [section.header, ...section.rows])
+    .map((row) => row.map(escapeChestCell).join('\t'))
+    .join('\n');
+}
+
 function parseChestLog(text: string, timeWindow: { endAt?: string; startAt?: string } = {}) {
   const records = rowsToObjects(parseDelimited(text, '\t'));
   const rows: Array<Record<string, unknown>> = [];
@@ -1495,7 +1541,13 @@ Deno.serve(async (request) => {
         if (deathChecksResult.error) throw deathChecksResult.error;
 
         const summary = aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent));
-        const chestLogs = chestResult.data || [];
+        const chestLogs = (chestResult.data || []).map((log: any) => ({
+          ...log,
+          raw_log_text: filterChestLogTextByWindow(log.raw_log_text, {
+            endAt: bundle.end_at,
+            startAt: bundle.start_at,
+          }),
+        }));
         const chestLog = chestLogs[chestLogs.length - 1] || null;
         const rawLootLogTexts = (submissionsResult.data || [])
           .map((submission: any) => submission.raw_log_text || '')
@@ -1647,10 +1699,11 @@ Deno.serve(async (request) => {
 
       if (chestBundleError) throw chestBundleError;
 
-      const parsedChest = parseChestLog(chestLogText, {
+      const filteredChestLogText = filterChestLogTextByWindow(chestLogText, {
         endAt: chestBundle.end_at,
         startAt: chestBundle.start_at,
       });
+      const parsedChest = parseChestLog(filteredChestLogText);
       if (parsedChest.rows.length === 0 && parsedChest.withdrawals.length === 0) {
         throw new Error('The chest log does not contain any item rows within the loot log time window.');
       }
@@ -1671,7 +1724,7 @@ Deno.serve(async (request) => {
         .insert({
           bundle_id: bundleId,
           parsed_chest_summary: parsedSummary,
-          raw_log_text: chestLogText,
+          raw_log_text: filteredChestLogText,
           submitted_by: submittedBy,
         })
         .select('id,created_at')
