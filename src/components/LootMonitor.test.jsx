@@ -884,10 +884,11 @@ describe('LootMonitor', () => {
     expect(within(instructionsDialog).getByRole('heading', { name: 'Check And Add Deaths' })).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('.csv or .txt')).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('/upload')).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText(/select a player's name/i)).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText(/open that player's Murderledger in a new tab/i)).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText(/items in the victim's inventory must match items marked Kept/i)).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText(/Anyone who can view the loot log can use this link/i)).toBeInTheDocument();
+    expect(within(instructionsDialog).getByText(/select the player's name/i)).toBeInTheDocument();
+    expect(within(instructionsDialog).getByText(/Murderledger opens in a new tab/i)).toBeInTheDocument();
+    expect(within(instructionsDialog).getByText(/copy the numeric death ID/i)).toBeInTheDocument();
+    expect(within(instructionsDialog).getByText(/compares the death inventory with the player's/i)).toBeInTheDocument();
+    expect(within(instructionsDialog).getByText('No Death Found')).toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('img')).not.toBeInTheDocument();
     fireEvent.click(within(instructionsDialog).getByRole('button', { name: 'Close upload instructions' }));
     expect(screen.queryByRole('dialog', { name: 'Upload Instructions' })).not.toBeInTheDocument();
