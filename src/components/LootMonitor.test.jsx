@@ -6,6 +6,7 @@ import {
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
+  markLootLogPlayerNoDeath,
   mergeLootLogBundles,
   setLootLogPlayerHidden,
   submitChestLog,
@@ -28,6 +29,7 @@ vi.mock('../services/lootLogApi', () => ({
   deleteLootLogBundle: vi.fn(),
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
+  markLootLogPlayerNoDeath: vi.fn(),
   mergeLootLogBundles: vi.fn(),
   setLootLogPlayerHidden: vi.fn(),
   submitChestLog: vi.fn(),
@@ -134,6 +136,14 @@ describe('LootMonitor', () => {
     fetchLootLogBundle.mockResolvedValue({ bundle: createBundle() });
     fetchLootLogBundles.mockResolvedValue({ bundles: [createBundle()] });
     mergeLootLogBundles.mockResolvedValue({ bundleId: 'merged-bundle', lootFileName: 'Merged - 18UTC-JUN-18' });
+    markLootLogPlayerNoDeath.mockResolvedValue({
+      deathCheck: {
+        eventId: '',
+        matchedItems: [],
+        playerName: 'Windyyyzz',
+        status: 'not_found',
+      },
+    });
     setLootLogPlayerHidden.mockResolvedValue({ bundleId: 'bundle-18', hidden: false, hiddenPlayers: [] });
     submitLootLog.mockResolvedValue({ bundleId: 'bundle-18', summary: { fileNames: { loot: '18UTC-JUN-18 Loot Log' } } });
     submitChestLog.mockResolvedValue({ fileName: '18UTC-JUN-18 Chest Log' });
@@ -486,6 +496,47 @@ describe('LootMonitor', () => {
     expect(accountedTile).toBeInTheDocument();
     fireEvent.click(accountedTile);
     expect(screen.getByRole('tooltip')).toHaveTextContent('Death ID: 12345');
+  });
+
+  it('marks no death found and replaces it when a death ID is later added', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        deathChecks: [],
+        events: [storedEvents[0]],
+        hasChestLog: false,
+      }),
+    });
+    addLootLogDeathId.mockResolvedValue({
+      deathCheck: {
+        deathUrl: 'https://albiononline.com/killboard/kill/12345?server=live_us',
+        eventId: '12345',
+        matchedItems: [{ itemId: 'T4_CAPEITEM_FW_LYMHURST@3', quantity: 1 }],
+        playerName: 'Windyyyzz',
+        status: 'found',
+      },
+    });
+
+    render(<LootMonitor bundleId="bundle-18" canAddDeathId uploadUsername="Onslawht" />);
+    await screen.findByText('Windyyyzz');
+    fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
+    fireEvent.click(screen.getByRole('button', { name: 'No Death' }));
+
+    await waitFor(() => expect(markLootLogPlayerNoDeath).toHaveBeenCalledWith({
+      actorName: 'Onslawht',
+      bundleId: 'bundle-18',
+      lootLogName: '18UTC-JUN-18',
+      player: 'Windyyyzz',
+    }));
+    expect(await screen.findByText('No Death Found')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Death ID for Windyyyzz' }), { target: { value: '12345' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add ID' }));
+
+    expect(await screen.findByRole('link', { name: 'Death' })).toBeInTheDocument();
+    expect(screen.queryByText('No Death Found')).not.toBeInTheDocument();
   });
 
   it('closes the death ID entry and clears its message when submitted empty', async () => {

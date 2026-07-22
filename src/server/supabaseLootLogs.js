@@ -753,6 +753,14 @@ export async function addLootLogDeathId({ bundleId, checks, deathId }) {
 
   const supabase = createSupabaseAdmin();
   const checkedAt = new Date().toISOString();
+  const { error: markerDeleteError } = await supabase
+    .from('loot_log_death_checks')
+    .delete()
+    .eq('bundle_id', cleanBundleId)
+    .eq('player_key', victimKey)
+    .eq('status', 'not_found');
+  if (markerDeleteError) throw markerDeleteError;
+
   const record = {
     bundle_id: cleanBundleId,
     checked_at: checkedAt,
@@ -778,6 +786,43 @@ export async function addLootLogDeathId({ bundleId, checks, deathId }) {
     ? supabase.from('loot_log_death_checks').update(record).eq('id', existing.id)
     : supabase.from('loot_log_death_checks').insert(record);
   const { data, error } = await saveQuery
+    .select('player_key,player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
+    .single();
+  if (error) throw error;
+  return { deathCheck: mapDeathCheck(data) };
+}
+
+export async function markLootLogPlayerNoDeath({ bundleId, player }) {
+  const cleanBundleId = String(bundleId || '').trim();
+  const playerName = String(player || '').trim();
+  const playerKey = normalizeDeathKey(playerName);
+  if (!cleanBundleId) throw new Error('bundleId is required.');
+  if (!playerKey) throw new Error('player is required.');
+
+  const supabase = createSupabaseAdmin();
+  const checkedAt = new Date().toISOString();
+  const { error: deleteError } = await supabase
+    .from('loot_log_death_checks')
+    .delete()
+    .eq('bundle_id', cleanBundleId)
+    .eq('player_key', playerKey);
+  if (deleteError) throw deleteError;
+
+  const { data, error } = await supabase
+    .from('loot_log_death_checks')
+    .insert({
+      bundle_id: cleanBundleId,
+      checked_at: checkedAt,
+      death_at: null,
+      death_url: '',
+      event_id: '',
+      matched_items: [],
+      player_id: '',
+      player_key: playerKey,
+      player_name: playerName,
+      status: 'not_found',
+      updated_at: checkedAt,
+    })
     .select('player_key,player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
     .single();
   if (error) throw error;

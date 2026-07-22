@@ -3761,6 +3761,13 @@ button:focus-visible {
   color: #ff8b96;
 }
 
+.loot-player-no-death {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .loot-player-row.local-viewer-row {
   padding-bottom: 16px;
 }
