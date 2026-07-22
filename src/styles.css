@@ -3350,6 +3350,19 @@ button:focus-visible {
   outline: 1px solid var(--green-hot);
 }
 
+.death-id-button,
+.death-id-button:hover:not(:disabled) {
+  border-color: rgba(247, 250, 245, 0.24);
+  background: #050706;
+  color: var(--white);
+}
+
+.death-id-button:hover:not(:disabled),
+.death-id-button:focus-visible {
+  border-color: rgba(247, 250, 245, 0.5);
+  background: #111411;
+}
+
 .screenshot-status {
   color: var(--muted);
   font-size: 0.72rem;
@@ -3706,7 +3719,7 @@ button:focus-visible {
 }
 
 .loot-player-death-links a {
-  color: #72d7ff;
+  color: #ff5262;
   font-size: 0.76rem;
   font-weight: 900;
   text-decoration: underline;
@@ -3715,7 +3728,7 @@ button:focus-visible {
 
 .loot-player-death-links a:hover,
 .loot-player-death-links a:focus-visible {
-  color: var(--white);
+  color: #ff8b96;
 }
 
 .loot-player-row.local-viewer-row {

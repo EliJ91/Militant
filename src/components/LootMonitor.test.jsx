@@ -455,6 +455,33 @@ describe('LootMonitor', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('Death ID: 12345');
   });
 
+  it('closes the death ID entry and clears its message when submitted empty', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        deathChecks: [],
+        events: [storedEvents[0]],
+        hasChestLog: false,
+      }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
+    await screen.findByText('Windyyyzz');
+    fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
+    const input = screen.getByRole('textbox', { name: 'Death ID for Windyyyzz' });
+    fireEvent.change(input, { target: { value: 'not-an-id' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add ID' }));
+    expect(await screen.findByText('Enter a valid death ID.')).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add ID' }));
+
+    expect(screen.queryByRole('textbox', { name: 'Death ID for Windyyyzz' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter a valid death ID.')).not.toBeInTheDocument();
+    expect(addLootLogDeathId).not.toHaveBeenCalled();
+  });
+
   it('keeps custody tooltips inside the viewport', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({

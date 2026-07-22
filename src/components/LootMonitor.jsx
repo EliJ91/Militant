@@ -3096,7 +3096,14 @@ export default function LootMonitor({
 
   async function addDeathId(player) {
     if (!selectedBundle?.id || deathIdStatus.state === 'loading') return;
-    const deathId = String(deathIdInput || '').trim().match(/(\d+)(?:\D*)$/)?.[1] || '';
+    const rawDeathId = String(deathIdInput || '').trim();
+    if (!rawDeathId) {
+      setDeathIdEntryPlayer('');
+      setDeathIdStatus({ message: '', state: 'idle' });
+      return;
+    }
+
+    const deathId = rawDeathId.match(/(\d+)(?:\D*)$/)?.[1] || '';
     if (!deathId) {
       setDeathIdStatus({ message: 'Enter a valid death ID.', state: 'error' });
       return;
