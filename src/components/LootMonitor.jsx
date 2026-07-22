@@ -1376,7 +1376,7 @@ function PlayerEmv({ emv }) {
 }
 
 function buildPlayerLedgerUrl(playerName) {
-  return `https://murderledger.albiononline2d.com/players/${encodeURIComponent(String(playerName || '').trim())}/ledger`;
+  return `https://murderledger.albiononline2d.com/players/${encodeURIComponent(String(playerName || '').trim())}/ledger?show_kills=0&show_assists=0`;
 }
 
 function buildDeathLinkUrl(eventId) {

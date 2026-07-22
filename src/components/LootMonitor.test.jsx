@@ -402,7 +402,7 @@ describe('LootMonitor', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Check Recent Deaths' }));
 
     expect(openWindow).toHaveBeenCalledWith(
-      'https://murderledger.albiononline2d.com/players/Windyyyzz/ledger',
+      'https://murderledger.albiononline2d.com/players/Windyyyzz/ledger?show_kills=0&show_assists=0',
       '_blank',
       'noopener,noreferrer',
     );
