@@ -16,7 +16,6 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'uploadChestLogs', label: 'Upload Chest Logs', area: 'Loot Logs' },
   { key: 'deleteChestLootLogs', label: 'Delete Chest/Loot Logs', area: 'Loot Logs' },
   { key: 'searchDeaths', label: 'Search For Deaths', area: 'Loot Logs' },
-  { key: 'resetDeathCheck', label: 'Reset Death Check', area: 'Loot Logs' },
   { key: 'viewMembers', label: 'View Members', area: 'Members' },
   { key: 'updateMembersList', label: 'Update Members List', area: 'Members' },
   { key: 'viewSiphonedEnergy', label: 'View Siphoned Energy Tracker', area: 'Siphoned Energy' },

@@ -563,7 +563,6 @@ function DashboardPage({
 function LootMonitorPage({
   bundleId,
   canCheckDeaths = false,
-  canResetDeathChecks = false,
   currentUser = null,
   isSuperUserProfile = false,
   onResetViewAsRole = () => {},
@@ -590,9 +589,7 @@ function LootMonitorPage({
       <LootMonitor
         bundleId={bundleId}
         canCheckDeaths={canCheckDeaths}
-        canResetDeathChecks={canResetDeathChecks}
         onViewLogs={() => navigateTo('#loot-logs')}
-        uploadUsername={getUploadUsername(currentUser)}
       />
     </>
   );
@@ -1091,7 +1088,6 @@ export default function App() {
       <LootMonitorPage
         bundleId={selectedBundleId}
         canCheckDeaths={Boolean(effectivePermissions.searchDeaths)}
-        canResetDeathChecks={Boolean(effectivePermissions.resetDeathCheck)}
         currentUser={currentUser}
         onSignOut={handleSignOut}
         {...topbarContext}

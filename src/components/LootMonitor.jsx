@@ -1,12 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
-import { Trash2 } from 'lucide-react';
+import { ExternalLink, Trash2 } from 'lucide-react';
 import { fetchWestAveragePrices } from '../services/albionMarket';
 import {
   buildLootLogShareUrl,
-  checkLootLogDeath,
-  checkLootLogDeaths,
   deleteChestLogs,
   deleteLootLogBundle,
   fetchLootLogBundle,
@@ -35,7 +33,6 @@ const DOWNLOAD_AGE_DAYS = 60;
 const RETENTION_DAYS = 90;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 const LOOT_TOOLTIP_OPEN_EVENT = 'militant:loot-tooltip-open';
-const DEATH_CHECK_BATCH_SIZE = 1;
 
 const TIER_OPTIONS = [
   { label: 'T4', value: 'tier4' },
@@ -1349,146 +1346,8 @@ function PlayerEmv({ emv }) {
   );
 }
 
-function PlayerDeathControl({
-  canResetDeathCheck = false,
-  deathCheck,
-  isCheckLocked,
-  isChecking,
-  onCheck,
-  showCheck,
-}) {
-  const deathUrl = deathCheck?.deathUrl || (deathCheck?.eventId
-    ? `https://killboard-1.com/us/event/${encodeURIComponent(deathCheck.eventId)}`
-    : '');
-
-  if (deathCheck?.status === 'found' && deathUrl) {
-    return (
-      <span className="player-death-actions">
-        <a
-          className="player-death-control death-link"
-          href={deathUrl}
-          rel="noreferrer"
-          target="_blank"
-          title="Open death record"
-        >
-          Death
-        </a>
-      </span>
-    );
-  }
-
-  if (deathCheck?.status === 'found') {
-    return (
-      <span className="player-death-actions">
-        <span className="player-death-result">Death Found</span>
-      </span>
-    );
-  }
-
-  if (deathCheck?.status === 'not_found') {
-    return (
-      <span className="player-death-actions">
-        {showCheck && canResetDeathCheck ? (
-          <button
-            className="player-death-control"
-            disabled={isChecking || isCheckLocked}
-            title="Recheck the player's deaths"
-            type="button"
-            onClick={onCheck}
-          >
-            {isChecking ? 'Checking...' : 'Reset'}
-          </button>
-        ) : null}
-        <button
-          className="player-death-control"
-          disabled
-          title="No death was found for this player"
-          type="button"
-        >
-          No Death Found
-        </button>
-      </span>
-    );
-  }
-
-  if (!showCheck) return null;
-
-  return (
-    <button
-      className="player-death-control"
-      disabled={isChecking || isCheckLocked}
-      title="Check the player's deaths during this loot log"
-      type="button"
-      onClick={onCheck}
-    >
-      {isChecking ? 'Checking...' : 'Check Death'}
-    </button>
-  );
-}
-
-function DeathCheckProgressModal({
-  completed,
-  currentBatch,
-  found = 0,
-  notFound = 0,
-  status = 'checking',
-  total,
-  totalBatches,
-}) {
-  const isComplete = status === 'complete';
-
-  return (
-    <div
-      className="death-check-modal-backdrop"
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-    >
-      <section
-        aria-label="Checking deaths"
-        aria-live="assertive"
-        aria-modal="true"
-        className="death-check-modal"
-        role="dialog"
-      >
-        <p className="eyebrow">Death Checks</p>
-        <h2>{isComplete ? 'Death Checks Complete' : 'Checking Deaths'}</h2>
-        {isComplete ? (
-          <p>
-            Found {formatNumber(found)}.
-            {' '}
-            Not found {formatNumber(notFound)}.
-          </p>
-        ) : (
-          <p>Checking {formatNumber(completed)} of {formatNumber(total)} visible players.</p>
-        )}
-        <progress max={total} value={completed} />
-        <small>
-          {isComplete
-            ? 'Closing...'
-            : `Batch ${formatNumber(currentBatch)} of ${formatNumber(totalBatches)}`}
-        </small>
-      </section>
-    </div>
-  );
-}
-
-function getPlayerKeptItems(report, playerName) {
-  const playerKey = String(playerName || '').trim().toLowerCase();
-  return (report?.rows || [])
-    .filter((row) => String(row.player || '').trim().toLowerCase() === playerKey && row.kept > 0)
-    .map((row) => ({
-      itemId: row.itemId,
-      lootDateQuantities: row.lootDateQuantities || {},
-      lootTimestamps: row.lootTimestamps || [],
-      quantity: row.kept,
-    }))
-    .filter((tile) => tile.itemId && tile.quantity > 0);
+function buildPlayerLedgerUrl(playerName) {
+  return `https://murderledger.albiononline2d.com/players/${encodeURIComponent(String(playerName || '').trim())}/ledger`;
 }
 
 function FileUploadButton({
@@ -1919,13 +1778,12 @@ function UploadInstructionsModal({ onClose }) {
         <>Select at least two entries, then select <strong>Merge</strong> beside the Upload button.</>,
         <>The merged entry contains copies of all selected loot and chest logs. The original entries remain unchanged.</>,
       ],
-      note: 'Death checks use each original CTA time window and do not search the gaps between CTAs.',
       title: 'Merge Loot Logs',
     },
     {
       steps: [
         <><strong>View</strong> opens the full item report. Use Tier, Item Type, Guild, Alliance, Sort, and Status to narrow it down.</>,
-        <><strong>Check Deaths</strong> checks unaccounted items. Some deaths may not appear immediately, so wait briefly and retry if a recent death is missing. Run death checks as soon as possible because only each player's 10 most recent deaths can be checked. <strong>Copy Screenshot</strong> captures only the displayed report.</>,
+        <>Right-click a player's name on desktop, or press and hold it on mobile, then select <strong>Check Recent Deaths</strong> to open that player's Murderledger in a new tab. <strong>Copy Screenshot</strong> captures only the displayed report.</>,
         <><strong>View Raw</strong> shows the source logs. <strong>Share</strong> copies a link to the current report.</>,
         <><strong>Edit</strong>, <strong>Download</strong>, and <strong>Delete</strong> appear only when your Discord roles grant those permissions.</>,
       ],
@@ -2869,20 +2727,20 @@ export function LootLogArchive({
 export default function LootMonitor({
   bundleId = '',
   canCheckDeaths = false,
-  canResetDeathChecks = false,
   localOnly = false,
   onViewLogs = () => {},
   showShare = true,
-  uploadUsername = 'Unknown Server Member',
 }) {
   const boardRef = useRef(null);
+  const playerContextMenuRef = useRef(null);
+  const playerLongPressRef = useRef(null);
+  const recentPlayerLongPressRef = useRef({ completedAt: 0, player: '' });
   const [filters, setFilters] = useState(loadInitialFilters);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
   const [marketPrices, setMarketPrices] = useState({});
   const [marketPriceError, setMarketPriceError] = useState('');
-  const [deathCheckStatus, setDeathCheckStatus] = useState({});
-  const [deathCheckRun, setDeathCheckRun] = useState(null);
   const [localLoadError, setLocalLoadError] = useState('');
+  const [playerContextMenu, setPlayerContextMenu] = useState(null);
   const [rawModalOpen, setRawModalOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState({ message: '', state: 'idle' });
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
@@ -2907,8 +2765,6 @@ export default function LootMonitor({
     }
 
     setSelectedBundle(null);
-    setDeathCheckStatus({});
-    setDeathCheckRun(null);
     setLoadStatus({ message: '', state: 'loading' });
     fetchLootLogBundle(bundleId)
       .then((result) => {
@@ -2934,15 +2790,34 @@ export default function LootMonitor({
     if (sharedFilters) setFilters(sharedFilters);
   }, [bundleId]);
 
-  useEffect(() => {
-    if (!deathCheckRun || typeof document === 'undefined') return undefined;
+  useEffect(() => () => {
+    if (playerLongPressRef.current?.timer) window.clearTimeout(playerLongPressRef.current.timer);
+  }, []);
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+  useEffect(() => {
+    if (!playerContextMenu) return undefined;
+
+    function closePlayerContextMenu(event) {
+      if (!playerContextMenuRef.current?.contains(event.target)) setPlayerContextMenu(null);
+    }
+
+    function handleContextMenuKey(event) {
+      if (event.key === 'Escape') setPlayerContextMenu(null);
+    }
+
+    document.addEventListener('pointerdown', closePlayerContextMenu, true);
+    document.addEventListener('keydown', handleContextMenuKey);
+    window.addEventListener('blur', closePlayerContextMenu);
+    window.addEventListener('resize', closePlayerContextMenu);
+    window.addEventListener('scroll', closePlayerContextMenu, true);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('pointerdown', closePlayerContextMenu, true);
+      document.removeEventListener('keydown', handleContextMenuKey);
+      window.removeEventListener('blur', closePlayerContextMenu);
+      window.removeEventListener('resize', closePlayerContextMenu);
+      window.removeEventListener('scroll', closePlayerContextMenu, true);
     };
-  }, [deathCheckRun]);
+  }, [playerContextMenu]);
 
   useEffect(() => {
     try {
@@ -2994,15 +2869,6 @@ export default function LootMonitor({
   const activeFilters = useMemo(() => (
     localOnly && !hasChestLog ? { ...filters, status: [] } : filters
   ), [filters, hasChestLog, localOnly]);
-  const deathChecksByPlayer = useMemo(() => new Map(
-    (selectedBundle?.deathChecks || [])
-      .filter((check) => check?.playerName || check?.player)
-      .map((check) => [String(check.playerName || check.player).trim().toLowerCase(), check]),
-  ), [selectedBundle?.deathChecks]);
-  const activeDeathCheckKey = useMemo(() => (
-    Object.entries(deathCheckStatus).find(([, status]) => status === 'loading')?.[0] || ''
-  ), [deathCheckStatus]);
-
   const filterOptions = useMemo(() => {
     if (!report) return { alliances: [], guilds: [] };
 
@@ -3028,18 +2894,6 @@ export default function LootMonitor({
   const visiblePlayersWithEmv = useMemo(() => (
     addPlayerEmv(visiblePlayers, marketPrices)
   ), [marketPrices, visiblePlayers]);
-  const visibleDeathCheckTargets = useMemo(() => {
-    if (!canCheckDeaths || !report) return [];
-
-    return visiblePlayers
-      .filter((player) => player.keptQuantity > 0)
-      .map((player) => ({
-        keptItems: getPlayerKeptItems(report, player.player),
-        player: player.player,
-        playerKey: String(player.player || '').trim().toLowerCase(),
-      }))
-      .filter((target) => target.playerKey && target.keptItems.length > 0);
-  }, [canCheckDeaths, report, visiblePlayers]);
   const visibleKeptItemIds = useMemo(() => (
     localOnly ? [] : [...new Set(visiblePlayers.flatMap((player) => (
       player.tiles
@@ -3127,8 +2981,6 @@ export default function LootMonitor({
 
       setMarketPrices({});
       setMarketPriceError('');
-      setDeathCheckStatus({});
-      setDeathCheckRun(null);
       setSelectedBundle({
         chestLogText,
         chestSubmissions,
@@ -3156,159 +3008,64 @@ export default function LootMonitor({
     setFilters((current) => sanitizeFilters({ ...current, [key]: value }));
   }
 
-  function applyDeathChecks(deathChecks) {
-    if (!Array.isArray(deathChecks) || deathChecks.length === 0) return;
-
-    setSelectedBundle((current) => {
-      if (!current) return current;
-      const currentChecks = current.deathChecks || [];
-      const nextChecks = currentChecks.filter((check) => {
-        const existingKey = String(check.playerName || check.player || '').trim().toLowerCase();
-        return !deathChecks.some((incoming) => (
-          String(incoming.playerName || incoming.player || '').trim().toLowerCase() === existingKey
-        ));
-      });
-      return { ...current, deathChecks: [...nextChecks, ...deathChecks] };
-    });
+  function positionPlayerContextMenu(clientX, clientY) {
+    const menuWidth = 220;
+    const menuHeight = 48;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    return {
+      left: Math.max(8, Math.min(clientX, viewportWidth - menuWidth - 8)),
+      top: Math.max(8, Math.min(clientY, viewportHeight - menuHeight - 8)),
+    };
   }
 
-  async function checkPlayerDeath(player) {
-    if (!canCheckDeaths || deathCheckRun || !selectedBundle?.id || player.keptQuantity <= 0) return;
-
-    const playerKey = String(player.player || '').trim().toLowerCase();
-    if (activeDeathCheckKey && activeDeathCheckKey !== playerKey) return;
-    if (deathCheckStatus[playerKey] === 'loading') return;
-    const keptItems = getPlayerKeptItems(report, player.player);
-    if (!playerKey || keptItems.length === 0) return;
-
-    setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'loading' }));
-    try {
-      const result = await checkLootLogDeath({
-        actorName: uploadUsername,
-        bundleId: selectedBundle.id,
-        keptItems,
-        lootLogName: selectedBundle.lootFileName || selectedBundle.fileName || '',
-        player: player.player,
-      });
-      const deathCheck = result.deathCheck;
-      applyDeathChecks(deathCheck ? [deathCheck] : []);
-    } catch (error) {
-      setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'error' }));
-      setMarketPriceError(error.message || 'Could not check the player death log.');
-      return;
-    }
-    setDeathCheckStatus((current) => ({ ...current, [playerKey]: 'loaded' }));
+  function showPlayerContextMenu(player, clientX, clientY) {
+    if (!canCheckDeaths || localOnly || !player) return;
+    setPlayerContextMenu({ player, ...positionPlayerContextMenu(clientX, clientY) });
   }
 
-  async function checkVisibleDeaths() {
-    if (!canCheckDeaths || deathCheckRun || activeDeathCheckKey || !selectedBundle?.id) return;
-    const targets = visibleDeathCheckTargets;
-    if (targets.length === 0) return;
+  function cancelPlayerLongPress() {
+    if (playerLongPressRef.current?.timer) window.clearTimeout(playerLongPressRef.current.timer);
+    playerLongPressRef.current = null;
+  }
 
-    const totalBatches = Math.ceil(targets.length / DEATH_CHECK_BATCH_SIZE);
-    const errors = [];
-    let foundCount = 0;
-    let notFoundCount = 0;
-    setDeathCheckRun({
-      completed: 0,
-      currentBatch: 1,
-      found: 0,
-      notFound: 0,
-      status: 'checking',
-      total: targets.length,
-      totalBatches,
-    });
+  function beginPlayerLongPress(event, player) {
+    if (!canCheckDeaths || localOnly || event.pointerType === 'mouse') return;
+    cancelPlayerLongPress();
+    const press = {
+      player,
+      startX: event.clientX,
+      startY: event.clientY,
+      timer: window.setTimeout(() => {
+        recentPlayerLongPressRef.current = { completedAt: Date.now(), player };
+        showPlayerContextMenu(player, press.startX, press.startY);
+        playerLongPressRef.current = null;
+      }, 550),
+    };
+    playerLongPressRef.current = press;
+  }
 
-    for (let start = 0; start < targets.length; start += DEATH_CHECK_BATCH_SIZE) {
-      const batch = targets.slice(start, start + DEATH_CHECK_BATCH_SIZE);
-      const currentBatch = Math.floor(start / DEATH_CHECK_BATCH_SIZE) + 1;
-      setDeathCheckRun({
-        completed: start,
-        currentBatch,
-        found: foundCount,
-        notFound: notFoundCount,
-        status: 'checking',
-        total: targets.length,
-        totalBatches,
-      });
-      setDeathCheckStatus((current) => ({
-        ...current,
-        ...Object.fromEntries(batch.map((target) => [target.playerKey, 'loading'])),
-      }));
-
-      try {
-        const result = await checkLootLogDeaths({
-          actorName: uploadUsername,
-          bundleId: selectedBundle.id,
-          checks: batch.map(({ keptItems, player }) => ({ keptItems, player })),
-          lootLogName: selectedBundle.lootFileName || selectedBundle.fileName || '',
-        });
-        const deathChecks = Array.isArray(result.deathChecks) ? result.deathChecks : [];
-        const batchErrors = Array.isArray(result.errors) ? result.errors : [];
-        const errorKeys = new Set(batchErrors.map((error) => String(error.playerKey || '').toLowerCase()));
-        errors.push(...batchErrors);
-        applyDeathChecks(deathChecks);
-        const checkedKeys = new Set(deathChecks.map((deathCheck) => String(
-          deathCheck.playerKey || deathCheck.player || deathCheck.playerName || '',
-        ).toLowerCase()));
-        foundCount += deathChecks.filter((deathCheck) => deathCheck.status === 'found').length;
-        notFoundCount += deathChecks.filter((deathCheck) => deathCheck.status !== 'found').length;
-        notFoundCount += batch.filter((target) => (
-          errorKeys.has(target.playerKey) || !checkedKeys.has(target.playerKey)
-        )).length;
-        setDeathCheckStatus((current) => ({
-          ...current,
-          ...Object.fromEntries(batch.map((target) => [
-            target.playerKey,
-            errorKeys.has(target.playerKey) ? 'error' : 'loaded',
-          ])),
-        }));
-      } catch (error) {
-        console.error('[loot death check] visible batch failed', {
-          batch: currentBatch,
-          bundleId: selectedBundle.id,
-          error,
-          players: batch.map(({ player, playerKey }) => ({ player, playerKey })),
-          totalBatches,
-        });
-        errors.push(...batch.map((target) => ({
-          message: error.message || 'Could not check the player death log.',
-          player: target.player,
-          playerKey: target.playerKey,
-        })));
-        notFoundCount += batch.length;
-        setDeathCheckStatus((current) => ({
-          ...current,
-          ...Object.fromEntries(batch.map((target) => [target.playerKey, 'error'])),
-        }));
-      }
-
-      setDeathCheckRun({
-        completed: start + batch.length,
-        currentBatch,
-        found: foundCount,
-        notFound: notFoundCount,
-        status: 'checking',
-        total: targets.length,
-        totalBatches,
-      });
+  function movePlayerLongPress(event) {
+    const press = playerLongPressRef.current;
+    if (!press) return;
+    if (Math.abs(event.clientX - press.startX) > 10 || Math.abs(event.clientY - press.startY) > 10) {
+      cancelPlayerLongPress();
     }
+  }
 
-    setDeathCheckRun({
-      completed: targets.length,
-      currentBatch: totalBatches,
-      found: foundCount,
-      notFound: notFoundCount,
-      status: 'complete',
-      total: targets.length,
-      totalBatches,
-    });
-    window.setTimeout(() => {
-      setDeathCheckRun((current) => (current?.status === 'complete' ? null : current));
-    }, 1000);
-    if (errors.length > 0) {
-      setMarketPriceError(`Could not complete death checks for ${formatNumber(errors.length)} player${errors.length === 1 ? '' : 's'}.`);
-    }
+  function handlePlayerContextMenu(event, player) {
+    if (!canCheckDeaths || localOnly) return;
+    event.preventDefault();
+    const recentPress = recentPlayerLongPressRef.current;
+    if (recentPress.player === player && Date.now() - recentPress.completedAt < 1000) return;
+    showPlayerContextMenu(player, event.clientX, event.clientY);
+  }
+
+  function openPlayerLedger(player) {
+    const playerName = String(player || '').trim();
+    if (!playerName) return;
+    window.open(buildPlayerLedgerUrl(playerName), '_blank', 'noopener,noreferrer');
+    setPlayerContextMenu(null);
   }
 
   async function shareBundleLink() {
@@ -3549,17 +3306,6 @@ export default function LootMonitor({
           </section>
 
           {!localOnly ? <div className="loot-board-toolbar">
-            {canCheckDeaths ? (
-              <button
-                className="board-copy-button death-check-visible-button"
-                disabled={visibleDeathCheckTargets.length === 0 || Boolean(activeDeathCheckKey) || Boolean(deathCheckRun)}
-                title="Check all visible player deaths"
-                type="button"
-                onClick={checkVisibleDeaths}
-              >
-                Check Deaths
-              </button>
-            ) : null}
             <button
               className="board-copy-button"
               disabled={visiblePlayers.length === 0 || screenshotStatus.state === 'copying'}
@@ -3583,7 +3329,23 @@ export default function LootMonitor({
               <div className="loot-player-list">
                 {visiblePlayersWithEmv.map((player) => (
                   <article className={localOnly ? 'loot-player-row local-viewer-row' : 'loot-player-row'} key={player.player}>
-                    <aside className="loot-player-name">
+                    <aside
+                      className={`loot-player-name${canCheckDeaths && !localOnly ? ' has-player-actions' : ''}`}
+                      tabIndex={canCheckDeaths && !localOnly ? 0 : undefined}
+                      title={canCheckDeaths && !localOnly ? 'Right-click or press and hold for player actions' : undefined}
+                      onContextMenu={(event) => handlePlayerContextMenu(event, player.player)}
+                      onKeyDown={(event) => {
+                        if (!canCheckDeaths || localOnly) return;
+                        if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+                        event.preventDefault();
+                        const bounds = event.currentTarget.getBoundingClientRect();
+                        showPlayerContextMenu(player.player, bounds.left + 12, bounds.bottom - 4);
+                      }}
+                      onPointerCancel={cancelPlayerLongPress}
+                      onPointerDown={(event) => beginPlayerLongPress(event, player.player)}
+                      onPointerMove={movePlayerLongPress}
+                      onPointerUp={cancelPlayerLongPress}
+                    >
                       <strong>
                         {player.player} <span>({formatNumber(player.totalQuantity)})</span>
                       </strong>
@@ -3597,14 +3359,6 @@ export default function LootMonitor({
                       ))}
                     </div>
                     {!localOnly ? <div className="loot-player-actions">
-                      <PlayerDeathControl
-                        canResetDeathCheck={canResetDeathChecks}
-                        deathCheck={deathChecksByPlayer.get(player.player.toLowerCase())}
-                        isCheckLocked={Boolean(deathCheckRun || (activeDeathCheckKey && activeDeathCheckKey !== player.player.toLowerCase()))}
-                        isChecking={deathCheckStatus[player.player.toLowerCase()] === 'loading'}
-                        showCheck={canCheckDeaths && player.keptQuantity > 0}
-                        onCheck={() => checkPlayerDeath(player)}
-                      />
                       <PlayerEmv emv={player.emv} />
                     </div> : null}
                   </article>
@@ -3614,7 +3368,20 @@ export default function LootMonitor({
           </section>
         </>
       )}
-      {!localOnly && deathCheckRun ? <DeathCheckProgressModal {...deathCheckRun} /> : null}
+      {playerContextMenu && typeof document !== 'undefined' ? createPortal(
+        <div
+          className="player-context-menu"
+          ref={playerContextMenuRef}
+          role="menu"
+          style={{ left: playerContextMenu.left, top: playerContextMenu.top }}
+        >
+          <button type="button" role="menuitem" onClick={() => openPlayerLedger(playerContextMenu.player)}>
+            <ExternalLink aria-hidden="true" size={16} />
+            Check Recent Deaths
+          </button>
+        </div>,
+        document.body,
+      ) : null}
     </main>
   );
 }
