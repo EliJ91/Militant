@@ -794,6 +794,14 @@ describe('LootMonitor', () => {
           {
             ...storedEvents[0],
             enchantment: 0,
+            item: 'Direwolf Skin',
+            itemId: 'T8_MOUNT_DIREWOLF_SKIN',
+            player: 'TokenHolder',
+            quantity: 1,
+          },
+          {
+            ...storedEvents[0],
+            enchantment: 0,
             item: "Adept's Broadsword",
             itemId: 'T4_MAIN_SWORD',
             player: 'TokenHolder',
@@ -815,6 +823,7 @@ describe('LootMonitor', () => {
     render(<LootMonitor bundleId="bundle-18" />);
 
     expect(await screen.findByLabelText("TokenHolder Kept 3 Smuggler's Coin")).toBeInTheDocument();
+    expect(screen.getByLabelText('TokenHolder Kept 1 Direwolf Skin')).toBeInTheDocument();
     expect(screen.getByLabelText("TokenHolder Kept 1 Adept's Broadsword")).toBeInTheDocument();
     expect(screen.queryByLabelText("TokenHolder Kept 1 Expert's Bag")).not.toBeInTheDocument();
   });
