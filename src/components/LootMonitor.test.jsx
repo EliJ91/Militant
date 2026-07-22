@@ -802,6 +802,14 @@ describe('LootMonitor', () => {
           {
             ...storedEvents[0],
             enchantment: 0,
+            item: "Master's Siege Hammer",
+            itemId: 'T6_2H_TOOL_SIEGEHAMMER',
+            player: 'TokenHolder',
+            quantity: 1,
+          },
+          {
+            ...storedEvents[0],
+            enchantment: 0,
             item: "Adept's Broadsword",
             itemId: 'T4_MAIN_SWORD',
             player: 'TokenHolder',
@@ -824,6 +832,7 @@ describe('LootMonitor', () => {
 
     expect(await screen.findByLabelText("TokenHolder Kept 3 Smuggler's Coin")).toBeInTheDocument();
     expect(screen.getByLabelText('TokenHolder Kept 1 Direwolf Skin')).toBeInTheDocument();
+    expect(screen.getByLabelText("TokenHolder Kept 1 Master's Siege Hammer")).toBeInTheDocument();
     expect(screen.getByLabelText("TokenHolder Kept 1 Adept's Broadsword")).toBeInTheDocument();
     expect(screen.queryByLabelText("TokenHolder Kept 1 Expert's Bag")).not.toBeInTheDocument();
   });

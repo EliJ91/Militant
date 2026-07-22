@@ -563,7 +563,7 @@ function getItemKind(row) {
   const text = `${row.itemId || ''} ${row.item || ''}`.toLowerCase();
   const itemName = String(row.item || '').toLowerCase();
 
-  if (/\bskin\b/.test(itemName)) return 'other';
+  if (/\bskin\b|\bsiege hammer\b/.test(itemName)) return 'other';
   if (text.includes('trash')) return 'trash';
   if (text.includes('memento')) return 'memento';
   if (text.includes('potion') || text.includes('poison')) return 'potion';
