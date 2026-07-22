@@ -1439,42 +1439,6 @@ async function addLootLogDeathId(supabase: any, body: any) {
   return { deathCheck: mapDeathCheck(data) };
 }
 
-async function markLootLogPlayerNoDeath(supabase: any, body: any) {
-  const bundleId = String(body.bundleId || '').trim();
-  const playerName = String(body.player || '').trim();
-  const playerKey = normalizeDeathKey(playerName);
-  if (!bundleId) throw new Error('bundleId is required.');
-  if (!playerKey) throw new Error('player is required.');
-
-  const checkedAt = new Date().toISOString();
-  const { error: deleteError } = await supabase
-    .from('loot_log_death_checks')
-    .delete()
-    .eq('bundle_id', bundleId)
-    .eq('player_key', playerKey);
-  if (deleteError) throw deleteError;
-
-  const { data, error } = await supabase
-    .from('loot_log_death_checks')
-    .insert({
-      bundle_id: bundleId,
-      checked_at: checkedAt,
-      death_at: null,
-      death_url: '',
-      event_id: '',
-      matched_items: [],
-      player_id: '',
-      player_key: playerKey,
-      player_name: playerName,
-      status: 'not_found',
-      updated_at: checkedAt,
-    })
-    .select('player_key,player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
-    .single();
-  if (error) throw error;
-  return { deathCheck: mapDeathCheck(data) };
-}
-
 async function clearLootLogDeath(supabase: any, body: any) {
   const bundleId = String(body.bundleId || '').trim();
   const playerName = String(body.player || '').trim();
@@ -1885,9 +1849,6 @@ Deno.serve(async (request) => {
     }
     if (body.action === 'add-death-id') {
       return jsonResponse(200, await addLootLogDeathId(supabase, body));
-    }
-    if (body.action === 'mark-no-death') {
-      return jsonResponse(200, await markLootLogPlayerNoDeath(supabase, body));
     }
     if (body.action === 'clear-death-check') {
       return jsonResponse(200, await clearLootLogDeath(supabase, body));

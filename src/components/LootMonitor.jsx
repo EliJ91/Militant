@@ -10,7 +10,6 @@ import {
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
-  markLootLogPlayerNoDeath,
   mergeLootLogBundles,
   submitChestLog,
   submitLootLog,
@@ -1396,9 +1395,7 @@ function PlayerDeathLinks({ deathChecks, player }) {
     ))
     .map((check) => [String(check.eventId), check])).values()];
   if (deaths.length === 0) {
-    return playerChecks.some((check) => check?.status === 'not_found')
-      ? <span className="loot-player-no-death">No Death Found</span>
-      : null;
+    return <span className="loot-player-no-death">No Death Found</span>;
   }
 
   return (
@@ -3182,39 +3179,6 @@ export default function LootMonitor({
     }
   }
 
-  async function markNoDeath(player) {
-    if (!selectedBundle?.id || deathIdStatus.state === 'loading') return;
-
-    setDeathIdStatus({ message: 'Saving...', state: 'loading' });
-    try {
-      const result = await markLootLogPlayerNoDeath({
-        actorName: uploadUsername,
-        bundleId: selectedBundle.id,
-        lootLogName: selectedBundle.lootFileName,
-        player,
-      });
-      const savedCheck = result.deathCheck;
-      const playerKey = String(player || '').trim().toLowerCase();
-      setSelectedBundle((current) => ({
-        ...current,
-        deathChecks: [
-          ...(current.deathChecks || []).filter((check) => (
-            String(check.playerName || check.player || '').trim().toLowerCase() !== playerKey
-          )),
-          savedCheck,
-        ],
-      }));
-      setDeathIdInput('');
-      setDeathIdEntryPlayer('');
-      setDeathIdStatus({ message: 'No death found saved', state: 'copied' });
-      window.setTimeout(() => {
-        setDeathIdStatus((current) => (current.state === 'copied' ? { message: '', state: 'idle' } : current));
-      }, 1800);
-    } catch (error) {
-      setDeathIdStatus({ message: error.message || 'Could not save no death found.', state: 'error' });
-    }
-  }
-
   async function updatePlayerVisibility(player, hidden) {
     if (!canViewHiddenPlayers || !selectedBundle?.id || playerVisibilityStatus.state === 'loading') return;
 
@@ -3570,14 +3534,6 @@ export default function LootMonitor({
                               addDeathId(player.player);
                             }}
                           >
-                            <button
-                              className="board-copy-button death-id-button no-death-button"
-                              disabled={deathIdStatus.state === 'loading'}
-                              type="button"
-                              onClick={() => markNoDeath(player.player)}
-                            >
-                              No Death
-                            </button>
                             <button
                               className="board-copy-button death-id-button"
                               disabled={deathIdStatus.state === 'loading'}

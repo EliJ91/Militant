@@ -143,7 +143,6 @@ function lootLogApi() {
         checkLootLogDeath,
         checkLootLogDeaths,
         clearLootLogDeath,
-        markLootLogPlayerNoDeath,
         mergeLootLogBundles,
         submitChestLog,
         submitLootLog,
@@ -152,12 +151,6 @@ function lootLogApi() {
       let result;
 
       switch (body.action) {
-        case 'mark-no-death':
-          result = await markLootLogPlayerNoDeath({
-            bundleId: body.bundleId,
-            player: body.player,
-          });
-          break;
         case 'add-death-id':
           result = await addLootLogDeathId({
             bundleId: body.bundleId,

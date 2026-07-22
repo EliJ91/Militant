@@ -241,35 +241,6 @@ export async function addLootLogDeathId({
   return result;
 }
 
-export async function markLootLogPlayerNoDeath({
-  actorName,
-  bundleId,
-  lootLogName = '',
-  player,
-}) {
-  const response = await fetch(getLootLogApiUrl(), {
-    body: JSON.stringify({ action: 'mark-no-death', bundleId, player }),
-    headers: { 'Content-Type': 'application/json' },
-    method: 'POST',
-  });
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.error || 'Could not mark the player as having no death.');
-  }
-
-  void recordActionLog({
-    action: 'No death found marked',
-    actorName,
-    details: { lootLogName, player },
-    targetId: bundleId,
-    targetName: lootLogName || player,
-    targetType: 'death-check',
-  });
-
-  return result;
-}
-
 export async function deleteLootLogBundle(bundleId, { actorName, bundle = {} } = {}) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({ bundleId }),

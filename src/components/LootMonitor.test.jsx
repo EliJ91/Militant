@@ -6,7 +6,6 @@ import {
   deleteLootLogBundle,
   fetchLootLogBundle,
   fetchLootLogBundles,
-  markLootLogPlayerNoDeath,
   mergeLootLogBundles,
   setLootLogPlayerHidden,
   submitChestLog,
@@ -29,7 +28,6 @@ vi.mock('../services/lootLogApi', () => ({
   deleteLootLogBundle: vi.fn(),
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
-  markLootLogPlayerNoDeath: vi.fn(),
   mergeLootLogBundles: vi.fn(),
   setLootLogPlayerHidden: vi.fn(),
   submitChestLog: vi.fn(),
@@ -136,14 +134,6 @@ describe('LootMonitor', () => {
     fetchLootLogBundle.mockResolvedValue({ bundle: createBundle() });
     fetchLootLogBundles.mockResolvedValue({ bundles: [createBundle()] });
     mergeLootLogBundles.mockResolvedValue({ bundleId: 'merged-bundle', lootFileName: 'Merged - 18UTC-JUN-18' });
-    markLootLogPlayerNoDeath.mockResolvedValue({
-      deathCheck: {
-        eventId: '',
-        matchedItems: [],
-        playerName: 'Windyyyzz',
-        status: 'not_found',
-      },
-    });
     setLootLogPlayerHidden.mockResolvedValue({ bundleId: 'bundle-18', hidden: false, hiddenPlayers: [] });
     submitLootLog.mockResolvedValue({ bundleId: 'bundle-18', summary: { fileNames: { loot: '18UTC-JUN-18 Loot Log' } } });
     submitChestLog.mockResolvedValue({ fileName: '18UTC-JUN-18 Chest Log' });
@@ -498,7 +488,7 @@ describe('LootMonitor', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('Death ID: 12345');
   });
 
-  it('marks no death found and replaces it when a death ID is later added', async () => {
+  it('shows no death found by default and replaces it when a death ID is added', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
         chestLogText: '',
@@ -520,17 +510,7 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" canAddDeathId uploadUsername="Onslawht" />);
     await screen.findByText('Windyyyzz');
-    fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
-    fireEvent.click(screen.getByRole('button', { name: 'No Death' }));
-
-    await waitFor(() => expect(markLootLogPlayerNoDeath).toHaveBeenCalledWith({
-      actorName: 'Onslawht',
-      bundleId: 'bundle-18',
-      lootLogName: '18UTC-JUN-18',
-      player: 'Windyyyzz',
-    }));
-    expect(await screen.findByText('No Death Found')).toBeInTheDocument();
-
+    expect(screen.getByText('No Death Found')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Death ID for Windyyyzz' }), { target: { value: '12345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add ID' }));
