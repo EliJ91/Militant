@@ -7,6 +7,7 @@ import {
   fetchLootLogBundle,
   fetchLootLogBundles,
   mergeLootLogBundles,
+  setLootLogPlayerHidden,
   submitChestLog,
   submitLootLog,
   updateLootLogBundle,
@@ -28,6 +29,7 @@ vi.mock('../services/lootLogApi', () => ({
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
   mergeLootLogBundles: vi.fn(),
+  setLootLogPlayerHidden: vi.fn(),
   submitChestLog: vi.fn(),
   submitLootLog: vi.fn(),
   updateLootLogBundle: vi.fn(),
@@ -132,6 +134,7 @@ describe('LootMonitor', () => {
     fetchLootLogBundle.mockResolvedValue({ bundle: createBundle() });
     fetchLootLogBundles.mockResolvedValue({ bundles: [createBundle()] });
     mergeLootLogBundles.mockResolvedValue({ bundleId: 'merged-bundle', lootFileName: 'Merged - 18UTC-JUN-18' });
+    setLootLogPlayerHidden.mockResolvedValue({ bundleId: 'bundle-18', hidden: false, hiddenPlayers: [] });
     submitLootLog.mockResolvedValue({ bundleId: 'bundle-18', summary: { fileNames: { loot: '18UTC-JUN-18 Loot Log' } } });
     submitChestLog.mockResolvedValue({ fileName: '18UTC-JUN-18 Chest Log' });
     deleteChestLogs.mockResolvedValue({ bundleId: 'bundle-18', deleted: true, deletedChestLogs: 1 });
@@ -160,6 +163,36 @@ describe('LootMonitor', () => {
     expect(screen.queryByRole('button', { name: 'Choose files' })).not.toBeInTheDocument();
     expect(submitLootLog).not.toHaveBeenCalled();
     expect(submitChestLog).not.toHaveBeenCalled();
+  });
+
+  it('hides marked players unless the viewer has hidden-player permission', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        summary: {
+          hiddenPlayers: ['windyyyzz'],
+          totals: { keptQuantity: 0, lootedQuantity: 2, players: 1 },
+        },
+      }),
+    });
+
+    const firstRender = render(<LootMonitor bundleId="bundle-18" />);
+    await waitFor(() => expect(fetchLootLogBundle).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: /Windyyyzz/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Unhide' })).not.toBeInTheDocument();
+    firstRender.unmount();
+
+    render(<LootMonitor bundleId="bundle-18" canViewHiddenPlayers uploadUsername="Onslawht" />);
+    expect(await screen.findByRole('button', { name: 'Unhide' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unhide' }));
+
+    await waitFor(() => expect(setLootLogPlayerHidden).toHaveBeenCalledWith({
+      actorName: 'Onslawht',
+      bundleId: 'bundle-18',
+      hidden: false,
+      lootLogName: '18UTC-JUN-18',
+      player: 'Windyyyzz',
+    }));
+    expect(await screen.findByRole('button', { name: 'Hide' })).toBeInTheDocument();
   });
 
   it('opens dropped loot logs locally without calling the database APIs', async () => {

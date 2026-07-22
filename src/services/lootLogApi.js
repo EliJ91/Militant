@@ -328,6 +328,36 @@ export async function updateLootLogBundle({
   return result;
 }
 
+export async function setLootLogPlayerHidden({
+  actorName,
+  bundleId,
+  hidden,
+  lootLogName,
+  player,
+}) {
+  const response = await fetch(getLootLogApiUrl(), {
+    body: JSON.stringify({ action: 'set-player-hidden', bundleId, hidden, player }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'PATCH',
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not update player visibility.');
+  }
+
+  void recordActionLog({
+    action: hidden ? 'Player hidden from loot log' : 'Player unhidden from loot log',
+    actorName,
+    details: { lootLogName, player },
+    targetId: bundleId,
+    targetName: lootLogName || player,
+    targetType: 'loot-log-player',
+  });
+
+  return result;
+}
+
 export async function fetchLootLogBundles() {
   const response = await fetch(getLootLogApiUrl());
   const result = await response.json();

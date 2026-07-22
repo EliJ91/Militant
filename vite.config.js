@@ -110,15 +110,21 @@ function lootLogApi() {
 
     if (req.method === 'PATCH') {
       try {
-        const { updateLootLogBundle } = await import('./src/server/supabaseLootLogs.js');
+        const { setLootLogPlayerHidden, updateLootLogBundle } = await import('./src/server/supabaseLootLogs.js');
         const body = await readJsonBody(req);
-        const result = await updateLootLogBundle({
-          bundleId: body.bundleId,
-          ctaHour: body.ctaHour,
-          dateUtc: body.dateUtc,
-          fileNames: body.fileNames,
-          submitters: body.submitters,
-        });
+        const result = body.action === 'set-player-hidden'
+          ? await setLootLogPlayerHidden({
+            bundleId: body.bundleId,
+            hidden: body.hidden,
+            player: body.player,
+          })
+          : await updateLootLogBundle({
+            bundleId: body.bundleId,
+            ctaHour: body.ctaHour,
+            dateUtc: body.dateUtc,
+            fileNames: body.fileNames,
+            submitters: body.submitters,
+          });
         sendJson(res, 200, result);
       } catch (error) {
         sendJson(res, 400, { error: error.message || 'Could not update loot log.' });

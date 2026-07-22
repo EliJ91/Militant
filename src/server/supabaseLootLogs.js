@@ -873,6 +873,9 @@ async function refreshBundleSummary(supabase, bundle, originalFileName) {
   const range = getLootLogTimeRange(mergeEvents);
   const summaryWithFileNames = {
     ...summary,
+    hiddenPlayers: Array.isArray(bundle.combined_loot_summary?.hiddenPlayers)
+      ? bundle.combined_loot_summary.hiddenPlayers
+      : [],
     ...(bundle.combined_loot_summary?.discordChannelId ? {
       discordChannelId: bundle.combined_loot_summary.discordChannelId,
     } : {}),
@@ -1436,6 +1439,45 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
   };
 }
 
+export async function setLootLogPlayerHidden({ bundleId, hidden, player }) {
+  const cleanBundleId = String(bundleId || '').trim();
+  const playerKey = String(player || '').trim().toLowerCase();
+  if (!cleanBundleId) throw new Error('bundleId is required.');
+  if (!playerKey) throw new Error('player is required.');
+
+  const supabase = createSupabaseAdmin();
+  const { data: bundle, error: bundleError } = await supabase
+    .from('loot_log_bundles')
+    .select('combined_loot_summary')
+    .eq('id', cleanBundleId)
+    .single();
+
+  if (bundleError) throw bundleError;
+
+  const hiddenPlayers = new Set((Array.isArray(bundle.combined_loot_summary?.hiddenPlayers)
+    ? bundle.combined_loot_summary.hiddenPlayers
+    : [])
+    .map((name) => String(name || '').trim().toLowerCase())
+    .filter(Boolean));
+  if (hidden) hiddenPlayers.add(playerKey);
+  else hiddenPlayers.delete(playerKey);
+
+  const nextHiddenPlayers = [...hiddenPlayers].sort();
+  const { error: updateError } = await supabase
+    .from('loot_log_bundles')
+    .update({
+      combined_loot_summary: {
+        ...(bundle.combined_loot_summary || {}),
+        hiddenPlayers: nextHiddenPlayers,
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', cleanBundleId);
+
+  if (updateError) throw updateError;
+  return { bundleId: cleanBundleId, hidden: Boolean(hidden), hiddenPlayers: nextHiddenPlayers, player };
+}
+
 export async function getLootLogBundle(bundleId) {
   if (!bundleId) throw new Error('bundleId is required.');
 
@@ -1468,7 +1510,12 @@ export async function getLootLogBundle(bundleId) {
   if (chestResult.error) throw chestResult.error;
   if (deathChecksResult.error) throw deathChecksResult.error;
 
-  const summary = aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent));
+  const summary = {
+    ...aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent)),
+    hiddenPlayers: Array.isArray(bundle.combined_loot_summary?.hiddenPlayers)
+      ? bundle.combined_loot_summary.hiddenPlayers
+      : [],
+  };
   const chestLogs = (chestResult.data || []).map((log) => ({
     ...log,
     raw_log_text: filterChestLogTextByWindow(log.raw_log_text, {

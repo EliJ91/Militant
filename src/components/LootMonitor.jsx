@@ -13,6 +13,7 @@ import {
   mergeLootLogBundles,
   submitChestLog,
   submitLootLog,
+  setLootLogPlayerHidden,
   updateLootLogBundle,
 } from '../services/lootLogApi';
 import {
@@ -2795,6 +2796,7 @@ export function LootLogArchive({
 export default function LootMonitor({
   bundleId = '',
   canAddDeathId = false,
+  canViewHiddenPlayers = false,
   localOnly = false,
   onViewLogs = () => {},
   showShare = true,
@@ -2811,6 +2813,7 @@ export default function LootMonitor({
   const [deathIdEntryPlayer, setDeathIdEntryPlayer] = useState('');
   const [deathIdInput, setDeathIdInput] = useState('');
   const [deathIdStatus, setDeathIdStatus] = useState({ message: '', state: 'idle' });
+  const [playerVisibilityStatus, setPlayerVisibilityStatus] = useState({ message: '', player: '', state: 'idle' });
   const [rawModalOpen, setRawModalOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState({ message: '', state: 'idle' });
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
@@ -2948,15 +2951,26 @@ export default function LootMonitor({
     report ? getVisibleRows(report.rows, activeFilters) : []
   ), [activeFilters, report]);
 
+  const hiddenPlayerKeys = useMemo(() => new Set(
+    (Array.isArray(selectedBundle?.summary?.hiddenPlayers) ? selectedBundle.summary.hiddenPlayers : [])
+      .map((player) => String(player || '').trim().toLowerCase())
+      .filter(Boolean),
+  ), [selectedBundle?.summary?.hiddenPlayers]);
+
   const visiblePlayers = useMemo(() => {
-    const players = buildVisiblePlayerGroups(visibleRows, activeFilters);
+    const players = buildVisiblePlayerGroups(visibleRows, activeFilters)
+      .map((player) => ({
+        ...player,
+        hidden: hiddenPlayerKeys.has(String(player.player || '').trim().toLowerCase()),
+      }))
+      .filter((player) => canViewHiddenPlayers || !player.hidden);
     if (!localOnly || hasChestLog) return players;
 
     return players.map((player) => ({
       ...player,
       tiles: player.tiles.map((tile) => ({ ...tile, status: 'looted' })),
     }));
-  }, [activeFilters, hasChestLog, localOnly, visibleRows]);
+  }, [activeFilters, canViewHiddenPlayers, hasChestLog, hiddenPlayerKeys, localOnly, visibleRows]);
   const visiblePlayersWithEmv = useMemo(() => (
     addPlayerEmv(visiblePlayers, marketPrices)
   ), [marketPrices, visiblePlayers]);
@@ -3154,6 +3168,44 @@ export default function LootMonitor({
     }
   }
 
+  async function updatePlayerVisibility(player, hidden) {
+    if (!canViewHiddenPlayers || !selectedBundle?.id || playerVisibilityStatus.state === 'loading') return;
+
+    setPlayerVisibilityStatus({ message: '', player, state: 'loading' });
+    try {
+      const result = await setLootLogPlayerHidden({
+        actorName: uploadUsername,
+        bundleId: selectedBundle.id,
+        hidden,
+        lootLogName: selectedBundle.lootFileName,
+        player,
+      });
+      setSelectedBundle((current) => ({
+        ...current,
+        summary: {
+          ...(current?.summary || {}),
+          hiddenPlayers: result.hiddenPlayers || [],
+        },
+      }));
+      setPlayerVisibilityStatus({
+        message: `${player} ${hidden ? 'hidden' : 'unhidden'}`,
+        player: '',
+        state: 'copied',
+      });
+      window.setTimeout(() => {
+        setPlayerVisibilityStatus((current) => (
+          current.state === 'copied' ? { message: '', player: '', state: 'idle' } : current
+        ));
+      }, 1800);
+    } catch (error) {
+      setPlayerVisibilityStatus({
+        message: error.message || 'Could not update player visibility.',
+        player: '',
+        state: 'error',
+      });
+    }
+  }
+
   async function shareBundleLink() {
     if (!selectedBundle?.id || shareStatus.state === 'copying') return;
 
@@ -3292,7 +3344,7 @@ export default function LootMonitor({
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {!localOnly && marketPriceError ? <p className="loot-message error">{marketPriceError}</p> : null}
-      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus, deathIdStatus]} /> : null}
+      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus, deathIdStatus, playerVisibilityStatus]} /> : null}
       {rawModalOpen ? (
         <div className="raw-log-modal-backdrop" role="presentation" onMouseDown={() => setRawModalOpen(false)}>
           <section
@@ -3407,14 +3459,33 @@ export default function LootMonitor({
             <header className="loot-board-header">
               <span>Name</span>
               <span>Items</span>
-              <strong>{formatNumber(visiblePlayers.length)} players</strong>
             </header>
             {visiblePlayers.length === 0 ? (
               <p className="loot-message">No item icons match the current filters.</p>
             ) : (
               <div className="loot-player-list">
                 {visiblePlayersWithEmv.map((player) => (
-                  <article className={localOnly ? 'loot-player-row local-viewer-row' : 'loot-player-row'} key={player.player}>
+                  <article
+                    className={[
+                      'loot-player-row',
+                      localOnly ? 'local-viewer-row' : '',
+                      canViewHiddenPlayers ? 'has-visibility-control' : '',
+                      player.hidden ? 'hidden-player-row' : '',
+                    ].filter(Boolean).join(' ')}
+                    key={player.player}
+                  >
+                    {!localOnly && canViewHiddenPlayers ? (
+                      <button
+                        className="loot-player-visibility-button"
+                        disabled={playerVisibilityStatus.state === 'loading'}
+                        type="button"
+                        onClick={() => updatePlayerVisibility(player.player, !player.hidden)}
+                      >
+                        {playerVisibilityStatus.state === 'loading' && playerVisibilityStatus.player === player.player
+                          ? 'Saving...'
+                          : player.hidden ? 'Unhide' : 'Hide'}
+                      </button>
+                    ) : null}
                     <aside className="loot-player-name">
                       {!localOnly ? (
                         <button

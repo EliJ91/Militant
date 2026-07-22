@@ -1474,6 +1474,48 @@ Deno.serve(async (request) => {
       const bundleId = String(body.bundleId || '').trim();
       if (!bundleId) throw new Error('bundleId is required.');
 
+      if (body.action === 'set-player-hidden') {
+        const player = String(body.player || '').trim();
+        const playerKey = player.toLowerCase();
+        if (!playerKey) throw new Error('player is required.');
+
+        const { data: bundle, error: bundleError } = await supabase
+          .from('loot_log_bundles')
+          .select('combined_loot_summary')
+          .eq('id', bundleId)
+          .single();
+
+        if (bundleError) throw bundleError;
+
+        const hiddenPlayers = new Set((Array.isArray(bundle.combined_loot_summary?.hiddenPlayers)
+          ? bundle.combined_loot_summary.hiddenPlayers
+          : [])
+          .map((name: unknown) => String(name || '').trim().toLowerCase())
+          .filter(Boolean));
+        if (body.hidden) hiddenPlayers.add(playerKey);
+        else hiddenPlayers.delete(playerKey);
+
+        const nextHiddenPlayers = [...hiddenPlayers].sort();
+        const { error: updateError } = await supabase
+          .from('loot_log_bundles')
+          .update({
+            combined_loot_summary: {
+              ...(bundle.combined_loot_summary || {}),
+              hiddenPlayers: nextHiddenPlayers,
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', bundleId);
+
+        if (updateError) throw updateError;
+        return jsonResponse(200, {
+          bundleId,
+          hidden: Boolean(body.hidden),
+          hiddenPlayers: nextHiddenPlayers,
+          player,
+        });
+      }
+
       const { data: bundle, error: bundleError } = await supabase
         .from('loot_log_bundles')
         .select('id,start_at,end_at,combined_loot_summary')
@@ -1652,7 +1694,12 @@ Deno.serve(async (request) => {
         if (chestResult.error) throw chestResult.error;
         if (deathChecksResult.error) throw deathChecksResult.error;
 
-        const summary = aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent));
+        const summary = {
+          ...aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent)),
+          hiddenPlayers: Array.isArray(bundle.combined_loot_summary?.hiddenPlayers)
+            ? bundle.combined_loot_summary.hiddenPlayers
+            : [],
+        };
         const chestLogs = (chestResult.data || []).map((log: any) => ({
           ...log,
           raw_log_text: filterChestLogTextByWindow(log.raw_log_text, {
@@ -2022,6 +2069,9 @@ Deno.serve(async (request) => {
     const refreshedRange = getLootLogTimeRange(mergeEvents);
     const summaryWithFileNames = {
       ...summary,
+      hiddenPlayers: Array.isArray(bundle.combined_loot_summary?.hiddenPlayers)
+        ? bundle.combined_loot_summary.hiddenPlayers
+        : [],
       ...(bundle.combined_loot_summary?.isMerged ? {
         deathCheckRanges: bundle.combined_loot_summary.deathCheckRanges,
         isMerged: true,

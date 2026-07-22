@@ -31,6 +31,7 @@ vi.mock('./services/lootLogApi', () => ({
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn().mockResolvedValue({ bundles: [] }),
   mergeLootLogBundles: vi.fn(),
+  setLootLogPlayerHidden: vi.fn(),
   submitChestLog: vi.fn(),
   submitLootLog: vi.fn(),
   updateLootLogBundle: vi.fn(),
@@ -99,7 +100,7 @@ describe('App', () => {
       'src',
       '/assets/siphoned-energy.png',
     );
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.87');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.88');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',

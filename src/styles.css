@@ -3294,17 +3294,12 @@ button:focus-visible {
 
 .loot-board-header {
   display: grid;
-  grid-template-columns: 170px minmax(0, 1fr) auto;
+  grid-template-columns: 170px minmax(0, 1fr);
   gap: 20px;
   align-items: center;
   padding: 16px 22px 8px;
   color: #ffb000;
   font-weight: 900;
-}
-
-.loot-board-header strong {
-  color: var(--muted);
-  font-size: 0.78rem;
 }
 
 .board-copy-button {
@@ -3471,6 +3466,41 @@ button:focus-visible {
 
 .loot-player-row + .loot-player-row {
   border-top: 1px solid rgba(247, 250, 245, 0.04);
+}
+
+.loot-player-row.has-visibility-control .loot-item-grid {
+  padding-right: 72px;
+}
+
+.loot-player-row.hidden-player-row {
+  box-shadow: inset 3px 0 0 #38bdf8;
+}
+
+.loot-player-visibility-button {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 2;
+  min-width: 60px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid rgba(56, 189, 248, 0.75);
+  border-radius: 6px;
+  background: rgba(14, 116, 144, 0.2);
+  color: #75ddff;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.loot-player-visibility-button:hover:not(:disabled),
+.loot-player-visibility-button:focus-visible {
+  background: #0e7490;
+  color: #fff;
+}
+
+.loot-player-visibility-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .loot-player-name {
@@ -4932,7 +4962,7 @@ button:focus-visible {
   }
 
   .loot-board-header {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
     padding: 14px;
   }
 
@@ -4955,6 +4985,10 @@ button:focus-visible {
     right: 14px;
     bottom: 10px;
     gap: 7px;
+  }
+
+  .loot-player-row.has-visibility-control .loot-item-grid {
+    padding-right: 0;
   }
 
   .loot-item-grid {
