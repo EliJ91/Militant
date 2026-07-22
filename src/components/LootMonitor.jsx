@@ -644,7 +644,34 @@ function waitForImages(element) {
   }));
 }
 
-async function renderElementScreenshotBlob(element) {
+export function applySoldierScreenshotView(element, permissions = {}) {
+  if (!element) return;
+
+  const canAddDeathId = Boolean(permissions.addDeathId);
+  const canViewHiddenPlayers = Boolean(permissions.viewHiddenLootLogPlayers);
+
+  if (!canViewHiddenPlayers) {
+    element.querySelectorAll('.hidden-player-row').forEach((row) => row.remove());
+    element.querySelectorAll('.loot-player-visibility-button').forEach((button) => button.remove());
+    element.querySelectorAll('.has-visibility-control').forEach((row) => {
+      row.classList.remove('has-visibility-control');
+    });
+  }
+
+  if (!canAddDeathId) {
+    element.querySelectorAll('.death-id-entry, .death-id-button').forEach((control) => control.remove());
+  }
+
+  const playerList = element.querySelector('.loot-player-list');
+  if (playerList && !playerList.querySelector('.loot-player-row')) {
+    const message = element.ownerDocument.createElement('p');
+    message.className = 'loot-message';
+    message.textContent = 'No item icons match the current filters.';
+    playerList.replaceWith(message);
+  }
+}
+
+async function renderElementScreenshotBlob(element, screenshotPermissions = {}) {
   if (!element) throw new Error('Nothing to capture.');
 
   await document.fonts?.ready;
@@ -655,6 +682,12 @@ async function renderElementScreenshotBlob(element) {
     backgroundColor: '#181a18',
     height: element.scrollHeight,
     logging: false,
+    onclone: (clonedDocument) => {
+      applySoldierScreenshotView(
+        clonedDocument.querySelector('[data-loot-board-screenshot="true"]'),
+        screenshotPermissions,
+      );
+    },
     scale: Math.min(2, window.devicePixelRatio || 1.5),
     scrollX: -window.scrollX,
     scrollY: -window.scrollY,
@@ -670,14 +703,14 @@ async function renderElementScreenshotBlob(element) {
   return blob;
 }
 
-async function copyElementScreenshot(element) {
+async function copyElementScreenshot(element, screenshotPermissions = {}) {
   if (!navigator.clipboard?.write || typeof window.ClipboardItem === 'undefined') {
     throw new Error('Clipboard image copy is not available in this browser.');
   }
 
   window.focus();
 
-  const blobPromise = renderElementScreenshotBlob(element);
+  const blobPromise = renderElementScreenshotBlob(element, screenshotPermissions);
   await navigator.clipboard.write([
     new window.ClipboardItem({ 'image/png': blobPromise }),
   ]);
@@ -1859,7 +1892,7 @@ function UploadInstructionsModal({ onClose }) {
     {
       steps: [
         <><strong>View</strong> opens the full item report. Use Tier, Item Type, Guild, Alliance, Sort, and Status to narrow it down.</>,
-        <><strong>Copy Screenshot</strong> captures only the displayed report.</>,
+        <><strong>Copy Screenshot</strong> captures the displayed report using the Soldier role's visibility and permissions.</>,
         <><strong>View Raw</strong> shows the source logs. <strong>Share</strong> copies a link to the current report.</>,
         <><strong>Edit</strong>, <strong>Download</strong>, and <strong>Delete</strong> appear only when your Discord roles grant those permissions.</>,
       ],
@@ -2804,6 +2837,7 @@ export default function LootMonitor({
   bundleId = '',
   canAddDeathId = false,
   canViewHiddenPlayers = false,
+  screenshotPermissions = {},
   localOnly = false,
   onViewLogs = () => {},
   showShare = true,
@@ -3243,7 +3277,7 @@ export default function LootMonitor({
     setScreenshotStatus({ message: 'Copying...', state: 'copying' });
 
     try {
-      await copyElementScreenshot(boardRef.current);
+      await copyElementScreenshot(boardRef.current, screenshotPermissions);
       setScreenshotStatus({ message: 'Copied', state: 'copied' });
       window.setTimeout(() => {
         setScreenshotStatus((current) => (current.state === 'copied' ? { message: '', state: 'idle' } : current));
@@ -3469,7 +3503,12 @@ export default function LootMonitor({
             </button>
           </div> : null}
 
-          <section className="loot-board-section" aria-label="Player loot board" ref={boardRef}>
+          <section
+            aria-label="Player loot board"
+            className="loot-board-section"
+            data-loot-board-screenshot="true"
+            ref={boardRef}
+          >
             <header className="loot-board-header">
               <span>Name</span>
               <span>Items</span>

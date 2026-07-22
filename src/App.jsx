@@ -580,6 +580,7 @@ function LootMonitorPage({
   onResetViewAsRole = () => {},
   onSignOut = () => {},
   onToggleViewAsRole = () => {},
+  screenshotPermissions = {},
   viewAsRoleIds = [],
   viewAsRoles = [],
 }) {
@@ -603,6 +604,7 @@ function LootMonitorPage({
         canAddDeathId={canAddDeathId}
         canViewHiddenPlayers={canViewHiddenPlayers}
         onViewLogs={() => navigateTo('#loot-logs')}
+        screenshotPermissions={screenshotPermissions}
         uploadUsername={getUploadUsername(currentUser)}
       />
     </>
@@ -614,12 +616,14 @@ function SharedLootMonitorPage({
   canAddDeathId = false,
   canViewHiddenPlayers = false,
   currentUser = null,
+  screenshotPermissions = {},
 }) {
   return (
     <LootMonitor
       bundleId={bundleId}
       canAddDeathId={canAddDeathId}
       canViewHiddenPlayers={canViewHiddenPlayers}
+      screenshotPermissions={screenshotPermissions}
       showShare={false}
       uploadUsername={getUploadUsername(currentUser)}
     />
@@ -842,6 +846,13 @@ export default function App() {
     }
     return resolvePermissionsForDiscordUser(permissionSettings, currentUser || {});
   }, [activeViewAsRoles, currentUser, isAuthenticated, permissionSettings, route]);
+  const soldierPermissions = useMemo(() => {
+    const soldierRole = permissionSettings.roles.find((role) => (
+      String(role.name || '').trim().toLowerCase() === 'soldier'
+    ));
+    if (!soldierRole?.roleId) return emptyPermissions();
+    return resolvePermissionsForRoleIds(permissionSettings, [soldierRole.roleId]);
+  }, [permissionSettings]);
   const topbarContext = {
     isSuperUserProfile: currentUserIsSuperUser,
     onResetViewAsRole: () => setViewAsRoleIds([]),
@@ -1045,6 +1056,7 @@ export default function App() {
         canAddDeathId={Boolean(effectivePermissions.addDeathId)}
         canViewHiddenPlayers={Boolean(effectivePermissions.viewHiddenLootLogPlayers)}
         currentUser={currentUser}
+        screenshotPermissions={soldierPermissions}
       />
     );
   } else if (route === 'loot-viewer') {
@@ -1125,6 +1137,7 @@ export default function App() {
         canViewHiddenPlayers={Boolean(effectivePermissions.viewHiddenLootLogPlayers)}
         currentUser={currentUser}
         onSignOut={handleSignOut}
+        screenshotPermissions={soldierPermissions}
         {...topbarContext}
       />
     ) : (

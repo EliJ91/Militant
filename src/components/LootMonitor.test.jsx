@@ -12,7 +12,7 @@ import {
   submitLootLog,
   updateLootLogBundle,
 } from '../services/lootLogApi';
-import LootMonitor, { LootLogArchive } from './LootMonitor';
+import LootMonitor, { applySoldierScreenshotView, LootLogArchive } from './LootMonitor';
 
 vi.mock('../services/lootLogApi', () => ({
   addLootLogDeathId: vi.fn(),
@@ -126,6 +126,27 @@ function stubMarketPrices() {
 }
 
 describe('LootMonitor', () => {
+  it('limits screenshot content to the Soldier role permissions', () => {
+    const board = document.createElement('section');
+    board.innerHTML = `
+      <div class="loot-player-list">
+        <article class="loot-player-row has-visibility-control"><button class="loot-player-visibility-button">Hide</button><button class="death-id-button">Add Death ID</button></article>
+        <article class="loot-player-row has-visibility-control hidden-player-row"><button class="loot-player-visibility-button">Unhide</button></article>
+      </div>
+    `;
+
+    applySoldierScreenshotView(board, {
+      addDeathId: false,
+      viewHiddenLootLogPlayers: false,
+    });
+
+    expect(board.querySelectorAll('.loot-player-row')).toHaveLength(1);
+    expect(board.querySelector('.hidden-player-row')).not.toBeInTheDocument();
+    expect(board.querySelector('.loot-player-visibility-button')).not.toBeInTheDocument();
+    expect(board.querySelector('.death-id-button')).not.toBeInTheDocument();
+    expect(board.querySelector('.has-visibility-control')).not.toBeInTheDocument();
+  });
+
   beforeEach(() => {
     window.location.hash = '';
     window.localStorage.clear();
