@@ -133,6 +133,7 @@ function lootLogApi() {
 
     try {
       const {
+        addLootLogDeathId,
         checkLootLogDeath,
         checkLootLogDeaths,
         clearLootLogDeath,
@@ -144,6 +145,13 @@ function lootLogApi() {
       let result;
 
       switch (body.action) {
+        case 'add-death-id':
+          result = await addLootLogDeathId({
+            bundleId: body.bundleId,
+            checks: body.checks,
+            deathId: body.deathId,
+          });
+          break;
         case 'merge':
           result = await mergeLootLogBundles({
             bundleIds: body.bundleIds,

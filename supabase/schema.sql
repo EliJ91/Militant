@@ -107,12 +107,15 @@ create table if not exists public.loot_log_death_checks (
   matched_items jsonb not null default '[]'::jsonb,
   checked_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (bundle_id, player_key)
+  updated_at timestamptz not null default now()
 );
 
 create index if not exists loot_log_death_checks_bundle_idx
   on public.loot_log_death_checks (bundle_id, player_key);
+
+create unique index if not exists loot_log_death_checks_bundle_event_idx
+  on public.loot_log_death_checks (bundle_id, event_id)
+  where event_id <> '';
 
 create table if not exists public.siphoned_energy_transactions (
   id uuid primary key default gen_random_uuid(),

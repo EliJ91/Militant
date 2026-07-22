@@ -108,6 +108,7 @@ function getDiscordDisplayName(user = {}) {
 }
 
 function getUploadUsername(user = {}) {
+  if (!user) return 'Unknown Server Member';
   const metadata = user.user_metadata || user.userMetadata || {};
   return String(
     user.guildNickname
@@ -590,13 +591,21 @@ function LootMonitorPage({
         bundleId={bundleId}
         canCheckDeaths={canCheckDeaths}
         onViewLogs={() => navigateTo('#loot-logs')}
+        uploadUsername={getUploadUsername(currentUser)}
       />
     </>
   );
 }
 
-function SharedLootMonitorPage({ bundleId, isAuthenticated = false }) {
-  return <LootMonitor bundleId={bundleId} canCheckDeaths={isAuthenticated} showShare={false} />;
+function SharedLootMonitorPage({ bundleId, currentUser = null, isAuthenticated = false }) {
+  return (
+    <LootMonitor
+      bundleId={bundleId}
+      canCheckDeaths={isAuthenticated}
+      showShare={false}
+      uploadUsername={getUploadUsername(currentUser)}
+    />
+  );
 }
 
 function LocalLootViewerPage({
@@ -1012,7 +1021,13 @@ export default function App() {
 
   let page;
   if (route === 'shared-log') {
-    page = <SharedLootMonitorPage bundleId={selectedBundleId} isAuthenticated={isAuthenticated} />;
+    page = (
+      <SharedLootMonitorPage
+        bundleId={selectedBundleId}
+        currentUser={currentUser}
+        isAuthenticated={isAuthenticated}
+      />
+    );
   } else if (route === 'loot-viewer') {
     page = (
       <LocalLootViewerPage

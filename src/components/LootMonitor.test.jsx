@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  addLootLogDeathId,
   deleteChestLogs,
   deleteLootLogBundle,
   fetchLootLogBundle,
@@ -13,6 +14,7 @@ import {
 import LootMonitor, { LootLogArchive } from './LootMonitor';
 
 vi.mock('../services/lootLogApi', () => ({
+  addLootLogDeathId: vi.fn(),
   buildLootLogShareUrl: (bundleId, filterQuery = '') => {
     const shareUrl = new URL('https://militant-discord-interactions.ejjernigan.workers.dev/share/loot-log');
     shareUrl.searchParams.set('bundle', bundleId);
@@ -348,7 +350,7 @@ describe('LootMonitor', () => {
     expect(screen.getByRole('tooltip')).not.toHaveTextContent("Adept's Lymhurst Cape");
   });
 
-  it('opens a recent-deaths option from a player context menu', async () => {
+  it('opens a recent-deaths option when a player name is clicked', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
         chestLogText: '',
@@ -362,8 +364,8 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
 
-    const playerName = (await screen.findByText('Windyyyzz')).closest('.loot-player-name');
-    fireEvent.contextMenu(playerName, { clientX: 180, clientY: 220 });
+    const playerName = await screen.findByRole('button', { name: /Windyyyzz/ });
+    fireEvent.click(playerName);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Check Recent Deaths' }));
 
     expect(openWindow).toHaveBeenCalledWith(
@@ -374,7 +376,7 @@ describe('LootMonitor', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('opens the recent-deaths option after a mobile long press', async () => {
+  it('opens the recent-deaths option from a mobile tap', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
         chestLogText: '',
@@ -385,19 +387,7 @@ describe('LootMonitor', () => {
       }),
     });
     render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
-    const playerName = (await screen.findByText('Windyyyzz')).closest('.loot-player-name');
-
-    vi.useFakeTimers();
-    fireEvent.pointerDown(playerName, {
-      clientX: 100,
-      clientY: 140,
-      pointerId: 1,
-      pointerType: 'touch',
-    });
-    await act(async () => {
-      vi.advanceTimersByTime(550);
-    });
-    vi.useRealTimers();
+    fireEvent.click(await screen.findByRole('button', { name: /Windyyyzz/ }));
 
     expect(screen.getByRole('menuitem', { name: 'Check Recent Deaths' })).toBeInTheDocument();
   });
@@ -416,8 +406,53 @@ describe('LootMonitor', () => {
     render(<LootMonitor bundleId="bundle-18" />);
 
     const playerName = (await screen.findByText('Windyyyzz')).closest('.loot-player-name');
-    fireEvent.contextMenu(playerName, { clientX: 180, clientY: 220 });
+    fireEvent.click(playerName);
     expect(screen.queryByRole('menuitem', { name: 'Check Recent Deaths' })).not.toBeInTheDocument();
+  });
+
+  it('adds a death ID and displays its accounted item and killboard link', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        chestSubmissions: [],
+        chestSubmitters: [],
+        deathChecks: [],
+        events: [storedEvents[0]],
+        hasChestLog: false,
+      }),
+    });
+    addLootLogDeathId.mockResolvedValue({
+      deathCheck: {
+        deathAt: '2026-06-18T18:45:00.000Z',
+        deathUrl: 'https://albiononline.com/killboard/kill/12345?server=live_us',
+        eventId: '12345',
+        matchedItems: [{ itemId: 'T4_CAPEITEM_FW_LYMHURST@3', quantity: 1 }],
+        playerName: 'Windyyyzz',
+        status: 'found',
+      },
+    });
+
+    const { container } = render(
+      <LootMonitor bundleId="bundle-18" canCheckDeaths uploadUsername="Onslawht" />,
+    );
+    await screen.findByText('Windyyyzz');
+    fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Death ID' }), { target: { value: '12345' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add ID' }));
+
+    await waitFor(() => expect(addLootLogDeathId).toHaveBeenCalledWith(expect.objectContaining({
+      actorName: 'Onslawht',
+      bundleId: 'bundle-18',
+      deathId: '12345',
+    })));
+    expect(await screen.findByRole('link', { name: 'Death' })).toHaveAttribute(
+      'href',
+      'https://albiononline.com/killboard/kill/12345?server=live_us',
+    );
+    const accountedTile = container.querySelector('.loot-item-tile.accounted-tile');
+    expect(accountedTile).toBeInTheDocument();
+    fireEvent.click(accountedTile);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Death ID: 12345');
   });
 
   it('keeps custody tooltips inside the viewport', async () => {
@@ -739,7 +774,7 @@ describe('LootMonitor', () => {
     expect(within(instructionsDialog).getByRole('heading', { name: 'Merge Loot Logs' })).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('.csv or .txt')).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('/upload')).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText(/right-click a player's name on desktop/i)).toBeInTheDocument();
+    expect(within(instructionsDialog).getByText(/select a player's name/i)).toBeInTheDocument();
     expect(within(instructionsDialog).getByText(/open that player's Murderledger in a new tab/i)).toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('img')).not.toBeInTheDocument();
     fireEvent.click(within(instructionsDialog).getByRole('button', { name: 'Close upload instructions' }));

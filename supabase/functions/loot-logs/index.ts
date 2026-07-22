@@ -11,7 +11,8 @@ const RETENTION_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MILITANT_GUILD_ID = 'HNWzt1KSQMSQ855Q9rLvSA';
 const ALBION_DEATHS_URL = 'https://gameinfo.albiononline.com/api/gameinfo/players';
-const KILLBOARD_EVENT_URL = 'https://killboard-1.com/us/event';
+const ALBION_EVENT_URL = 'https://gameinfo.albiononline.com/api/gameinfo/events';
+const KILLBOARD_EVENT_URL = 'https://albiononline.com/killboard/kill';
 const DEATH_CHECK_BATCH_SIZE = 1;
 const DEATH_REQUEST_TIMEOUT_MS = 12000;
 const DEATH_EVENT_REQUEST_TIMEOUT_MS = 8000;
@@ -876,7 +877,18 @@ function deathTimestamp(death: any) {
 
 function deathEventUrl(eventId: unknown) {
   const cleanEventId = String(eventId || '').trim();
-  return cleanEventId ? `${KILLBOARD_EVENT_URL}/${encodeURIComponent(cleanEventId)}` : '';
+  return cleanEventId ? `${KILLBOARD_EVENT_URL}/${encodeURIComponent(cleanEventId)}?server=live_us` : '';
+}
+
+async function fetchDeathEvent(eventId: string) {
+  const requestOptions: RequestInit = {};
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    requestOptions.signal = AbortSignal.timeout(DEATH_REQUEST_TIMEOUT_MS);
+  }
+
+  const response = await fetch(`${ALBION_EVENT_URL}/${encodeURIComponent(eventId)}`, requestOptions);
+  if (!response.ok) throw new Error('The death ID could not be found.');
+  return response.json();
 }
 
 async function deathEventExists(eventId: unknown) {
@@ -1313,9 +1325,17 @@ async function runLootLogDeathChecks(supabase: any, { bundleId, checks }: any) {
 
   let savedChecks: any[] = [];
   if (records.length > 0) {
+    const playerKeys = records.map((record) => record.player_key);
+    const { error: deleteError } = await supabase
+      .from('loot_log_death_checks')
+      .delete()
+      .eq('bundle_id', cleanBundleId)
+      .in('player_key', playerKeys);
+    if (deleteError) throw deleteError;
+
     const { data, error } = await supabase
       .from('loot_log_death_checks')
-      .upsert(records, { onConflict: 'bundle_id,player_key' })
+      .insert(records)
       .select('player_key,player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at');
     if (error) {
       console.error('[loot death check] save failed', {
@@ -1357,6 +1377,58 @@ async function checkLootLogDeaths(supabase: any, body: any) {
     bundleId: body.bundleId,
     checks: body.checks,
   });
+}
+
+async function addLootLogDeathId(supabase: any, body: any) {
+  const bundleId = String(body.bundleId || '').trim();
+  const deathId = String(body.deathId || '').trim();
+  if (!bundleId) throw new Error('bundleId is required.');
+  if (!/^\d+$/.test(deathId)) throw new Error('Enter a valid numeric death ID.');
+
+  const requests = normalizeDeathCheckRequests(body.checks);
+  const death = await fetchDeathEvent(deathId);
+  const victimName = String(death?.Victim?.Name || '').trim();
+  const victimKey = normalizeDeathKey(victimName);
+  const request = requests.find((entry) => entry.playerKey === victimKey);
+  if (!victimName || !request) {
+    throw new Error('The death victim does not match a player with kept items in this loot log.');
+  }
+
+  const matchedItems = matchDeathInventory(death, request.keptItems);
+  if (matchedItems.length === 0) {
+    throw new Error('None of the victim inventory matches this player\'s kept items.');
+  }
+
+  const checkedAt = new Date().toISOString();
+  const record = {
+    bundle_id: bundleId,
+    checked_at: checkedAt,
+    death_at: deathTimestamp(death) || null,
+    death_url: deathEventUrl(deathId),
+    event_id: deathId,
+    matched_items: matchedItems,
+    player_id: String(death?.Victim?.Id || '').trim(),
+    player_key: victimKey,
+    player_name: victimName,
+    status: 'found',
+    updated_at: checkedAt,
+  };
+  const { data: existing, error: existingError } = await supabase
+    .from('loot_log_death_checks')
+    .select('id')
+    .eq('bundle_id', bundleId)
+    .eq('event_id', deathId)
+    .maybeSingle();
+  if (existingError) throw existingError;
+
+  const saveQuery = existing?.id
+    ? supabase.from('loot_log_death_checks').update(record).eq('id', existing.id)
+    : supabase.from('loot_log_death_checks').insert(record);
+  const { data, error } = await saveQuery
+    .select('player_key,player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
+    .single();
+  if (error) throw error;
+  return { deathCheck: mapDeathCheck(data) };
 }
 
 async function clearLootLogDeath(supabase: any, body: any) {
@@ -1719,6 +1791,9 @@ Deno.serve(async (request) => {
     }
     if (body.action === 'death-check-batch') {
       return jsonResponse(200, await checkLootLogDeaths(supabase, body));
+    }
+    if (body.action === 'add-death-id') {
+      return jsonResponse(200, await addLootLogDeathId(supabase, body));
     }
     if (body.action === 'clear-death-check') {
       return jsonResponse(200, await clearLootLogDeath(supabase, body));

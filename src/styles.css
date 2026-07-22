@@ -3328,6 +3328,28 @@ button:focus-visible {
   opacity: 0.48;
 }
 
+.death-id-entry {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.death-id-entry input {
+  width: min(180px, 34vw);
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(87, 216, 120, 0.44);
+  border-radius: 7px;
+  background: #050806;
+  color: var(--white);
+  font: inherit;
+}
+
+.death-id-entry input:focus {
+  border-color: var(--green-hot);
+  outline: 1px solid var(--green-hot);
+}
+
 .screenshot-status {
   color: var(--muted);
   font-size: 0.72rem;
@@ -3444,17 +3466,43 @@ button:focus-visible {
   min-width: 0;
 }
 
-.loot-player-name.has-player-actions {
+.loot-player-name-button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-self: start;
+  min-width: 0;
+  padding: 4px 5px 4px 2px;
+  border: 0;
   border-radius: 4px;
-  cursor: context-menu;
-  touch-action: pan-y;
-  user-select: none;
-  -webkit-touch-callout: none;
+  background: transparent;
+  color: #ffb000;
+  cursor: pointer;
+  text-align: left;
 }
 
-.loot-player-name.has-player-actions:focus-visible {
-  outline: 2px solid var(--green-hot);
-  outline-offset: 5px;
+.loot-player-name-button svg {
+  flex: 0 0 auto;
+  transition: transform 140ms ease, color 140ms ease;
+}
+
+.loot-player-name-button:hover,
+.loot-player-name-button:focus-visible {
+  background: rgba(255, 176, 0, 0.1);
+  color: #ffd15c;
+  outline: none;
+}
+
+.loot-player-name-button:hover svg,
+.loot-player-name-button:focus-visible svg {
+  color: var(--green-hot);
+  transform: translateY(-2px) scale(1.12);
+}
+
+.loot-player-name-button:hover strong,
+.loot-player-name-button:focus-visible strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .loot-player-name strong {
@@ -3660,6 +3708,25 @@ button:focus-visible {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+.loot-player-death-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.loot-player-death-links a {
+  color: #72d7ff;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.loot-player-death-links a:hover,
+.loot-player-death-links a:focus-visible {
+  color: var(--white);
 }
 
 .loot-player-row.local-viewer-row {

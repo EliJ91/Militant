@@ -845,8 +845,7 @@ function getReportStatus(row) {
 export function applyLootDeathChecks(report, deathChecks) {
   if (!report || !Array.isArray(deathChecks) || deathChecks.length === 0) return report;
 
-  const remainingMatches = new Map();
-  const deathDetails = new Map();
+  const deathMatches = new Map();
 
   deathChecks.forEach((check) => {
     if (check?.status !== 'found') return;
@@ -859,29 +858,47 @@ export function applyLootDeathChecks(report, deathChecks) {
       if (!itemId || quantity <= 0) return;
 
       const key = `${playerKey}::${itemId}`;
-      remainingMatches.set(key, (remainingMatches.get(key) || 0) + quantity);
-      deathDetails.set(key, {
+      const matches = deathMatches.get(key) || [];
+      matches.push({
         deathAt: check.deathAt || '',
         deathEventId: check.eventId || '',
         deathUrl: check.deathUrl || '',
+        quantity,
       });
+      deathMatches.set(key, matches);
     });
   });
 
-  if (remainingMatches.size === 0) return report;
+  if (deathMatches.size === 0) return report;
 
   const rows = report.rows.map((row) => {
     const key = `${normalize(row.player)}::${normalize(row.itemId)}`;
-    const available = remainingMatches.get(key) || 0;
-    const accountedByDeath = Math.min(Math.max(0, row.kept || 0), available);
+    const matches = deathMatches.get(key) || [];
+    let remainingKept = Math.max(0, row.kept || 0);
+    const deathEvents = [];
+
+    matches.forEach((match) => {
+      if (remainingKept <= 0 || match.quantity <= 0) return;
+      const accountedQuantity = Math.min(remainingKept, match.quantity);
+      match.quantity -= accountedQuantity;
+      remainingKept -= accountedQuantity;
+      deathEvents.push({
+        deathAt: match.deathAt,
+        deathEventId: match.deathEventId,
+        deathUrl: match.deathUrl,
+        quantity: accountedQuantity,
+      });
+    });
+
+    const accountedByDeath = Math.max(0, row.kept || 0) - remainingKept;
     if (accountedByDeath <= 0) return row;
 
-    remainingMatches.set(key, available - accountedByDeath);
-    const details = deathDetails.get(key) || {};
+    const details = deathEvents[0] || {};
     const nextRow = {
       ...row,
       deathAccounted: (row.deathAccounted || 0) + accountedByDeath,
       deathAt: details.deathAt || row.deathAt || '',
+      deathEvents: [...(row.deathEvents || []), ...deathEvents],
       deathEventId: details.deathEventId || row.deathEventId || '',
       deathUrl: details.deathUrl || row.deathUrl || '',
       kept: Math.max(0, row.kept - accountedByDeath),

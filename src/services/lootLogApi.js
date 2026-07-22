@@ -200,6 +200,47 @@ export async function checkLootLogDeaths({
   return result;
 }
 
+export async function addLootLogDeathId({
+  actorName,
+  bundleId,
+  checks,
+  deathId,
+  lootLogName = '',
+}) {
+  const response = await fetch(getLootLogApiUrl(), {
+    body: JSON.stringify({
+      action: 'add-death-id',
+      bundleId,
+      checks,
+      deathId,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not add the death ID.');
+  }
+
+  void recordActionLog({
+    action: 'Death ID added',
+    actorName,
+    details: {
+      deathId: result.deathCheck?.eventId || deathId,
+      lootLogName,
+      matchedQuantity: (result.deathCheck?.matchedItems || [])
+        .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0),
+      player: result.deathCheck?.playerName || result.deathCheck?.player || '',
+    },
+    targetId: bundleId,
+    targetName: lootLogName || `Death ${deathId}`,
+    targetType: 'death-check',
+  });
+
+  return result;
+}
+
 export async function deleteLootLogBundle(bundleId, { actorName, bundle = {} } = {}) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({ bundleId }),

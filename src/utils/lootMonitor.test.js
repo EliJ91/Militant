@@ -137,6 +137,32 @@ describe('loot monitor report', () => {
     expect(updated.totals.deathAccountedQuantity).toBe(2);
   });
 
+  it('accounts for kept inventory across multiple manually added deaths', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-06-17T00:08:30.420Z;CHAIR;Militant;Kaelys;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;3;;;@MOB_T5",
+    ].join('\n');
+    const report = buildLootMonitorReport(lootText, '');
+
+    const updated = applyLootDeathChecks(report, [
+      {
+        eventId: '1001',
+        matchedItems: [{ itemId: 'T4_CAPEITEM_FW_LYMHURST@3', quantity: 1 }],
+        playerName: 'Kaelys',
+        status: 'found',
+      },
+      {
+        eventId: '1002',
+        matchedItems: [{ itemId: 'T4_CAPEITEM_FW_LYMHURST@3', quantity: 1 }],
+        playerName: 'Kaelys',
+        status: 'found',
+      },
+    ]);
+
+    expect(updated.rows[0]).toMatchObject({ deathAccounted: 2, kept: 1 });
+    expect(updated.rows[0].deathEvents.map((death) => death.deathEventId)).toEqual(['1001', '1002']);
+  });
+
   it('exports deduplicated events in the original loot-log format', () => {
     const events = [
       {

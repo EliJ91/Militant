@@ -1,9 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
-import { ExternalLink, Trash2 } from 'lucide-react';
+import { ExternalLink, Pointer, Trash2 } from 'lucide-react';
 import { fetchWestAveragePrices } from '../services/albionMarket';
 import {
+  addLootLogDeathId,
   buildLootLogShareUrl,
   deleteChestLogs,
   deleteLootLogBundle,
@@ -704,7 +705,9 @@ function buildItemTiles(row, filters) {
     itemId: row.itemId,
     custodyChains: row.custodyChains,
     deathAt: row.deathAt,
+    deathEvents: row.deathEvents,
     deathEventId: row.deathEventId,
+    deathUrl: row.deathUrl,
     lostTo: row.lostTo,
     player: row.player,
   }));
@@ -806,6 +809,24 @@ function buildVisiblePlayerGroups(rows, filters) {
     return (filters.sortDirection === 'asc' ? quantityDelta : -quantityDelta)
       || compareText(left.player, right.player);
   });
+}
+
+function buildKeptItemChecks(rows) {
+  const byPlayer = new Map();
+
+  (rows || []).forEach((row) => {
+    const quantity = Math.max(0, Number(row.kept) || 0);
+    const player = String(row.player || '').trim();
+    const itemId = String(row.itemId || '').trim();
+    if (!player || !itemId || quantity <= 0) return;
+
+    const playerKey = player.toLowerCase();
+    const current = byPlayer.get(playerKey) || { keptItems: [], player };
+    current.keptItems.push({ itemId, quantity });
+    byPlayer.set(playerKey, current);
+  });
+
+  return [...byPlayer.values()];
 }
 
 function detectFileKind(text) {
@@ -1136,15 +1157,22 @@ function LootItemTile({ tile }) {
   const statusLabel = TILE_STATUS_LABELS[tile.status] || tile.status;
   const label = `${tile.player} ${statusLabel} ${tile.quantity} ${tile.item}`;
   const itemDetail = tile.itemId ? `${tile.item} (${tile.itemId})` : `${tile.item} (missing item id)`;
-  const hasCustodyTooltip = tile.status === 'kept' && tile.custodyChains;
-  const custodySteps = hasCustodyTooltip
-    ? tile.custodyChains
+  const deathEvents = tile.status === 'accounted'
+    ? (Array.isArray(tile.deathEvents) && tile.deathEvents.length > 0
+      ? tile.deathEvents
+      : (tile.deathEventId ? [{ deathEventId: tile.deathEventId }] : []))
+    : [];
+  const hasCustodyTooltip = (tile.status === 'kept' && tile.custodyChains) || deathEvents.length > 0;
+  const custodySteps = deathEvents.length > 0
+    ? deathEvents.map((death, index) => (
+      `${deathEvents.length > 1 ? `Death ${index + 1}` : 'Death'} ID: ${death.deathEventId}`
+    ))
+    : String(tile.custodyChains || '')
       .split('\n')
       .filter(Boolean)
-      .flatMap((chain) => chain.split(' -> ').filter(Boolean))
-    : [];
+      .flatMap((chain) => chain.split(' -> ').filter(Boolean));
   const title = hasCustodyTooltip
-    ? `${tile.item}\n${tile.custodyChains}`
+    ? `${tile.item}\n${custodySteps.join('\n')}`
     : tile.lostTo ? `${itemDetail} - ${statusLabel} to ${tile.lostTo}` : `${itemDetail} - ${statusLabel}`;
   const imageSrc = imageAttempt > 0 ? `${tile.imageUrl}&retry=${imageAttempt}` : tile.imageUrl;
   const itemInitials = String(tile.item || '?')
@@ -1224,7 +1252,7 @@ function LootItemTile({ tile }) {
     }
 
     function handleAwayPress(event) {
-      if (!usesMobileTooltipClick() || tileRef.current?.contains(event.target)) return;
+      if (tileRef.current?.contains(event.target)) return;
       closePinnedTooltip();
     }
 
@@ -1253,7 +1281,7 @@ function LootItemTile({ tile }) {
   }
 
   function toggleCustodyTooltip() {
-    if (!hasCustodyTooltip || !usesMobileTooltipClick()) return;
+    if (!hasCustodyTooltip || (tile.status !== 'accounted' && !usesMobileTooltipClick())) return;
 
     if (custodyTooltip.visible && custodyTooltip.pinned) {
       setCustodyTooltip((current) => ({ ...current, pinned: false, visible: false }));
@@ -1265,7 +1293,7 @@ function LootItemTile({ tile }) {
   }
 
   function handleTileKeyDown(event) {
-    if (!hasCustodyTooltip || !usesMobileTooltipClick()) return;
+    if (!hasCustodyTooltip || (tile.status !== 'accounted' && !usesMobileTooltipClick())) return;
 
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -1348,6 +1376,37 @@ function PlayerEmv({ emv }) {
 
 function buildPlayerLedgerUrl(playerName) {
   return `https://murderledger.albiononline2d.com/players/${encodeURIComponent(String(playerName || '').trim())}/ledger`;
+}
+
+function buildDeathLinkUrl(eventId) {
+  return `https://albiononline.com/killboard/kill/${encodeURIComponent(String(eventId || '').trim())}?server=live_us`;
+}
+
+function PlayerDeathLinks({ deathChecks, player }) {
+  const playerKey = String(player || '').trim().toLowerCase();
+  const deaths = [...new Map((deathChecks || [])
+    .filter((check) => (
+      check?.status === 'found'
+      && String(check.playerName || check.player || '').trim().toLowerCase() === playerKey
+      && String(check.eventId || '').trim()
+    ))
+    .map((check) => [String(check.eventId), check])).values()];
+  if (deaths.length === 0) return null;
+
+  return (
+    <span className="loot-player-death-links">
+      {deaths.map((death, index) => (
+        <a
+          href={death.deathUrl || buildDeathLinkUrl(death.eventId)}
+          key={death.eventId}
+          rel="noreferrer"
+          target="_blank"
+        >
+          {deaths.length === 1 ? 'Death' : `Death ${index + 1}`}
+        </a>
+      ))}
+    </span>
+  );
 }
 
 function FileUploadButton({
@@ -1783,7 +1842,7 @@ function UploadInstructionsModal({ onClose }) {
     {
       steps: [
         <><strong>View</strong> opens the full item report. Use Tier, Item Type, Guild, Alliance, Sort, and Status to narrow it down.</>,
-        <>Right-click a player's name on desktop, or press and hold it on mobile, then select <strong>Check Recent Deaths</strong> to open that player's Murderledger in a new tab. <strong>Copy Screenshot</strong> captures only the displayed report.</>,
+        <>Select a player's name, then choose <strong>Check Recent Deaths</strong> to open that player's Murderledger in a new tab. Use <strong>Add Death ID</strong> to account for matching kept inventory from a known death. <strong>Copy Screenshot</strong> captures only the displayed report.</>,
         <><strong>View Raw</strong> shows the source logs. <strong>Share</strong> copies a link to the current report.</>,
         <><strong>Edit</strong>, <strong>Download</strong>, and <strong>Delete</strong> appear only when your Discord roles grant those permissions.</>,
       ],
@@ -2730,17 +2789,19 @@ export default function LootMonitor({
   localOnly = false,
   onViewLogs = () => {},
   showShare = true,
+  uploadUsername = 'Manual',
 }) {
   const boardRef = useRef(null);
   const playerContextMenuRef = useRef(null);
-  const playerLongPressRef = useRef(null);
-  const recentPlayerLongPressRef = useRef({ completedAt: 0, player: '' });
   const [filters, setFilters] = useState(loadInitialFilters);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
   const [marketPrices, setMarketPrices] = useState({});
   const [marketPriceError, setMarketPriceError] = useState('');
   const [localLoadError, setLocalLoadError] = useState('');
   const [playerContextMenu, setPlayerContextMenu] = useState(null);
+  const [deathIdEntryOpen, setDeathIdEntryOpen] = useState(false);
+  const [deathIdInput, setDeathIdInput] = useState('');
+  const [deathIdStatus, setDeathIdStatus] = useState({ message: '', state: 'idle' });
   const [rawModalOpen, setRawModalOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState({ message: '', state: 'idle' });
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
@@ -2789,10 +2850,6 @@ export default function LootMonitor({
     const sharedFilters = getSharedFiltersFromHash();
     if (sharedFilters) setFilters(sharedFilters);
   }, [bundleId]);
-
-  useEffect(() => () => {
-    if (playerLongPressRef.current?.timer) window.clearTimeout(playerLongPressRef.current.timer);
-  }, []);
 
   useEffect(() => {
     if (!playerContextMenu) return undefined;
@@ -3024,41 +3081,10 @@ export default function LootMonitor({
     setPlayerContextMenu({ player, ...positionPlayerContextMenu(clientX, clientY) });
   }
 
-  function cancelPlayerLongPress() {
-    if (playerLongPressRef.current?.timer) window.clearTimeout(playerLongPressRef.current.timer);
-    playerLongPressRef.current = null;
-  }
-
-  function beginPlayerLongPress(event, player) {
-    if (!canCheckDeaths || localOnly || event.pointerType === 'mouse') return;
-    cancelPlayerLongPress();
-    const press = {
-      player,
-      startX: event.clientX,
-      startY: event.clientY,
-      timer: window.setTimeout(() => {
-        recentPlayerLongPressRef.current = { completedAt: Date.now(), player };
-        showPlayerContextMenu(player, press.startX, press.startY);
-        playerLongPressRef.current = null;
-      }, 550),
-    };
-    playerLongPressRef.current = press;
-  }
-
-  function movePlayerLongPress(event) {
-    const press = playerLongPressRef.current;
-    if (!press) return;
-    if (Math.abs(event.clientX - press.startX) > 10 || Math.abs(event.clientY - press.startY) > 10) {
-      cancelPlayerLongPress();
-    }
-  }
-
-  function handlePlayerContextMenu(event, player) {
+  function handlePlayerActionClick(event, player) {
     if (!canCheckDeaths || localOnly) return;
-    event.preventDefault();
-    const recentPress = recentPlayerLongPressRef.current;
-    if (recentPress.player === player && Date.now() - recentPress.completedAt < 1000) return;
-    showPlayerContextMenu(player, event.clientX, event.clientY);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    showPlayerContextMenu(player, bounds.left, bounds.bottom + 6);
   }
 
   function openPlayerLedger(player) {
@@ -3066,6 +3092,47 @@ export default function LootMonitor({
     if (!playerName) return;
     window.open(buildPlayerLedgerUrl(playerName), '_blank', 'noopener,noreferrer');
     setPlayerContextMenu(null);
+  }
+
+  async function addDeathId() {
+    if (!selectedBundle?.id || deathIdStatus.state === 'loading') return;
+    const deathId = String(deathIdInput || '').trim().match(/(\d+)(?:\D*)$/)?.[1] || '';
+    if (!deathId) {
+      setDeathIdStatus({ message: 'Enter a valid death ID.', state: 'error' });
+      return;
+    }
+
+    const checks = buildKeptItemChecks(report?.rows);
+    if (checks.length === 0) {
+      setDeathIdStatus({ message: 'No kept items are available to account for.', state: 'error' });
+      return;
+    }
+
+    setDeathIdStatus({ message: 'Adding death...', state: 'loading' });
+    try {
+      const result = await addLootLogDeathId({
+        actorName: uploadUsername,
+        bundleId: selectedBundle.id,
+        checks,
+        deathId,
+        lootLogName: selectedBundle.lootFileName,
+      });
+      const savedCheck = result.deathCheck;
+      setSelectedBundle((current) => ({
+        ...current,
+        deathChecks: [
+          ...(current.deathChecks || []).filter((check) => String(check.eventId) !== String(savedCheck.eventId)),
+          savedCheck,
+        ],
+      }));
+      setDeathIdInput('');
+      setDeathIdStatus({ message: 'Death ID added', state: 'copied' });
+      window.setTimeout(() => {
+        setDeathIdStatus((current) => (current.state === 'copied' ? { message: '', state: 'idle' } : current));
+      }, 1800);
+    } catch (error) {
+      setDeathIdStatus({ message: error.message || 'Could not add the death ID.', state: 'error' });
+    }
   }
 
   async function shareBundleLink() {
@@ -3206,7 +3273,7 @@ export default function LootMonitor({
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {!localOnly && marketPriceError ? <p className="loot-message error">{marketPriceError}</p> : null}
-      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus]} /> : null}
+      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus, deathIdStatus]} /> : null}
       {rawModalOpen ? (
         <div className="raw-log-modal-backdrop" role="presentation" onMouseDown={() => setRawModalOpen(false)}>
           <section
@@ -3306,6 +3373,42 @@ export default function LootMonitor({
           </section>
 
           {!localOnly ? <div className="loot-board-toolbar">
+            {canCheckDeaths ? (
+              deathIdEntryOpen ? (
+                <form
+                  className="death-id-entry"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    addDeathId();
+                  }}
+                >
+                  <button
+                    className="board-copy-button death-id-button"
+                    disabled={deathIdStatus.state === 'loading'}
+                    type="submit"
+                  >
+                    {deathIdStatus.state === 'loading' ? 'Adding...' : 'Add ID'}
+                  </button>
+                  <input
+                    aria-label="Death ID"
+                    inputMode="numeric"
+                    placeholder="Death ID"
+                    type="text"
+                    value={deathIdInput}
+                    onChange={(event) => setDeathIdInput(event.target.value)}
+                  />
+                </form>
+              ) : (
+                <button
+                  className="board-copy-button death-id-button"
+                  disabled={!selectedBundle?.id}
+                  type="button"
+                  onClick={() => setDeathIdEntryOpen(true)}
+                >
+                  Add Death ID
+                </button>
+              )
+            ) : null}
             <button
               className="board-copy-button"
               disabled={visiblePlayers.length === 0 || screenshotStatus.state === 'copying'}
@@ -3329,26 +3432,24 @@ export default function LootMonitor({
               <div className="loot-player-list">
                 {visiblePlayersWithEmv.map((player) => (
                   <article className={localOnly ? 'loot-player-row local-viewer-row' : 'loot-player-row'} key={player.player}>
-                    <aside
-                      className={`loot-player-name${canCheckDeaths && !localOnly ? ' has-player-actions' : ''}`}
-                      tabIndex={canCheckDeaths && !localOnly ? 0 : undefined}
-                      title={canCheckDeaths && !localOnly ? 'Right-click or press and hold for player actions' : undefined}
-                      onContextMenu={(event) => handlePlayerContextMenu(event, player.player)}
-                      onKeyDown={(event) => {
-                        if (!canCheckDeaths || localOnly) return;
-                        if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
-                        event.preventDefault();
-                        const bounds = event.currentTarget.getBoundingClientRect();
-                        showPlayerContextMenu(player.player, bounds.left + 12, bounds.bottom - 4);
-                      }}
-                      onPointerCancel={cancelPlayerLongPress}
-                      onPointerDown={(event) => beginPlayerLongPress(event, player.player)}
-                      onPointerMove={movePlayerLongPress}
-                      onPointerUp={cancelPlayerLongPress}
-                    >
-                      <strong>
-                        {player.player} <span>({formatNumber(player.totalQuantity)})</span>
-                      </strong>
+                    <aside className="loot-player-name">
+                      {canCheckDeaths && !localOnly ? (
+                        <button
+                          className="loot-player-name-button"
+                          title="Open player actions"
+                          type="button"
+                          onClick={(event) => handlePlayerActionClick(event, player.player)}
+                        >
+                          <Pointer aria-hidden="true" size={16} />
+                          <strong>
+                            {player.player} <span>({formatNumber(player.totalQuantity)})</span>
+                          </strong>
+                        </button>
+                      ) : (
+                        <strong>
+                          {player.player} <span>({formatNumber(player.totalQuantity)})</span>
+                        </strong>
+                      )}
                       <small>
                         [{formatAllianceList(player.alliance)}] {formatGuildList(player.guild)}
                       </small>
@@ -3359,6 +3460,7 @@ export default function LootMonitor({
                       ))}
                     </div>
                     {!localOnly ? <div className="loot-player-actions">
+                      <PlayerDeathLinks deathChecks={selectedBundle?.deathChecks} player={player.player} />
                       <PlayerEmv emv={player.emv} />
                     </div> : null}
                   </article>
