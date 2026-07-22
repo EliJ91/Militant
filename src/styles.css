@@ -3481,22 +3481,11 @@ button:focus-visible {
   text-align: left;
 }
 
-.loot-player-name-button svg {
-  flex: 0 0 auto;
-  transition: transform 140ms ease, color 140ms ease;
-}
-
 .loot-player-name-button:hover,
 .loot-player-name-button:focus-visible {
   background: rgba(255, 176, 0, 0.1);
   color: #ffd15c;
   outline: none;
-}
-
-.loot-player-name-button:hover svg,
-.loot-player-name-button:focus-visible svg {
-  color: var(--green-hot);
-  transform: translateY(-2px) scale(1.12);
 }
 
 .loot-player-name-button:hover strong,

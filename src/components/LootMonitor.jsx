@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
-import { ExternalLink, Pointer, Trash2 } from 'lucide-react';
+import { ExternalLink, Trash2 } from 'lucide-react';
 import { fetchWestAveragePrices } from '../services/albionMarket';
 import {
   addLootLogDeathId,
@@ -2799,7 +2799,7 @@ export default function LootMonitor({
   const [marketPriceError, setMarketPriceError] = useState('');
   const [localLoadError, setLocalLoadError] = useState('');
   const [playerContextMenu, setPlayerContextMenu] = useState(null);
-  const [deathIdEntryOpen, setDeathIdEntryOpen] = useState(false);
+  const [deathIdEntryPlayer, setDeathIdEntryPlayer] = useState('');
   const [deathIdInput, setDeathIdInput] = useState('');
   const [deathIdStatus, setDeathIdStatus] = useState({ message: '', state: 'idle' });
   const [rawModalOpen, setRawModalOpen] = useState(false);
@@ -3094,7 +3094,7 @@ export default function LootMonitor({
     setPlayerContextMenu(null);
   }
 
-  async function addDeathId() {
+  async function addDeathId(player) {
     if (!selectedBundle?.id || deathIdStatus.state === 'loading') return;
     const deathId = String(deathIdInput || '').trim().match(/(\d+)(?:\D*)$/)?.[1] || '';
     if (!deathId) {
@@ -3102,7 +3102,9 @@ export default function LootMonitor({
       return;
     }
 
-    const checks = buildKeptItemChecks(report?.rows);
+    const playerKey = String(player || '').trim().toLowerCase();
+    const checks = buildKeptItemChecks(report?.rows)
+      .filter((check) => check.player.toLowerCase() === playerKey);
     if (checks.length === 0) {
       setDeathIdStatus({ message: 'No kept items are available to account for.', state: 'error' });
       return;
@@ -3126,6 +3128,7 @@ export default function LootMonitor({
         ],
       }));
       setDeathIdInput('');
+      setDeathIdEntryPlayer('');
       setDeathIdStatus({ message: 'Death ID added', state: 'copied' });
       window.setTimeout(() => {
         setDeathIdStatus((current) => (current.state === 'copied' ? { message: '', state: 'idle' } : current));
@@ -3373,42 +3376,6 @@ export default function LootMonitor({
           </section>
 
           {!localOnly ? <div className="loot-board-toolbar">
-            {canCheckDeaths ? (
-              deathIdEntryOpen ? (
-                <form
-                  className="death-id-entry"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    addDeathId();
-                  }}
-                >
-                  <button
-                    className="board-copy-button death-id-button"
-                    disabled={deathIdStatus.state === 'loading'}
-                    type="submit"
-                  >
-                    {deathIdStatus.state === 'loading' ? 'Adding...' : 'Add ID'}
-                  </button>
-                  <input
-                    aria-label="Death ID"
-                    inputMode="numeric"
-                    placeholder="Death ID"
-                    type="text"
-                    value={deathIdInput}
-                    onChange={(event) => setDeathIdInput(event.target.value)}
-                  />
-                </form>
-              ) : (
-                <button
-                  className="board-copy-button death-id-button"
-                  disabled={!selectedBundle?.id}
-                  type="button"
-                  onClick={() => setDeathIdEntryOpen(true)}
-                >
-                  Add Death ID
-                </button>
-              )
-            ) : null}
             <button
               className="board-copy-button"
               disabled={visiblePlayers.length === 0 || screenshotStatus.state === 'copying'}
@@ -3440,7 +3407,6 @@ export default function LootMonitor({
                           type="button"
                           onClick={(event) => handlePlayerActionClick(event, player.player)}
                         >
-                          <Pointer aria-hidden="true" size={16} />
                           <strong>
                             {player.player} <span>({formatNumber(player.totalQuantity)})</span>
                           </strong>
@@ -3461,6 +3427,44 @@ export default function LootMonitor({
                     </div>
                     {!localOnly ? <div className="loot-player-actions">
                       <PlayerDeathLinks deathChecks={selectedBundle?.deathChecks} player={player.player} />
+                      {canCheckDeaths && player.keptQuantity > 0 ? (
+                        deathIdEntryPlayer === player.player ? (
+                          <form
+                            className="death-id-entry"
+                            onSubmit={(event) => {
+                              event.preventDefault();
+                              addDeathId(player.player);
+                            }}
+                          >
+                            <button
+                              className="board-copy-button death-id-button"
+                              disabled={deathIdStatus.state === 'loading'}
+                              type="submit"
+                            >
+                              {deathIdStatus.state === 'loading' ? 'Adding...' : 'Add ID'}
+                            </button>
+                            <input
+                              aria-label={`Death ID for ${player.player}`}
+                              inputMode="numeric"
+                              placeholder="Death ID"
+                              type="text"
+                              value={deathIdInput}
+                              onChange={(event) => setDeathIdInput(event.target.value)}
+                            />
+                          </form>
+                        ) : (
+                          <button
+                            className="board-copy-button death-id-button"
+                            type="button"
+                            onClick={() => {
+                              setDeathIdInput('');
+                              setDeathIdEntryPlayer(player.player);
+                            }}
+                          >
+                            Add Death ID
+                          </button>
+                        )
+                      ) : null}
                       <PlayerEmv emv={player.emv} />
                     </div> : null}
                   </article>

@@ -437,7 +437,7 @@ describe('LootMonitor', () => {
     );
     await screen.findByText('Windyyyzz');
     fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Death ID' }), { target: { value: '12345' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Death ID for Windyyyzz' }), { target: { value: '12345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add ID' }));
 
     await waitFor(() => expect(addLootLogDeathId).toHaveBeenCalledWith(expect.objectContaining({
