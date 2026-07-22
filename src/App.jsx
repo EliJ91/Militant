@@ -281,11 +281,6 @@ function Topbar({
     };
   }, [isMenuOpen]);
 
-  function runAction(action) {
-    setIsMenuOpen(false);
-    action.onClick();
-  }
-
   return (
     <header className="topbar">
       <BrandLockup compact />
@@ -309,15 +304,30 @@ function Topbar({
             <div className={isMenuOpen ? 'topbar-actions is-open' : 'topbar-actions'}>
               <div className="topbar-links">
                 {actions.map((action) => (
-                  <button
-                    className="navigation-button"
-                    key={action.label}
-                    title={action.title || action.label}
-                    type="button"
-                    onClick={() => runAction(action)}
-                  >
-                    {action.label}
-                  </button>
+                  action.href ? (
+                    <a
+                      className="navigation-button"
+                      href={action.href}
+                      key={action.label}
+                      title={action.title || action.label}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {action.label}
+                    </a>
+                  ) : (
+                    <button
+                      className="navigation-button"
+                      key={action.label}
+                      title={action.title || action.label}
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        action.onClick?.();
+                      }}
+                    >
+                      {action.label}
+                    </button>
+                  )
                 ))}
               </div>
             </div>
@@ -577,8 +587,8 @@ function LootMonitorPage({
     <>
       <Topbar
         actions={[
-          { label: 'Loot Logs', onClick: () => navigateTo('#loot-logs') },
-          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
+          { href: '#loot-logs', label: 'Loot Logs' },
+          { href: '#dashboard', label: 'Dashboard' },
         ]}
         currentUser={currentUser}
         isSuperUserProfile={isSuperUserProfile}
@@ -657,7 +667,7 @@ function ToolPage({
     <>
       <Topbar
         actions={isAuthenticated ? [
-          { label: 'Dashboard', onClick: () => navigateTo('#dashboard') },
+          { href: '#dashboard', label: 'Dashboard' },
         ] : []}
         currentUser={isAuthenticated ? currentUser : null}
         isSuperUserProfile={isSuperUserProfile}

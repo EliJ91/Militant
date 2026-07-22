@@ -253,14 +253,23 @@ export default function MembersTool({ canUpdate = false }) {
                     key={member.playerId || member.playerKey || member.playerName}
                   >
                     <td>
-                      <button
+                      <span
                         className="members-name-button"
+                        role="button"
+                        tabIndex={0}
                         title={member.playerId ? `Copy ${member.playerName} player ID` : member.playerName}
-                        type="button"
-                        onClick={() => copyPlayerId(member)}
+                        onClick={() => {
+                          if (!window.getSelection?.()?.toString()) copyPlayerId(member);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            copyPlayerId(member);
+                          }
+                        }}
                       >
                         {member.playerName}
-                      </button>
+                      </span>
                     </td>
                     <td>{formatDateAdded(member.dateAdded)}</td>
                     <td>{formatNumber(member.pvpKillFame)}</td>

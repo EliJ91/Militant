@@ -826,6 +826,7 @@ button:focus-visible {
   border: 1px solid rgba(87, 216, 120, 0.36);
   color: var(--white);
   padding: 8px 16px;
+  text-decoration: none;
 }
 
 .navigation-button:hover {
@@ -1132,6 +1133,10 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+.members-table tbody td {
+  user-select: text;
+}
+
 .members-table th {
   color: var(--muted);
   font-size: 0.68rem;
@@ -1173,6 +1178,7 @@ button:focus-visible {
 }
 
 .members-name-button {
+  display: inline-block;
   width: 100%;
   padding: 0;
   border: 0;
@@ -1181,6 +1187,7 @@ button:focus-visible {
   cursor: pointer;
   font: inherit;
   text-align: center;
+  user-select: text;
 }
 
 .members-name-button:hover {
