@@ -799,10 +799,13 @@ describe('LootMonitor', () => {
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Add Loot Files Later' })).not.toBeInTheDocument();
     expect(within(instructionsDialog).getByRole('heading', { name: 'Upload Chest Logs' })).toBeInTheDocument();
     expect(within(instructionsDialog).getByRole('heading', { name: 'Merge Loot Logs' })).toBeInTheDocument();
+    expect(within(instructionsDialog).getByRole('heading', { name: 'Check And Add Deaths' })).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('.csv or .txt')).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('/upload')).toBeInTheDocument();
     expect(within(instructionsDialog).getByText(/select a player's name/i)).toBeInTheDocument();
     expect(within(instructionsDialog).getByText(/open that player's Murderledger in a new tab/i)).toBeInTheDocument();
+    expect(within(instructionsDialog).getByText(/items in the victim's inventory must match items marked Kept/i)).toBeInTheDocument();
+    expect(within(instructionsDialog).getByText(/Anyone who can view the loot log can use this link/i)).toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('img')).not.toBeInTheDocument();
     fireEvent.click(within(instructionsDialog).getByRole('button', { name: 'Close upload instructions' }));
     expect(screen.queryByRole('dialog', { name: 'Upload Instructions' })).not.toBeInTheDocument();

@@ -1,6 +1,6 @@
 {
   "name": "militant-webapp",
-  "version": "1.8.86",
+  "version": "1.8.87",
   "private": true,
   "type": "module",
   "scripts": {

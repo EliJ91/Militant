@@ -1841,8 +1841,17 @@ function UploadInstructionsModal({ onClose }) {
     },
     {
       steps: [
+        <>Select a player's name and choose <strong>Check Recent Deaths</strong> to open that player's Murderledger in a new tab.</>,
+        <>To account for a known death, a user with <strong>Add Death ID</strong> permission selects the black <strong>Add Death ID</strong> button in that player's row, pastes the numeric death ID, then selects <strong>Add ID</strong>.</>,
+        <>The victim name must match the player, and items in the victim's inventory must match items marked Kept. Matching items become <strong>Accounted</strong>.</>,
+        <>A red <strong>Death</strong> link opens the saved death on the Albion killboard. Anyone who can view the loot log can use this link. Multiple deaths appear as <strong>Death 1</strong>, <strong>Death 2</strong>, and so on.</>,
+      ],
+      title: 'Check And Add Deaths',
+    },
+    {
+      steps: [
         <><strong>View</strong> opens the full item report. Use Tier, Item Type, Guild, Alliance, Sort, and Status to narrow it down.</>,
-        <>Select a player's name, then choose <strong>Check Recent Deaths</strong> to open that player's Murderledger in a new tab. Use <strong>Add Death ID</strong> to account for matching kept inventory from a known death. <strong>Copy Screenshot</strong> captures only the displayed report.</>,
+        <><strong>Copy Screenshot</strong> captures only the displayed report.</>,
         <><strong>View Raw</strong> shows the source logs. <strong>Share</strong> copies a link to the current report.</>,
         <><strong>Edit</strong>, <strong>Download</strong>, and <strong>Delete</strong> appear only when your Discord roles grant those permissions.</>,
       ],
