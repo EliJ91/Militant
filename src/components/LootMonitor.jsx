@@ -2785,7 +2785,7 @@ export function LootLogArchive({
 
 export default function LootMonitor({
   bundleId = '',
-  canCheckDeaths = false,
+  canAddDeathId = false,
   localOnly = false,
   onViewLogs = () => {},
   showShare = true,
@@ -3077,12 +3077,12 @@ export default function LootMonitor({
   }
 
   function showPlayerContextMenu(player, clientX, clientY) {
-    if (!canCheckDeaths || localOnly || !player) return;
+    if (localOnly || !player) return;
     setPlayerContextMenu({ player, ...positionPlayerContextMenu(clientX, clientY) });
   }
 
   function handlePlayerActionClick(event, player) {
-    if (!canCheckDeaths || localOnly) return;
+    if (localOnly) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     showPlayerContextMenu(player, bounds.left, bounds.bottom + 6);
   }
@@ -3407,7 +3407,7 @@ export default function LootMonitor({
                 {visiblePlayersWithEmv.map((player) => (
                   <article className={localOnly ? 'loot-player-row local-viewer-row' : 'loot-player-row'} key={player.player}>
                     <aside className="loot-player-name">
-                      {canCheckDeaths && !localOnly ? (
+                      {!localOnly ? (
                         <button
                           className="loot-player-name-button"
                           title="Open player actions"
@@ -3434,7 +3434,7 @@ export default function LootMonitor({
                     </div>
                     {!localOnly ? <div className="loot-player-actions">
                       <PlayerDeathLinks deathChecks={selectedBundle?.deathChecks} player={player.player} />
-                      {canCheckDeaths && player.keptQuantity > 0 ? (
+                      {canAddDeathId && player.keptQuantity > 0 ? (
                         deathIdEntryPlayer === player.player ? (
                           <form
                             className="death-id-entry"

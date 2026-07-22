@@ -15,7 +15,7 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'changeLootLogTitle', label: 'Edit Loot Log Title', area: 'Loot Logs' },
   { key: 'uploadChestLogs', label: 'Upload Chest Logs', area: 'Loot Logs' },
   { key: 'deleteChestLootLogs', label: 'Delete Chest/Loot Logs', area: 'Loot Logs' },
-  { key: 'searchDeaths', label: 'Search For Deaths', area: 'Loot Logs' },
+  { key: 'addDeathId', label: 'Add Death ID', area: 'Loot Logs' },
   { key: 'viewMembers', label: 'View Members', area: 'Members' },
   { key: 'updateMembersList', label: 'Update Members List', area: 'Members' },
   { key: 'viewSiphonedEnergy', label: 'View Siphoned Energy Tracker', area: 'Siphoned Energy' },
@@ -125,7 +125,9 @@ function normalizeRolePermissions(role) {
     permissions: Object.fromEntries(
       WEBAPP_PERMISSION_DEFINITIONS.map((permission) => [
         permission.key,
-        Boolean(incomingPermissions[permission.key]),
+        Boolean(permission.key === 'addDeathId'
+          ? incomingPermissions.addDeathId ?? incomingPermissions.searchDeaths
+          : incomingPermissions[permission.key]),
       ]),
     ),
   };

@@ -362,7 +362,7 @@ describe('LootMonitor', () => {
     });
     const openWindow = vi.spyOn(window, 'open').mockImplementation(() => null);
 
-    render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
+    render(<LootMonitor bundleId="bundle-18" />);
 
     const playerName = await screen.findByRole('button', { name: /Windyyyzz/ });
     fireEvent.click(playerName);
@@ -386,13 +386,13 @@ describe('LootMonitor', () => {
         hasChestLog: false,
       }),
     });
-    render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
+    render(<LootMonitor bundleId="bundle-18" />);
     fireEvent.click(await screen.findByRole('button', { name: /Windyyyzz/ }));
 
     expect(screen.getByRole('menuitem', { name: 'Check Recent Deaths' })).toBeInTheDocument();
   });
 
-  it('hides player death actions without authenticated access', async () => {
+  it('allows recent death viewing without granting death ID changes', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
         chestLogText: '',
@@ -405,9 +405,9 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" />);
 
-    const playerName = (await screen.findByText('Windyyyzz')).closest('.loot-player-name');
-    fireEvent.click(playerName);
-    expect(screen.queryByRole('menuitem', { name: 'Check Recent Deaths' })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Windyyyzz/ }));
+    expect(screen.getByRole('menuitem', { name: 'Check Recent Deaths' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add Death ID' })).not.toBeInTheDocument();
   });
 
   it('adds a death ID and displays its accounted item and killboard link', async () => {
@@ -433,7 +433,7 @@ describe('LootMonitor', () => {
     });
 
     const { container } = render(
-      <LootMonitor bundleId="bundle-18" canCheckDeaths uploadUsername="Onslawht" />,
+      <LootMonitor bundleId="bundle-18" canAddDeathId uploadUsername="Onslawht" />,
     );
     await screen.findByText('Windyyyzz');
     fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
@@ -466,7 +466,7 @@ describe('LootMonitor', () => {
       }),
     });
 
-    render(<LootMonitor bundleId="bundle-18" canCheckDeaths />);
+    render(<LootMonitor bundleId="bundle-18" canAddDeathId />);
     await screen.findByText('Windyyyzz');
     fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
     const input = screen.getByRole('textbox', { name: 'Death ID for Windyyyzz' });

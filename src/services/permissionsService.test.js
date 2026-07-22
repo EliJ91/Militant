@@ -1,0 +1,27 @@
+import { describe, expect, it } from 'vitest';
+import {
+  normalizePermissionSettings,
+  WEBAPP_PERMISSION_DEFINITIONS,
+} from './permissionsService';
+
+describe('permissions service', () => {
+  it('replaces the legacy death-search permission with Add Death ID', () => {
+    const settings = normalizePermissionSettings({
+      roles: [{
+        id: 'soldier',
+        name: 'Soldier',
+        permissions: { searchDeaths: true },
+        roleId: '805910066346721341',
+      }],
+    });
+
+    expect(WEBAPP_PERMISSION_DEFINITIONS).toContainEqual({
+      area: 'Loot Logs',
+      key: 'addDeathId',
+      label: 'Add Death ID',
+    });
+    expect(WEBAPP_PERMISSION_DEFINITIONS.some(({ key }) => key === 'searchDeaths')).toBe(false);
+    expect(settings.roles[0].permissions.addDeathId).toBe(true);
+    expect(settings.roles[0].permissions).not.toHaveProperty('searchDeaths');
+  });
+});

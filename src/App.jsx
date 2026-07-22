@@ -563,7 +563,7 @@ function DashboardPage({
 
 function LootMonitorPage({
   bundleId,
-  canCheckDeaths = false,
+  canAddDeathId = false,
   currentUser = null,
   isSuperUserProfile = false,
   onResetViewAsRole = () => {},
@@ -589,7 +589,7 @@ function LootMonitorPage({
       />
       <LootMonitor
         bundleId={bundleId}
-        canCheckDeaths={canCheckDeaths}
+        canAddDeathId={canAddDeathId}
         onViewLogs={() => navigateTo('#loot-logs')}
         uploadUsername={getUploadUsername(currentUser)}
       />
@@ -597,11 +597,11 @@ function LootMonitorPage({
   );
 }
 
-function SharedLootMonitorPage({ bundleId, currentUser = null, isAuthenticated = false }) {
+function SharedLootMonitorPage({ bundleId, canAddDeathId = false, currentUser = null }) {
   return (
     <LootMonitor
       bundleId={bundleId}
-      canCheckDeaths={isAuthenticated}
+      canAddDeathId={canAddDeathId}
       showShare={false}
       uploadUsername={getUploadUsername(currentUser)}
     />
@@ -1024,8 +1024,8 @@ export default function App() {
     page = (
       <SharedLootMonitorPage
         bundleId={selectedBundleId}
+        canAddDeathId={Boolean(effectivePermissions.addDeathId)}
         currentUser={currentUser}
-        isAuthenticated={isAuthenticated}
       />
     );
   } else if (route === 'loot-viewer') {
@@ -1102,7 +1102,7 @@ export default function App() {
     page = effectivePermissions.viewLootLog ? (
       <LootMonitorPage
         bundleId={selectedBundleId}
-        canCheckDeaths={Boolean(effectivePermissions.searchDeaths)}
+        canAddDeathId={Boolean(effectivePermissions.addDeathId)}
         currentUser={currentUser}
         onSignOut={handleSignOut}
         {...topbarContext}
