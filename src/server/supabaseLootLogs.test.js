@@ -1,11 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
+  collectGlobalHiddenPlayers,
   deathMatchesBundle,
   getBundleDisplayChestFileName,
   getBundleDisplayLootFileName,
   getBundleFileNames,
   normalizeDeathCheckRanges,
 } from './supabaseLootLogs.js';
+
+describe('collectGlobalHiddenPlayers', () => {
+  it('combines hidden players from every loot log into one normalized global list', () => {
+    expect(collectGlobalHiddenPlayers([
+      { combined_loot_summary: { hiddenPlayers: ['PlayerOne', ' playerTwo '] } },
+      { combined_loot_summary: { hiddenPlayers: ['PLAYERONE', 'PlayerThree'] } },
+      { combined_loot_summary: {} },
+    ])).toEqual(['playerone', 'playerthree', 'playertwo']);
+  });
+});
 
 describe('getBundleFileNames', () => {
   it('keeps the original bundle title when merged events change the time range', () => {

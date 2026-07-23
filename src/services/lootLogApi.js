@@ -347,7 +347,7 @@ export async function setLootLogPlayerHidden({
   }
 
   void recordActionLog({
-    action: hidden ? 'Player hidden from loot log' : 'Player unhidden from loot log',
+    action: hidden ? 'Player hidden globally' : 'Player unhidden globally',
     actorName,
     details: { lootLogName, player },
     targetId: bundleId,

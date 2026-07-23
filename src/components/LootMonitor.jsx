@@ -3229,7 +3229,7 @@ export default function LootMonitor({
         },
       }));
       setPlayerVisibilityStatus({
-        message: `${player} ${hidden ? 'hidden' : 'unhidden'}`,
+        message: `${player} ${hidden ? 'hidden globally' : 'unhidden globally'}`,
         player: '',
         state: 'copied',
       });

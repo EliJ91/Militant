@@ -233,7 +233,15 @@ function cleanEditedSubmitterName(name) {
   return clean;
 }
 
-function mapBundleListRow(bundle, logNumber = null) {
+export function collectGlobalHiddenPlayers(bundles = []) {
+  return [...new Set((Array.isArray(bundles) ? bundles : []).flatMap((bundle) => (
+    Array.isArray(bundle?.combined_loot_summary?.hiddenPlayers)
+      ? bundle.combined_loot_summary.hiddenPlayers
+      : []
+  )).map((player) => String(player || '').trim().toLowerCase()).filter(Boolean))].sort();
+}
+
+function mapBundleListRow(bundle, logNumber = null, hiddenPlayers = []) {
   const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
   const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
   const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
@@ -268,9 +276,31 @@ function mapBundleListRow(bundle, logNumber = null) {
     })),
     chestSubmitters,
     submitters,
-    summary: bundle.combined_loot_summary,
+    summary: {
+      ...(bundle.combined_loot_summary || {}),
+      hiddenPlayers,
+    },
     updatedAt: bundle.updated_at,
   };
+}
+
+async function fetchLootLogBundleVisibility(supabase) {
+  const bundles = [];
+  for (let from = 0; ; from += DATABASE_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('loot_log_bundles')
+      .select('id,combined_loot_summary')
+      .order('id')
+      .range(from, from + DATABASE_PAGE_SIZE - 1);
+    if (error) throw error;
+    bundles.push(...(data || []));
+    if (!data || data.length < DATABASE_PAGE_SIZE) break;
+  }
+  return bundles;
+}
+
+async function getGlobalHiddenPlayers(supabase) {
+  return collectGlobalHiddenPlayers(await fetchLootLogBundleVisibility(supabase));
 }
 
 function hashDedupeKey(value) {
@@ -860,9 +890,12 @@ async function getOrCreateBundle(supabase, { bundleId, range }) {
   const existing = await findMatchingBundle(supabase, range);
   if (existing) return { bundle: existing, matchedExistingBundle: true };
 
+  const hiddenPlayers = await getGlobalHiddenPlayers(supabase);
+
   const { data, error } = await supabase
     .from('loot_log_bundles')
     .insert({
+      combined_loot_summary: { hiddenPlayers },
       end_at: range.endAt,
       start_at: range.startAt,
     })
@@ -1155,10 +1188,12 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
   const firstTitle = getBundleDisplayLootFileName(sourceBundles[0]);
   const displayLootFileName = cleanDisplayLogName(`Merged - ${firstTitle}`) || 'Merged Loot Logs';
   const fileNames = buildSharedFileNames(displayLootFileName, buildBundleFileNames(startAt).baseName);
+  const hiddenPlayers = await getGlobalHiddenPlayers(supabase);
   const mergeMetadata = {
     deathCheckRanges,
     displayLootFileName,
     fileNames,
+    hiddenPlayers,
     isMerged: true,
     mergedAt,
     mergedBy: normalizeSubmitterName(mergedBy),
@@ -1454,35 +1489,28 @@ export async function setLootLogPlayerHidden({ bundleId, hidden, player }) {
   if (!playerKey) throw new Error('player is required.');
 
   const supabase = createSupabaseAdmin();
-  const { data: bundle, error: bundleError } = await supabase
-    .from('loot_log_bundles')
-    .select('combined_loot_summary')
-    .eq('id', cleanBundleId)
-    .single();
+  const bundles = await fetchLootLogBundleVisibility(supabase);
+  if (!bundles.some((bundle) => bundle.id === cleanBundleId)) throw new Error('Loot log could not be found.');
 
-  if (bundleError) throw bundleError;
-
-  const hiddenPlayers = new Set((Array.isArray(bundle.combined_loot_summary?.hiddenPlayers)
-    ? bundle.combined_loot_summary.hiddenPlayers
-    : [])
-    .map((name) => String(name || '').trim().toLowerCase())
-    .filter(Boolean));
+  const hiddenPlayers = new Set(collectGlobalHiddenPlayers(bundles));
   if (hidden) hiddenPlayers.add(playerKey);
   else hiddenPlayers.delete(playerKey);
 
   const nextHiddenPlayers = [...hiddenPlayers].sort();
-  const { error: updateError } = await supabase
-    .from('loot_log_bundles')
-    .update({
-      combined_loot_summary: {
-        ...(bundle.combined_loot_summary || {}),
-        hiddenPlayers: nextHiddenPlayers,
-      },
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', cleanBundleId);
-
-  if (updateError) throw updateError;
+  for (const batch of chunkArray(bundles, UPDATE_BATCH_SIZE)) {
+    await Promise.all(batch.map(async (bundle) => {
+      const { error } = await supabase
+        .from('loot_log_bundles')
+        .update({
+          combined_loot_summary: {
+            ...(bundle.combined_loot_summary || {}),
+            hiddenPlayers: nextHiddenPlayers,
+          },
+        })
+        .eq('id', bundle.id);
+      if (error) throw error;
+    }));
+  }
   return { bundleId: cleanBundleId, hidden: Boolean(hidden), hiddenPlayers: nextHiddenPlayers, player };
 }
 
@@ -1498,7 +1526,7 @@ export async function getLootLogBundle(bundleId) {
 
   if (bundleError) throw bundleError;
 
-  const [eventsResult, lootSubmissionsResult, chestResult, deathChecksResult] = await Promise.all([
+  const [eventsResult, lootSubmissionsResult, chestResult, deathChecksResult, hiddenPlayers] = await Promise.all([
     fetchAllBundleEvents(supabase, bundleId),
     supabase.from('loot_log_submissions')
       .select('id,submitted_by,raw_log_text,created_at')
@@ -1512,6 +1540,7 @@ export async function getLootLogBundle(bundleId) {
       .select('player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
       .eq('bundle_id', bundleId)
       .order('checked_at'),
+    getGlobalHiddenPlayers(supabase),
   ]);
 
   if (lootSubmissionsResult.error) throw lootSubmissionsResult.error;
@@ -1520,9 +1549,7 @@ export async function getLootLogBundle(bundleId) {
 
   const summary = {
     ...aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent)),
-    hiddenPlayers: Array.isArray(bundle.combined_loot_summary?.hiddenPlayers)
-      ? bundle.combined_loot_summary.hiddenPlayers
-      : [],
+    hiddenPlayers,
   };
   const chestLogs = (chestResult.data || []).map((log) => ({
     ...log,
@@ -1607,8 +1634,9 @@ export async function listLootLogBundles() {
   if (error) throw error;
 
   const bundles = data || [];
+  const hiddenPlayers = collectGlobalHiddenPlayers(bundles);
   return {
-    bundles: bundles.map((bundle, index) => mapBundleListRow(bundle, bundles.length - index)),
+    bundles: bundles.map((bundle, index) => mapBundleListRow(bundle, bundles.length - index, hiddenPlayers)),
     ctaTimers: CTA_UTC_HOURS.map(formatCtaTimer),
   };
 }
