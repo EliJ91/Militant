@@ -1728,7 +1728,7 @@ button:focus-visible {
 
 .upload-guide-sections {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin-top: 12px;
 }
@@ -4640,10 +4640,6 @@ button:focus-visible {
   .upload-guide-section summary,
   .upload-guide-content {
     padding: 13px;
-  }
-
-  .upload-guide-sections {
-    grid-template-columns: 1fr;
   }
 
   .landing-page {
