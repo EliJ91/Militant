@@ -8,6 +8,8 @@ describe('player history service', () => {
       { playerId: 'member-2', playerName: 'MilitantTwo' },
     ], [
       {
+        id: 'cta-one',
+        lootFileName: '20UTC-JUL-01',
         startAt: '2026-07-01T20:00:00.000Z',
         summary: { rows: [
           { itemId: 'T6_SWORD', kept: 3, looted: 5, lost: 2, player: 'militantone' },
@@ -16,6 +18,8 @@ describe('player history service', () => {
         ] },
       },
       {
+        id: 'cta-two',
+        lootFileName: '20UTC-JUL-03',
         startAt: '2026-07-03T20:00:00.000Z',
         summary: { rows: [
           { itemId: 'T6_SWORD', kept: 1, looted: 1, lost: 0, player: 'MilitantOne' },
@@ -34,6 +38,21 @@ describe('player history service', () => {
       itemsLost: 2,
       uniqueItemsLooted: 2,
     });
+    expect(players.find((player) => player.playerName === 'MilitantOne').ctas).toEqual([
+      expect.objectContaining({
+        bundleId: 'cta-two',
+        lootLogTitle: '20UTC-JUL-03',
+        itemsKept: [
+          expect.objectContaining({ itemId: 'T8_BAG', quantity: 2 }),
+          expect.objectContaining({ itemId: 'T6_SWORD', quantity: 1 }),
+        ],
+      }),
+      expect.objectContaining({
+        bundleId: 'cta-one',
+        lootLogTitle: '20UTC-JUL-01',
+        itemsKept: [expect.objectContaining({ itemId: 'T6_SWORD', quantity: 3 })],
+      }),
+    ]);
     expect(players.find((player) => player.playerName === 'FormerMember')).toMatchObject({
       ctaCount: 1,
       itemsKept: 4,

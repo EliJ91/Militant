@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { fetchPlayerHistory } from '../services/playerHistoryService';
 
 const SORT_COLUMNS = [
@@ -37,6 +37,7 @@ function numericSortValue(value) {
 export default function PlayerHistoryTool() {
   const [players, setPlayers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPlayerKey, setSelectedPlayerKey] = useState('');
   const [sortState, setSortState] = useState({ direction: 'desc', key: 'ctaCount' });
   const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
 
@@ -79,6 +80,10 @@ export default function PlayerHistoryTool() {
       direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc',
       key,
     }));
+  }
+
+  function togglePlayer(playerKey) {
+    setSelectedPlayerKey((current) => (current === playerKey ? '' : playerKey));
   }
 
   return (
@@ -141,19 +146,77 @@ export default function PlayerHistoryTool() {
                 </tr>
               </thead>
               <tbody>
-                {visiblePlayers.map((player) => (
-                  <tr key={player.playerId || player.playerKey}>
-                    <td><strong className="player-history-name">{player.playerName}</strong></td>
-                    <td>{formatNumber(player.ctaCount)}</td>
-                    <td>{formatNumber(player.itemsLooted)}</td>
-                    <td>{formatNumber(player.itemsKept)}</td>
-                    <td>{formatNumber(player.itemsLost)}</td>
-                    <td>{formatNumber(player.averageItemsLootedPerCta, 1)}</td>
-                    <td>{formatNumber(player.averageItemsKeptPerCta, 1)}</td>
-                    <td>{formatNumber(player.uniqueItemsLooted)}</td>
-                    <td className="player-history-date">{formatDate(player.lastCtaAt)}</td>
-                  </tr>
-                ))}
+                {visiblePlayers.map((player) => {
+                  const isExpanded = selectedPlayerKey === player.playerKey;
+                  return (
+                    <Fragment key={player.playerId || player.playerKey}>
+                      <tr
+                        aria-expanded={isExpanded}
+                        className="player-history-row"
+                        tabIndex={0}
+                        onClick={() => togglePlayer(player.playerKey)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            togglePlayer(player.playerKey);
+                          }
+                        }}
+                      >
+                        <td>
+                          <button
+                            aria-label={`${isExpanded ? 'Hide' : 'View'} loot history for ${player.playerName}`}
+                            className="player-history-name"
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              togglePlayer(player.playerKey);
+                            }}
+                          >
+                            <span aria-hidden="true">{isExpanded ? 'v' : '>'}</span>
+                            <strong>{player.playerName}</strong>
+                          </button>
+                        </td>
+                        <td>{formatNumber(player.ctaCount)}</td>
+                        <td>{formatNumber(player.itemsLooted)}</td>
+                        <td>{formatNumber(player.itemsKept)}</td>
+                        <td>{formatNumber(player.itemsLost)}</td>
+                        <td>{formatNumber(player.averageItemsLootedPerCta, 1)}</td>
+                        <td>{formatNumber(player.averageItemsKeptPerCta, 1)}</td>
+                        <td>{formatNumber(player.uniqueItemsLooted)}</td>
+                        <td className="player-history-date">{formatDate(player.lastCtaAt)}</td>
+                      </tr>
+                      {isExpanded ? (
+                        <tr className="player-history-detail-row">
+                          <td colSpan={SORT_COLUMNS.length}>
+                            <div className="player-history-cta-list">
+                              {player.ctas.length > 0 ? player.ctas.map((cta, index) => (
+                                <section className="player-history-cta" key={cta.bundleId || `${cta.date}-${index}`}>
+                                  <header>
+                                    <div>
+                                      <span>Loot Log</span>
+                                      <h3>{cta.lootLogTitle}</h3>
+                                    </div>
+                                    <time dateTime={cta.date}>{formatDate(cta.date)}</time>
+                                  </header>
+                                  {cta.itemsKept.length > 0 ? (
+                                    <div className="player-history-kept-items">
+                                      {cta.itemsKept.map((item) => (
+                                        <div className="player-history-kept-item" key={`${item.itemId || item.item}-${item.enchantment}`}>
+                                          <span>{item.item}</span>
+                                          <strong>{formatNumber(item.quantity)} kept</strong>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : <p>No items kept in this CTA.</p>}
+                                </section>
+                              )) : <p className="members-empty">No CTA loot history for this player.</p>}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
