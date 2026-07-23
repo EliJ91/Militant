@@ -90,6 +90,8 @@ describe('App', () => {
     expect(screen.getByText('Track deposits, withdrawals, and outstanding member balances.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Members' })).toBeInTheDocument();
     expect(screen.getByText('View current Militant guild members and fame totals.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Player History' })).toBeInTheDocument();
+    expect(screen.getByText('Search current members and review their historical CTA loot statistics.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Loot Log Viewer' })).toBeInTheDocument();
@@ -125,15 +127,26 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toBeInTheDocument();
   });
 
-  it('opens the local loot viewer directly without Discord login', async () => {
+  it('requires Discord login before opening the local loot viewer', async () => {
     window.location.hash = '#loot-viewer';
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Loot Log Viewer' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Open local loot logs' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /login with discord/i })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /login with discord/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Loot Log Viewer' })).not.toBeInTheDocument();
     expect(fetchLootLogBundle).not.toHaveBeenCalled();
+  });
+
+  it('opens Player History from the dashboard', async () => {
+    getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006' } });
+    window.location.hash = '#dashboard';
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /player history/i }));
+
+    expect(window.location.hash).toBe('#player-history');
+    expect(screen.getByRole('heading', { level: 1, name: 'Player History' })).toBeInTheDocument();
   });
 
   it('opens the Siphoned Energy Tracker from the dashboard', async () => {
@@ -156,7 +169,7 @@ describe('App', () => {
     const { container } = render(<App />);
 
     expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /members/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^members/i }));
 
     expect(window.location.hash).toBe('#members');
     expect(screen.getByRole('heading', { level: 1, name: 'Members' })).toBeInTheDocument();

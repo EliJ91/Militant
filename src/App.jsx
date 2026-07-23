@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, History, ScrollText, ShieldCheck, Users } from 'lucide-react';
+import { ChartBar, Eye, History, ScrollText, ShieldCheck, Users } from 'lucide-react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import MembersTool from './components/MembersTool';
+import PlayerHistoryTool from './components/PlayerHistoryTool';
 import PermissionsTool from './components/PermissionsTool';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
 import ActionLogsTool from './components/ActionLogsTool';
@@ -40,6 +41,7 @@ function getRoute() {
   if (route === 'shared-log' || route.startsWith('shared-log/')) return 'shared-log';
   if (route === 'siphoned-energy') return 'siphoned-energy';
   if (route === 'members') return 'members';
+  if (route === 'player-history') return 'player-history';
   if (route === 'permissions') return 'permissions';
   if (route === 'action-logs') return 'action-logs';
   return route === 'dashboard' ? 'dashboard' : 'landing';
@@ -484,6 +486,22 @@ function DashboardPage({
       to: '#members',
     },
     {
+      description: 'Search current members and review their historical CTA loot statistics.',
+      group: 'tools',
+      icon: ChartBar,
+      permission: 'viewPlayerHistory',
+      title: 'Player History',
+      to: '#player-history',
+    },
+    {
+      description: 'Open loot logs locally without saving or changing any data.',
+      group: 'tools',
+      icon: Eye,
+      permission: 'viewLootLogViewer',
+      title: 'Loot Log Viewer',
+      to: '#loot-viewer',
+    },
+    {
       description: 'Map Discord roles to webapp access controls.',
       group: 'admin',
       icon: ShieldCheck,
@@ -499,19 +517,7 @@ function DashboardPage({
       title: 'Action Logs',
       to: '#action-logs',
     },
-    {
-      description: 'Open loot logs locally without saving or changing any data.',
-      group: 'admin',
-      icon: Eye,
-      superuserOnly: true,
-      title: 'Loot Log Viewer',
-      to: '#loot-viewer',
-    },
-  ].filter((tool) => (
-    tool.superuserOnly
-      ? isSuperUserProfile && viewAsRoleIds.length === 0
-      : permissions[tool.permission]
-  ));
+  ].filter((tool) => permissions[tool.permission]);
   const toolGroups = [
     { key: 'tools', label: 'Tools' },
     { key: 'admin', label: 'Administration' },
@@ -774,6 +780,30 @@ function MembersPage({
   );
 }
 
+function PlayerHistoryPage({
+  currentUser = null,
+  isSuperUserProfile = false,
+  onResetViewAsRole = () => {},
+  onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
+}) {
+  return (
+    <ToolPage
+      currentUser={currentUser}
+      isSuperUserProfile={isSuperUserProfile}
+      onResetViewAsRole={onResetViewAsRole}
+      onSignOut={onSignOut}
+      onToggleViewAsRole={onToggleViewAsRole}
+      viewAsRoleIds={viewAsRoleIds}
+      viewAsRoles={viewAsRoles}
+    >
+      <PlayerHistoryTool />
+    </ToolPage>
+  );
+}
+
 function PermissionsPage({
   currentUser = null,
   isSuperUserProfile = false,
@@ -1014,6 +1044,7 @@ export default function App() {
       : route === 'loot-monitor' || route === 'shared-log' ? 'View Loot Log'
       : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
       : route === 'members' ? 'Members'
+      : route === 'player-history' ? 'Player History'
       : route === 'permissions' ? 'Permissions'
       : route === 'action-logs' ? 'Action Logs'
       : route === 'dashboard' ? 'Militant Dashboard'
@@ -1059,15 +1090,6 @@ export default function App() {
         screenshotPermissions={soldierPermissions}
       />
     );
-  } else if (route === 'loot-viewer') {
-    page = (
-      <LocalLootViewerPage
-        currentUser={currentUser}
-        isAuthenticated={isAuthenticated}
-        onSignOut={handleSignOut}
-        {...topbarContext}
-      />
-    );
   } else if (route === 'siphoned-energy') {
     page = (
       <SiphonedEnergyPage
@@ -1099,6 +1121,23 @@ export default function App() {
       <MembersPage
         canUpdate={Boolean(effectivePermissions.updateMembersList)}
         currentUser={currentUser}
+        onSignOut={handleSignOut}
+        {...topbarContext}
+      />
+    ) : (
+      <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
+    );
+  } else if (route === 'player-history') {
+    page = effectivePermissions.viewPlayerHistory ? (
+      <PlayerHistoryPage currentUser={currentUser} onSignOut={handleSignOut} {...topbarContext} />
+    ) : (
+      <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
+    );
+  } else if (route === 'loot-viewer') {
+    page = effectivePermissions.viewLootLogViewer ? (
+      <LocalLootViewerPage
+        currentUser={currentUser}
+        isAuthenticated={isAuthenticated}
         onSignOut={handleSignOut}
         {...topbarContext}
       />

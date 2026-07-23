@@ -1397,6 +1397,36 @@ button:focus-visible {
   cursor: pointer;
 }
 
+.player-history-shell {
+  width: min(1520px, 100%);
+}
+
+.player-history-table-heading {
+  gap: 24px;
+}
+
+.player-history-search input {
+  min-width: 240px;
+}
+
+.player-history-table {
+  min-width: 1180px;
+}
+
+.player-history-table th:first-child {
+  width: 190px;
+}
+
+.player-history-name {
+  color: var(--white);
+  font-size: 0.8rem;
+}
+
+.player-history-date {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .loot-monitor-shell {
   width: min(1440px, 100%);
 }
