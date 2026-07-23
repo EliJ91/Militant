@@ -1854,7 +1854,7 @@ function UploadInstructionsModal({ onClose }) {
     },
     {
       steps: [
-        <>Copy every relevant page from the bank tab's <strong>4 weeks</strong> chest log.</>,
+        <>Copy every relevant page from the bank tab's chest log.</>,
         <>Use the <strong>+</strong> beside <strong>Chest linked</strong> or <strong>No chest log</strong> to paste the log or add <strong>.txt/.tsv</strong> files.</>,
       ],
       note: 'Entries before the loot log starts or more than two hours after it ends are ignored automatically.',
@@ -1862,7 +1862,7 @@ function UploadInstructionsModal({ onClose }) {
     },
     {
       steps: [
-        <>Right-click loot logs on desktop, or press and hold on mobile, to select at least two entries.</>,
+        <>Right-click loot logs, or press and hold on mobile, to select at least two entries.</>,
         <><strong>Merge</strong> creates a combined entry from their loot and chest logs. The original entries remain unchanged.</>,
       ],
       title: 'Merge Loot Logs',
@@ -1870,7 +1870,7 @@ function UploadInstructionsModal({ onClose }) {
     {
       steps: [
         <>Select a player's name and use <strong>Check Recent Deaths</strong> to view their Murderledger deaths.</>,
-        <>Copy the numeric ID from the correct death. For example, <code>/kill/123456789</code> has death ID <strong>123456789</strong>.</>,
+        <>Copy the numeric ID from the correct death. For example, in the URL <code>"/kill/123456789"</code> has death ID <strong>123456789</strong>.</>,
         <>Users with <strong>Add Death ID</strong> permission can add the ID or full death link from that player's row.</>,
         <>Matching <strong>Kept</strong> inventory becomes <strong>Accounted</strong>. Select an Accounted item to copy its Albion killboard link.</>,
       ],

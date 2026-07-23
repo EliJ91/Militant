@@ -918,7 +918,7 @@ describe('LootMonitor', () => {
     expect(within(instructionsDialog).getByText('.csv or .txt')).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('/upload')).toBeInTheDocument();
     expect(deathGuide).toHaveTextContent("Select a player's name and use Check Recent Deaths to view their Murderledger deaths.");
-    expect(deathGuide).toHaveTextContent('Copy the numeric ID from the correct death.');
+    expect(deathGuide).toHaveTextContent('For example, in the URL "/kill/123456789" has death ID 123456789.');
     expect(deathGuide).toHaveTextContent('Matching Kept inventory becomes Accounted.');
     expect(within(instructionsDialog).queryByRole('img')).not.toBeInTheDocument();
     fireEvent.click(within(instructionsDialog).getByRole('button', { name: 'Close upload instructions' }));
