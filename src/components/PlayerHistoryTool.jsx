@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchPlayerHistory } from '../services/playerHistoryService';
 
 const SORT_COLUMNS = [
@@ -13,8 +13,8 @@ const SORT_COLUMNS = [
 ];
 
 const FILTER_STORAGE_KEY = 'militant.playerLootHistory.filters.v1';
+const NONE_SELECTED_VALUE = '__none__';
 const TIER_OPTIONS = [
-  { label: 'All tiers', value: 'all' },
   { label: 'T4', value: 'tier4' },
   { label: 'T5', value: 'tier5' },
   { label: 'T6', value: 'tier6' },
@@ -23,7 +23,6 @@ const TIER_OPTIONS = [
   { label: 'Unknown tier', value: 'unknown' },
 ];
 const TYPE_OPTIONS = [
-  { label: 'All item types', value: 'all' },
   { label: 'Gear', value: 'gear' },
   { label: 'Bag', value: 'bag' },
   { label: 'Cape', value: 'cape' },
@@ -38,12 +37,110 @@ const TYPE_OPTIONS = [
 function loadItemFilters() {
   try {
     const saved = JSON.parse(window.localStorage.getItem(FILTER_STORAGE_KEY) || '{}');
-    const tier = TIER_OPTIONS.some((option) => option.value === saved.tier) ? saved.tier : 'all';
-    const type = TYPE_OPTIONS.some((option) => option.value === saved.type) ? saved.type : 'all';
-    return { tier, type };
+    const savedTiers = Array.isArray(saved.tierFilters)
+      ? saved.tierFilters
+      : saved.tier && saved.tier !== 'all' ? [saved.tier] : [];
+    const savedTypes = Array.isArray(saved.typeFilters)
+      ? saved.typeFilters
+      : saved.type && saved.type !== 'all' ? [saved.type] : [];
+    const sanitize = (values, options) => values.filter((value) => (
+      value === NONE_SELECTED_VALUE || options.some((option) => option.value === value)
+    ));
+    return {
+      tierFilters: sanitize(savedTiers, TIER_OPTIONS),
+      typeFilters: sanitize(savedTypes, TYPE_OPTIONS),
+    };
   } catch {
-    return { tier: 'all', type: 'all' };
+    return { tierFilters: [], typeFilters: [] };
   }
+}
+
+function optionLabel(options, value) {
+  return options.find((option) => option.value === value)?.label || value;
+}
+
+function MultiSelectDropdown({ allLabel, label, onChange, options, selectedValues }) {
+  const controlRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const optionValues = options.map((option) => option.value);
+  const noneSelected = selectedValues.includes(NONE_SELECTED_VALUE);
+  const allSelected = !noneSelected && (
+    selectedValues.length === 0 || optionValues.every((value) => selectedValues.includes(value))
+  );
+  const selectedLabels = selectedValues
+    .filter((value) => value !== NONE_SELECTED_VALUE)
+    .map((value) => optionLabel(options, value));
+  const summary = allSelected ? allLabel
+    : noneSelected ? 'None selected'
+      : selectedLabels.length === 1 ? selectedLabels[0]
+        : `${selectedLabels.length} selected`;
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    function closeMenu(event) {
+      if (!controlRef.current?.contains(event.target)) setIsOpen(false);
+    }
+    document.addEventListener('mousedown', closeMenu);
+    document.addEventListener('touchstart', closeMenu);
+    return () => {
+      document.removeEventListener('mousedown', closeMenu);
+      document.removeEventListener('touchstart', closeMenu);
+    };
+  }, [isOpen]);
+
+  function toggleValue(value) {
+    if (noneSelected) {
+      onChange([value]);
+      return;
+    }
+    if (allSelected) {
+      onChange(optionValues.filter((optionValue) => optionValue !== value));
+      return;
+    }
+    const next = selectedValues.includes(value)
+      ? selectedValues.filter((selectedValue) => selectedValue !== value)
+      : [...selectedValues, value];
+    const hasEveryOption = optionValues.every((optionValue) => next.includes(optionValue));
+    onChange(hasEveryOption ? [] : (next.length === 0 ? [NONE_SELECTED_VALUE] : next));
+  }
+
+  return (
+    <div className="filter-dropdown-control" ref={controlRef}>
+      <span className="filter-label">{label}</span>
+      <details className="filter-dropdown" open={isOpen}>
+        <summary
+          onClick={(event) => {
+            event.preventDefault();
+            setIsOpen((current) => !current);
+          }}
+        >
+          <strong>{summary}</strong>
+        </summary>
+        <div className="filter-menu">
+          <button
+            className={allSelected ? 'filter-all-button disable-all' : 'filter-all-button enable-all'}
+            type="button"
+            onClick={() => onChange(allSelected ? [NONE_SELECTED_VALUE] : [])}
+          >
+            {allSelected ? 'Disable All' : 'Enable All'}
+          </button>
+          {options.map((option) => {
+            const isSelected = allSelected || (!noneSelected && selectedValues.includes(option.value));
+            return (
+              <button
+                className={`filter-option ${isSelected ? 'selected-option' : 'unselected-option'}`}
+                key={option.value}
+                type="button"
+                onClick={() => toggleValue(option.value)}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </details>
+    </div>
+  );
 }
 
 function formatNumber(value, maximumFractionDigits = 0) {
@@ -103,8 +200,9 @@ function getItemType(item) {
 }
 
 function itemMatchesFilters(item, filters) {
-  return (filters.tier === 'all' || getItemTier(item) === filters.tier)
-    && (filters.type === 'all' || getItemType(item) === filters.type);
+  if (filters.tierFilters.includes(NONE_SELECTED_VALUE) || filters.typeFilters.includes(NONE_SELECTED_VALUE)) return false;
+  return (filters.tierFilters.length === 0 || filters.tierFilters.includes(getItemTier(item)))
+    && (filters.typeFilters.length === 0 || filters.typeFilters.includes(getItemType(item)));
 }
 
 export default function PlayerHistoryTool() {
@@ -186,26 +284,20 @@ export default function PlayerHistoryTool() {
             <h2 id="player-history-table-title">Loot Statistics</h2>
           </div>
           <div className="player-history-filters" aria-label="Kept item filters">
-            <label>
-              <span>Tier</span>
-              <select
-                aria-label="Filter kept items by tier"
-                value={itemFilters.tier}
-                onChange={(event) => setItemFilters((current) => ({ ...current, tier: event.target.value }))}
-              >
-                {TIER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>Item Type</span>
-              <select
-                aria-label="Filter kept items by type"
-                value={itemFilters.type}
-                onChange={(event) => setItemFilters((current) => ({ ...current, type: event.target.value }))}
-              >
-                {TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </label>
+            <MultiSelectDropdown
+              allLabel="All tiers"
+              label="Tier"
+              options={TIER_OPTIONS}
+              selectedValues={itemFilters.tierFilters}
+              onChange={(tierFilters) => setItemFilters((current) => ({ ...current, tierFilters }))}
+            />
+            <MultiSelectDropdown
+              allLabel="All item types"
+              label="Item Type"
+              options={TYPE_OPTIONS}
+              selectedValues={itemFilters.typeFilters}
+              onChange={(typeFilters) => setItemFilters((current) => ({ ...current, typeFilters }))}
+            />
           </div>
           <div className="members-table-tools">
             <label className="members-search player-history-search">

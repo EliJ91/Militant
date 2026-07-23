@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPlayerHistory } from '../services/playerHistoryService';
 import PlayerHistoryTool from './PlayerHistoryTool';
@@ -91,14 +91,20 @@ describe('PlayerHistoryTool', () => {
   it('filters kept items by tier and type and remembers the filters', async () => {
     const firstRender = render(<PlayerHistoryTool />);
     await screen.findByText('MilitantOne');
-    fireEvent.change(screen.getByLabelText('Filter kept items by tier'), { target: { value: 'tier8' } });
-    fireEvent.change(screen.getByLabelText('Filter kept items by type'), { target: { value: 'gear' } });
+    const tierControl = screen.getByText('Tier').closest('.filter-dropdown-control');
+    fireEvent.click(within(tierControl).getByText('All tiers'));
+    fireEvent.click(within(tierControl).getByRole('button', { name: 'Disable All' }));
+    fireEvent.click(within(tierControl).getByRole('button', { name: 'T8' }));
+    const typeControl = screen.getByText('Item Type').closest('.filter-dropdown-control');
+    fireEvent.click(within(typeControl).getByText('All item types'));
+    fireEvent.click(within(typeControl).getByRole('button', { name: 'Disable All' }));
+    fireEvent.click(within(typeControl).getByRole('button', { name: 'Gear' }));
     fireEvent.click(screen.getByRole('button', { name: 'View loot history for MilitantOne' }));
     expect(screen.getByText('Elder Sword')).toBeInTheDocument();
 
     firstRender.unmount();
     render(<PlayerHistoryTool />);
-    expect(screen.getByLabelText('Filter kept items by tier')).toHaveValue('tier8');
-    expect(screen.getByLabelText('Filter kept items by type')).toHaveValue('gear');
+    expect(screen.getByText('Tier').closest('.filter-dropdown-control').querySelector('summary')).toHaveTextContent('T8');
+    expect(screen.getByText('Item Type').closest('.filter-dropdown-control').querySelector('summary')).toHaveTextContent('Gear');
   });
 });

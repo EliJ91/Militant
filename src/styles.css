@@ -1414,32 +1414,12 @@ button:focus-visible {
   gap: 10px;
 }
 
-.player-history-filters label {
-  display: grid;
-  gap: 6px;
+.player-history-filters .filter-dropdown-control {
   min-width: 150px;
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 900;
-  text-transform: uppercase;
 }
 
-.player-history-filters select {
-  min-height: 38px;
-  padding: 7px 34px 7px 10px;
-  border: 1px solid rgba(247, 250, 245, 0.16);
-  border-radius: 7px;
-  outline: none;
-  background: #020403;
-  color: var(--white);
-  font: inherit;
-  font-size: 0.72rem;
-  text-transform: none;
-}
-
-.player-history-filters select:focus {
-  border-color: var(--green-hot);
-  box-shadow: 0 0 0 2px rgba(87, 216, 120, 0.13);
+.player-history-filters .filter-menu {
+  min-width: 170px;
 }
 
 .player-history-search input {
@@ -4925,7 +4905,7 @@ button:focus-visible {
     display: grid;
   }
 
-  .player-history-filters label {
+  .player-history-filters .filter-dropdown-control {
     min-width: 0;
   }
 
