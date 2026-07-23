@@ -29,7 +29,6 @@ describe('PlayerHistoryTool', () => {
           playerId: 'one',
           playerKey: 'militantone',
           playerName: 'MilitantOne',
-          uniqueItemsLooted: 5,
         },
         {
           averageItemsKeptPerCta: 0,
@@ -43,7 +42,6 @@ describe('PlayerHistoryTool', () => {
           playerId: 'two',
           playerKey: 'militanttwo',
           playerName: 'MilitantTwo',
-          uniqueItemsLooted: 0,
         },
       ],
     });

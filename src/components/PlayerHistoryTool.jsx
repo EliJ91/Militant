@@ -9,7 +9,6 @@ const SORT_COLUMNS = [
   { key: 'itemsLost', label: 'Items Lost' },
   { key: 'averageItemsLootedPerCta', label: 'Avg. Looted / CTA' },
   { key: 'averageItemsKeptPerCta', label: 'Avg. Kept / CTA' },
-  { key: 'uniqueItemsLooted', label: 'Unique Items' },
   { key: 'lastCtaAt', label: 'Last CTA' },
 ];
 
@@ -190,7 +189,6 @@ export default function PlayerHistoryTool() {
                         <td>{formatNumber(player.itemsLost)}</td>
                         <td>{formatNumber(player.averageItemsLootedPerCta, 1)}</td>
                         <td>{formatNumber(player.averageItemsKeptPerCta, 1)}</td>
-                        <td>{formatNumber(player.uniqueItemsLooted)}</td>
                         <td className="player-history-date">{formatDate(player.lastCtaAt)}</td>
                       </tr>
                       {isExpanded ? (
@@ -206,24 +204,22 @@ export default function PlayerHistoryTool() {
                                     </div>
                                     <time dateTime={cta.date}>{formatDate(cta.date)}</time>
                                   </header>
-                                  {cta.itemsKept.length > 0 ? (
-                                    <div className="player-history-kept-items">
-                                      {cta.itemsKept.map((item) => (
-                                        <div className="player-history-kept-item" key={`${item.itemId || item.item}-${item.enchantment}`}>
-                                          {itemImageUrl(item.itemId) ? (
-                                            <img
-                                              alt=""
-                                              decoding="async"
-                                              loading="lazy"
-                                              src={itemImageUrl(item.itemId)}
-                                            />
-                                          ) : null}
-                                          <span>{item.item}</span>
-                                          <strong>{formatNumber(item.quantity)} kept</strong>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : <p>No items kept in this CTA.</p>}
+                                  <div className="player-history-kept-items">
+                                    {cta.itemsKept.map((item) => (
+                                      <div className="player-history-kept-item" key={`${item.itemId || item.item}-${item.enchantment}`}>
+                                        {itemImageUrl(item.itemId) ? (
+                                          <img
+                                            alt=""
+                                            decoding="async"
+                                            loading="lazy"
+                                            src={itemImageUrl(item.itemId)}
+                                          />
+                                        ) : null}
+                                        <span title={item.item}>{item.item}</span>
+                                        <strong>{formatNumber(item.quantity)} kept</strong>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </section>
                               )) : <p className="members-empty">No CTA loot history for this player.</p>}
                             </div>

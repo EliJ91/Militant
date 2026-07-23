@@ -30,7 +30,6 @@ function createPlayerHistoryRecord({ playerId = '', playerName = '' } = {}) {
     playerId,
     playerKey: normalizePlayerName(cleanPlayerName),
     playerName: cleanPlayerName,
-    uniqueItemsLooted: 0,
   };
 }
 
@@ -57,7 +56,6 @@ export function buildPlayerHistory(members = [], bundles = []) {
     });
   });
 
-  const uniqueItemsByPlayer = new Map();
   bundles.forEach((bundle) => {
     const participatingPlayers = new Set();
     const keptItemsByPlayer = new Map();
@@ -85,12 +83,6 @@ export function buildPlayerHistory(members = [], bundles = []) {
         keptItemsByPlayer.set(playerKey, keptItems);
       }
 
-      const itemKey = String(row.itemId || row.item || '').trim().toLowerCase();
-      if (itemKey && numericValue(row.looted) > 0) {
-        const items = uniqueItemsByPlayer.get(playerKey) || new Set();
-        items.add(itemKey);
-        uniqueItemsByPlayer.set(playerKey, items);
-      }
     });
 
     participatingPlayers.forEach((playerKey) => {
@@ -100,14 +92,17 @@ export function buildPlayerHistory(members = [], bundles = []) {
       if (ctaAt && (!player.lastCtaAt || new Date(ctaAt) > new Date(player.lastCtaAt))) {
         player.lastCtaAt = ctaAt;
       }
-      player.ctas.push({
-        bundleId: String(bundle.id || ''),
-        date: ctaAt,
-        itemsKept: (keptItemsByPlayer.get(playerKey) || []).sort((left, right) => (
-          right.quantity - left.quantity || left.item.localeCompare(right.item)
-        )),
-        lootLogTitle: String(bundle.lootFileName || bundle.summary?.displayLootFileName || 'Loot Log').trim(),
-      });
+      const itemsKept = keptItemsByPlayer.get(playerKey) || [];
+      if (itemsKept.length > 0) {
+        player.ctas.push({
+          bundleId: String(bundle.id || ''),
+          date: ctaAt,
+          itemsKept: itemsKept.sort((left, right) => (
+            right.quantity - left.quantity || left.item.localeCompare(right.item)
+          )),
+          lootLogTitle: String(bundle.lootFileName || bundle.summary?.displayLootFileName || 'Loot Log').trim(),
+        });
+      }
     });
   });
 
@@ -116,7 +111,6 @@ export function buildPlayerHistory(members = [], bundles = []) {
     averageItemsKeptPerCta: player.ctaCount ? player.itemsKept / player.ctaCount : 0,
     averageItemsLootedPerCta: player.ctaCount ? player.itemsLooted / player.ctaCount : 0,
     ctas: player.ctas.sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0)),
-    uniqueItemsLooted: uniqueItemsByPlayer.get(player.playerKey)?.size || 0,
   })).sort((left, right) => (
     right.ctaCount - left.ctaCount
     || right.itemsLooted - left.itemsLooted

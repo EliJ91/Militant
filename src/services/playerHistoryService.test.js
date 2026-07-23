@@ -36,7 +36,6 @@ describe('player history service', () => {
       itemsKept: 6,
       itemsLooted: 8,
       itemsLost: 2,
-      uniqueItemsLooted: 2,
     });
     expect(players.find((player) => player.playerName === 'MilitantOne').ctas).toEqual([
       expect.objectContaining({
