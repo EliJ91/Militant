@@ -903,8 +903,8 @@ describe('LootMonitor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open upload instructions' }));
     const instructionsDialog = screen.getByRole('dialog', { name: 'Upload Instructions' });
     const uploadGuide = within(instructionsDialog).getByRole('heading', { name: 'Upload Loot Logs' }).closest('details');
-    expect(uploadGuide).toHaveTextContent('Select Upload, add the loot log files, then select Upload again.');
-    expect(uploadGuide).toHaveTextContent('Type /upload in the thread that contains the loot log files.');
+    expect(uploadGuide).toHaveTextContent('Use Upload to add one or more .csv/.txt loot log files.');
+    expect(uploadGuide).toHaveTextContent('Run /upload in the thread containing the loot log files.');
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Upload From The Webapp' })).not.toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Upload From Discord' })).not.toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Add Loot Files Later' })).not.toBeInTheDocument();
@@ -917,11 +917,9 @@ describe('LootMonitor', () => {
     expect(deathGuide).toHaveAttribute('open');
     expect(within(instructionsDialog).getByText('.csv or .txt')).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('/upload')).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText(/select the player's name/i)).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText(/Murderledger opens in a new tab/i)).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText(/copy the numeric death ID/i)).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText(/compares the death inventory with the player's/i)).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText(/select an Accounted item to copy/i)).toBeInTheDocument();
+    expect(deathGuide).toHaveTextContent("Select a player's name and use Check Recent Deaths to view their Murderledger deaths.");
+    expect(deathGuide).toHaveTextContent('Copy the numeric ID from the correct death.');
+    expect(deathGuide).toHaveTextContent('Matching Kept inventory becomes Accounted.');
     expect(within(instructionsDialog).queryByRole('img')).not.toBeInTheDocument();
     fireEvent.click(within(instructionsDialog).getByRole('button', { name: 'Close upload instructions' }));
     expect(screen.queryByRole('dialog', { name: 'Upload Instructions' })).not.toBeInTheDocument();

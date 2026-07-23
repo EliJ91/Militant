@@ -1847,45 +1847,41 @@ function UploadInstructionsModal({ onClose }) {
   const guideSections = [
     {
       steps: [
-        <><strong>From the webapp:</strong> Select <strong>Upload</strong>, add the loot log files, then select <strong>Upload</strong> again.</>,
-        <><strong>From Discord:</strong> Type <code>/upload</code> in the thread that contains the loot log files.</>,
+        <><strong>Webapp:</strong> Use <strong>Upload</strong> to add one or more <strong>.csv/.txt</strong> loot log files.</>,
+        <><strong>Discord:</strong> Run <code>/upload</code> in the thread containing the loot log files.</>,
       ],
       title: 'Upload Loot Logs',
     },
     {
       steps: [
-        <>In Albion, open the bank tab, select <strong>Actions</strong>, then open its chest log.</>,
-        <>Choose the <strong>4 weeks</strong> view and copy every relevant page into one text block or text file.</>,
-        <>Select the <strong>+</strong> beside <strong>Chest linked</strong> or <strong>No chest log</strong>.</>,
-        <>Paste the log into the box or upload one or more <strong>.txt/.tsv</strong> files, then select <strong>Upload</strong>.</>,
+        <>Copy every relevant page from the bank tab's <strong>4 weeks</strong> chest log.</>,
+        <>Use the <strong>+</strong> beside <strong>Chest linked</strong> or <strong>No chest log</strong> to paste the log or add <strong>.txt/.tsv</strong> files.</>,
       ],
       note: 'Entries before the loot log starts or more than two hours after it ends are ignored automatically.',
       title: 'Upload Chest Logs',
     },
     {
       steps: [
-        <>Right-click a loot log on desktop, or press and hold it on mobile. Selected logs are outlined in yellow.</>,
-        <>Select at least two entries, then select <strong>Merge</strong> beside the Upload button.</>,
-        <>The merged entry contains copies of all selected loot and chest logs. The original entries remain unchanged.</>,
+        <>Right-click loot logs on desktop, or press and hold on mobile, to select at least two entries.</>,
+        <><strong>Merge</strong> creates a combined entry from their loot and chest logs. The original entries remain unchanged.</>,
       ],
       title: 'Merge Loot Logs',
     },
     {
       steps: [
-        <>Select the player's name, then choose <strong>Check Recent Deaths</strong>. Murderledger opens in a new tab showing that player's recent deaths.</>,
-        <>Find the correct death, open it, and copy the numeric death ID from its link. For example, the ID in <code>/kill/123456789</code> is <strong>123456789</strong>.</>,
-        <>Return to the loot log. A user with <strong>Add Death ID</strong> permission selects the black <strong>Add Death ID</strong> button in that player's row, pastes the death ID or full death link, then selects <strong>Add ID</strong>.</>,
-        <>The webapp confirms the victim is that player and compares the death inventory with the player's <strong>Kept</strong> items. Matching quantities change to <strong>Accounted</strong>; anything that does not match stays <strong>Kept</strong>.</>,
-        <>After matching items become <strong>Accounted</strong>, select an Accounted item to copy its Albion killboard death link. Paste that link into your browser or Discord to open the death.</>,
+        <>Select a player's name and use <strong>Check Recent Deaths</strong> to view their Murderledger deaths.</>,
+        <>Copy the numeric ID from the correct death. For example, <code>/kill/123456789</code> has death ID <strong>123456789</strong>.</>,
+        <>Users with <strong>Add Death ID</strong> permission can add the ID or full death link from that player's row.</>,
+        <>Matching <strong>Kept</strong> inventory becomes <strong>Accounted</strong>. Select an Accounted item to copy its Albion killboard link.</>,
       ],
       title: 'Check And Add Deaths',
     },
     {
       steps: [
-        <><strong>View</strong> opens the full item report. Use Tier, Item Type, Guild, Alliance, Sort, and Status to narrow it down.</>,
+        <>Use Tier, Item Type, Guild, Alliance, Sort, and Status to narrow the report.</>,
         <><strong>Copy Screenshot</strong> captures the displayed report using minimum permission visibility.</>,
-        <><strong>View Raw</strong> shows the source logs. <strong>Share</strong> copies a link to the current report.</>,
-        <><strong>Edit</strong>, <strong>Download</strong>, and <strong>Delete</strong> appear only when your Discord roles grant those permissions.</>,
+        <><strong>View Raw</strong> shows source logs, while <strong>Share</strong> copies the current report link.</>,
+        <>Management actions appear when granted by your Discord roles.</>,
       ],
       title: 'Review And Manage',
     },
