@@ -10,6 +10,29 @@ function numericValue(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function isMilitantGuild(value) {
+  return String(value || '')
+    .split(',')
+    .some((guild) => normalizePlayerName(guild) === 'militant');
+}
+
+function createPlayerHistoryRecord({ playerId = '', playerName = '' } = {}) {
+  const cleanPlayerName = String(playerName || '').trim();
+  return {
+    averageItemsKeptPerCta: 0,
+    averageItemsLootedPerCta: 0,
+    ctaCount: 0,
+    itemsKept: 0,
+    itemsLooted: 0,
+    itemsLost: 0,
+    lastCtaAt: '',
+    playerId,
+    playerKey: normalizePlayerName(cleanPlayerName),
+    playerName: cleanPlayerName,
+    uniqueItemsLooted: 0,
+  };
+}
+
 export function buildPlayerHistory(members = [], bundles = []) {
   const historyByPlayer = new Map();
 
@@ -17,18 +40,19 @@ export function buildPlayerHistory(members = [], bundles = []) {
     const playerName = String(member?.playerName || '').trim();
     const playerKey = normalizePlayerName(playerName);
     if (!playerKey || historyByPlayer.has(playerKey)) return;
-    historyByPlayer.set(playerKey, {
-      averageItemsKeptPerCta: 0,
-      averageItemsLootedPerCta: 0,
-      ctaCount: 0,
-      itemsKept: 0,
-      itemsLooted: 0,
-      itemsLost: 0,
-      lastCtaAt: '',
+    historyByPlayer.set(playerKey, createPlayerHistoryRecord({
       playerId: member.playerId || '',
-      playerKey,
       playerName,
-      uniqueItemsLooted: 0,
+    }));
+  });
+
+  bundles.forEach((bundle) => {
+    const rows = Array.isArray(bundle?.summary?.rows) ? bundle.summary.rows : [];
+    rows.forEach((row) => {
+      const playerName = String(row?.player || '').trim();
+      const playerKey = normalizePlayerName(playerName);
+      if (!playerKey || historyByPlayer.has(playerKey) || !isMilitantGuild(row?.guild)) return;
+      historyByPlayer.set(playerKey, createPlayerHistoryRecord({ playerName }));
     });
   });
 

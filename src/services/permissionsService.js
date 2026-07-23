@@ -20,7 +20,7 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'viewLootLogViewer', label: 'View Loot Log Viewer', area: 'Loot Log Viewer' },
   { key: 'viewMembers', label: 'View Members', area: 'Members' },
   { key: 'updateMembersList', label: 'Update Members List', area: 'Members' },
-  { key: 'viewPlayerHistory', label: 'View Player History', area: 'Player History' },
+  { key: 'viewPlayerHistory', label: 'View Player Loot History', area: 'Player Loot History' },
   { key: 'viewSiphonedEnergy', label: 'View Siphoned Energy Tracker', area: 'Siphoned Energy' },
   { key: 'updateSiphonedEnergy', label: 'Update Siphoned Energy Tracker', area: 'Siphoned Energy' },
 ];

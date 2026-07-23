@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchPlayerHistory } from '../services/playerHistoryService';
 
+const SORT_COLUMNS = [
+  { key: 'playerName', label: 'Player', text: true },
+  { key: 'ctaCount', label: 'CTAs' },
+  { key: 'itemsLooted', label: 'Items Looted' },
+  { key: 'itemsKept', label: 'Items Kept' },
+  { key: 'itemsLost', label: 'Items Lost' },
+  { key: 'averageItemsLootedPerCta', label: 'Avg. Looted / CTA' },
+  { key: 'averageItemsKeptPerCta', label: 'Avg. Kept / CTA' },
+  { key: 'uniqueItemsLooted', label: 'Unique Items' },
+  { key: 'lastCtaAt', label: 'Last CTA' },
+];
+
 function formatNumber(value, maximumFractionDigits = 0) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits }).format(Number(value) || 0);
 }
@@ -17,9 +29,15 @@ function formatDate(value) {
   }).format(date);
 }
 
+function numericSortValue(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
 export default function PlayerHistoryTool() {
   const [players, setPlayers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortState, setSortState] = useState({ direction: 'desc', key: 'ctaCount' });
   const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
 
   useEffect(() => {
@@ -41,22 +59,40 @@ export default function PlayerHistoryTool() {
 
   const visiblePlayers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return query
+    const filteredPlayers = query
       ? players.filter((player) => player.playerName.toLowerCase().includes(query))
       : players;
-  }, [players, searchQuery]);
+    return [...filteredPlayers].sort((left, right) => {
+      const leftValue = left[sortState.key];
+      const rightValue = right[sortState.key];
+      const comparison = sortState.key === 'playerName'
+        ? String(leftValue).localeCompare(String(rightValue))
+        : sortState.key === 'lastCtaAt'
+          ? (new Date(leftValue || 0).getTime() - new Date(rightValue || 0).getTime())
+          : numericSortValue(leftValue) - numericSortValue(rightValue);
+      return (sortState.direction === 'asc' ? comparison : -comparison)
+        || left.playerName.localeCompare(right.playerName);
+    });
+  }, [players, searchQuery, sortState]);
   const totals = useMemo(() => players.reduce((summary, player) => ({
     itemsKept: summary.itemsKept + player.itemsKept,
     itemsLooted: summary.itemsLooted + player.itemsLooted,
     playersWithHistory: summary.playersWithHistory + (player.ctaCount > 0 ? 1 : 0),
   }), { itemsKept: 0, itemsLooted: 0, playersWithHistory: 0 }), [players]);
 
+  function updateSort(key) {
+    setSortState((current) => ({
+      direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc',
+      key,
+    }));
+  }
+
   return (
     <main className="dashboard-shell player-history-shell">
       <section className="dashboard-heading members-heading" aria-labelledby="player-history-title">
         <div>
           <p className="eyebrow">Tool</p>
-          <h1 id="player-history-title">Player History</h1>
+          <h1 id="player-history-title">Player Loot History</h1>
         </div>
       </section>
 
@@ -64,7 +100,7 @@ export default function PlayerHistoryTool() {
 
       <section className="members-summary-grid" aria-label="Player history summary">
         <div className="members-summary-card">
-          <span>Current Members</span>
+          <span>Players Tracked</span>
           <strong>{formatNumber(players.length)}</strong>
         </div>
         <div className="members-summary-card">
@@ -84,7 +120,7 @@ export default function PlayerHistoryTool() {
       <section className="members-table-section" aria-labelledby="player-history-table-title">
         <div className="members-table-heading player-history-table-heading">
           <div>
-            <p className="eyebrow">Militant Members</p>
+            <p className="eyebrow">Militant Members, Past and Present</p>
             <h2 id="player-history-table-title">Loot Statistics</h2>
           </div>
           <div className="members-table-tools">
@@ -103,22 +139,30 @@ export default function PlayerHistoryTool() {
         </div>
 
         {loadStatus.state === 'loading' ? <p className="members-empty">Loading player history...</p> : null}
-        {loadStatus.state === 'loaded' && players.length === 0 ? <p className="members-empty">No Militant members found.</p> : null}
+        {loadStatus.state === 'loaded' && players.length === 0 ? <p className="members-empty">No Militant player history found.</p> : null}
         {players.length > 0 && visiblePlayers.length === 0 ? <p className="members-empty">No member matches that player name.</p> : null}
         {visiblePlayers.length > 0 ? (
           <div className="members-table-wrap">
             <table className="members-table player-history-table">
               <thead>
                 <tr>
-                  <th className="members-text-column">Player</th>
-                  <th>CTAs</th>
-                  <th>Items Looted</th>
-                  <th>Items Kept</th>
-                  <th>Items Lost</th>
-                  <th>Avg. Looted / CTA</th>
-                  <th>Avg. Kept / CTA</th>
-                  <th>Unique Items</th>
-                  <th>Last CTA</th>
+                  {SORT_COLUMNS.map((column) => (
+                    <th
+                      aria-sort={sortState.key === column.key ? (sortState.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      className={column.text ? 'members-text-column' : ''}
+                      key={column.key}
+                    >
+                      <button
+                        aria-label={`Sort by ${column.label}`}
+                        className={sortState.key === column.key ? 'members-sort-button active' : 'members-sort-button'}
+                        type="button"
+                        onClick={() => updateSort(column.key)}
+                      >
+                        <span>{column.label}</span>
+                        <span aria-hidden="true">{sortState.key === column.key ? (sortState.direction === 'asc' ? '^' : 'v') : '<>'}</span>
+                      </button>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>

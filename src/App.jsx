@@ -41,7 +41,7 @@ function getRoute() {
   if (route === 'shared-log' || route.startsWith('shared-log/')) return 'shared-log';
   if (route === 'siphoned-energy') return 'siphoned-energy';
   if (route === 'members') return 'members';
-  if (route === 'player-history') return 'player-history';
+  if (route === 'player-history' || route === 'player-loot-history') return 'player-loot-history';
   if (route === 'permissions') return 'permissions';
   if (route === 'action-logs') return 'action-logs';
   return route === 'dashboard' ? 'dashboard' : 'landing';
@@ -490,8 +490,8 @@ function DashboardPage({
       group: 'tools',
       icon: ChartBar,
       permission: 'viewPlayerHistory',
-      title: 'Player History',
-      to: '#player-history',
+      title: 'Player Loot History',
+      to: '#player-loot-history',
     },
     {
       description: 'Open loot logs locally without saving or changing any data.',
@@ -1044,7 +1044,7 @@ export default function App() {
       : route === 'loot-monitor' || route === 'shared-log' ? 'View Loot Log'
       : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
       : route === 'members' ? 'Members'
-      : route === 'player-history' ? 'Player History'
+      : route === 'player-loot-history' ? 'Player Loot History'
       : route === 'permissions' ? 'Permissions'
       : route === 'action-logs' ? 'Action Logs'
       : route === 'dashboard' ? 'Militant Dashboard'
@@ -1127,7 +1127,7 @@ export default function App() {
     ) : (
       <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
     );
-  } else if (route === 'player-history') {
+  } else if (route === 'player-loot-history') {
     page = effectivePermissions.viewPlayerHistory ? (
       <PlayerHistoryPage currentUser={currentUser} onSignOut={handleSignOut} {...topbarContext} />
     ) : (

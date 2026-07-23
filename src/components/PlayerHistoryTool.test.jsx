@@ -43,12 +43,22 @@ describe('PlayerHistoryTool', () => {
 
   it('shows member-only statistics and searches by player name', async () => {
     render(<PlayerHistoryTool />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Player History' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Player Loot History' })).toBeInTheDocument();
     expect(await screen.findByText('MilitantOne')).toBeInTheDocument();
     expect(screen.getByText('MilitantTwo')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Search player history'), { target: { value: 'one' } });
     await waitFor(() => expect(screen.queryByText('MilitantTwo')).not.toBeInTheDocument());
     expect(screen.getByText('MilitantOne')).toBeInTheDocument();
+  });
+
+  it('sorts every statistical column', async () => {
+    render(<PlayerHistoryTool />);
+    await screen.findByText('MilitantOne');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Player' }));
+    expect(screen.getByRole('columnheader', { name: /Player/ })).toHaveAttribute('aria-sort', 'descending');
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Items Kept' }));
+    expect(screen.getByRole('columnheader', { name: /Items Kept/ })).toHaveAttribute('aria-sort', 'descending');
   });
 });
