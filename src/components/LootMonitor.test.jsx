@@ -516,7 +516,7 @@ describe('LootMonitor', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('Death ID: 12345');
   });
 
-  it('shows no death found by default and replaces it when a death ID is added', async () => {
+  it('does not render standalone death text before or after a death ID is added', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
         chestLogText: '',
@@ -538,14 +538,12 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" canAddDeathId uploadUsername="Onslawht" />);
     await screen.findByText('Windyyyzz');
-    expect(screen.getByText('No Death Found')).toBeInTheDocument();
+    expect(screen.queryByText('No Death Found')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Death ID for Windyyyzz' }), { target: { value: '12345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add ID' }));
 
-    await waitFor(() => expect(screen.queryByText('No Death Found')).not.toBeInTheDocument());
     expect(screen.queryByRole('link', { name: 'Death' })).not.toBeInTheDocument();
-    expect(screen.queryByText('No Death Found')).not.toBeInTheDocument();
   });
 
   it('closes the death ID entry and clears its message when submitted empty', async () => {
@@ -917,7 +915,6 @@ describe('LootMonitor', () => {
     expect(within(instructionsDialog).getByText(/Murderledger opens in a new tab/i)).toBeInTheDocument();
     expect(within(instructionsDialog).getByText(/copy the numeric death ID/i)).toBeInTheDocument();
     expect(within(instructionsDialog).getByText(/compares the death inventory with the player's/i)).toBeInTheDocument();
-    expect(within(instructionsDialog).getByText('No Death Found')).toBeInTheDocument();
     expect(within(instructionsDialog).getByText(/select an Accounted item to copy/i)).toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('img')).not.toBeInTheDocument();
     fireEvent.click(within(instructionsDialog).getByRole('button', { name: 'Close upload instructions' }));

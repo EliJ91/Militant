@@ -1443,22 +1443,6 @@ function buildDeathLinkUrl(eventId) {
   return `https://albiononline.com/killboard/kill/${encodeURIComponent(String(eventId || '').trim())}?server=live_us`;
 }
 
-function PlayerDeathStatus({ deathChecks, player }) {
-  const playerKey = String(player || '').trim().toLowerCase();
-  const playerChecks = (deathChecks || []).filter((check) => (
-    String(check.playerName || check.player || '').trim().toLowerCase() === playerKey
-  ));
-  const deaths = [...new Map(playerChecks
-    .filter((check) => (
-      check?.status === 'found'
-      && String(check.eventId || '').trim()
-    ))
-    .map((check) => [String(check.eventId), check])).values()];
-  return deaths.length === 0
-    ? <span className="loot-player-no-death">No Death Found</span>
-    : null;
-}
-
 function FileUploadButton({
   accept,
   className,
@@ -1895,7 +1879,7 @@ function UploadInstructionsModal({ onClose }) {
         <>Find the correct death, open it, and copy the numeric death ID from its link. For example, the ID in <code>/kill/123456789</code> is <strong>123456789</strong>.</>,
         <>Return to the loot log. A user with <strong>Add Death ID</strong> permission selects the black <strong>Add Death ID</strong> button in that player's row, pastes the death ID or full death link, then selects <strong>Add ID</strong>.</>,
         <>The webapp confirms the victim is that player and compares the death inventory with the player's <strong>Kept</strong> items. Matching quantities change to <strong>Accounted</strong>; anything that does not match stays <strong>Kept</strong>.</>,
-        <>The row says <strong>No Death Found</strong> until a death is added. After matching items become <strong>Accounted</strong>, select an Accounted item to copy its Albion killboard death link. Paste that link into your browser or Discord to open the death.</>,
+        <>After matching items become <strong>Accounted</strong>, select an Accounted item to copy its Albion killboard death link. Paste that link into your browser or Discord to open the death.</>,
       ],
       title: 'Check And Add Deaths',
     },
@@ -3591,7 +3575,6 @@ export default function LootMonitor({
                       ))}
                     </div>
                     {!localOnly ? <div className="loot-player-actions">
-                      <PlayerDeathStatus deathChecks={selectedBundle?.deathChecks} player={player.player} />
                       {canAddDeathId && player.keptQuantity > 0 ? (
                         deathIdEntryPlayer === player.player ? (
                           <form

@@ -3755,32 +3755,6 @@ button:focus-visible {
   align-items: center;
 }
 
-.loot-player-death-links {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.loot-player-death-links a {
-  color: #ff5262;
-  font-size: 0.76rem;
-  font-weight: 900;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.loot-player-death-links a:hover,
-.loot-player-death-links a:focus-visible {
-  color: #ff8b96;
-}
-
-.loot-player-no-death {
-  color: var(--muted);
-  font-size: 0.76rem;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
 .loot-player-row.local-viewer-row {
   padding-bottom: 16px;
 }
