@@ -76,11 +76,10 @@ describe('PlayerHistoryTool', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'View loot history for MilitantOne' }));
     expect(screen.getByRole('heading', { level: 3, name: '20UTC-JUL-20' })).toBeInTheDocument();
-    expect(screen.getByText('Elder Sword')).toBeInTheDocument();
-    expect(screen.getByText('5 kept')).toBeInTheDocument();
-    expect(screen.getByText('Elder Sword').closest('.player-history-kept-item').querySelector('img').getAttribute('src')).toContain('/item-image/T8_MAIN_SWORD.png');
-    expect(screen.getByText('Elder Armor')).toBeInTheDocument();
-    expect(screen.getByText('3 kept')).toBeInTheDocument();
+    const swordItem = screen.getByRole('img', { name: 'Elder Sword, 5 kept' });
+    expect(swordItem).toBeInTheDocument();
+    expect(swordItem.querySelector('img').getAttribute('src')).toContain('/item-image/T8_MAIN_SWORD.png');
+    expect(screen.getByRole('img', { name: 'Elder Armor, 3 kept' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide loot history for MilitantOne' }));
     expect(screen.queryByRole('heading', { level: 3, name: '20UTC-JUL-20' })).not.toBeInTheDocument();
@@ -98,7 +97,7 @@ describe('PlayerHistoryTool', () => {
     fireEvent.click(within(typeControl).getByRole('button', { name: 'Disable All' }));
     fireEvent.click(within(typeControl).getByRole('button', { name: 'Other' }));
     fireEvent.click(screen.getByRole('button', { name: 'View loot history for MilitantOne' }));
-    expect(screen.getByText('Elder Sword')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Elder Sword, 5 kept' })).toBeInTheDocument();
 
     firstRender.unmount();
     render(<PlayerHistoryTool />);

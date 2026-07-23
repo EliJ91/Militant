@@ -404,7 +404,13 @@ export default function PlayerHistoryTool() {
                                   </header>
                                   <div className="player-history-kept-items">
                                     {cta.itemsKept.map((item) => (
-                                      <div className="player-history-kept-item" key={`${item.itemId || item.item}-${item.enchantment}`}>
+                                      <div
+                                        aria-label={`${item.item}, ${formatNumber(item.quantity)} kept`}
+                                        className="player-history-kept-item"
+                                        key={`${item.itemId || item.item}-${item.enchantment}`}
+                                        role="img"
+                                        title={`${item.item} — ${formatNumber(item.quantity)} kept`}
+                                      >
                                         {itemImageUrl(item.itemId) ? (
                                           <img
                                             alt=""
@@ -413,8 +419,7 @@ export default function PlayerHistoryTool() {
                                             src={itemImageUrl(item.itemId)}
                                           />
                                         ) : null}
-                                        <span title={item.item}>{item.item}</span>
-                                        <strong>{formatNumber(item.quantity)} kept</strong>
+                                        <strong>{formatNumber(item.quantity)}</strong>
                                       </div>
                                     ))}
                                   </div>
