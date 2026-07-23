@@ -1494,14 +1494,20 @@ button:focus-visible {
 }
 
 .player-history-kept-item {
-  display: flex;
+  display: grid;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   padding: 10px 14px;
   background: #040806;
   color: var(--muted);
   font-size: 0.72rem;
+}
+
+.player-history-kept-item img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
 }
 
 .player-history-kept-item strong {

@@ -34,6 +34,15 @@ function numericSortValue(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function itemImageUrl(itemId) {
+  if (!itemId) return '';
+  const imagePath = `${itemId}.png?count=1&quality=1&size=96`;
+  if (typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) {
+    return `/item-image/${imagePath}`;
+  }
+  return `https://images.weserv.nl/?url=${encodeURIComponent(`render.albiononline.com/v1/item/${imagePath}`)}`;
+}
+
 export default function PlayerHistoryTool() {
   const [players, setPlayers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -201,6 +210,14 @@ export default function PlayerHistoryTool() {
                                     <div className="player-history-kept-items">
                                       {cta.itemsKept.map((item) => (
                                         <div className="player-history-kept-item" key={`${item.itemId || item.item}-${item.enchantment}`}>
+                                          {itemImageUrl(item.itemId) ? (
+                                            <img
+                                              alt=""
+                                              decoding="async"
+                                              loading="lazy"
+                                              src={itemImageUrl(item.itemId)}
+                                            />
+                                          ) : null}
                                           <span>{item.item}</span>
                                           <strong>{formatNumber(item.quantity)} kept</strong>
                                         </div>

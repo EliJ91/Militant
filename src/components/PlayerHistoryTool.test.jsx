@@ -81,6 +81,7 @@ describe('PlayerHistoryTool', () => {
     expect(screen.getByRole('heading', { level: 3, name: '20UTC-JUL-20' })).toBeInTheDocument();
     expect(screen.getByText('Elder Sword')).toBeInTheDocument();
     expect(screen.getByText('5 kept')).toBeInTheDocument();
+    expect(screen.getByText('Elder Sword').closest('.player-history-kept-item').querySelector('img').getAttribute('src')).toContain('/item-image/T8_SWORD.png');
     expect(screen.getByText('Elder Armor')).toBeInTheDocument();
     expect(screen.getByText('3 kept')).toBeInTheDocument();
 
