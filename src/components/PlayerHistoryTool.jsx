@@ -100,7 +100,7 @@ export default function PlayerHistoryTool() {
       <section className="members-table-section" aria-labelledby="player-history-table-title">
         <div className="members-table-heading player-history-table-heading">
           <div>
-            <p className="eyebrow">Militant Members, Past and Present</p>
+            <p className="eyebrow">Militant Members</p>
             <h2 id="player-history-table-title">Loot Statistics</h2>
           </div>
           <div className="members-table-tools">
@@ -172,7 +172,6 @@ export default function PlayerHistoryTool() {
                               togglePlayer(player.playerKey);
                             }}
                           >
-                            <span aria-hidden="true">{isExpanded ? 'v' : '>'}</span>
                             <strong>{player.playerName}</strong>
                           </button>
                         </td>
