@@ -1886,7 +1886,7 @@ function UploadInstructionsModal({ onClose }) {
     {
       steps: [
         <><strong>View</strong> opens the full item report. Use Tier, Item Type, Guild, Alliance, Sort, and Status to narrow it down.</>,
-        <><strong>Copy Screenshot</strong> captures the displayed report using the Soldier role's visibility and permissions.</>,
+        <><strong>Copy Screenshot</strong> captures the displayed report using minimum permission visibility.</>,
         <><strong>View Raw</strong> shows the source logs. <strong>Share</strong> copies a link to the current report.</>,
         <><strong>Edit</strong>, <strong>Download</strong>, and <strong>Delete</strong> appear only when your Discord roles grant those permissions.</>,
       ],
