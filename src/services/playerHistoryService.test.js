@@ -131,6 +131,7 @@ describe('player history service', () => {
           quantity: 2,
           timestamp: '2026-07-20T20:05:00.000Z',
         }],
+        hasChestLog: true,
         startAt: '2026-07-20T20:00:00.000Z',
       },
     });
@@ -148,5 +149,49 @@ describe('player history service', () => {
     expect(result.players[0].ctas[0].itemsKept).toEqual([
       expect.objectContaining({ itemId: 'T4_CAPE', quantity: 1 }),
     ]);
+  });
+
+  it('does not count kept items when a linked chest log has no comparable chest entries', async () => {
+    fetchSiphonedEnergyMembers.mockResolvedValue({
+      members: [{ playerId: 'member-1', playerName: 'MilitantOne' }],
+    });
+    fetchLootLogBundles.mockResolvedValue({
+      bundles: [{
+        hasChestLog: true,
+        id: 'cta-empty-chest',
+        lootFileName: '20UTC-JUL-21',
+        startAt: '2026-07-21T20:00:00.000Z',
+        summary: { rows: [{
+          guild: 'Militant',
+          item: "Adept's Cape",
+          itemId: 'T4_CAPE',
+          looted: 2,
+          lost: 0,
+          player: 'MilitantOne',
+        }] },
+      }],
+    });
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: {
+        chestLogText: '',
+        events: [{
+          eventType: 'looted',
+          item: "Adept's Cape",
+          itemId: 'T4_CAPE',
+          player: 'MilitantOne',
+          quantity: 2,
+          timestamp: '2026-07-21T20:05:00.000Z',
+        }],
+        hasChestLog: true,
+      },
+    });
+
+    const result = await fetchPlayerHistory();
+
+    expect(result.players[0]).toMatchObject({
+      itemsKept: 0,
+      itemsLooted: 2,
+    });
+    expect(result.players[0].ctas).toEqual([]);
   });
 });

@@ -144,11 +144,20 @@ async function loadFinalizedChestRows(bundle) {
   if (!bundle?.hasChestLog || !bundle?.id) return { ...bundle, finalizedRows: [] };
   const result = await fetchLootLogBundle(bundle.id);
   const detail = result?.bundle || {};
+  const chestLogText = detail.chestLogReportText || detail.chestLogText || '';
+  if (!detail.hasChestLog || !String(chestLogText).trim()) {
+    return { ...bundle, finalizedRows: [], hasChestLog: false };
+  }
   const baseReport = buildLootMonitorReportFromEvents(
     detail.events || [],
-    detail.chestLogReportText || detail.chestLogText || '',
+    chestLogText,
     { endAt: detail.endAt || bundle.endAt, startAt: detail.startAt || bundle.startAt },
   );
+  const hasComparableChestData = (baseReport?.chest?.rows?.length || 0) > 0
+    || (baseReport?.chest?.withdrawals?.length || 0) > 0;
+  if (!hasComparableChestData) {
+    return { ...bundle, finalizedRows: [], hasChestLog: false };
+  }
   const finalizedReport = applyLootDeathChecks(baseReport, detail.deathChecks || []);
   return {
     ...bundle,
