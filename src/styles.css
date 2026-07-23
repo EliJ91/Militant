@@ -1460,7 +1460,7 @@ button:focus-visible {
   white-space: nowrap;
 }
 
-.player-history-detail-row > td {
+.members-table .player-history-detail-row > td {
   padding: 0 14px 18px;
   background: rgba(1, 6, 3, 0.72);
   text-align: left;
@@ -1492,6 +1492,10 @@ button:focus-visible {
   border-bottom: 1px solid rgba(247, 250, 245, 0.08);
 }
 
+.player-history-cta > header > div {
+  text-align: left;
+}
+
 .player-history-cta > header span,
 .player-history-cta > header time {
   color: var(--muted);
@@ -1519,7 +1523,7 @@ button:focus-visible {
 
 .player-history-kept-items {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 58px);
+  grid-template-columns: repeat(auto-fill, 76px);
   gap: 8px;
   padding: 10px;
 }
@@ -1527,8 +1531,8 @@ button:focus-visible {
 .player-history-kept-item {
   position: relative;
   display: grid;
-  width: 58px;
-  height: 58px;
+  width: 76px;
+  height: 76px;
   place-items: center;
   padding: 0;
   border: 0;
