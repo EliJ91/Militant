@@ -12,6 +12,40 @@ const SORT_COLUMNS = [
   { key: 'lastCtaAt', label: 'Last CTA' },
 ];
 
+const FILTER_STORAGE_KEY = 'militant.playerLootHistory.filters.v1';
+const TIER_OPTIONS = [
+  { label: 'All tiers', value: 'all' },
+  { label: 'T4', value: 'tier4' },
+  { label: 'T5', value: 'tier5' },
+  { label: 'T6', value: 'tier6' },
+  { label: 'T7', value: 'tier7' },
+  { label: 'T8', value: 'tier8' },
+  { label: 'Unknown tier', value: 'unknown' },
+];
+const TYPE_OPTIONS = [
+  { label: 'All item types', value: 'all' },
+  { label: 'Gear', value: 'gear' },
+  { label: 'Bag', value: 'bag' },
+  { label: 'Cape', value: 'cape' },
+  { label: 'Food', value: 'food' },
+  { label: 'Mount', value: 'mount' },
+  { label: 'Potion', value: 'potion' },
+  { label: 'Resource', value: 'resource' },
+  { label: 'Tool', value: 'tool' },
+  { label: 'Other', value: 'other' },
+];
+
+function loadItemFilters() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(FILTER_STORAGE_KEY) || '{}');
+    const tier = TIER_OPTIONS.some((option) => option.value === saved.tier) ? saved.tier : 'all';
+    const type = TYPE_OPTIONS.some((option) => option.value === saved.type) ? saved.type : 'all';
+    return { tier, type };
+  } catch {
+    return { tier: 'all', type: 'all' };
+  }
+}
+
 function formatNumber(value, maximumFractionDigits = 0) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits }).format(Number(value) || 0);
 }
@@ -42,8 +76,40 @@ function itemImageUrl(itemId) {
   return `https://images.weserv.nl/?url=${encodeURIComponent(`render.albiononline.com/v1/item/${imagePath}`)}`;
 }
 
+function getItemTier(item) {
+  const itemIdMatch = String(item.itemId || '').match(/^T([4-8])_/i);
+  if (itemIdMatch) return `tier${itemIdMatch[1]}`;
+  const itemName = String(item.item || '').toLowerCase();
+  if (itemName.startsWith("adept's")) return 'tier4';
+  if (itemName.startsWith("expert's")) return 'tier5';
+  if (itemName.startsWith("master's")) return 'tier6';
+  if (itemName.startsWith("grandmaster's")) return 'tier7';
+  if (itemName.startsWith("elder's")) return 'tier8';
+  return 'unknown';
+}
+
+function getItemType(item) {
+  const itemId = String(item.itemId || '').toUpperCase();
+  const text = `${item.itemId || ''} ${item.item || ''}`.toLowerCase();
+  if (/^T\d+_(2H|MAIN|OFF|HEAD|ARMOR|SHOES)_/.test(itemId)) return 'gear';
+  if (text.includes('cape')) return 'cape';
+  if (text.includes('bag')) return 'bag';
+  if (text.includes('potion') || text.includes('poison')) return 'potion';
+  if (/pickaxe|sickle|skinning knife|stone hammer|axe|siege hammer/.test(text)) return 'tool';
+  if (/fiber|hide|ore|rock|wood|plank|metalbar|leather|cloth/.test(text)) return 'resource';
+  if (/mount|horse|ox|stag|swiftclaw|wolf|boar|bear|mare|panther|lizard|moose|mammoth|ram|cougar|basilisk|salamander|terrorbird/.test(text)) return 'mount';
+  if (/meal|food|omelette|stew|sandwich|pie|salad|soup|fish|roast|goose|pork|beef|mutton|chicken/.test(text)) return 'food';
+  return 'other';
+}
+
+function itemMatchesFilters(item, filters) {
+  return (filters.tier === 'all' || getItemTier(item) === filters.tier)
+    && (filters.type === 'all' || getItemType(item) === filters.type);
+}
+
 export default function PlayerHistoryTool() {
   const [players, setPlayers] = useState([]);
+  const [itemFilters, setItemFilters] = useState(loadItemFilters);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlayerKey, setSelectedPlayerKey] = useState('');
   const [sortState, setSortState] = useState({ direction: 'desc', key: 'ctaCount' });
@@ -65,6 +131,14 @@ export default function PlayerHistoryTool() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(itemFilters));
+    } catch {
+      // Keep filters usable when browser storage is unavailable.
+    }
+  }, [itemFilters]);
 
   const visiblePlayers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -111,6 +185,28 @@ export default function PlayerHistoryTool() {
             <p className="eyebrow">Militant Members</p>
             <h2 id="player-history-table-title">Loot Statistics</h2>
           </div>
+          <div className="player-history-filters" aria-label="Kept item filters">
+            <label>
+              <span>Tier</span>
+              <select
+                aria-label="Filter kept items by tier"
+                value={itemFilters.tier}
+                onChange={(event) => setItemFilters((current) => ({ ...current, tier: event.target.value }))}
+              >
+                {TIER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Item Type</span>
+              <select
+                aria-label="Filter kept items by type"
+                value={itemFilters.type}
+                onChange={(event) => setItemFilters((current) => ({ ...current, type: event.target.value }))}
+              >
+                {TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+          </div>
           <div className="members-table-tools">
             <label className="members-search player-history-search">
               <span>Search player</span>
@@ -156,6 +252,10 @@ export default function PlayerHistoryTool() {
               <tbody>
                 {visiblePlayers.map((player) => {
                   const isExpanded = selectedPlayerKey === player.playerKey;
+                  const filteredCtas = player.ctas.map((cta) => ({
+                    ...cta,
+                    itemsKept: cta.itemsKept.filter((item) => itemMatchesFilters(item, itemFilters)),
+                  })).filter((cta) => cta.itemsKept.length > 0);
                   return (
                     <Fragment key={player.playerId || player.playerKey}>
                       <tr
@@ -195,7 +295,7 @@ export default function PlayerHistoryTool() {
                         <tr className="player-history-detail-row">
                           <td colSpan={SORT_COLUMNS.length}>
                             <div className="player-history-cta-list">
-                              {player.ctas.length > 0 ? player.ctas.map((cta, index) => (
+                              {filteredCtas.length > 0 ? filteredCtas.map((cta, index) => (
                                 <section className="player-history-cta" key={cta.bundleId || `${cta.date}-${index}`}>
                                   <header>
                                     <div>
@@ -221,7 +321,7 @@ export default function PlayerHistoryTool() {
                                     ))}
                                   </div>
                                 </section>
-                              )) : <p className="members-empty">No CTA loot history for this player.</p>}
+                              )) : <p className="members-empty">No kept items match the selected filters.</p>}
                             </div>
                           </td>
                         </tr>

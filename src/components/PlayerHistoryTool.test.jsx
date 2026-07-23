@@ -7,6 +7,7 @@ vi.mock('../services/playerHistoryService', () => ({ fetchPlayerHistory: vi.fn()
 
 describe('PlayerHistoryTool', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     fetchPlayerHistory.mockResolvedValue({
       players: [
         {
@@ -16,7 +17,7 @@ describe('PlayerHistoryTool', () => {
             bundleId: 'cta-one',
             date: '2026-07-20T20:00:00.000Z',
             itemsKept: [
-              { enchantment: 0, item: 'Elder Sword', itemId: 'T8_SWORD', quantity: 5 },
+              { enchantment: 0, item: 'Elder Sword', itemId: 'T8_MAIN_SWORD', quantity: 5 },
               { enchantment: 1, item: 'Elder Armor', itemId: 'T8_ARMOR', quantity: 3 },
             ],
             lootLogTitle: '20UTC-JUL-20',
@@ -79,11 +80,25 @@ describe('PlayerHistoryTool', () => {
     expect(screen.getByRole('heading', { level: 3, name: '20UTC-JUL-20' })).toBeInTheDocument();
     expect(screen.getByText('Elder Sword')).toBeInTheDocument();
     expect(screen.getByText('5 kept')).toBeInTheDocument();
-    expect(screen.getByText('Elder Sword').closest('.player-history-kept-item').querySelector('img').getAttribute('src')).toContain('/item-image/T8_SWORD.png');
+    expect(screen.getByText('Elder Sword').closest('.player-history-kept-item').querySelector('img').getAttribute('src')).toContain('/item-image/T8_MAIN_SWORD.png');
     expect(screen.getByText('Elder Armor')).toBeInTheDocument();
     expect(screen.getByText('3 kept')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide loot history for MilitantOne' }));
     expect(screen.queryByRole('heading', { level: 3, name: '20UTC-JUL-20' })).not.toBeInTheDocument();
+  });
+
+  it('filters kept items by tier and type and remembers the filters', async () => {
+    const firstRender = render(<PlayerHistoryTool />);
+    await screen.findByText('MilitantOne');
+    fireEvent.change(screen.getByLabelText('Filter kept items by tier'), { target: { value: 'tier8' } });
+    fireEvent.change(screen.getByLabelText('Filter kept items by type'), { target: { value: 'gear' } });
+    fireEvent.click(screen.getByRole('button', { name: 'View loot history for MilitantOne' }));
+    expect(screen.getByText('Elder Sword')).toBeInTheDocument();
+
+    firstRender.unmount();
+    render(<PlayerHistoryTool />);
+    expect(screen.getByLabelText('Filter kept items by tier')).toHaveValue('tier8');
+    expect(screen.getByLabelText('Filter kept items by type')).toHaveValue('gear');
   });
 });
