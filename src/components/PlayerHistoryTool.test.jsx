@@ -47,7 +47,8 @@ describe('PlayerHistoryTool', () => {
     expect(await screen.findByText('MilitantOne')).toBeInTheDocument();
     expect(screen.getByText('MilitantTwo')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Search player history'), { target: { value: 'one' } });
+    expect(screen.queryByRole('region', { name: 'Player history summary' })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Search player loot history'), { target: { value: 'one' } });
     await waitFor(() => expect(screen.queryByText('MilitantTwo')).not.toBeInTheDocument());
     expect(screen.getByText('MilitantOne')).toBeInTheDocument();
   });

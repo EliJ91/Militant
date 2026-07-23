@@ -50,7 +50,7 @@ export default function PlayerHistoryTool() {
       })
       .catch((error) => {
         if (cancelled) return;
-        setLoadStatus({ message: error.message || 'Could not load player history.', state: 'error' });
+        setLoadStatus({ message: error.message || 'Could not load player loot history.', state: 'error' });
       });
     return () => {
       cancelled = true;
@@ -74,12 +74,6 @@ export default function PlayerHistoryTool() {
         || left.playerName.localeCompare(right.playerName);
     });
   }, [players, searchQuery, sortState]);
-  const totals = useMemo(() => players.reduce((summary, player) => ({
-    itemsKept: summary.itemsKept + player.itemsKept,
-    itemsLooted: summary.itemsLooted + player.itemsLooted,
-    playersWithHistory: summary.playersWithHistory + (player.ctaCount > 0 ? 1 : 0),
-  }), { itemsKept: 0, itemsLooted: 0, playersWithHistory: 0 }), [players]);
-
   function updateSort(key) {
     setSortState((current) => ({
       direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc',
@@ -98,25 +92,6 @@ export default function PlayerHistoryTool() {
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
 
-      <section className="members-summary-grid" aria-label="Player history summary">
-        <div className="members-summary-card">
-          <span>Players Tracked</span>
-          <strong>{formatNumber(players.length)}</strong>
-        </div>
-        <div className="members-summary-card">
-          <span>Members With History</span>
-          <strong>{formatNumber(totals.playersWithHistory)}</strong>
-        </div>
-        <div className="members-summary-card">
-          <span>Items Looted</span>
-          <strong>{formatNumber(totals.itemsLooted)}</strong>
-        </div>
-        <div className="members-summary-card">
-          <span>Items Kept</span>
-          <strong>{formatNumber(totals.itemsKept)}</strong>
-        </div>
-      </section>
-
       <section className="members-table-section" aria-labelledby="player-history-table-title">
         <div className="members-table-heading player-history-table-heading">
           <div>
@@ -127,7 +102,7 @@ export default function PlayerHistoryTool() {
             <label className="members-search player-history-search">
               <span>Search player</span>
               <input
-                aria-label="Search player history"
+                aria-label="Search player loot history"
                 placeholder="Player name"
                 type="search"
                 value={searchQuery}
@@ -138,8 +113,8 @@ export default function PlayerHistoryTool() {
           </div>
         </div>
 
-        {loadStatus.state === 'loading' ? <p className="members-empty">Loading player history...</p> : null}
-        {loadStatus.state === 'loaded' && players.length === 0 ? <p className="members-empty">No Militant player history found.</p> : null}
+        {loadStatus.state === 'loading' ? <p className="members-empty">Loading player loot history...</p> : null}
+        {loadStatus.state === 'loaded' && players.length === 0 ? <p className="members-empty">No Militant player loot history found.</p> : null}
         {players.length > 0 && visiblePlayers.length === 0 ? <p className="members-empty">No member matches that player name.</p> : null}
         {visiblePlayers.length > 0 ? (
           <div className="members-table-wrap">
