@@ -76,6 +76,8 @@ describe('PlayerHistoryTool', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'View loot history for MilitantOne' }));
     expect(screen.getByRole('heading', { level: 3, name: '20UTC-JUL-20' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '20UTC-JUL-20' })).toHaveAttribute('href', '#loot-monitor/cta-one');
+    expect(screen.getByRole('link', { name: '20UTC-JUL-20' })).toHaveAttribute('target', '_blank');
     const swordItem = screen.getByRole('img', { name: 'Elder Sword, 5 kept' });
     expect(swordItem).toBeInTheDocument();
     expect(swordItem.querySelector('img').getAttribute('src')).toContain('/item-image/T8_MAIN_SWORD.png');

@@ -1502,8 +1502,19 @@ button:focus-visible {
 
 .player-history-cta h3 {
   margin: 3px 0 0;
-  color: var(--white);
   font-size: 0.9rem;
+}
+
+.player-history-cta h3 a {
+  color: var(--white);
+  text-decoration: none;
+}
+
+.player-history-cta h3 a:hover,
+.player-history-cta h3 a:focus-visible {
+  color: var(--green-hot);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .player-history-kept-items {
@@ -1519,33 +1530,35 @@ button:focus-visible {
   width: 58px;
   height: 58px;
   place-items: center;
-  padding: 3px;
+  padding: 0;
   border: 0;
   border-radius: 8px;
   background: #151915;
 }
 
 .player-history-kept-item img {
-  width: 52px;
-  height: 52px;
-  object-fit: contain;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  object-fit: cover;
 }
 
 .player-history-kept-item strong {
   position: absolute;
-  right: -2px;
-  bottom: -2px;
-  display: grid;
-  min-width: 20px;
-  height: 20px;
-  place-items: center;
-  padding: 0 4px;
-  border: 1px solid rgba(247, 250, 245, 0.78);
-  border-radius: 999px;
-  background: #020403;
+  right: 4px;
+  bottom: 4px;
+  min-width: 18px;
+  padding: 1px 4px 2px;
+  border: 1px solid rgba(247, 250, 245, 0.72);
+  border-radius: 7px;
+  background: rgba(2, 4, 3, 0.86);
   color: var(--white);
-  font-size: 0.68rem;
-  line-height: 1;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.05;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
 }
 
 .loot-monitor-shell {

@@ -398,7 +398,15 @@ export default function PlayerHistoryTool() {
                                   <header>
                                     <div>
                                       <span>Loot Log</span>
-                                      <h3>{cta.lootLogTitle}</h3>
+                                      <h3>
+                                        <a
+                                          href={`#loot-monitor/${encodeURIComponent(cta.bundleId)}`}
+                                          rel="noreferrer"
+                                          target="_blank"
+                                        >
+                                          {cta.lootLogTitle}
+                                        </a>
+                                      </h3>
                                     </div>
                                     <time dateTime={cta.date}>{formatDate(cta.date)}</time>
                                   </header>
