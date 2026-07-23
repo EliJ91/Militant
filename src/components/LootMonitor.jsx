@@ -1911,7 +1911,6 @@ function UploadInstructionsModal({ onClose }) {
         <div className="upload-instructions-body">
           <section className="upload-guide-intro">
             <p className="eyebrow">Loot Log Guide</p>
-            <p>Use the method that matches where your files are. Available actions depend on your Discord role.</p>
             <div className="upload-guide-formats" aria-label="Supported file formats">
               <span><strong>Loot logs</strong> .csv or .txt</span>
               <span><strong>Chest logs</strong> paste, .txt, or .tsv</span>

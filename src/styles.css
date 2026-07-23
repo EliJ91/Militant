@@ -1699,12 +1699,6 @@ button:focus-visible {
   margin: 0;
 }
 
-.upload-guide-intro > p:last-of-type {
-  color: var(--muted);
-  font-size: 0.88rem;
-  line-height: 1.55;
-}
-
 .upload-guide-formats {
   display: flex;
   flex-wrap: wrap;
