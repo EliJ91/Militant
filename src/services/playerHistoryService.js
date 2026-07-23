@@ -1,5 +1,8 @@
-import { fetchLootLogBundles } from './lootLogApi';
+import { fetchLootLogBundle, fetchLootLogBundles } from './lootLogApi';
 import { fetchSiphonedEnergyMembers } from './siphonedEnergyApi';
+import { applyLootDeathChecks, buildLootMonitorReportFromEvents } from '../utils/lootMonitor';
+
+const DETAIL_FETCH_CONCURRENCY = 4;
 
 function normalizePlayerName(value) {
   return String(value || '').trim().toLowerCase();
@@ -19,11 +22,9 @@ function isMilitantGuild(value) {
 function createPlayerHistoryRecord({ playerId = '', playerName = '' } = {}) {
   const cleanPlayerName = String(playerName || '').trim();
   return {
-    averageItemsKeptPerCta: 0,
     averageItemsLootedPerCta: 0,
     ctas: [],
     ctaCount: 0,
-    ctaCountWithChestLog: 0,
     itemsKept: 0,
     itemsLooted: 0,
     itemsLost: 0,
@@ -59,8 +60,6 @@ export function buildPlayerHistory(members = [], bundles = []) {
 
   bundles.forEach((bundle) => {
     const participatingPlayers = new Set();
-    const keptItemsByPlayer = new Map();
-    const hasChestLog = Boolean(bundle?.hasChestLog);
     const rows = Array.isArray(bundle?.summary?.rows) ? bundle.summary.rows : [];
 
     rows.forEach((row) => {
@@ -69,49 +68,53 @@ export function buildPlayerHistory(members = [], bundles = []) {
       if (!player) return;
 
       player.itemsLooted += numericValue(row.looted);
-      if (hasChestLog) player.itemsKept += numericValue(row.kept);
       player.itemsLost += numericValue(row.lost);
       participatingPlayers.add(playerKey);
-
-      const keptQuantity = numericValue(row.kept);
-      if (hasChestLog && keptQuantity > 0) {
-        const keptItems = keptItemsByPlayer.get(playerKey) || [];
-        keptItems.push({
-          enchantment: numericValue(row.enchantment),
-          item: String(row.item || row.itemId || 'Unknown Item').trim(),
-          itemId: String(row.itemId || '').trim(),
-          quantity: keptQuantity,
-        });
-        keptItemsByPlayer.set(playerKey, keptItems);
-      }
-
     });
 
     participatingPlayers.forEach((playerKey) => {
       const player = historyByPlayer.get(playerKey);
       player.ctaCount += 1;
-      if (hasChestLog) player.ctaCountWithChestLog += 1;
       const ctaAt = String(bundle.startAt || bundle.createdAt || '');
       if (ctaAt && (!player.lastCtaAt || new Date(ctaAt) > new Date(player.lastCtaAt))) {
         player.lastCtaAt = ctaAt;
       }
+    });
+
+    if (!bundle.hasChestLog) return;
+    const keptItemsByPlayer = new Map();
+    const finalizedRows = Array.isArray(bundle.finalizedRows) ? bundle.finalizedRows : [];
+    finalizedRows.forEach((row) => {
+      const playerKey = normalizePlayerName(row?.player);
+      const player = historyByPlayer.get(playerKey);
+      const keptQuantity = numericValue(row?.kept);
+      if (!player || keptQuantity <= 0) return;
+      player.itemsKept += keptQuantity;
       const itemsKept = keptItemsByPlayer.get(playerKey) || [];
-      if (itemsKept.length > 0) {
-        player.ctas.push({
-          bundleId: String(bundle.id || ''),
-          date: ctaAt,
-          itemsKept: itemsKept.sort((left, right) => (
-            right.quantity - left.quantity || left.item.localeCompare(right.item)
-          )),
-          lootLogTitle: String(bundle.lootFileName || bundle.summary?.displayLootFileName || 'Loot Log').trim(),
-        });
-      }
+      itemsKept.push({
+        enchantment: numericValue(row.enchantment),
+        item: String(row.item || row.itemId || 'Unknown Item').trim(),
+        itemId: String(row.itemId || '').trim(),
+        quantity: keptQuantity,
+      });
+      keptItemsByPlayer.set(playerKey, itemsKept);
+    });
+
+    keptItemsByPlayer.forEach((itemsKept, playerKey) => {
+      const player = historyByPlayer.get(playerKey);
+      player.ctas.push({
+        bundleId: String(bundle.id || ''),
+        date: String(bundle.startAt || bundle.createdAt || ''),
+        itemsKept: itemsKept.sort((left, right) => (
+          right.quantity - left.quantity || left.item.localeCompare(right.item)
+        )),
+        lootLogTitle: String(bundle.lootFileName || bundle.summary?.displayLootFileName || 'Loot Log').trim(),
+      });
     });
   });
 
   return [...historyByPlayer.values()].map((player) => ({
     ...player,
-    averageItemsKeptPerCta: player.ctaCountWithChestLog ? player.itemsKept / player.ctaCountWithChestLog : 0,
     averageItemsLootedPerCta: player.ctaCount ? player.itemsLooted / player.ctaCount : 0,
     ctas: player.ctas.sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0)),
   })).sort((left, right) => (
@@ -119,6 +122,38 @@ export function buildPlayerHistory(members = [], bundles = []) {
     || right.itemsLooted - left.itemsLooted
     || left.playerName.localeCompare(right.playerName)
   ));
+}
+
+async function mapWithConcurrency(values, concurrency, mapper) {
+  const results = new Array(values.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(values[index], index);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, worker));
+  return results;
+}
+
+async function loadFinalizedChestRows(bundle) {
+  if (!bundle?.hasChestLog || !bundle?.id) return { ...bundle, finalizedRows: [] };
+  const result = await fetchLootLogBundle(bundle.id);
+  const detail = result?.bundle || {};
+  const baseReport = buildLootMonitorReportFromEvents(
+    detail.events || [],
+    detail.chestLogReportText || detail.chestLogText || '',
+    { endAt: detail.endAt || bundle.endAt, startAt: detail.startAt || bundle.startAt },
+  );
+  const finalizedReport = applyLootDeathChecks(baseReport, detail.deathChecks || []);
+  return {
+    ...bundle,
+    finalizedRows: finalizedReport?.rows || [],
+  };
 }
 
 export async function fetchPlayerHistory() {
@@ -129,8 +164,9 @@ export async function fetchPlayerHistory() {
 
   const members = Array.isArray(memberResult?.members) ? memberResult.members : [];
   const bundles = Array.isArray(lootLogResult?.bundles) ? lootLogResult.bundles : [];
+  const finalizedBundles = await mapWithConcurrency(bundles, DETAIL_FETCH_CONCURRENCY, loadFinalizedChestRows);
   return {
-    players: buildPlayerHistory(members, bundles),
+    players: buildPlayerHistory(members, finalizedBundles),
     updatedAt: new Date().toISOString(),
   };
 }

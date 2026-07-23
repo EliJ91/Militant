@@ -11,7 +11,6 @@ describe('PlayerHistoryTool', () => {
     fetchPlayerHistory.mockResolvedValue({
       players: [
         {
-          averageItemsKeptPerCta: 4,
           averageItemsLootedPerCta: 6,
           ctas: [{
             bundleId: 'cta-one',
@@ -32,7 +31,6 @@ describe('PlayerHistoryTool', () => {
           playerName: 'MilitantOne',
         },
         {
-          averageItemsKeptPerCta: 0,
           averageItemsLootedPerCta: 0,
           ctas: [],
           ctaCount: 0,

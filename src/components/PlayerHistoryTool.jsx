@@ -8,7 +8,6 @@ const SORT_COLUMNS = [
   { key: 'itemsKept', label: 'Items Kept' },
   { key: 'itemsLost', label: 'Items Lost' },
   { key: 'averageItemsLootedPerCta', label: 'Avg. Looted / CTA' },
-  { key: 'averageItemsKeptPerCta', label: 'Avg. Kept / CTA' },
   { key: 'lastCtaAt', label: 'Last CTA' },
 ];
 
@@ -388,7 +387,6 @@ export default function PlayerHistoryTool() {
                         <td>{formatNumber(player.itemsKept)}</td>
                         <td>{formatNumber(player.itemsLost)}</td>
                         <td>{formatNumber(player.averageItemsLootedPerCta, 1)}</td>
-                        <td>{formatNumber(player.averageItemsKeptPerCta, 1)}</td>
                         <td className="player-history-date">{formatDate(player.lastCtaAt)}</td>
                       </tr>
                       {isExpanded ? (
