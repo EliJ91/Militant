@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
-import { ExternalLink, Trash2 } from 'lucide-react';
+import { ChevronDown, ExternalLink, Trash2 } from 'lucide-react';
 import { fetchWestAveragePrices } from '../services/albionMarket';
 import {
   addLootLogDeathId,
@@ -1926,16 +1926,19 @@ function UploadInstructionsModal({ onClose }) {
           </section>
           <div className="upload-guide-sections">
             {guideSections.map((section, sectionIndex) => (
-              <section className="upload-guide-section" key={section.title}>
-                <header>
+              <details className="upload-guide-section" key={section.title}>
+                <summary>
                   <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
                   <h3>{section.title}</h3>
-                </header>
-                <ol>
-                  {section.steps.map((step, stepIndex) => <li key={`${section.title}-${stepIndex}`}>{step}</li>)}
-                </ol>
-                {section.note ? <p className="upload-guide-note">{section.note}</p> : null}
-              </section>
+                  <ChevronDown aria-hidden="true" className="upload-guide-chevron" size={20} strokeWidth={2} />
+                </summary>
+                <div className="upload-guide-content">
+                  <ol>
+                    {section.steps.map((step, stepIndex) => <li key={`${section.title}-${stepIndex}`}>{step}</li>)}
+                  </ol>
+                  {section.note ? <p className="upload-guide-note">{section.note}</p> : null}
+                </div>
+              </details>
             ))}
           </div>
         </div>

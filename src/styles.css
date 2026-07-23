@@ -1735,20 +1735,36 @@ button:focus-visible {
 
 .upload-guide-section {
   min-width: 0;
-  padding: 15px;
   border: 1px solid rgba(247, 250, 245, 0.12);
   border-radius: 8px;
   background: rgba(8, 14, 10, 0.88);
+  overflow: hidden;
 }
 
-.upload-guide-section header {
+.upload-guide-section summary {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  min-height: 62px;
+  padding: 14px 15px;
+  cursor: pointer;
+  list-style: none;
 }
 
-.upload-guide-section header > span {
+.upload-guide-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.upload-guide-section summary:hover,
+.upload-guide-section summary:focus-visible {
+  background: rgba(87, 216, 120, 0.06);
+}
+
+.upload-guide-section[open] summary {
+  border-bottom: 1px solid rgba(247, 250, 245, 0.1);
+}
+
+.upload-guide-section summary > span {
   display: grid;
   flex: 0 0 32px;
   width: 32px;
@@ -1760,6 +1776,21 @@ button:focus-visible {
   color: var(--green-hot);
   font-size: 0.68rem;
   font-weight: 900;
+}
+
+.upload-guide-chevron {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--green-hot);
+  transition: transform 160ms ease;
+}
+
+.upload-guide-section[open] .upload-guide-chevron {
+  transform: rotate(180deg);
+}
+
+.upload-guide-content {
+  padding: 14px 15px 15px;
 }
 
 .upload-guide-section h3 {
@@ -4606,7 +4637,8 @@ button:focus-visible {
   }
 
   .upload-guide-intro,
-  .upload-guide-section {
+  .upload-guide-section summary,
+  .upload-guide-content {
     padding: 13px;
   }
 

@@ -909,6 +909,10 @@ describe('LootMonitor', () => {
     expect(within(instructionsDialog).getByRole('heading', { name: 'Upload Chest Logs' })).toBeInTheDocument();
     expect(within(instructionsDialog).getByRole('heading', { name: 'Merge Loot Logs' })).toBeInTheDocument();
     expect(within(instructionsDialog).getByRole('heading', { name: 'Check And Add Deaths' })).toBeInTheDocument();
+    const deathGuide = within(instructionsDialog).getByRole('heading', { name: 'Check And Add Deaths' }).closest('details');
+    expect(deathGuide).not.toHaveAttribute('open');
+    fireEvent.click(deathGuide.querySelector('summary'));
+    expect(deathGuide).toHaveAttribute('open');
     expect(within(instructionsDialog).getByText('.csv or .txt')).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('/upload')).toBeInTheDocument();
     expect(within(instructionsDialog).getByText(/select the player's name/i)).toBeInTheDocument();
