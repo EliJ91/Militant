@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChartBar, Eye, History, ScrollText, ShieldCheck, Users } from 'lucide-react';
+import { BatteryCharging, ChartBar, Eye, History, ScrollText, ShieldCheck, Users } from 'lucide-react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import MembersTool from './components/MembersTool';
 import PlayerHistoryTool from './components/PlayerHistoryTool';
@@ -472,7 +472,7 @@ function DashboardPage({
     {
       description: 'Track deposits, withdrawals, and outstanding member balances.',
       group: 'tools',
-      image: `${ASSET_BASE}siphoned-energy.png`,
+      icon: BatteryCharging,
       permission: 'viewSiphonedEnergy',
       title: 'Siphoned Energy Tracker',
       to: '#siphoned-energy',

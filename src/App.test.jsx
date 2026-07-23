@@ -98,11 +98,9 @@ describe('App', () => {
     expect(screen.getByText('Open loot logs locally without saving or changing any data.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
-    expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).toHaveAttribute(
-      'src',
-      '/assets/siphoned-energy.png',
-    );
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.123');
+    expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
+    expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.124');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
