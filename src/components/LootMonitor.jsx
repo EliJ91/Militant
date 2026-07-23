@@ -1847,11 +1847,8 @@ function UploadInstructionsModal({ onClose }) {
   const guideSections = [
     {
       steps: [
-        <><strong>From the webapp:</strong> Open <strong>Loot Logs</strong>, select <strong>Upload</strong>, then add one or more <strong>.csv/.txt</strong> loot logger files and submit them.</>,
-        <><strong>From Discord:</strong> Post every loot logger <strong>.csv</strong> file in the CTA thread. Multiple members can contribute files to the same thread.</>,
-        <><strong>Submit from Discord:</strong> A member with <strong>Upload Loot Logs From Discord</strong> permission runs <code>/upload</code> inside the thread.</>,
-        <><strong>Add files later:</strong> Select the <strong>+</strong> beside <strong>Loot Log</strong> on an existing entry, add the missing <strong>.csv/.txt</strong> files, and submit them.</>,
-        <>Files submitted together are grouped into one CTA. Adding files later recalculates item custody and player details for the existing entry.</>,
+        <><strong>From the webapp:</strong> Select <strong>Upload</strong>, add the loot log files, then select <strong>Upload</strong> again.</>,
+        <><strong>From Discord:</strong> Type <code>/upload</code> in the thread that contains the loot log files.</>,
       ],
       title: 'Upload Loot Logs',
     },

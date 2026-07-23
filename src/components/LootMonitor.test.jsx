@@ -902,7 +902,9 @@ describe('LootMonitor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Open upload instructions' }));
     const instructionsDialog = screen.getByRole('dialog', { name: 'Upload Instructions' });
-    expect(within(instructionsDialog).getByRole('heading', { name: 'Upload Loot Logs' })).toBeInTheDocument();
+    const uploadGuide = within(instructionsDialog).getByRole('heading', { name: 'Upload Loot Logs' }).closest('details');
+    expect(uploadGuide).toHaveTextContent('Select Upload, add the loot log files, then select Upload again.');
+    expect(uploadGuide).toHaveTextContent('Type /upload in the thread that contains the loot log files.');
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Upload From The Webapp' })).not.toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Upload From Discord' })).not.toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Add Loot Files Later' })).not.toBeInTheDocument();
