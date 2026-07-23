@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   fetchPermissionSettings,
   updatePermissionSettings as updateDatabasePermissionSettings,
@@ -11,6 +11,16 @@ import {
   resolvePermissionsForDiscordUser,
   WEBAPP_PERMISSION_DEFINITIONS,
 } from '../services/permissionsService';
+
+const PERMISSION_GROUPS = WEBAPP_PERMISSION_DEFINITIONS.reduce((groups, permission) => {
+  const currentGroup = groups.find((group) => group.title === permission.area);
+  if (currentGroup) {
+    currentGroup.permissions.push(permission);
+  } else {
+    groups.push({ title: permission.area, permissions: [permission] });
+  }
+  return groups;
+}, []);
 
 export default function PermissionsTool({ currentUser = null }) {
   const [settings, setSettings] = useState(loadPermissionSettings);
@@ -291,23 +301,30 @@ export default function PermissionsTool({ currentUser = null }) {
               </tr>
             </thead>
             <tbody>
-              {WEBAPP_PERMISSION_DEFINITIONS.map((permission) => (
-                <tr key={permission.key}>
-                  <th className="permissions-name-column" scope="row">{permission.label}</th>
-                  {settings.roles.map((role) => (
-                    <td key={role.id}>
-                      <input
-                        aria-label={`${permission.label} for ${role.name}`}
-                        checked={role.permissions[permission.key]}
-                        className="permissions-checkbox"
-                        disabled={!canChangePermissions}
-                        title={`${permission.label} for ${role.name}`}
-                        type="checkbox"
-                        onChange={() => togglePermission(role.id, permission.key)}
-                      />
-                    </td>
+              {PERMISSION_GROUPS.map((group) => (
+                <Fragment key={group.title}>
+                  <tr className="permissions-group-row">
+                    <th colSpan={settings.roles.length + 1} scope="colgroup">{group.title}</th>
+                  </tr>
+                  {group.permissions.map((permission) => (
+                    <tr key={permission.key}>
+                      <th className="permissions-name-column" scope="row">{permission.label}</th>
+                      {settings.roles.map((role) => (
+                        <td key={role.id}>
+                          <input
+                            aria-label={`${permission.label} for ${role.name}`}
+                            checked={role.permissions[permission.key]}
+                            className="permissions-checkbox"
+                            disabled={!canChangePermissions}
+                            title={`${permission.label} for ${role.name}`}
+                            type="checkbox"
+                            onChange={() => togglePermission(role.id, permission.key)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>

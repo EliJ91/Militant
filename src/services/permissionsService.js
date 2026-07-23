@@ -4,8 +4,8 @@ export const SUPERUSER_DISCORD_USER_IDS = ['264193431830528006'];
 export const PERMISSIONS_CHANGED_EVENT = 'militant-permissions-change';
 
 export const WEBAPP_PERMISSION_DEFINITIONS = [
-  { key: 'changePermissions', label: 'Change Permissions', area: 'Admin' },
-  { key: 'viewActionLog', label: 'View Action Log', area: 'Admin' },
+  { key: 'changePermissions', label: 'Change Permissions', area: 'General' },
+  { key: 'viewActionLog', label: 'View Action Log', area: 'Action Log' },
   { key: 'viewLogs', label: 'View Logs', area: 'Loot Logs' },
   { key: 'viewLootLog', label: 'View A Loot Log', area: 'Loot Logs' },
   { key: 'uploadLootLogs', label: 'Upload Loot Logs', area: 'Loot Logs' },

@@ -1288,6 +1288,20 @@ button:focus-visible {
   text-align: left;
 }
 
+.permissions-table .permissions-group-row th {
+  padding: 14px 10px 8px;
+  border-bottom-color: rgba(87, 216, 120, 0.36);
+  background: rgba(87, 216, 120, 0.08);
+  color: var(--green-hot);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-align: left;
+}
+
+.permissions-table .permissions-group-row:first-child th {
+  padding-top: 10px;
+}
+
 .permissions-name-column {
   width: 260px;
 }
