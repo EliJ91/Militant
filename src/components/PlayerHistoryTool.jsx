@@ -20,17 +20,15 @@ const TIER_OPTIONS = [
   { label: 'T6', value: 'tier6' },
   { label: 'T7', value: 'tier7' },
   { label: 'T8', value: 'tier8' },
-  { label: 'Unknown tier', value: 'unknown' },
 ];
 const TYPE_OPTIONS = [
-  { label: 'Gear', value: 'gear' },
   { label: 'Bag', value: 'bag' },
   { label: 'Cape', value: 'cape' },
   { label: 'Food', value: 'food' },
+  { label: 'Memento', value: 'memento' },
   { label: 'Mount', value: 'mount' },
-  { label: 'Potion', value: 'potion' },
-  { label: 'Resource', value: 'resource' },
-  { label: 'Tool', value: 'tool' },
+  { label: 'Potions', value: 'potion' },
+  { label: 'Trash', value: 'trash' },
   { label: 'Other', value: 'other' },
 ];
 
@@ -185,24 +183,34 @@ function getItemTier(item) {
   return 'unknown';
 }
 
-function getItemType(item) {
+function isWeaponOrArmor(item) {
   const itemId = String(item.itemId || '').toUpperCase();
+  return /^T\d+_(2H|MAIN|OFF|HEAD|ARMOR|SHOES)_/.test(itemId);
+}
+
+function getItemType(item) {
   const text = `${item.itemId || ''} ${item.item || ''}`.toLowerCase();
-  if (/^T\d+_(2H|MAIN|OFF|HEAD|ARMOR|SHOES)_/.test(itemId)) return 'gear';
+  const itemName = String(item.item || '').toLowerCase();
+  if (/\bskin\b|\bsiege hammer\b/.test(itemName)) return 'other';
+  if (text.includes('trash')) return 'trash';
+  if (text.includes('memento')) return 'memento';
   if (text.includes('cape')) return 'cape';
   if (text.includes('bag')) return 'bag';
   if (text.includes('potion') || text.includes('poison')) return 'potion';
-  if (/pickaxe|sickle|skinning knife|stone hammer|axe|siege hammer/.test(text)) return 'tool';
-  if (/fiber|hide|ore|rock|wood|plank|metalbar|leather|cloth/.test(text)) return 'resource';
   if (/mount|horse|ox|stag|swiftclaw|wolf|boar|bear|mare|panther|lizard|moose|mammoth|ram|cougar|basilisk|salamander|terrorbird/.test(text)) return 'mount';
   if (/meal|food|omelette|stew|sandwich|pie|salad|soup|fish|roast|goose|pork|beef|mutton|chicken/.test(text)) return 'food';
+  if (isWeaponOrArmor(item)) return 'gear';
   return 'other';
 }
 
 function itemMatchesFilters(item, filters) {
-  if (filters.tierFilters.includes(NONE_SELECTED_VALUE) || filters.typeFilters.includes(NONE_SELECTED_VALUE)) return false;
-  return (filters.tierFilters.length === 0 || filters.tierFilters.includes(getItemTier(item)))
-    && (filters.typeFilters.length === 0 || filters.typeFilters.includes(getItemType(item)));
+  const tier = getItemTier(item);
+  const type = getItemType(item);
+  if (filters.tierFilters.includes(NONE_SELECTED_VALUE)) return false;
+  if (filters.tierFilters.length > 0 && !filters.tierFilters.includes(tier)) return false;
+  if (type === 'gear') return true;
+  if (filters.typeFilters.includes(NONE_SELECTED_VALUE)) return false;
+  return filters.typeFilters.length === 0 || filters.typeFilters.includes(type);
 }
 
 export default function PlayerHistoryTool() {

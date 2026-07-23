@@ -235,8 +235,8 @@ describe('LootMonitor', () => {
     const summary = await screen.findByRole('region', { name: 'Local loot log summary' });
     expect(within(summary).getByText('local-loot.txt')).toBeInTheDocument();
     expect(screen.getByText('Windyyyzz')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Windyyyzz Looted 2 Adept's Lymhurst Cape/i)).toBeInTheDocument();
-    expect(screen.getByLabelText('Loot monitor controls')).not.toHaveTextContent('Status');
+    expect(screen.getByLabelText(/Windyyyzz Kept 2 Adept's Lymhurst Cape/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Loot monitor controls')).toHaveTextContent('Status');
     expect(screen.queryByText('Files are read in this browser tab only and are never uploaded.')).not.toBeInTheDocument();
     expect(fetchLootLogBundle).not.toHaveBeenCalled();
     expect(submitLootLog).not.toHaveBeenCalled();
@@ -742,7 +742,7 @@ describe('LootMonitor', () => {
     expect(rawWindow.document.close).toHaveBeenCalled();
   });
 
-  it('only disables Kept status when no chest log is loaded', async () => {
+  it('keeps the Kept status filter accessible when no chest log is loaded', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
         chestLogText: '',
@@ -757,8 +757,7 @@ describe('LootMonitor', () => {
     expect(await screen.findByText('EMV $230')).toBeInTheDocument();
     const statusLabel = screen.getByText('Status');
     fireEvent.click(statusLabel.nextElementSibling.querySelector('summary'));
-    expect(screen.getByRole('button', { name: 'Kept' })).toBeDisabled();
-    expect(screen.getAllByTitle('A chest log must be uploaded to select Kept.').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Kept' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Lost' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Deselect All' })).toHaveClass('disable-all');
     const lostOption = screen.getByRole('button', { name: 'Lost' });

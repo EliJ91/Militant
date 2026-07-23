@@ -98,13 +98,13 @@ describe('PlayerHistoryTool', () => {
     const typeControl = screen.getByText('Item Type').closest('.filter-dropdown-control');
     fireEvent.click(within(typeControl).getByText('All item types'));
     fireEvent.click(within(typeControl).getByRole('button', { name: 'Disable All' }));
-    fireEvent.click(within(typeControl).getByRole('button', { name: 'Gear' }));
+    fireEvent.click(within(typeControl).getByRole('button', { name: 'Other' }));
     fireEvent.click(screen.getByRole('button', { name: 'View loot history for MilitantOne' }));
     expect(screen.getByText('Elder Sword')).toBeInTheDocument();
 
     firstRender.unmount();
     render(<PlayerHistoryTool />);
     expect(screen.getByText('Tier').closest('.filter-dropdown-control').querySelector('summary')).toHaveTextContent('T8');
-    expect(screen.getByText('Item Type').closest('.filter-dropdown-control').querySelector('summary')).toHaveTextContent('Gear');
+    expect(screen.getByText('Item Type').closest('.filter-dropdown-control').querySelector('summary')).toHaveTextContent('Other');
   });
 });

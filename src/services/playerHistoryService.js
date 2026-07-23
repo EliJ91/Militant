@@ -23,6 +23,7 @@ function createPlayerHistoryRecord({ playerId = '', playerName = '' } = {}) {
     averageItemsLootedPerCta: 0,
     ctas: [],
     ctaCount: 0,
+    ctaCountWithChestLog: 0,
     itemsKept: 0,
     itemsLooted: 0,
     itemsLost: 0,
@@ -59,6 +60,7 @@ export function buildPlayerHistory(members = [], bundles = []) {
   bundles.forEach((bundle) => {
     const participatingPlayers = new Set();
     const keptItemsByPlayer = new Map();
+    const hasChestLog = Boolean(bundle?.hasChestLog);
     const rows = Array.isArray(bundle?.summary?.rows) ? bundle.summary.rows : [];
 
     rows.forEach((row) => {
@@ -67,12 +69,12 @@ export function buildPlayerHistory(members = [], bundles = []) {
       if (!player) return;
 
       player.itemsLooted += numericValue(row.looted);
-      player.itemsKept += numericValue(row.kept);
+      if (hasChestLog) player.itemsKept += numericValue(row.kept);
       player.itemsLost += numericValue(row.lost);
       participatingPlayers.add(playerKey);
 
       const keptQuantity = numericValue(row.kept);
-      if (keptQuantity > 0) {
+      if (hasChestLog && keptQuantity > 0) {
         const keptItems = keptItemsByPlayer.get(playerKey) || [];
         keptItems.push({
           enchantment: numericValue(row.enchantment),
@@ -88,6 +90,7 @@ export function buildPlayerHistory(members = [], bundles = []) {
     participatingPlayers.forEach((playerKey) => {
       const player = historyByPlayer.get(playerKey);
       player.ctaCount += 1;
+      if (hasChestLog) player.ctaCountWithChestLog += 1;
       const ctaAt = String(bundle.startAt || bundle.createdAt || '');
       if (ctaAt && (!player.lastCtaAt || new Date(ctaAt) > new Date(player.lastCtaAt))) {
         player.lastCtaAt = ctaAt;
@@ -108,7 +111,7 @@ export function buildPlayerHistory(members = [], bundles = []) {
 
   return [...historyByPlayer.values()].map((player) => ({
     ...player,
-    averageItemsKeptPerCta: player.ctaCount ? player.itemsKept / player.ctaCount : 0,
+    averageItemsKeptPerCta: player.ctaCountWithChestLog ? player.itemsKept / player.ctaCountWithChestLog : 0,
     averageItemsLootedPerCta: player.ctaCount ? player.itemsLooted / player.ctaCount : 0,
     ctas: player.ctas.sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0)),
   })).sort((left, right) => (

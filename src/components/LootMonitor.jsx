@@ -2966,9 +2966,7 @@ export default function LootMonitor({
     return combineChestLogTexts(filteredSubmissions);
   }, [selectedBundle]);
   const selectedTotals = selectedBundle?.summary?.totals || report?.totals || {};
-  const activeFilters = useMemo(() => (
-    localOnly && !hasChestLog ? { ...filters, status: [] } : filters
-  ), [filters, hasChestLog, localOnly]);
+  const activeFilters = filters;
   const filterOptions = useMemo(() => {
     if (!report) return { alliances: [], guilds: [] };
 
@@ -2995,13 +2993,8 @@ export default function LootMonitor({
         hidden: hiddenPlayerKeys.has(String(player.player || '').trim().toLowerCase()),
       }))
       .filter((player) => canViewHiddenPlayers || !player.hidden);
-    if (!localOnly || hasChestLog) return players;
-
-    return players.map((player) => ({
-      ...player,
-      tiles: player.tiles.map((tile) => ({ ...tile, status: 'looted' })),
-    }));
-  }, [activeFilters, canViewHiddenPlayers, hasChestLog, hiddenPlayerKeys, localOnly, visibleRows]);
+    return players;
+  }, [activeFilters, canViewHiddenPlayers, hiddenPlayerKeys, visibleRows]);
   const visiblePlayersWithEmv = useMemo(() => (
     addPlayerEmv(visiblePlayers, marketPrices)
   ), [marketPrices, visiblePlayers]);
@@ -3478,17 +3471,12 @@ export default function LootMonitor({
                 ))}
               </select>
             </label>
-            {!localOnly || hasChestLog ? (
-              <StatusMultiSelectDropdown
-                disabledOptions={hasChestLog ? {} : {
-                  kept: 'A chest log must be uploaded to select Kept.',
-                }}
-                label="Status"
-                options={STATUS_OPTIONS}
-                selectedValues={filters.status}
-                onChange={(value) => updateFilter('status', value)}
-              />
-            ) : null}
+            <StatusMultiSelectDropdown
+              label="Status"
+              options={STATUS_OPTIONS}
+              selectedValues={filters.status}
+              onChange={(value) => updateFilter('status', value)}
+            />
           </section>
 
           {!localOnly ? <div className="loot-board-toolbar">
