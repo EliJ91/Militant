@@ -1473,7 +1473,7 @@ button:focus-visible {
   padding: 14px;
   border-left: 2px solid rgba(87, 216, 120, 0.42);
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: auto;
 }
 
 .player-history-cta {
