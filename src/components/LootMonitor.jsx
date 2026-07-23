@@ -1175,7 +1175,7 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
   );
 }
 
-function LootItemTile({ tile }) {
+function LootItemTile({ onDeathLinkCopy = () => {}, tile }) {
   const tooltipId = useId();
   const tileRef = useRef(null);
   const tooltipRef = useRef(null);
@@ -1198,6 +1198,9 @@ function LootItemTile({ tile }) {
       ? tile.deathEvents
       : (tile.deathEventId ? [{ deathEventId: tile.deathEventId }] : []))
     : [];
+  const deathLinks = [...new Set(deathEvents.map((death) => (
+    death.deathUrl || (death.deathEventId ? buildDeathLinkUrl(death.deathEventId) : '')
+  )).filter(Boolean))];
   const hasCustodyTooltip = (tile.status === 'kept' && tile.custodyChains) || deathEvents.length > 0;
   const custodySteps = deathEvents.length > 0
     ? deathEvents.map((death, index) => (
@@ -1328,12 +1331,34 @@ function LootItemTile({ tile }) {
     showCustodyTooltip(true);
   }
 
+  async function copyDeathLinks() {
+    if (tile.status !== 'accounted' || deathLinks.length === 0) return;
+
+    try {
+      await navigator.clipboard.writeText(deathLinks.join('\n'));
+      onDeathLinkCopy({
+        message: deathLinks.length === 1 ? 'Death link copied' : 'Death links copied',
+        state: 'copied',
+      });
+    } catch {
+      onDeathLinkCopy({ message: 'Could not copy death link', state: 'error' });
+    }
+  }
+
+  function handleTileClick() {
+    if (tile.status === 'accounted' && deathLinks.length > 0) {
+      copyDeathLinks();
+      return;
+    }
+    toggleCustodyTooltip();
+  }
+
   function handleTileKeyDown(event) {
     if (!hasCustodyTooltip || (tile.status !== 'accounted' && !usesMobileTooltipClick())) return;
 
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      toggleCustodyTooltip();
+      handleTileClick();
     } else if (event.key === 'Escape') {
       closeCustodyTooltip();
     }
@@ -1348,7 +1373,7 @@ function LootItemTile({ tile }) {
         className={`loot-item-tile ${tile.status}-tile ${hasCustodyTooltip ? 'has-custody-tooltip' : ''}`}
         title={hasCustodyTooltip ? undefined : title}
         onBlur={closeCustodyTooltip}
-        onClick={toggleCustodyTooltip}
+        onClick={handleTileClick}
         onKeyDown={handleTileKeyDown}
         onMouseEnter={() => showCustodyTooltip(false)}
         onMouseLeave={hideCustodyTooltip}
@@ -1418,7 +1443,7 @@ function buildDeathLinkUrl(eventId) {
   return `https://albiononline.com/killboard/kill/${encodeURIComponent(String(eventId || '').trim())}?server=live_us`;
 }
 
-function PlayerDeathLinks({ deathChecks, player }) {
+function PlayerDeathStatus({ deathChecks, player }) {
   const playerKey = String(player || '').trim().toLowerCase();
   const playerChecks = (deathChecks || []).filter((check) => (
     String(check.playerName || check.player || '').trim().toLowerCase() === playerKey
@@ -1429,24 +1454,9 @@ function PlayerDeathLinks({ deathChecks, player }) {
       && String(check.eventId || '').trim()
     ))
     .map((check) => [String(check.eventId), check])).values()];
-  if (deaths.length === 0) {
-    return <span className="loot-player-no-death">No Death Found</span>;
-  }
-
-  return (
-    <span className="loot-player-death-links">
-      {deaths.map((death, index) => (
-        <a
-          href={death.deathUrl || buildDeathLinkUrl(death.eventId)}
-          key={death.eventId}
-          rel="noreferrer"
-          target="_blank"
-        >
-          {deaths.length === 1 ? 'Death' : `Death ${index + 1}`}
-        </a>
-      ))}
-    </span>
-  );
+  return deaths.length === 0
+    ? <span className="loot-player-no-death">No Death Found</span>
+    : null;
 }
 
 function FileUploadButton({
@@ -1885,7 +1895,7 @@ function UploadInstructionsModal({ onClose }) {
         <>Find the correct death, open it, and copy the numeric death ID from its link. For example, the ID in <code>/kill/123456789</code> is <strong>123456789</strong>.</>,
         <>Return to the loot log. A user with <strong>Add Death ID</strong> permission selects the black <strong>Add Death ID</strong> button in that player's row, pastes the death ID or full death link, then selects <strong>Add ID</strong>.</>,
         <>The webapp confirms the victim is that player and compares the death inventory with the player's <strong>Kept</strong> items. Matching quantities change to <strong>Accounted</strong>; anything that does not match stays <strong>Kept</strong>.</>,
-        <>The row says <strong>No Death Found</strong> until a death is added. Afterward, a red <strong>Death</strong> link opens the saved Albion killboard death. Multiple saved deaths appear as <strong>Death 1</strong>, <strong>Death 2</strong>, and so on.</>,
+        <>The row says <strong>No Death Found</strong> until a death is added. After matching items become <strong>Accounted</strong>, select an Accounted item to copy its Albion killboard death link. Paste that link into your browser or Discord to open the death.</>,
       ],
       title: 'Check And Add Deaths',
     },
@@ -2854,6 +2864,7 @@ export default function LootMonitor({
   const [deathIdEntryPlayer, setDeathIdEntryPlayer] = useState('');
   const [deathIdInput, setDeathIdInput] = useState('');
   const [deathIdStatus, setDeathIdStatus] = useState({ message: '', state: 'idle' });
+  const [deathLinkStatus, setDeathLinkStatus] = useState({ message: '', state: 'idle' });
   const [playerVisibilityStatus, setPlayerVisibilityStatus] = useState({ message: '', player: '', state: 'idle' });
   const [rawModalOpen, setRawModalOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState({ message: '', state: 'idle' });
@@ -3216,6 +3227,16 @@ export default function LootMonitor({
     }
   }
 
+  function handleDeathLinkCopy(status) {
+    setDeathLinkStatus(status);
+    if (status.state !== 'copied') return;
+    window.setTimeout(() => {
+      setDeathLinkStatus((current) => (
+        current.state === 'copied' ? { message: '', state: 'idle' } : current
+      ));
+    }, 1800);
+  }
+
   async function updatePlayerVisibility(player, hidden) {
     if (!canViewHiddenPlayers || !selectedBundle?.id || playerVisibilityStatus.state === 'loading') return;
 
@@ -3392,7 +3413,7 @@ export default function LootMonitor({
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {!localOnly && marketPriceError ? <p className="loot-message error">{marketPriceError}</p> : null}
-      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus, deathIdStatus, playerVisibilityStatus]} /> : null}
+      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus, deathIdStatus, deathLinkStatus, playerVisibilityStatus]} /> : null}
       {rawModalOpen ? (
         <div className="raw-log-modal-backdrop" role="presentation" onMouseDown={() => setRawModalOpen(false)}>
           <section
@@ -3562,11 +3583,15 @@ export default function LootMonitor({
                     </aside>
                     <div className="loot-item-grid" aria-label={`${player.player} item icons`}>
                       {player.tiles.map((tile, index) => (
-                        <LootItemTile key={`${tile.status}:${tile.itemId}:${tile.item}:${index}`} tile={tile} />
+                        <LootItemTile
+                          key={`${tile.status}:${tile.itemId}:${tile.item}:${index}`}
+                          tile={tile}
+                          onDeathLinkCopy={handleDeathLinkCopy}
+                        />
                       ))}
                     </div>
                     {!localOnly ? <div className="loot-player-actions">
-                      <PlayerDeathLinks deathChecks={selectedBundle?.deathChecks} player={player.player} />
+                      <PlayerDeathStatus deathChecks={selectedBundle?.deathChecks} player={player.player} />
                       {canAddDeathId && player.keptQuantity > 0 ? (
                         deathIdEntryPlayer === player.player ? (
                           <form

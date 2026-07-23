@@ -465,6 +465,11 @@ describe('LootMonitor', () => {
   });
 
   it('adds a death ID and displays its accounted item and killboard link', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
         chestLogText: '',
@@ -499,13 +504,15 @@ describe('LootMonitor', () => {
       bundleId: 'bundle-18',
       deathId: '12345',
     })));
-    expect(await screen.findByRole('link', { name: 'Death' })).toHaveAttribute(
-      'href',
-      'https://albiononline.com/killboard/kill/12345?server=live_us',
-    );
     const accountedTile = container.querySelector('.loot-item-tile.accounted-tile');
     expect(accountedTile).toBeInTheDocument();
     fireEvent.click(accountedTile);
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(
+      'https://albiononline.com/killboard/kill/12345?server=live_us',
+    ));
+    expect(screen.getByText('Death link copied')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Death' })).not.toBeInTheDocument();
+    fireEvent.mouseEnter(accountedTile);
     expect(screen.getByRole('tooltip')).toHaveTextContent('Death ID: 12345');
   });
 
@@ -536,7 +543,8 @@ describe('LootMonitor', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Death ID for Windyyyzz' }), { target: { value: '12345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add ID' }));
 
-    expect(await screen.findByRole('link', { name: 'Death' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('No Death Found')).not.toBeInTheDocument());
+    expect(screen.queryByRole('link', { name: 'Death' })).not.toBeInTheDocument();
     expect(screen.queryByText('No Death Found')).not.toBeInTheDocument();
   });
 
@@ -910,6 +918,7 @@ describe('LootMonitor', () => {
     expect(within(instructionsDialog).getByText(/copy the numeric death ID/i)).toBeInTheDocument();
     expect(within(instructionsDialog).getByText(/compares the death inventory with the player's/i)).toBeInTheDocument();
     expect(within(instructionsDialog).getByText('No Death Found')).toBeInTheDocument();
+    expect(within(instructionsDialog).getByText(/select an Accounted item to copy/i)).toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('img')).not.toBeInTheDocument();
     fireEvent.click(within(instructionsDialog).getByRole('button', { name: 'Close upload instructions' }));
     expect(screen.queryByRole('dialog', { name: 'Upload Instructions' })).not.toBeInTheDocument();

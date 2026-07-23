@@ -3591,6 +3591,10 @@ button:focus-visible {
     inset 0 0 0 1px rgba(247, 250, 245, 0.22);
 }
 
+.loot-item-tile.accounted-tile {
+  cursor: copy;
+}
+
 .loot-item-tile img {
   display: block;
   width: 100%;
