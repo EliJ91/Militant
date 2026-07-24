@@ -1156,6 +1156,16 @@ async function clearLootLogDeathChecks(supabase: any, bundleId: string) {
   if (error) throw error;
 }
 
+function sortLootLogBundlesChronologically(bundles: any[]) {
+  return [...bundles].sort((left, right) => {
+    const startDifference = new Date(left?.start_at || 0).getTime() - new Date(right?.start_at || 0).getTime();
+    if (startDifference) return startDifference;
+    const endDifference = new Date(left?.end_at || 0).getTime() - new Date(right?.end_at || 0).getTime();
+    if (endDifference) return endDifference;
+    return String(left?.id || '').localeCompare(String(right?.id || ''));
+  });
+}
+
 async function mergeLootLogBundles(supabase: any, body: any) {
   const sourceIds = [...new Set((Array.isArray(body.bundleIds) ? body.bundleIds : [])
     .map((bundleId: unknown) => String(bundleId || '').trim())
@@ -1171,7 +1181,7 @@ async function mergeLootLogBundles(supabase: any, body: any) {
   if ((unorderedBundles || []).length !== sourceIds.length) throw new Error('One or more selected loot logs could not be found.');
 
   const byId = new Map((unorderedBundles || []).map((bundle: any) => [bundle.id, bundle]));
-  const sourceBundles = sourceIds.map((bundleId) => byId.get(bundleId));
+  const sourceBundles = sortLootLogBundlesChronologically(sourceIds.map((bundleId) => byId.get(bundleId)));
   const startAt = new Date(Math.min(...sourceBundles.map((bundle: any) => new Date(bundle.start_at).getTime()))).toISOString();
   const endAt = new Date(Math.max(...sourceBundles.map((bundle: any) => new Date(bundle.end_at).getTime()))).toISOString();
   const mergedAt = new Date().toISOString();
@@ -1191,7 +1201,7 @@ async function mergeLootLogBundles(supabase: any, body: any) {
     isMerged: true,
     mergedAt,
     mergedBy: normalizeSubmitterName(mergedBy),
-    mergedFromBundleIds: sourceIds,
+    mergedFromBundleIds: sourceBundles.map((bundle: any) => bundle.id),
   };
 
   const { data: targetBundle, error: targetError } = await supabase
@@ -1210,6 +1220,7 @@ async function mergeLootLogBundles(supabase: any, body: any) {
         supabase.from('loot_log_submissions')
           .select('id,submitted_by,event_start_at,event_end_at,raw_log_text,skipped_rows')
           .eq('bundle_id', sourceBundle.id)
+          .order('event_start_at')
           .order('created_at'),
         supabase.from('chest_log_submissions')
           .select('submitted_by,raw_log_text,parsed_chest_summary')
@@ -1282,8 +1293,15 @@ async function mergeLootLogBundles(supabase: any, body: any) {
       if (error) throw error;
     }
 
+    const persistedEvents = await fetchAllBundleEvents(supabase, targetBundle.id);
+    const persistedHashes = new Set(persistedEvents.map((event: any) => event.event_hash));
+    if (persistedEvents.length !== copiedEvents.length
+      || copiedEvents.some((event: any) => !persistedHashes.has(event.event_hash))) {
+      throw new Error('The merged loot log failed its event integrity check.');
+    }
+
     const summary = {
-      ...aggregateLootLogEvents(copiedEvents.map(dbEventToMergeEvent)),
+      ...aggregateLootLogEvents(persistedEvents.map(dbEventToMergeEvent)),
       ...mergeMetadata,
     };
     const { error: summaryError } = await supabase
@@ -1296,7 +1314,7 @@ async function mergeLootLogBundles(supabase: any, body: any) {
       bundleId: targetBundle.id,
       lootFileName: displayLootFileName,
       merged: true,
-      sourceBundleIds: sourceIds,
+      sourceBundleIds: sourceBundles.map((bundle: any) => bundle.id),
       summary,
     };
   } catch (error) {
@@ -1734,8 +1752,9 @@ Deno.serve(async (request) => {
         const [eventsResult, submissionsResult, chestResult, deathChecksResult, hiddenPlayers] = await Promise.all([
           fetchAllBundleEvents(supabase, bundleId),
           supabase.from('loot_log_submissions')
-            .select('id,submitted_by,raw_log_text,created_at')
+            .select('id,submitted_by,raw_log_text,event_start_at,created_at')
             .eq('bundle_id', bundleId)
+            .order('event_start_at')
             .order('created_at'),
           supabase.from('chest_log_submissions')
             .select('id,submitted_by,raw_log_text,parsed_chest_summary,created_at')

@@ -6,6 +6,7 @@ import {
   getBundleDisplayLootFileName,
   getBundleFileNames,
   normalizeDeathCheckRanges,
+  sortLootLogBundlesChronologically,
   validateDeathForPlayerAndBundle,
 } from './supabaseLootLogs.js';
 
@@ -104,6 +105,16 @@ describe('merged bundle death ranges', () => {
       { startAt: '2026-06-18T13:00:00.000Z', endAt: '2026-06-18T16:00:00.000Z' },
       { startAt: '2026-06-18T17:00:00.000Z', endAt: '2026-06-18T19:00:00.000Z' },
     ]);
+  });
+});
+
+describe('merged loot log ordering', () => {
+  it('orders selected loot logs by their actual event ranges before copying them', () => {
+    expect(sortLootLogBundlesChronologically([
+      { id: 'latest', start_at: '2026-07-24T04:00:00.000Z', end_at: '2026-07-24T05:00:00.000Z' },
+      { id: 'earliest', start_at: '2026-07-22T23:00:00.000Z', end_at: '2026-07-23T04:00:00.000Z' },
+      { id: 'middle', start_at: '2026-07-24T01:00:00.000Z', end_at: '2026-07-24T03:00:00.000Z' },
+    ]).map((bundle) => bundle.id)).toEqual(['earliest', 'middle', 'latest']);
   });
 });
 

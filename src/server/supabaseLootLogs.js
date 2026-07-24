@@ -1214,6 +1214,16 @@ export async function submitChestLog({ bundleId, chestLogText, overrideCurrent =
   };
 }
 
+export function sortLootLogBundlesChronologically(bundles = []) {
+  return [...bundles].sort((left, right) => {
+    const startDifference = new Date(left?.start_at || 0).getTime() - new Date(right?.start_at || 0).getTime();
+    if (startDifference) return startDifference;
+    const endDifference = new Date(left?.end_at || 0).getTime() - new Date(right?.end_at || 0).getTime();
+    if (endDifference) return endDifference;
+    return String(left?.id || '').localeCompare(String(right?.id || ''));
+  });
+}
+
 export async function mergeLootLogBundles({ bundleIds, username }) {
   const sourceIds = [...new Set((Array.isArray(bundleIds) ? bundleIds : [])
     .map((bundleId) => String(bundleId || '').trim())
@@ -1230,7 +1240,7 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
   if ((unorderedBundles || []).length !== sourceIds.length) throw new Error('One or more selected loot logs could not be found.');
 
   const byId = new Map(unorderedBundles.map((bundle) => [bundle.id, bundle]));
-  const sourceBundles = sourceIds.map((bundleId) => byId.get(bundleId));
+  const sourceBundles = sortLootLogBundlesChronologically(sourceIds.map((bundleId) => byId.get(bundleId)));
   const startAt = new Date(Math.min(...sourceBundles.map((bundle) => new Date(bundle.start_at).getTime()))).toISOString();
   const endAt = new Date(Math.max(...sourceBundles.map((bundle) => new Date(bundle.end_at).getTime()))).toISOString();
   const mergedAt = new Date().toISOString();
@@ -1250,7 +1260,7 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
     isMerged: true,
     mergedAt,
     mergedBy: normalizeSubmitterName(mergedBy),
-    mergedFromBundleIds: sourceIds,
+    mergedFromBundleIds: sourceBundles.map((bundle) => bundle.id),
   };
 
   const { data: targetBundle, error: targetError } = await supabase
@@ -1273,6 +1283,7 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
         supabase.from('loot_log_submissions')
           .select('id,submitted_by,event_start_at,event_end_at,raw_log_text,skipped_rows')
           .eq('bundle_id', sourceBundle.id)
+          .order('event_start_at')
           .order('created_at'),
         supabase.from('chest_log_submissions')
           .select('submitted_by,raw_log_text,parsed_chest_summary')
@@ -1345,8 +1356,15 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
       if (error) throw error;
     }
 
+    const persistedEvents = await fetchAllBundleEvents(supabase, targetBundle.id);
+    const persistedHashes = new Set(persistedEvents.map((event) => event.event_hash));
+    if (persistedEvents.length !== copiedEvents.length
+      || copiedEvents.some((event) => !persistedHashes.has(event.event_hash))) {
+      throw new Error('The merged loot log failed its event integrity check.');
+    }
+
     const summary = {
-      ...aggregateLootLogEvents(copiedEvents.map(dbEventToMergeEvent)),
+      ...aggregateLootLogEvents(persistedEvents.map(dbEventToMergeEvent)),
       ...mergeMetadata,
     };
     const { error: summaryError } = await supabase
@@ -1359,7 +1377,7 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
       bundleId: targetBundle.id,
       lootFileName: displayLootFileName,
       merged: true,
-      sourceBundleIds: sourceIds,
+      sourceBundleIds: sourceBundles.map((bundle) => bundle.id),
       summary,
     };
   } catch (error) {
@@ -1582,8 +1600,9 @@ export async function getLootLogBundle(bundleId) {
   const [eventsResult, lootSubmissionsResult, chestResult, deathChecksResult, hiddenPlayers] = await Promise.all([
     fetchAllBundleEvents(supabase, bundleId),
     supabase.from('loot_log_submissions')
-      .select('id,submitted_by,raw_log_text,created_at')
+      .select('id,submitted_by,raw_log_text,event_start_at,created_at')
       .eq('bundle_id', bundleId)
+      .order('event_start_at')
       .order('created_at'),
     supabase.from('chest_log_submissions')
       .select('id,submitted_by,raw_log_text,parsed_chest_summary,created_at')
