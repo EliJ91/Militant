@@ -3782,6 +3782,31 @@ button:focus-visible {
   color: #ff5262;
 }
 
+.loot-player-death-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  min-height: 16px;
+  margin-top: 5px;
+}
+
+.loot-player-death-links:empty {
+  display: none;
+}
+
+.loot-player-death-links a {
+  color: #ff5262;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.loot-player-death-links a:hover,
+.loot-player-death-links a:focus-visible {
+  color: #ff8791;
+}
+
 .loot-item-grid {
   display: flex;
   flex-wrap: wrap;

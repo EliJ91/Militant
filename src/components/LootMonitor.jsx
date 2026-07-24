@@ -648,6 +648,7 @@ export function applySoldierScreenshotView(element, permissions = {}) {
   if (!element) return;
 
   const canAddDeathId = Boolean(permissions.addDeathId);
+  const canViewDeaths = Boolean(permissions.viewDeaths);
   const canViewHiddenPlayers = Boolean(permissions.viewHiddenLootLogPlayers);
 
   if (!canViewHiddenPlayers) {
@@ -660,6 +661,10 @@ export function applySoldierScreenshotView(element, permissions = {}) {
 
   if (!canAddDeathId) {
     element.querySelectorAll('.death-id-entry, .death-id-button').forEach((control) => control.remove());
+  }
+
+  if (!canViewDeaths) {
+    element.querySelectorAll('.loot-player-death-links').forEach((links) => links.remove());
   }
 
   const playerList = element.querySelector('.loot-player-list');
@@ -1175,7 +1180,7 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
   );
 }
 
-function LootItemTile({ onDeathLinkCopy = () => {}, tile }) {
+function LootItemTile({ canViewDeaths = false, onDeathLinkCopy = () => {}, tile }) {
   const tooltipId = useId();
   const tileRef = useRef(null);
   const tooltipRef = useRef(null);
@@ -1193,7 +1198,7 @@ function LootItemTile({ onDeathLinkCopy = () => {}, tile }) {
   const statusLabel = TILE_STATUS_LABELS[tile.status] || tile.status;
   const label = `${tile.player} ${statusLabel} ${tile.quantity} ${tile.item}`;
   const itemDetail = tile.itemId ? `${tile.item} (${tile.itemId})` : `${tile.item} (missing item id)`;
-  const deathEvents = tile.status === 'accounted'
+  const deathEvents = canViewDeaths && tile.status === 'accounted'
     ? (Array.isArray(tile.deathEvents) && tile.deathEvents.length > 0
       ? tile.deathEvents
       : (tile.deathEventId ? [{ deathEventId: tile.deathEventId }] : []))
@@ -2881,6 +2886,7 @@ export function LootLogArchive({
 export default function LootMonitor({
   bundleId = '',
   canAddDeathId = false,
+  canViewDeaths = false,
   canViewHiddenPlayers = false,
   screenshotPermissions = {},
   localOnly = false,
@@ -3054,6 +3060,28 @@ export default function LootMonitor({
   const visiblePlayersWithEmv = useMemo(() => (
     addPlayerEmv(visiblePlayers, marketPrices)
   ), [marketPrices, visiblePlayers]);
+  const deathLinksByPlayer = useMemo(() => {
+    const linksByPlayer = new Map();
+    (selectedBundle?.deathChecks || []).forEach((deathCheck) => {
+      if (deathCheck?.status !== 'found') return;
+      const playerKey = String(deathCheck.playerName || deathCheck.player || '').trim().toLowerCase();
+      const eventId = String(deathCheck.eventId || '').trim();
+      if (!playerKey || !eventId) return;
+
+      const playerLinks = linksByPlayer.get(playerKey) || new Map();
+      if (!playerLinks.has(eventId)) {
+        playerLinks.set(eventId, {
+          eventId,
+          url: deathCheck.deathUrl || buildDeathLinkUrl(eventId),
+        });
+      }
+      linksByPlayer.set(playerKey, playerLinks);
+    });
+    return new Map([...linksByPlayer.entries()].map(([playerKey, links]) => [
+      playerKey,
+      [...links.values()],
+    ]));
+  }, [selectedBundle?.deathChecks]);
   const visibleKeptItemIds = useMemo(() => (
     localOnly ? [] : [...new Set(visiblePlayers.flatMap((player) => (
       player.tiles
@@ -3606,10 +3634,27 @@ export default function LootMonitor({
                       <small>
                         [{formatAllianceList(player.alliance)}] {formatGuildList(player.guild)}
                       </small>
+                      {!localOnly && canViewDeaths ? (
+                        <span className="loot-player-death-links">
+                          {(deathLinksByPlayer.get(String(player.player || '').trim().toLowerCase()) || [])
+                            .map((death, index) => (
+                              <a
+                                href={death.url}
+                                key={death.eventId}
+                                rel="noreferrer"
+                                target="_blank"
+                                title={`Death ID ${death.eventId}`}
+                              >
+                                Death {index + 1}
+                              </a>
+                            ))}
+                        </span>
+                      ) : null}
                     </aside>
                     <div className="loot-item-grid" aria-label={`${player.player} item icons`}>
                       {player.tiles.map((tile, index) => (
                         <LootItemTile
+                          canViewDeaths={canViewDeaths}
                           key={`${tile.status}:${tile.itemId}:${tile.item}:${index}`}
                           tile={tile}
                           onDeathLinkCopy={handleDeathLinkCopy}

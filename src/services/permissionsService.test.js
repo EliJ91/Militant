@@ -23,6 +23,11 @@ describe('permissions service', () => {
     expect(WEBAPP_PERMISSION_DEFINITIONS.some(({ key }) => key === 'searchDeaths')).toBe(false);
     expect(WEBAPP_PERMISSION_DEFINITIONS).toContainEqual({
       area: 'Loot Logs',
+      key: 'viewDeaths',
+      label: 'View Deaths',
+    });
+    expect(WEBAPP_PERMISSION_DEFINITIONS).toContainEqual({
+      area: 'Loot Logs',
       key: 'viewHiddenLootLogPlayers',
       label: 'View Hidden Players (Loot Log)',
     });

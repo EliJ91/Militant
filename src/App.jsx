@@ -593,6 +593,7 @@ function DashboardPage({
 function LootMonitorPage({
   bundleId,
   canAddDeathId = false,
+  canViewDeaths = false,
   canViewHiddenPlayers = false,
   currentUser = null,
   isSuperUserProfile = false,
@@ -621,6 +622,7 @@ function LootMonitorPage({
       <LootMonitor
         bundleId={bundleId}
         canAddDeathId={canAddDeathId}
+        canViewDeaths={canViewDeaths}
         canViewHiddenPlayers={canViewHiddenPlayers}
         onViewLogs={() => navigateTo('#loot-logs')}
         screenshotPermissions={screenshotPermissions}
@@ -633,6 +635,7 @@ function LootMonitorPage({
 function SharedLootMonitorPage({
   bundleId,
   canAddDeathId = false,
+  canViewDeaths = false,
   canViewHiddenPlayers = false,
   currentUser = null,
   screenshotPermissions = {},
@@ -641,6 +644,7 @@ function SharedLootMonitorPage({
     <LootMonitor
       bundleId={bundleId}
       canAddDeathId={canAddDeathId}
+      canViewDeaths={canViewDeaths}
       canViewHiddenPlayers={canViewHiddenPlayers}
       screenshotPermissions={screenshotPermissions}
       showShare={false}
@@ -1100,6 +1104,7 @@ export default function App() {
       <SharedLootMonitorPage
         bundleId={selectedBundleId}
         canAddDeathId={Boolean(effectivePermissions.addDeathId)}
+        canViewDeaths={Boolean(effectivePermissions.viewDeaths)}
         canViewHiddenPlayers={Boolean(effectivePermissions.viewHiddenLootLogPlayers)}
         currentUser={currentUser}
         screenshotPermissions={soldierPermissions}
@@ -1188,6 +1193,7 @@ export default function App() {
       <LootMonitorPage
         bundleId={selectedBundleId}
         canAddDeathId={Boolean(effectivePermissions.addDeathId)}
+        canViewDeaths={Boolean(effectivePermissions.viewDeaths)}
         canViewHiddenPlayers={Boolean(effectivePermissions.viewHiddenLootLogPlayers)}
         currentUser={currentUser}
         onSignOut={handleSignOut}

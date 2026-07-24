@@ -130,13 +130,14 @@ describe('LootMonitor', () => {
     const board = document.createElement('section');
     board.innerHTML = `
       <div class="loot-player-list">
-        <article class="loot-player-row has-visibility-control"><button class="loot-player-visibility-button">Hide</button><button class="death-id-button">Add Death ID</button></article>
+        <article class="loot-player-row has-visibility-control"><button class="loot-player-visibility-button">Hide</button><button class="death-id-button">Add Death ID</button><span class="loot-player-death-links"><a href="#death">Death 1</a></span></article>
         <article class="loot-player-row has-visibility-control hidden-player-row"><button class="loot-player-visibility-button">Unhide</button></article>
       </div>
     `;
 
     applySoldierScreenshotView(board, {
       addDeathId: false,
+      viewDeaths: false,
       viewHiddenLootLogPlayers: false,
     });
 
@@ -144,6 +145,7 @@ describe('LootMonitor', () => {
     expect(board.querySelector('.hidden-player-row')).not.toBeInTheDocument();
     expect(board.querySelector('.loot-player-visibility-button')).not.toBeInTheDocument();
     expect(board.querySelector('.death-id-button')).not.toBeInTheDocument();
+    expect(board.querySelector('.loot-player-death-links')).not.toBeInTheDocument();
     expect(board.querySelector('.has-visibility-control')).not.toBeInTheDocument();
   });
 
@@ -490,7 +492,7 @@ describe('LootMonitor', () => {
     });
 
     const { container } = render(
-      <LootMonitor bundleId="bundle-18" canAddDeathId uploadUsername="Onslawht" />,
+      <LootMonitor bundleId="bundle-18" canAddDeathId canViewDeaths uploadUsername="Onslawht" />,
     );
     await screen.findByText('Windyyyzz');
     fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
@@ -515,7 +517,7 @@ describe('LootMonitor', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('Death ID: 12345');
   });
 
-  it('does not render standalone death text before or after a death ID is added', async () => {
+  it('shows numbered death links only with View Deaths permission', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
         chestLogText: '',
@@ -535,14 +537,19 @@ describe('LootMonitor', () => {
       },
     });
 
-    render(<LootMonitor bundleId="bundle-18" canAddDeathId uploadUsername="Onslawht" />);
+    const { rerender } = render(<LootMonitor bundleId="bundle-18" canAddDeathId uploadUsername="Onslawht" />);
     await screen.findByText('Windyyyzz');
-    expect(screen.queryByText('No Death Found')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add Death ID' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Death ID for Windyyyzz' }), { target: { value: '12345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add ID' }));
 
-    expect(screen.queryByRole('link', { name: 'Death' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Death 1' })).not.toBeInTheDocument();
+
+    rerender(<LootMonitor bundleId="bundle-18" canAddDeathId canViewDeaths uploadUsername="Onslawht" />);
+    expect(await screen.findByRole('link', { name: 'Death 1' })).toHaveAttribute(
+      'href',
+      'https://albiononline.com/killboard/kill/12345?server=live_us',
+    );
   });
 
   it('closes the death ID entry and clears its message when submitted empty', async () => {

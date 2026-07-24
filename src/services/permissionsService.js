@@ -17,6 +17,7 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'overrideLootLog', label: 'Override Loot Log', area: 'Loot Logs' },
   { key: 'overrideChestLog', label: 'Override Chest Log', area: 'Loot Logs' },
   { key: 'deleteChestLootLogs', label: 'Delete Chest/Loot Logs', area: 'Loot Logs' },
+  { key: 'viewDeaths', label: 'View Deaths', area: 'Loot Logs' },
   { key: 'addDeathId', label: 'Add Death ID', area: 'Loot Logs' },
   { key: 'viewHiddenLootLogPlayers', label: 'View Hidden Players (Loot Log)', area: 'Loot Logs' },
   { key: 'viewLootLogViewer', label: 'View Loot Log Viewer', area: 'Loot Log Viewer' },
