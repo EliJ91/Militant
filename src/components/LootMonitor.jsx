@@ -2270,9 +2270,18 @@ function LootLogBundleList({
                               <span>{deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}</span>
                             </button>
                           ) : null}
-                          <button className="saved-log-view-button" title="View log" type="button" onClick={() => onView(bundle.id)}>
+                          <a
+                            className="saved-log-view-button"
+                            href={`#loot-monitor/${encodeURIComponent(bundle.id)}`}
+                            title="View log"
+                            onClick={(event) => {
+                              if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                              event.preventDefault();
+                              onView(bundle.id);
+                            }}
+                          >
                             <span>View</span>
-                          </button>
+                          </a>
                         </>
                       )}
                     </div>
@@ -3179,13 +3188,6 @@ export default function LootMonitor({
     showPlayerContextMenu(player, bounds.left, bounds.bottom + 6);
   }
 
-  function openPlayerLedger(player) {
-    const playerName = String(player || '').trim();
-    if (!playerName) return;
-    window.open(buildPlayerLedgerUrl(playerName), '_blank', 'noopener,noreferrer');
-    setPlayerContextMenu(null);
-  }
-
   async function addDeathId(player) {
     if (!selectedBundle?.id || deathIdStatus.state === 'loading') return;
     const rawDeathId = String(deathIdInput || '').trim();
@@ -3444,7 +3446,16 @@ export default function LootMonitor({
             <div className="raw-log-modal-heading">
               <h2>Raw Logs</h2>
               <div className="raw-log-modal-actions">
-                <button className="raw-log-modal-close" type="button" onClick={openRawLogsInNewWindow}>
+                <button
+                  className="raw-log-modal-close"
+                  type="button"
+                  onAuxClick={(event) => {
+                    if (event.button !== 1) return;
+                    event.preventDefault();
+                    openRawLogsInNewWindow();
+                  }}
+                  onClick={openRawLogsInNewWindow}
+                >
                   Open New Tab
                 </button>
                 <button className="raw-log-modal-close" type="button" onClick={() => setRawModalOpen(false)}>
@@ -3658,10 +3669,16 @@ export default function LootMonitor({
           role="menu"
           style={{ left: playerContextMenu.left, top: playerContextMenu.top }}
         >
-          <button type="button" role="menuitem" onClick={() => openPlayerLedger(playerContextMenu.player)}>
+          <a
+            href={buildPlayerLedgerUrl(playerContextMenu.player)}
+            rel="noreferrer"
+            role="menuitem"
+            target="_blank"
+            onClick={() => setPlayerContextMenu(null)}
+          >
             <ExternalLink aria-hidden="true" size={16} />
             Check Recent Deaths
-          </button>
+          </a>
         </div>,
         document.body,
       ) : null}

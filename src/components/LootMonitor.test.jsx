@@ -414,19 +414,17 @@ describe('LootMonitor', () => {
         hasChestLog: false,
       }),
     });
-    const openWindow = vi.spyOn(window, 'open').mockImplementation(() => null);
-
     render(<LootMonitor bundleId="bundle-18" />);
 
     const playerName = await screen.findByRole('button', { name: /Windyyyzz/ });
     fireEvent.click(playerName);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Check Recent Deaths' }));
-
-    expect(openWindow).toHaveBeenCalledWith(
+    const recentDeathsLink = screen.getByRole('menuitem', { name: 'Check Recent Deaths' });
+    expect(recentDeathsLink).toHaveAttribute(
+      'href',
       'https://murderledger.albiononline2d.com/players/Windyyyzz/ledger?show_kills=0&show_assists=0',
-      '_blank',
-      'noopener,noreferrer',
     );
+    expect(recentDeathsLink).toHaveAttribute('target', '_blank');
+    fireEvent.click(recentDeathsLink);
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
@@ -729,7 +727,8 @@ describe('LootMonitor', () => {
     expect(lootMatches[0]).not.toHaveClass('active-match');
     expect(lootMatches[1]).toHaveClass('active-match');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open New Tab' }));
+    const openNewTabButton = screen.getByRole('button', { name: 'Open New Tab' });
+    fireEvent.click(openNewTabButton);
 
     expect(openSpy).toHaveBeenCalledWith('', '_blank');
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('raw-log-body'));
@@ -741,6 +740,10 @@ describe('LootMonitor', () => {
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Chest Log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Windyyyzz'));
     expect(rawWindow.document.close).toHaveBeenCalled();
+
+    openSpy.mockClear();
+    openNewTabButton.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, button: 1 }));
+    expect(openSpy).toHaveBeenCalledWith('', '_blank');
   });
 
   it('keeps the Kept status filter accessible when no chest log is loaded', async () => {
@@ -894,10 +897,12 @@ describe('LootMonitor', () => {
     expect(screen.queryByText('0 kept')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /(?:add|upload) chest log/i })).toBeInTheDocument();
-    expect([...container.querySelector('.saved-log-actions').querySelectorAll('button')]
+    const viewLink = screen.getByRole('link', { name: 'View' });
+    expect(viewLink).toHaveAttribute('href', '#loot-monitor/bundle-18');
+    expect([...container.querySelector('.saved-log-actions').querySelectorAll('button, a')]
       .map((button) => button.textContent)).toEqual(['Edit', 'Download', 'Delete', 'View']);
 
-    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    fireEvent.click(viewLink);
     expect(onView).toHaveBeenCalledWith('bundle-18');
 
     fireEvent.click(screen.getByRole('button', { name: 'Open upload instructions' }));
@@ -1200,7 +1205,7 @@ describe('LootMonitor', () => {
   it('hides both delete actions without delete permission', async () => {
     render(<LootLogArchive canDeleteLogs={false} />);
 
-    await screen.findByRole('button', { name: 'View' });
+    await screen.findByRole('link', { name: 'View' });
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete Chest Log' })).not.toBeInTheDocument();
   });

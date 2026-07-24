@@ -61,6 +61,13 @@ function navigateTo(hash) {
   window.dispatchEvent(new Event('militant-route-change'));
 }
 
+function handleInternalLinkClick(event, hash, onNavigate = null) {
+  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  if (onNavigate) onNavigate();
+  else navigateTo(hash);
+}
+
 function BrandLockup({ compact = false }) {
   return (
     <div className={compact ? 'brand-lockup brand-lockup-compact' : 'brand-lockup'}>
@@ -556,7 +563,13 @@ function DashboardPage({
                   {group.tools.map((tool) => {
                     const ToolIcon = tool.icon;
                     return (
-                      <button className="tool-card tool-card-button" key={tool.title} title={tool.title} type="button" onClick={() => navigateTo(tool.to)}>
+                      <a
+                        className="tool-card tool-card-button"
+                        href={tool.to}
+                        key={tool.title}
+                        title={tool.title}
+                        onClick={(event) => handleInternalLinkClick(event, tool.to)}
+                      >
                         <span className={tool.image ? 'tool-card-icon image' : 'tool-card-icon'} aria-hidden="true">
                           {tool.image ? <img src={tool.image} alt="" /> : <ToolIcon size={28} strokeWidth={1.8} />}
                         </span>
@@ -564,7 +577,7 @@ function DashboardPage({
                           <h3>{tool.title}</h3>
                           <p>{tool.description}</p>
                         </span>
-                      </button>
+                      </a>
                     );
                   })}
                 </div>

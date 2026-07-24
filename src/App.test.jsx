@@ -100,7 +100,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.128');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.129');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -109,7 +109,9 @@ describe('App', () => {
     expect(container.querySelectorAll('.topbar .navigation-button')).toHaveLength(0);
     expect(screen.queryByRole('button', { name: 'Toggle navigation menu' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /view loot logs/i }));
+    const lootLogsLink = screen.getByRole('link', { name: /view loot logs/i });
+    expect(lootLogsLink).toHaveAttribute('href', '#loot-logs');
+    fireEvent.click(lootLogsLink);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Loot Logs' })).toBeInTheDocument();
     expect(window.location.hash).toBe('#loot-logs');
@@ -141,7 +143,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /player loot history/i }));
+    fireEvent.click(screen.getByRole('link', { name: /player loot history/i }));
 
     expect(window.location.hash).toBe('#player-loot-history');
     expect(screen.getByRole('heading', { level: 1, name: 'Player Loot History' })).toBeInTheDocument();
@@ -153,7 +155,7 @@ describe('App', () => {
     const { container } = render(<App />);
 
     expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /siphoned energy tracker/i }));
+    fireEvent.click(screen.getByRole('link', { name: /siphoned energy tracker/i }));
 
     expect(window.location.hash).toBe('#siphoned-energy');
     expect(screen.getByRole('heading', { level: 1, name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
@@ -167,7 +169,7 @@ describe('App', () => {
     const { container } = render(<App />);
 
     expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^members/i }));
+    fireEvent.click(screen.getByRole('link', { name: /^members/i }));
 
     expect(window.location.hash).toBe('#members');
     expect(screen.getByRole('heading', { level: 1, name: 'Members' })).toBeInTheDocument();
@@ -242,7 +244,7 @@ describe('App', () => {
     const { container } = render(<App />);
 
     expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /permissions/i }));
+    fireEvent.click(screen.getByRole('link', { name: /permissions/i }));
 
     expect(window.location.hash).toBe('#permissions');
     expect(screen.getByRole('heading', { level: 1, name: 'Permissions' })).toBeInTheDocument();

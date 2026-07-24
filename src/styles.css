@@ -939,7 +939,9 @@ button:focus-visible {
 }
 
 .tool-card-button {
+  color: inherit;
   cursor: pointer;
+  text-decoration: none;
   transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
@@ -3061,6 +3063,10 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+.saved-log-view-button {
+  text-decoration: none;
+}
+
 .saved-log-title-upload {
   position: relative;
   display: inline-flex;
@@ -3994,7 +4000,8 @@ button:focus-visible {
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
 }
 
-.player-context-menu button {
+.player-context-menu button,
+.player-context-menu a {
   display: flex;
   align-items: center;
   width: 100%;
@@ -4008,10 +4015,13 @@ button:focus-visible {
   font-weight: 900;
   text-align: left;
   text-transform: uppercase;
+  text-decoration: none;
 }
 
 .player-context-menu button:hover,
-.player-context-menu button:focus-visible {
+.player-context-menu button:focus-visible,
+.player-context-menu a:hover,
+.player-context-menu a:focus-visible {
   background: rgba(69, 220, 111, 0.14);
   color: var(--green-hot);
 }
