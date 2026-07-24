@@ -322,6 +322,7 @@ function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
         if (marks.length === 0) return;
         activeIndex = ((nextIndex % marks.length) + marks.length) % marks.length;
         marks.forEach((mark, index) => mark.classList.toggle('active-match', index === activeIndex));
+        counter.textContent = (activeIndex + 1) + '/' + marks.length;
         marks[activeIndex].scrollIntoView({ block: 'center', inline: 'nearest' });
       };
       const updateSearch = () => {
@@ -338,9 +339,9 @@ function buildRawLogWindowHtml({ chestLogText, lootFileName, lootLogText }) {
           count += 1;
           return '<mark>' + escapeHtml(match) + '</mark>';
         });
-        counter.textContent = count + (count === 1 ? ' match' : ' matches');
         buttons.forEach((button) => { button.disabled = count === 0; });
         if (count > 0) setActiveMatch(0);
+        else counter.textContent = '0 matches';
       };
       input.addEventListener('input', updateSearch);
       buttons.forEach((button) => {
@@ -939,7 +940,7 @@ function RawLogViewerSection({ label, placeholder, text }) {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
-        <span>{formatNumber(matches)} {matches === 1 ? 'match' : 'matches'}</span>
+        <span>{matches > 0 ? `${formatNumber(activeMatchIndex + 1)}/${formatNumber(matches)}` : '0 matches'}</span>
         <button
           aria-label={`Previous ${searchLabel} match`}
           disabled={matches === 0}

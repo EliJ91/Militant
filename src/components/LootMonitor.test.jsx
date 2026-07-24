@@ -719,8 +719,8 @@ describe('LootMonitor', () => {
     const chestSearch = screen.getByRole('searchbox', { name: 'Search chest log' });
     fireEvent.change(lootSearch, { target: { value: 'Enemy' } });
     fireEvent.change(chestSearch, { target: { value: '06/18' } });
-    expect(within(lootSearch.closest('section')).getByText('2 matches')).toBeInTheDocument();
-    expect(within(chestSearch.closest('section')).getByText('1 match')).toBeInTheDocument();
+    expect(within(lootSearch.closest('section')).getByText('1/2')).toBeInTheDocument();
+    expect(within(chestSearch.closest('section')).getByText('1/1')).toBeInTheDocument();
     expect(lootSearch.closest('section').querySelectorAll('mark')).toHaveLength(2);
     expect(chestSearch.closest('section').querySelectorAll('mark')).toHaveLength(1);
     expect(lootSearch.closest('section').querySelectorAll('mark.active-match')).toHaveLength(1);
@@ -730,6 +730,7 @@ describe('LootMonitor', () => {
     expect(previousLootMatch).toBeEnabled();
     expect(nextLootMatch).toBeEnabled();
     fireEvent.click(nextLootMatch);
+    expect(within(lootSearch.closest('section')).getByText('2/2')).toBeInTheDocument();
     const lootMatches = lootSearch.closest('section').querySelectorAll('mark');
     expect(lootMatches[0]).not.toHaveClass('active-match');
     expect(lootMatches[1]).toHaveClass('active-match');
@@ -743,6 +744,7 @@ describe('LootMonitor', () => {
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Search chest log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Previous loot log match'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Next chest log match'));
+    expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining("counter.textContent = (activeIndex + 1) + '/' + marks.length"));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Loot Log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Chest Log'));
     expect(rawWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('Windyyyzz'));
