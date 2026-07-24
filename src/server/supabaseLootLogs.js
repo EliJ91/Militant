@@ -1224,6 +1224,57 @@ export function sortLootLogBundlesChronologically(bundles = []) {
   });
 }
 
+export function mergeLootLogDeathChecks(deathChecks = []) {
+  const foundByEventId = new Map();
+  const notFoundByPlayer = new Map();
+
+  deathChecks.forEach((deathCheck) => {
+    const eventId = String(deathCheck?.event_id || '').trim();
+    const playerKey = normalizeDeathKey(deathCheck?.player_key || deathCheck?.player_name);
+    if (!playerKey) return;
+
+    if (!eventId) {
+      if (deathCheck?.status !== 'not_found') return;
+      const current = notFoundByPlayer.get(playerKey);
+      if (!current || new Date(deathCheck.checked_at || 0) > new Date(current.checked_at || 0)) {
+        notFoundByPlayer.set(playerKey, deathCheck);
+      }
+      return;
+    }
+
+    const current = foundByEventId.get(eventId);
+    const matchedItems = new Map();
+    [...(current?.matched_items || []), ...(deathCheck.matched_items || [])].forEach((item) => {
+      const itemId = String(item?.itemId || '').trim();
+      const quantity = Math.max(0, Number(item?.quantity) || 0);
+      if (!itemId || quantity <= 0) return;
+      matchedItems.set(itemId, {
+        itemId,
+        quantity: Math.max(quantity, matchedItems.get(itemId)?.quantity || 0),
+      });
+    });
+
+    const latest = !current || new Date(deathCheck.checked_at || 0) >= new Date(current.checked_at || 0)
+      ? deathCheck
+      : current;
+    foundByEventId.set(eventId, {
+      ...latest,
+      event_id: eventId,
+      matched_items: [...matchedItems.values()],
+      player_key: playerKey,
+      status: 'found',
+    });
+  });
+
+  const playersWithDeaths = new Set([...foundByEventId.values()].map((row) => row.player_key));
+  return [
+    ...foundByEventId.values(),
+    ...[...notFoundByPlayer.entries()]
+      .filter(([playerKey]) => !playersWithDeaths.has(playerKey))
+      .map(([, row]) => row),
+  ];
+}
+
 export async function mergeLootLogBundles({ bundleIds, username }) {
   const sourceIds = [...new Set((Array.isArray(bundleIds) ? bundleIds : [])
     .map((bundleId) => String(bundleId || '').trim())
@@ -1277,9 +1328,10 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
   try {
     const copiedEventsByHash = new Map();
     const chestRows = [];
+    const deathCheckRows = [];
 
     for (const sourceBundle of sourceBundles) {
-      const [submissionsResult, chestResult, sourceEvents] = await Promise.all([
+      const [submissionsResult, chestResult, deathChecksResult, sourceEvents] = await Promise.all([
         supabase.from('loot_log_submissions')
           .select('id,submitted_by,event_start_at,event_end_at,raw_log_text,skipped_rows')
           .eq('bundle_id', sourceBundle.id)
@@ -1289,10 +1341,15 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
           .select('submitted_by,raw_log_text,parsed_chest_summary')
           .eq('bundle_id', sourceBundle.id)
           .order('created_at'),
+        supabase.from('loot_log_death_checks')
+          .select('player_name,player_key,player_id,status,event_id,death_url,death_at,matched_items,checked_at,updated_at')
+          .eq('bundle_id', sourceBundle.id)
+          .order('checked_at'),
         fetchAllBundleEvents(supabase, sourceBundle.id),
       ]);
       if (submissionsResult.error) throw submissionsResult.error;
       if (chestResult.error) throw chestResult.error;
+      if (deathChecksResult.error) throw deathChecksResult.error;
 
       const submissionIds = new Map();
       for (const submission of submissionsResult.data || []) {
@@ -1344,9 +1401,23 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
         raw_log_text: submission.raw_log_text,
         submitted_by: submission.submitted_by,
       }));
+      deathCheckRows.push(...(deathChecksResult.data || []));
     }
 
     const copiedEvents = [...copiedEventsByHash.values()].filter((event) => event.submission_id);
+    const copiedDeathChecks = mergeLootLogDeathChecks(deathCheckRows).map((deathCheck) => ({
+      bundle_id: targetBundle.id,
+      checked_at: deathCheck.checked_at,
+      death_at: deathCheck.death_at,
+      death_url: deathCheck.death_url || deathEventUrl(deathCheck.event_id),
+      event_id: deathCheck.event_id || '',
+      matched_items: deathCheck.matched_items || [],
+      player_id: deathCheck.player_id || '',
+      player_key: deathCheck.player_key,
+      player_name: deathCheck.player_name,
+      status: deathCheck.status,
+      updated_at: deathCheck.updated_at || deathCheck.checked_at,
+    }));
     for (const eventBatch of chunkArray(copiedEvents, INSERT_BATCH_SIZE)) {
       const { error } = await supabase.from('loot_log_events').insert(eventBatch);
       if (error) throw error;
@@ -1355,12 +1426,31 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
       const { error } = await supabase.from('chest_log_submissions').insert(chestBatch);
       if (error) throw error;
     }
+    for (const deathCheckBatch of chunkArray(copiedDeathChecks, INSERT_BATCH_SIZE)) {
+      const { error } = await supabase.from('loot_log_death_checks').insert(deathCheckBatch);
+      if (error) throw error;
+    }
 
-    const persistedEvents = await fetchAllBundleEvents(supabase, targetBundle.id);
+    const [persistedEvents, persistedDeathChecksResult] = await Promise.all([
+      fetchAllBundleEvents(supabase, targetBundle.id),
+      supabase.from('loot_log_death_checks')
+        .select('event_id,player_key')
+        .eq('bundle_id', targetBundle.id),
+    ]);
+    if (persistedDeathChecksResult.error) throw persistedDeathChecksResult.error;
     const persistedHashes = new Set(persistedEvents.map((event) => event.event_hash));
     if (persistedEvents.length !== copiedEvents.length
       || copiedEvents.some((event) => !persistedHashes.has(event.event_hash))) {
       throw new Error('The merged loot log failed its event integrity check.');
+    }
+    const persistedDeathKeys = new Set((persistedDeathChecksResult.data || []).map((deathCheck) => (
+      deathCheck.event_id || `not-found:${deathCheck.player_key}`
+    )));
+    if (persistedDeathKeys.size !== copiedDeathChecks.length
+      || copiedDeathChecks.some((deathCheck) => !persistedDeathKeys.has(
+        deathCheck.event_id || `not-found:${deathCheck.player_key}`,
+      ))) {
+      throw new Error('The merged loot log failed its death marking integrity check.');
     }
 
     const summary = {

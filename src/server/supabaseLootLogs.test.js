@@ -5,6 +5,7 @@ import {
   getBundleDisplayChestFileName,
   getBundleDisplayLootFileName,
   getBundleFileNames,
+  mergeLootLogDeathChecks,
   normalizeDeathCheckRanges,
   sortLootLogBundlesChronologically,
   validateDeathForPlayerAndBundle,
@@ -115,6 +116,63 @@ describe('merged loot log ordering', () => {
       { id: 'earliest', start_at: '2026-07-22T23:00:00.000Z', end_at: '2026-07-23T04:00:00.000Z' },
       { id: 'middle', start_at: '2026-07-24T01:00:00.000Z', end_at: '2026-07-24T03:00:00.000Z' },
     ]).map((bundle) => bundle.id)).toEqual(['earliest', 'middle', 'latest']);
+  });
+});
+
+describe('merged loot log death markings', () => {
+  it('keeps each death ID unique while retaining its accounted item markings', () => {
+    expect(mergeLootLogDeathChecks([
+      {
+        checked_at: '2026-07-23T04:00:00.000Z',
+        event_id: '123456',
+        matched_items: [{ itemId: 'T6_MAIN_SWORD', quantity: 1 }],
+        player_key: 'playerone',
+        player_name: 'PlayerOne',
+        status: 'found',
+      },
+      {
+        checked_at: '2026-07-23T05:00:00.000Z',
+        event_id: '123456',
+        matched_items: [
+          { itemId: 'T6_MAIN_SWORD', quantity: 1 },
+          { itemId: 'T7_HEAD_PLATE_SET1', quantity: 2 },
+        ],
+        player_key: 'playerone',
+        player_name: 'PlayerOne',
+        status: 'found',
+      },
+    ])).toEqual([
+      expect.objectContaining({
+        event_id: '123456',
+        matched_items: [
+          { itemId: 'T6_MAIN_SWORD', quantity: 1 },
+          { itemId: 'T7_HEAD_PLATE_SET1', quantity: 2 },
+        ],
+        player_key: 'playerone',
+        status: 'found',
+      }),
+    ]);
+  });
+
+  it('does not copy a no-death marker when that player has an accounted death', () => {
+    expect(mergeLootLogDeathChecks([
+      {
+        checked_at: '2026-07-23T03:00:00.000Z',
+        event_id: '',
+        matched_items: [],
+        player_key: 'playerone',
+        player_name: 'PlayerOne',
+        status: 'not_found',
+      },
+      {
+        checked_at: '2026-07-23T05:00:00.000Z',
+        event_id: '123456',
+        matched_items: [{ itemId: 'T6_MAIN_SWORD', quantity: 1 }],
+        player_key: 'playerone',
+        player_name: 'PlayerOne',
+        status: 'found',
+      },
+    ])).toHaveLength(1);
   });
 });
 
