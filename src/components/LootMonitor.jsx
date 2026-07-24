@@ -758,6 +758,11 @@ function formatMissingPriceItem(tile) {
   return `${getItemTierLabel(tile)} | ${tile.item || 'Unknown item'} | Enchantment ${tile.enchantment || 0}`;
 }
 
+function isPlayerEligibleForEmv(player) {
+  const guilds = splitAffiliations(player?.guild);
+  return guilds.length === 0 || guilds.some((guild) => guild.toLowerCase() === 'militant');
+}
+
 function calculatePlayerEmv(player, marketPrices) {
   const missingByItem = new Map();
   let pendingCount = 0;
@@ -798,7 +803,7 @@ function calculatePlayerEmv(player, marketPrices) {
 function addPlayerEmv(players, marketPrices) {
   return players.map((player) => ({
     ...player,
-    emv: calculatePlayerEmv(player, marketPrices),
+    emv: isPlayerEligibleForEmv(player) ? calculatePlayerEmv(player, marketPrices) : null,
   }));
 }
 
@@ -1421,6 +1426,8 @@ function LootItemTile({ canViewDeaths = false, onDeathLinkCopy = () => {}, tile 
 }
 
 function PlayerEmv({ emv }) {
+  if (!emv) return null;
+
   const hasMissingPrices = emv.missingItems.length > 0;
   const title = hasMissingPrices
     ? `Missing price data:\n${emv.missingItems.join('\n')}`
@@ -3084,10 +3091,11 @@ export default function LootMonitor({
   }, [selectedBundle?.deathChecks]);
   const visibleKeptItemIds = useMemo(() => (
     localOnly ? [] : [...new Set(visiblePlayers.flatMap((player) => (
-      player.tiles
+      isPlayerEligibleForEmv(player) ? player.tiles
         .filter((tile) => tile.status === 'kept')
         .map((tile) => tile.itemId)
         .filter(Boolean)
+        : []
     )))]
   ), [localOnly, visiblePlayers]);
   const unfetchedKeptItemIds = useMemo(() => (

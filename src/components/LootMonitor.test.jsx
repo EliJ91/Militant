@@ -780,6 +780,27 @@ describe('LootMonitor', () => {
     expect(statusLabel.nextElementSibling.querySelector('summary')).toHaveTextContent('All');
   });
 
+  it('only loads and displays EMV for Militant or guildless players', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        events: [
+          { ...storedEvents[0], guild: 'Enemy Guild', player: 'EnemyPlayer' },
+          { ...storedEvents[0], guild: '', player: 'GuildlessPlayer' },
+        ],
+        hasChestLog: false,
+      }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    expect(await screen.findByText(/EnemyPlayer/)).toBeInTheDocument();
+    expect(await screen.findByText(/GuildlessPlayer/)).toBeInTheDocument();
+    expect(await screen.findByText('EMV $230')).toBeInTheDocument();
+    expect(screen.getByText(/EnemyPlayer/).closest('.loot-player-row')).not.toHaveTextContent('EMV');
+    expect(screen.getByText(/GuildlessPlayer/).closest('.loot-player-row')).toHaveTextContent('EMV $230');
+  });
+
   it('keeps weapons visible when item type filters exclude ordinary item types', async () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ typeFilters: ['__none__'] }));
     fetchLootLogBundle.mockResolvedValue({
