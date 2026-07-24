@@ -5,6 +5,7 @@ import {
   buildLootLogEvents,
   getLootLogTimeRange,
 } from '../utils/lootLogMerge.js';
+import { dedupeNearbyLootEvents } from '../utils/dedupeLootEvents.js';
 import {
   combineChestLogTexts,
   filterChestLogTextByWindow,
@@ -319,6 +320,31 @@ function dbEventToMergeEvent(event) {
     player: event.player_name,
     quantity: event.quantity,
     timestamp: event.timestamp_utc,
+  };
+}
+
+async function reconcileBundleNearbyDuplicates(supabase, bundleId) {
+  const storedEvents = await fetchAllBundleEvents(supabase, bundleId);
+  const dedupedEvents = dedupeNearbyLootEvents(storedEvents.map((event) => ({
+    ...dbEventToMergeEvent(event),
+    databaseId: event.id,
+  })));
+  const retainedIds = new Set(dedupedEvents.map((event) => event.databaseId));
+  const duplicateIds = storedEvents
+    .map((event) => event.id)
+    .filter((eventId) => !retainedIds.has(eventId));
+
+  for (const duplicateBatch of chunkArray(duplicateIds, HASH_LOOKUP_BATCH_SIZE)) {
+    const { error } = await supabase
+      .from('loot_log_events')
+      .delete()
+      .in('id', duplicateBatch);
+    if (error) throw error;
+  }
+
+  return {
+    events: duplicateIds.length ? await fetchAllBundleEvents(supabase, bundleId) : storedEvents,
+    removedEvents: duplicateIds.length,
   };
 }
 
@@ -1106,13 +1132,14 @@ export async function submitLootLog({
     submissionId: submission.id,
   });
 
+  const reconciliation = await reconcileBundleNearbyDuplicates(supabase, bundle.id);
   const refreshed = await refreshBundleSummary(supabase, bundle, originalFileName);
   await clearLootLogDeathChecks(supabase, bundle.id);
 
   return {
     bundle: refreshed.bundle,
     bundleId: bundle.id,
-    duplicateEvents: mergeResult.duplicateEvents,
+    duplicateEvents: mergeResult.duplicateEvents + reconciliation.removedEvents,
     eventCount: refreshed.eventCount,
     insertedEvents: mergeResult.insertedEvents,
     matchedExistingBundle,
@@ -1427,18 +1454,14 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
       if (error) throw error;
     }
 
-    const [persistedEvents, persistedDeathChecksResult] = await Promise.all([
-      fetchAllBundleEvents(supabase, targetBundle.id),
+    const [reconciliation, persistedDeathChecksResult] = await Promise.all([
+      reconcileBundleNearbyDuplicates(supabase, targetBundle.id),
       supabase.from('loot_log_death_checks')
         .select('event_id,player_key')
         .eq('bundle_id', targetBundle.id),
     ]);
     if (persistedDeathChecksResult.error) throw persistedDeathChecksResult.error;
-    const persistedHashes = new Set(persistedEvents.map((event) => event.event_hash));
-    if (persistedEvents.length !== copiedEvents.length
-      || copiedEvents.some((event) => !persistedHashes.has(event.event_hash))) {
-      throw new Error('The merged loot log failed its event integrity check.');
-    }
+    const persistedEvents = reconciliation.events;
     const persistedDeathKeys = new Set((persistedDeathChecksResult.data || []).map((deathCheck) => (
       deathCheck.event_id || `not-found:${deathCheck.player_key}`
     )));
@@ -1470,6 +1493,27 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
     await supabase.from('loot_log_bundles').delete().eq('id', targetBundle.id);
     throw error;
   }
+}
+
+export async function repairLootLogBundleDuplicates(bundleId) {
+  const cleanBundleId = String(bundleId || '').trim();
+  if (!cleanBundleId) throw new Error('bundleId is required.');
+
+  const supabase = createSupabaseAdmin();
+  const { data: bundle, error } = await supabase
+    .from('loot_log_bundles')
+    .select('id,start_at,end_at,combined_loot_summary')
+    .eq('id', cleanBundleId)
+    .single();
+  if (error) throw error;
+
+  const reconciliation = await reconcileBundleNearbyDuplicates(supabase, cleanBundleId);
+  const refreshed = await refreshBundleSummary(supabase, bundle);
+  return {
+    bundleId: cleanBundleId,
+    eventCount: refreshed.eventCount,
+    removedEvents: reconciliation.removedEvents,
+  };
 }
 
 export async function deleteLootLogBundle(bundleId) {

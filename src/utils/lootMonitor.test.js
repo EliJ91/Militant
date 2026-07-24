@@ -318,6 +318,32 @@ describe('loot monitor report', () => {
     });
   });
 
+  it('keeps only the latest nearby duplicate across logs when guild data differs', () => {
+    const common = {
+      enchantment: 3,
+      eventType: 'looted',
+      item: "Grandmaster's Galatine Pair",
+      itemId: 'T7_2H_DUALSCIMITAR_UNDEAD@3',
+      lostTo: '',
+      player: 'biwwy1997',
+      quantity: 1,
+    };
+    const report = buildLootMonitorReportFromEvents([
+      { ...common, guild: 'Militant', timestamp: '2026-07-24T02:39:40.6056360Z' },
+      { ...common, guild: 'Militant', timestamp: '2026-07-24T02:39:42.9263949Z' },
+      { ...common, guild: '', timestamp: '2026-07-24T02:39:45.0158753Z' },
+    ], '');
+
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({
+      guild: 'Militant',
+      looted: 1,
+      player: 'biwwy1997',
+    });
+    expect(report.rows[0].lootTimestamps).toEqual(['2026-07-24T02:39:45.0158753Z']);
+    expect(report.totals.lootedQuantity).toBe(1);
+  });
+
   it('resolves conflicting looters after separate logs have already been merged', () => {
     const common = {
       enchantment: 2,

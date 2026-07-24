@@ -398,7 +398,6 @@ function nearbyDuplicateKey(event: LootEvent) {
   return [
     event.eventType,
     normalize(event.player),
-    normalize(event.guild),
     normalize(event.itemId),
     normalize(event.item),
     String(event.enchantment || 0),
@@ -465,24 +464,6 @@ function bestDuplicateValue(entries: Array<{ event: LootEvent }>, field: keyof L
   return String(entries.map(({ event }) => event[field]).find((value) => String(value || '').trim()) || '');
 }
 
-function duplicateQuantity(entries: Array<{ event: LootEvent }>) {
-  const quantities = entries
-    .map(({ event }) => Number(event.quantity) || 0)
-    .filter((quantity) => quantity > 0);
-  if (!quantities.length) return 0;
-
-  const counts = new Map<number, number>();
-  quantities.forEach((quantity) => counts.set(quantity, (counts.get(quantity) || 0) + 1));
-
-  return quantities.reduce((best, quantity) => {
-    const quantityCount = counts.get(quantity) || 0;
-    const bestCount = counts.get(best) || 0;
-    return quantityCount > bestCount || (quantityCount === bestCount && quantity < best)
-      ? quantity
-      : best;
-  }, quantities[0]);
-}
-
 function dedupeNearbyEvents(events: LootEvent[]) {
   const groups = new Map<string, Array<{ event: LootEvent; index: number; time: number }>>();
 
@@ -520,16 +501,12 @@ function dedupeNearbyEvents(events: LootEvent[]) {
       });
 
     clusters.forEach((cluster) => {
-      const first = cluster.entries[0];
-      const latest = cluster.entries.at(-1) || first;
-      const usesSourceIdentity = cluster.entries.some(({ event }) => normalize(event.sourcePlayer));
-      const winner = usesSourceIdentity ? latest : first;
+      const latest = cluster.entries.at(-1) || cluster.entries[0];
       deduped.push({
-        ...winner.event,
-        alliance: winner.event.alliance || bestDuplicateValue(cluster.entries, 'alliance'),
-        guild: winner.event.guild || bestDuplicateValue(cluster.entries, 'guild'),
-        lostTo: winner.event.lostTo || bestDuplicateValue(cluster.entries, 'lostTo'),
-        quantity: usesSourceIdentity ? winner.event.quantity : duplicateQuantity(cluster.entries),
+        ...latest.event,
+        alliance: latest.event.alliance || bestDuplicateValue(cluster.entries, 'alliance'),
+        guild: latest.event.guild || bestDuplicateValue(cluster.entries, 'guild'),
+        lostTo: latest.event.lostTo || bestDuplicateValue(cluster.entries, 'lostTo'),
       });
     });
   });
@@ -807,6 +784,31 @@ function dbEventToMergeEvent(event: any): LootEvent {
     player: event.player_name,
     quantity: event.quantity,
     timestamp: event.timestamp_utc,
+  };
+}
+
+async function reconcileBundleNearbyDuplicates(supabase: any, bundleId: string) {
+  const storedEvents = await fetchAllBundleEvents(supabase, bundleId);
+  const dedupedEvents = dedupeNearbyEvents(storedEvents.map((event: any) => ({
+    ...dbEventToMergeEvent(event),
+    databaseId: event.id,
+  })) as any[]);
+  const retainedIds = new Set(dedupedEvents.map((event: any) => event.databaseId));
+  const duplicateIds = storedEvents
+    .map((event: any) => event.id)
+    .filter((eventId: string) => !retainedIds.has(eventId));
+
+  for (const duplicateBatch of chunkArray(duplicateIds, HASH_LOOKUP_BATCH_SIZE)) {
+    const { error } = await supabase
+      .from('loot_log_events')
+      .delete()
+      .in('id', duplicateBatch);
+    if (error) throw error;
+  }
+
+  return {
+    events: duplicateIds.length ? await fetchAllBundleEvents(supabase, bundleId) : storedEvents,
+    removedEvents: duplicateIds.length,
   };
 }
 
@@ -1364,18 +1366,14 @@ async function mergeLootLogBundles(supabase: any, body: any) {
       if (error) throw error;
     }
 
-    const [persistedEvents, persistedDeathChecksResult] = await Promise.all([
-      fetchAllBundleEvents(supabase, targetBundle.id),
+    const [reconciliation, persistedDeathChecksResult] = await Promise.all([
+      reconcileBundleNearbyDuplicates(supabase, targetBundle.id),
       supabase.from('loot_log_death_checks')
         .select('event_id,player_key')
         .eq('bundle_id', targetBundle.id),
     ]);
     if (persistedDeathChecksResult.error) throw persistedDeathChecksResult.error;
-    const persistedHashes = new Set(persistedEvents.map((event: any) => event.event_hash));
-    if (persistedEvents.length !== copiedEvents.length
-      || copiedEvents.some((event: any) => !persistedHashes.has(event.event_hash))) {
-      throw new Error('The merged loot log failed its event integrity check.');
-    }
+    const persistedEvents = reconciliation.events;
     const persistedDeathKeys = new Set((persistedDeathChecksResult.data || []).map((deathCheck: any) => (
       deathCheck.event_id || `not-found:${deathCheck.player_key}`
     )));
@@ -2255,7 +2253,8 @@ Deno.serve(async (request) => {
     const insertedEvents = insertRows.length;
     const updatedEvents = updateRows.length;
 
-    const savedEvents = await fetchAllBundleEvents(supabase, bundle.id);
+    const reconciliation = await reconcileBundleNearbyDuplicates(supabase, bundle.id);
+    const savedEvents = reconciliation.events;
 
     const mergeEvents = (savedEvents || []).map(dbEventToMergeEvent);
     const summary = aggregateLootLogEvents(mergeEvents);
@@ -2297,7 +2296,7 @@ Deno.serve(async (request) => {
     return jsonResponse(200, {
       bundle: refreshedBundle,
       bundleId: bundle.id,
-      duplicateEvents,
+      duplicateEvents: duplicateEvents + reconciliation.removedEvents,
       eventCount: mergeEvents.length,
       insertedEvents,
       matchedExistingBundle,

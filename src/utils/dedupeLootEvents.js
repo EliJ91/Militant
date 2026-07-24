@@ -50,7 +50,6 @@ function duplicateKey(event) {
   return [
     event.eventType || 'looted',
     normalize(event.player),
-    normalize(event.guild),
     normalize(event.itemId),
     normalize(event.item),
     String(event.enchantment || 0),
@@ -117,24 +116,6 @@ function bestValue(entries, field) {
   return entries.map(({ event }) => event[field]).find((value) => String(value || '').trim()) || '';
 }
 
-function mostCommonQuantity(entries) {
-  const quantities = entries
-    .map(({ event }) => Number(event.quantity) || 0)
-    .filter((quantity) => quantity > 0);
-  if (!quantities.length) return 0;
-
-  const counts = new Map();
-  quantities.forEach((quantity) => counts.set(quantity, (counts.get(quantity) || 0) + 1));
-
-  return quantities.reduce((best, quantity) => {
-    const quantityCount = counts.get(quantity) || 0;
-    const bestCount = counts.get(best) || 0;
-    return quantityCount > bestCount || (quantityCount === bestCount && quantity < best)
-      ? quantity
-      : best;
-  }, quantities[0]);
-}
-
 export function dedupeNearbyLootEvents(events) {
   const groups = new Map();
 
@@ -172,16 +153,12 @@ export function dedupeNearbyLootEvents(events) {
       });
 
     clusters.forEach((cluster) => {
-      const first = cluster.entries[0];
       const latest = cluster.entries.at(-1);
-      const usesSourceIdentity = cluster.entries.some(({ event }) => normalize(event.sourcePlayer));
-      const winner = usesSourceIdentity ? latest : first;
       deduped.push({
-        ...winner.event,
-        alliance: winner.event.alliance || bestValue(cluster.entries, 'alliance'),
-        guild: winner.event.guild || bestValue(cluster.entries, 'guild'),
-        lostTo: winner.event.lostTo || bestValue(cluster.entries, 'lostTo'),
-        quantity: usesSourceIdentity ? winner.event.quantity : mostCommonQuantity(cluster.entries),
+        ...latest.event,
+        alliance: latest.event.alliance || bestValue(cluster.entries, 'alliance'),
+        guild: latest.event.guild || bestValue(cluster.entries, 'guild'),
+        lostTo: latest.event.lostTo || bestValue(cluster.entries, 'lostTo'),
       });
     });
   });
