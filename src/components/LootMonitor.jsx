@@ -2369,7 +2369,8 @@ export function LootLogArchive({
   async function uploadLootLogs(files, bundle = null) {
     const selectedFiles = [...(Array.isArray(files) ? files : [files])].filter(Boolean);
     if (selectedFiles.length === 0) return false;
-    const targetBundleId = bundle?.id || null;
+    const existingBundleId = bundle?.id || null;
+    let targetBundleId = existingBundleId;
 
     if (targetBundleId) setUploadingBundleId(targetBundleId);
     setActionStatus({
@@ -2391,9 +2392,10 @@ export function LootLogArchive({
           bundleId: targetBundleId,
           lootLogText: text,
           originalFileName: file.name,
-          ...(targetBundleId && overrideCurrentLootLog && index === 0 ? { overrideCurrent: true } : {}),
+          ...(existingBundleId && overrideCurrentLootLog && index === 0 ? { overrideCurrent: true } : {}),
           username: uploadUsername,
         });
+        targetBundleId ||= result.bundleId || null;
         uploadedNames.push(result.summary?.displayLootFileName || result.summary?.fileNames?.loot || file.name || 'Loot Log');
       }
 

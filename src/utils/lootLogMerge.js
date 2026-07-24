@@ -1,8 +1,6 @@
 import { parseLootEvents } from './lootMonitor.js';
 import { dedupeNearbyLootEvents } from './dedupeLootEvents.js';
 
-const ONE_HOUR_MS = 60 * 60 * 1000;
-
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -61,8 +59,6 @@ export function getLootLogTimeRange(events) {
 
   return {
     endAt: new Date(Math.max(...timestamps)).toISOString(),
-    matchEndAt: new Date(Math.max(...timestamps) + ONE_HOUR_MS).toISOString(),
-    matchStartAt: new Date(Math.min(...timestamps) - ONE_HOUR_MS).toISOString(),
     startAt: new Date(Math.min(...timestamps)).toISOString(),
   };
 }

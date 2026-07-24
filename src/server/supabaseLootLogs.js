@@ -886,24 +886,6 @@ function collapseEventsByHash(events) {
   return [...byHash.values()];
 }
 
-async function findMatchingBundle(supabase, range) {
-  const { data, error } = await supabase
-    .from('loot_log_bundles')
-    .select('id,start_at,end_at,combined_loot_summary')
-    .lte('start_at', range.matchEndAt)
-    .gte('end_at', range.matchStartAt);
-
-  if (error) throw error;
-  if (!data?.length) return null;
-
-  const incomingCenter = (new Date(range.startAt).getTime() + new Date(range.endAt).getTime()) / 2;
-  return data.sort((left, right) => {
-    const leftCenter = (new Date(left.start_at).getTime() + new Date(left.end_at).getTime()) / 2;
-    const rightCenter = (new Date(right.start_at).getTime() + new Date(right.end_at).getTime()) / 2;
-    return Math.abs(leftCenter - incomingCenter) - Math.abs(rightCenter - incomingCenter);
-  })[0];
-}
-
 async function getOrCreateBundle(supabase, { bundleId, range }) {
   if (bundleId) {
     const { data, error } = await supabase
@@ -915,9 +897,6 @@ async function getOrCreateBundle(supabase, { bundleId, range }) {
     if (error) throw error;
     return { bundle: data, matchedExistingBundle: true };
   }
-
-  const existing = await findMatchingBundle(supabase, range);
-  if (existing) return { bundle: existing, matchedExistingBundle: true };
 
   const hiddenPlayers = await getGlobalHiddenPlayers(supabase);
 

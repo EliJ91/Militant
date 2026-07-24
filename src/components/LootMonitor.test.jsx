@@ -987,7 +987,7 @@ describe('LootMonitor', () => {
     });
     expect(submitLootLog).toHaveBeenNthCalledWith(2, {
       actorName: 'manual-web-upload',
-      bundleId: null,
+      bundleId: 'bundle-18',
       lootLogText: secondLootText,
       originalFileName: 'second-loot-events.txt',
       username: 'manual-web-upload',

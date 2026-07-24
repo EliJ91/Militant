@@ -729,8 +729,6 @@ function getLootLogTimeRange(events: LootEvent[]) {
 
   return {
     endAt: new Date(Math.max(...timestamps)).toISOString(),
-    matchEndAt: new Date(Math.max(...timestamps) + ONE_HOUR_MS).toISOString(),
-    matchStartAt: new Date(Math.min(...timestamps) - ONE_HOUR_MS).toISOString(),
     startAt: new Date(Math.min(...timestamps)).toISOString(),
   };
 }
@@ -2020,7 +2018,7 @@ Deno.serve(async (request) => {
       throw new Error('The loot log does not contain any valid timestamp_utc values.');
     }
 
-    let matchedExistingBundle = Boolean(requestedBundleId);
+    const matchedExistingBundle = Boolean(requestedBundleId);
     let bundle;
 
     if (requestedBundleId) {
@@ -2032,16 +2030,6 @@ Deno.serve(async (request) => {
 
       if (error) throw error;
       bundle = data;
-    } else {
-      const { data: matchingBundles, error: matchError } = await supabase
-        .from('loot_log_bundles')
-        .select('id,start_at,end_at,combined_loot_summary')
-        .lte('start_at', range.matchEndAt)
-        .gte('end_at', range.matchStartAt);
-
-      if (matchError) throw matchError;
-      matchedExistingBundle = Boolean(matchingBundles?.length);
-      bundle = matchingBundles?.[0];
     }
 
     if (!bundle) {
@@ -2054,7 +2042,6 @@ Deno.serve(async (request) => {
 
       if (error) throw error;
       bundle = data;
-      matchedExistingBundle = false;
     }
 
     if (requestedBundleId && body.overrideCurrentLootLog) {
