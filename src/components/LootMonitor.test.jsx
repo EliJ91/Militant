@@ -503,6 +503,7 @@ describe('LootMonitor', () => {
       actorName: 'Onslawht',
       bundleId: 'bundle-18',
       deathId: '12345',
+      player: 'Windyyyzz',
     })));
     const accountedTile = container.querySelector('.loot-item-tile.accounted-tile');
     expect(accountedTile).toBeInTheDocument();

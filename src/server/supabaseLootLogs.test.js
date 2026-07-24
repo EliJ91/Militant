@@ -6,6 +6,7 @@ import {
   getBundleDisplayLootFileName,
   getBundleFileNames,
   normalizeDeathCheckRanges,
+  validateDeathForPlayerAndBundle,
 } from './supabaseLootLogs.js';
 
 describe('collectGlobalHiddenPlayers', () => {
@@ -103,5 +104,37 @@ describe('merged bundle death ranges', () => {
       { startAt: '2026-06-18T13:00:00.000Z', endAt: '2026-06-18T16:00:00.000Z' },
       { startAt: '2026-06-18T17:00:00.000Z', endAt: '2026-06-18T19:00:00.000Z' },
     ]);
+  });
+});
+
+describe('manual death ID validation', () => {
+  const bundle = {
+    combined_loot_summary: {},
+    end_at: '2026-06-18T19:00:00.000Z',
+    start_at: '2026-06-18T17:00:00.000Z',
+  };
+
+  it('accepts a matching player death inside the loot log range', () => {
+    expect(validateDeathForPlayerAndBundle({
+      TimeStamp: '2026-06-18T18:00:00.000Z',
+      Victim: { Name: 'Windyyyzz' },
+    }, bundle, 'windyyyzz')).toEqual({
+      victimKey: 'windyyyzz',
+      victimName: 'Windyyyzz',
+    });
+  });
+
+  it('rejects a death belonging to another player', () => {
+    expect(() => validateDeathForPlayerAndBundle({
+      TimeStamp: '2026-06-18T18:00:00.000Z',
+      Victim: { Name: 'DifferentPlayer' },
+    }, bundle, 'Windyyyzz')).toThrow('The death victim does not match Windyyyzz.');
+  });
+
+  it('rejects a death outside the loot log range', () => {
+    expect(() => validateDeathForPlayerAndBundle({
+      TimeStamp: '2026-06-18T20:00:00.000Z',
+      Victim: { Name: 'Windyyyzz' },
+    }, bundle, 'Windyyyzz')).toThrow('The death date and time are outside this loot log time range.');
   });
 });

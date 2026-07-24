@@ -471,6 +471,22 @@ export function deathMatchesBundle(death, bundle) {
     && timestamp <= endAt;
 }
 
+export function validateDeathForPlayerAndBundle(death, bundle, player) {
+  const requestedPlayer = String(player || '').trim();
+  const requestedPlayerKey = normalizeDeathKey(requestedPlayer);
+  const victimName = String(death?.Victim?.Name || '').trim();
+  const victimKey = normalizeDeathKey(victimName);
+
+  if (!requestedPlayerKey || !victimKey || victimKey !== requestedPlayerKey) {
+    throw new Error(`The death victim does not match ${requestedPlayer || 'the selected player'}.`);
+  }
+  if (!deathMatchesBundle(death, bundle)) {
+    throw new Error('The death date and time are outside this loot log time range.');
+  }
+
+  return { victimKey, victimName };
+}
+
 function timestampDateKey(value) {
   const rawValue = String(value || '').trim();
   const isoDate = rawValue.match(/^(\d{4}-\d{2}-\d{2})/);
@@ -761,19 +777,33 @@ export async function checkLootLogDeaths({ bundleId, checks }) {
   return runLootLogDeathChecks(createSupabaseAdmin(), { bundleId, checks });
 }
 
-export async function addLootLogDeathId({ bundleId, checks, deathId }) {
+export async function addLootLogDeathId({ bundleId, checks, deathId, player }) {
   const cleanBundleId = String(bundleId || '').trim();
   const cleanDeathId = String(deathId || '').trim();
   if (!cleanBundleId) throw new Error('bundleId is required.');
   if (!/^\d+$/.test(cleanDeathId)) throw new Error('Enter a valid numeric death ID.');
 
   const requests = normalizeDeathCheckRequests(checks);
-  const death = await fetchDeathEvent(cleanDeathId);
-  const victimName = String(death?.Victim?.Name || '').trim();
-  const victimKey = normalizeDeathKey(victimName);
-  const request = requests.find((entry) => entry.playerKey === victimKey);
-  if (!victimName || !request) {
-    throw new Error('The death victim does not match a player with kept items in this loot log.');
+  if (requests.length !== 1) throw new Error('Select one player before adding a death ID.');
+  const requestedPlayer = String(player || requests[0].player || '').trim();
+  const supabase = createSupabaseAdmin();
+  const [death, bundleResult] = await Promise.all([
+    fetchDeathEvent(cleanDeathId),
+    supabase
+      .from('loot_log_bundles')
+      .select('id,start_at,end_at,combined_loot_summary')
+      .eq('id', cleanBundleId)
+      .single(),
+  ]);
+  if (bundleResult.error) throw bundleResult.error;
+  const { victimKey, victimName } = validateDeathForPlayerAndBundle(
+    death,
+    bundleResult.data,
+    requestedPlayer,
+  );
+  const request = requests[0];
+  if (request.playerKey !== victimKey) {
+    throw new Error(`The death victim does not match ${requestedPlayer}.`);
   }
 
   const matchedItems = matchDeathInventory(death, request.keptItems);
@@ -781,7 +811,6 @@ export async function addLootLogDeathId({ bundleId, checks, deathId }) {
     throw new Error('None of the victim inventory matches this player\'s kept items.');
   }
 
-  const supabase = createSupabaseAdmin();
   const checkedAt = new Date().toISOString();
   const { error: markerDeleteError } = await supabase
     .from('loot_log_death_checks')

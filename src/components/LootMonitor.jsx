@@ -3217,6 +3217,7 @@ export default function LootMonitor({
         checks,
         deathId,
         lootLogName: selectedBundle.lootFileName,
+        player,
       });
       const savedCheck = result.deathCheck;
       const playerKey = String(savedCheck.playerName || savedCheck.player || player).trim().toLowerCase();

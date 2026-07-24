@@ -156,6 +156,7 @@ function lootLogApi() {
             bundleId: body.bundleId,
             checks: body.checks,
             deathId: body.deathId,
+            player: body.player,
           });
           break;
         case 'merge':

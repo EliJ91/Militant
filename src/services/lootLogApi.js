@@ -210,6 +210,7 @@ export async function addLootLogDeathId({
   checks,
   deathId,
   lootLogName = '',
+  player,
 }) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
@@ -217,6 +218,7 @@ export async function addLootLogDeathId({
       bundleId,
       checks,
       deathId,
+      player,
     }),
     headers: { 'Content-Type': 'application/json' },
     method: 'POST',
