@@ -959,7 +959,7 @@ function deathMatchesBundle(death: any, bundle: any) {
     && timestamp <= endAt;
 }
 
-function validateDeathForPlayerAndBundle(death: any, bundle: any, player: unknown) {
+function validateDeathForPlayerAndBundle(death: any, _bundle: any, player: unknown) {
   const requestedPlayer = String(player || '').trim();
   const requestedPlayerKey = normalizeDeathKey(requestedPlayer);
   const victimName = String(death?.Victim?.Name || '').trim();
@@ -968,10 +968,6 @@ function validateDeathForPlayerAndBundle(death: any, bundle: any, player: unknow
   if (!requestedPlayerKey || !victimKey || victimKey !== requestedPlayerKey) {
     throw new Error(`The death victim does not match ${requestedPlayer || 'the selected player'}.`);
   }
-  if (!deathMatchesBundle(death, bundle)) {
-    throw new Error('The death date and time are outside this loot log time range.');
-  }
-
   return { victimKey, victimName };
 }
 
@@ -1558,6 +1554,15 @@ async function addLootLogDeathId(supabase: any, body: any) {
     throw new Error(`The death victim does not match ${requestedPlayer}.`);
   }
 
+  const { data: existing, error: existingError } = await supabase
+    .from('loot_log_death_checks')
+    .select('id')
+    .eq('bundle_id', bundleId)
+    .eq('event_id', deathId)
+    .maybeSingle();
+  if (existingError) throw existingError;
+  if (existing?.id) throw new Error('This death ID has already been added to this loot log.');
+
   const matchedItems = matchDeathInventory(death, request.keptItems);
   if (matchedItems.length === 0) {
     throw new Error('None of the victim inventory matches this player\'s kept items.');
@@ -1585,18 +1590,9 @@ async function addLootLogDeathId(supabase: any, body: any) {
     status: 'found',
     updated_at: checkedAt,
   };
-  const { data: existing, error: existingError } = await supabase
+  const { data, error } = await supabase
     .from('loot_log_death_checks')
-    .select('id')
-    .eq('bundle_id', bundleId)
-    .eq('event_id', deathId)
-    .maybeSingle();
-  if (existingError) throw existingError;
-
-  const saveQuery = existing?.id
-    ? supabase.from('loot_log_death_checks').update(record).eq('id', existing.id)
-    : supabase.from('loot_log_death_checks').insert(record);
-  const { data, error } = await saveQuery
+    .insert(record)
     .select('player_key,player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
     .single();
   if (error) throw error;

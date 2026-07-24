@@ -183,9 +183,9 @@ describe('manual death ID validation', () => {
     start_at: '2026-06-18T17:00:00.000Z',
   };
 
-  it('accepts a matching player death inside the loot log range', () => {
+  it('accepts a matching player death regardless of its date and time', () => {
     expect(validateDeathForPlayerAndBundle({
-      TimeStamp: '2026-06-18T18:00:00.000Z',
+      TimeStamp: '2026-06-20T18:00:00.000Z',
       Victim: { Name: 'Windyyyzz' },
     }, bundle, 'windyyyzz')).toEqual({
       victimKey: 'windyyyzz',
@@ -200,10 +200,4 @@ describe('manual death ID validation', () => {
     }, bundle, 'Windyyyzz')).toThrow('The death victim does not match Windyyyzz.');
   });
 
-  it('rejects a death outside the loot log range', () => {
-    expect(() => validateDeathForPlayerAndBundle({
-      TimeStamp: '2026-06-18T20:00:00.000Z',
-      Victim: { Name: 'Windyyyzz' },
-    }, bundle, 'Windyyyzz')).toThrow('The death date and time are outside this loot log time range.');
-  });
 });
