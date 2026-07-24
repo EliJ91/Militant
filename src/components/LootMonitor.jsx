@@ -686,13 +686,11 @@ async function renderElementScreenshotBlob(element, screenshotPermissions = {}) 
   const canvas = await html2canvas(element, {
     allowTaint: false,
     backgroundColor: '#181a18',
-    height: element.scrollHeight,
     logging: false,
     onclone: (clonedDocument) => {
-      applySoldierScreenshotView(
-        clonedDocument.querySelector('[data-loot-board-screenshot="true"]'),
-        screenshotPermissions,
-      );
+      const clonedBoard = clonedDocument.querySelector('[data-loot-board-screenshot="true"]');
+      applySoldierScreenshotView(clonedBoard, screenshotPermissions);
+      if (clonedBoard) clonedBoard.style.height = 'auto';
     },
     scale: Math.min(2, window.devicePixelRatio || 1.5),
     scrollX: -window.scrollX,
