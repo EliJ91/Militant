@@ -1042,7 +1042,13 @@ async function mergeLootLogEvents(supabase, { bundleId, events, submissionId }) 
   };
 }
 
-export async function submitLootLog({ bundleId = null, lootLogText, originalFileName, username }) {
+export async function submitLootLog({
+  bundleId = null,
+  lootLogText,
+  originalFileName,
+  overrideCurrent = false,
+  username,
+}) {
   const cleanUsername = String(username || '').trim() || 'manual-web-upload';
   if (!lootLogText || typeof lootLogText !== 'string') throw new Error('lootLogText is required.');
 
@@ -1052,6 +1058,28 @@ export async function submitLootLog({ bundleId = null, lootLogText, originalFile
 
   const supabase = createSupabaseAdmin();
   const { bundle, matchedExistingBundle } = await getOrCreateBundle(supabase, { bundleId, range });
+
+  if (bundleId && overrideCurrent) {
+    await clearLootLogDeathChecks(supabase, bundle.id);
+    const { error: eventsDeleteError } = await supabase
+      .from('loot_log_events')
+      .delete()
+      .eq('bundle_id', bundle.id);
+    if (eventsDeleteError) throw eventsDeleteError;
+
+    const { error: submissionsDeleteError } = await supabase
+      .from('loot_log_submissions')
+      .delete()
+      .eq('bundle_id', bundle.id);
+    if (submissionsDeleteError) throw submissionsDeleteError;
+
+    const displaySubmitters = { ...(bundle.combined_loot_summary?.displaySubmitters || {}) };
+    delete displaySubmitters.loot;
+    bundle.combined_loot_summary = {
+      ...(bundle.combined_loot_summary || {}),
+      displaySubmitters,
+    };
+  }
 
   const { data: submission, error: submissionError } = await supabase
     .from('loot_log_submissions')
@@ -1084,6 +1112,7 @@ export async function submitLootLog({ bundleId = null, lootLogText, originalFile
     eventCount: refreshed.eventCount,
     insertedEvents: mergeResult.insertedEvents,
     matchedExistingBundle,
+    overridden: Boolean(bundleId && overrideCurrent),
     skippedRows: parsed.skippedRows,
     submissionId: submission.id,
     summary: refreshed.summary,
@@ -1091,7 +1120,7 @@ export async function submitLootLog({ bundleId = null, lootLogText, originalFile
   };
 }
 
-export async function submitChestLog({ bundleId, chestLogText, username }) {
+export async function submitChestLog({ bundleId, chestLogText, overrideCurrent = false, username }) {
   const cleanUsername = String(username || '').trim() || 'manual-web-upload';
   if (!bundleId) throw new Error('bundleId is required.');
   if (!chestLogText || typeof chestLogText !== 'string') throw new Error('chestLogText is required.');
@@ -1125,6 +1154,21 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
     },
   };
 
+  if (overrideCurrent) {
+    const { error: deleteError } = await supabase
+      .from('chest_log_submissions')
+      .delete()
+      .eq('bundle_id', bundleId);
+    if (deleteError) throw deleteError;
+
+    const displaySubmitters = { ...(bundle.combined_loot_summary?.displaySubmitters || {}) };
+    delete displaySubmitters.chest;
+    bundle.combined_loot_summary = {
+      ...(bundle.combined_loot_summary || {}),
+      displaySubmitters,
+    };
+  }
+
   const { data: submission, error: submissionError } = await supabase
     .from('chest_log_submissions')
     .insert({
@@ -1156,6 +1200,7 @@ export async function submitChestLog({ bundleId, chestLogText, username }) {
   return {
     bundleId,
     fileName: fileNames.chest,
+    overridden: Boolean(overrideCurrent),
     submissionId: submission.id,
     summary: parsedSummary,
   };

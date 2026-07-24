@@ -1523,10 +1523,13 @@ function FileUploadButton({
 function LootLogUploadDialog({
   disabled,
   files,
+  onOverrideChange,
   onAddFiles,
   onClose,
   onRemoveFile,
   onSubmit,
+  overrideCurrent = false,
+  showOverride = false,
 }) {
   const inputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -1630,6 +1633,17 @@ function LootLogUploadDialog({
         ) : (
           <p className="loot-upload-empty">No loot logs selected.</p>
         )}
+        {showOverride ? (
+          <label className="loot-upload-ignore">
+            <input
+              checked={overrideCurrent}
+              disabled={disabled}
+              type="checkbox"
+              onChange={(event) => onOverrideChange(event.target.checked)}
+            />
+            <span>Override Current Loot Log</span>
+          </label>
+        ) : null}
         <div className="loot-upload-actions">
           <button
             className="secondary-button"
@@ -1712,9 +1726,12 @@ function ChestLogUploadDialog({
   files,
   onAddFiles,
   onClose,
+  onOverrideChange,
   onRemoveFile,
   onSubmit,
   onTextChange,
+  overrideCurrent = false,
+  showOverride = false,
   text,
 }) {
   const inputRef = useRef(null);
@@ -1795,6 +1812,17 @@ function ChestLogUploadDialog({
               </li>
             ))}
           </ul>
+        ) : null}
+        {showOverride ? (
+          <label className="loot-upload-ignore">
+            <input
+              checked={overrideCurrent}
+              disabled={disabled}
+              type="checkbox"
+              onChange={(event) => onOverrideChange(event.target.checked)}
+            />
+            <span>Override Current Chest Log</span>
+          </label>
         ) : null}
         <div className="loot-upload-actions">
           <button className="secondary-button" disabled={disabled} type="button" onClick={onClose}>
@@ -2265,6 +2293,8 @@ export function LootLogArchive({
   canDownloadLogs = true,
   canEditLogs = true,
   canMergeLogs = false,
+  canOverrideChestLog = false,
+  canOverrideLootLog = false,
   canUploadChestLogs = true,
   canUploadLootLogs = true,
   onView = () => {},
@@ -2290,9 +2320,11 @@ export function LootLogArchive({
   const [lootUploadHelpOpen, setLootUploadHelpOpen] = useState(false);
   const [lootUploadModalOpen, setLootUploadModalOpen] = useState(false);
   const [lootUploadTargetBundle, setLootUploadTargetBundle] = useState(null);
+  const [overrideCurrentLootLog, setOverrideCurrentLootLog] = useState(false);
   const [chestUploadBundle, setChestUploadBundle] = useState(null);
   const [chestUploadFiles, setChestUploadFiles] = useState([]);
   const [chestUploadText, setChestUploadText] = useState('');
+  const [overrideCurrentChestLog, setOverrideCurrentChestLog] = useState(false);
   const [mergingLogs, setMergingLogs] = useState(false);
   const [selectedBundleIds, setSelectedBundleIds] = useState([]);
   const [updatingBundleId, setUpdatingBundleId] = useState('');
@@ -2341,7 +2373,7 @@ export function LootLogArchive({
     try {
       const uploadedNames = [];
 
-      for (const file of selectedFiles) {
+      for (const [index, file] of selectedFiles.entries()) {
         const text = await file.text();
         if (detectFileKind(text) !== 'loot') throw new Error(`${file.name} is not a valid loot-events file.`);
 
@@ -2350,6 +2382,7 @@ export function LootLogArchive({
           bundleId: targetBundleId,
           lootLogText: text,
           originalFileName: file.name,
+          ...(targetBundleId && overrideCurrentLootLog && index === 0 ? { overrideCurrent: true } : {}),
           username: uploadUsername,
         });
         uploadedNames.push(result.summary?.displayLootFileName || result.summary?.fileNames?.loot || file.name || 'Loot Log');
@@ -2380,18 +2413,21 @@ export function LootLogArchive({
 
     setLootUploadFiles([]);
     setLootUploadTargetBundle(null);
+    setOverrideCurrentLootLog(false);
     setLootUploadModalOpen(false);
   }
 
   function openLootUpload(bundle = null) {
     setLootUploadFiles([]);
     setLootUploadTargetBundle(bundle);
+    setOverrideCurrentLootLog(false);
     setLootUploadModalOpen(true);
   }
 
   function closeLootUpload() {
     setLootUploadFiles([]);
     setLootUploadTargetBundle(null);
+    setOverrideCurrentLootLog(false);
     setLootUploadModalOpen(false);
   }
 
@@ -2399,12 +2435,14 @@ export function LootLogArchive({
     setChestUploadBundle(bundle);
     setChestUploadFiles([]);
     setChestUploadText('');
+    setOverrideCurrentChestLog(false);
   }
 
   function closeChestUpload() {
     setChestUploadBundle(null);
     setChestUploadFiles([]);
     setChestUploadText('');
+    setOverrideCurrentChestLog(false);
   }
 
   function toggleSelectedBundle(bundleId) {
@@ -2464,7 +2502,7 @@ export function LootLogArchive({
         ...await Promise.all(selectedFiles.map(async (file) => ({ name: file.name, text: await file.text() }))),
       ];
 
-      for (const entry of entries) {
+      for (const [index, entry] of entries.entries()) {
         if (detectFileKind(entry.text) !== 'chest') throw new Error(`${entry.name} is not a valid chest log file.`);
 
         const result = await submitChestLog({
@@ -2472,6 +2510,7 @@ export function LootLogArchive({
           bundleId: bundle.id,
           chestLogText: entry.text,
           lootLogName: bundle.lootFileName || bundle.displayLootFileName || bundle.fileName || '',
+          ...(overrideCurrentChestLog && index === 0 ? { overrideCurrent: true } : {}),
           username: uploadUsername,
         });
         uploadedNames.push(result.fileName || entry.name || 'Chest Log');
@@ -2769,8 +2808,11 @@ export function LootLogArchive({
           files={lootUploadFiles}
           onAddFiles={(files) => setLootUploadFiles((current) => [...current, ...files])}
           onClose={closeLootUpload}
+          onOverrideChange={setOverrideCurrentLootLog}
           onRemoveFile={(index) => setLootUploadFiles((current) => current.filter((_, currentIndex) => currentIndex !== index))}
           onSubmit={uploadSelectedLootLogs}
+          overrideCurrent={overrideCurrentLootLog}
+          showOverride={Boolean(lootUploadTargetBundle && canOverrideLootLog)}
         />
       ) : null}
 
@@ -2781,9 +2823,12 @@ export function LootLogArchive({
           text={chestUploadText}
           onAddFiles={(files) => setChestUploadFiles((current) => [...current, ...files])}
           onClose={closeChestUpload}
+          onOverrideChange={setOverrideCurrentChestLog}
           onRemoveFile={(index) => setChestUploadFiles((current) => current.filter((_, currentIndex) => currentIndex !== index))}
           onSubmit={uploadSelectedChestLogs}
           onTextChange={setChestUploadText}
+          overrideCurrent={overrideCurrentChestLog}
+          showOverride={Boolean(chestUploadBundle.hasChestLog && canOverrideChestLog)}
         />
       ) : null}
 

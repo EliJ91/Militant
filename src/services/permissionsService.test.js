@@ -29,4 +29,12 @@ describe('permissions service', () => {
     expect(settings.roles[0].permissions.addDeathId).toBe(true);
     expect(settings.roles[0].permissions).not.toHaveProperty('searchDeaths');
   });
+
+  it('keeps the loot and chest override permissions together in the Loot Logs section', () => {
+    const overrideLootIndex = WEBAPP_PERMISSION_DEFINITIONS.findIndex(({ key }) => key === 'overrideLootLog');
+    expect(WEBAPP_PERMISSION_DEFINITIONS.slice(overrideLootIndex, overrideLootIndex + 2)).toEqual([
+      { area: 'Loot Logs', key: 'overrideLootLog', label: 'Override Loot Log' },
+      { area: 'Loot Logs', key: 'overrideChestLog', label: 'Override Chest Log' },
+    ]);
+  });
 });

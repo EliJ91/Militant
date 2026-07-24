@@ -187,6 +187,7 @@ function lootLogApi() {
           result = await submitChestLog({
             bundleId: body.bundleId,
             chestLogText: body.chestLogText || body.chestText || body.text,
+            overrideCurrent: Boolean(body.overrideCurrentChestLog),
             username: body.username,
           });
           break;
@@ -203,6 +204,7 @@ function lootLogApi() {
               || body.file_name
               || req.headers['x-file-name']
               || req.headers['x-filename'],
+            overrideCurrent: Boolean(body.overrideCurrentLootLog),
             username: body.username,
           });
       }

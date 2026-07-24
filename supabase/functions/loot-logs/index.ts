@@ -1914,6 +1914,21 @@ Deno.serve(async (request) => {
         },
       };
 
+      if (body.overrideCurrentChestLog) {
+        const { error: deleteError } = await supabase
+          .from('chest_log_submissions')
+          .delete()
+          .eq('bundle_id', bundleId);
+        if (deleteError) throw deleteError;
+
+        const displaySubmitters = { ...(chestBundle.combined_loot_summary?.displaySubmitters || {}) };
+        delete displaySubmitters.chest;
+        chestBundle.combined_loot_summary = {
+          ...(chestBundle.combined_loot_summary || {}),
+          displaySubmitters,
+        };
+      }
+
       const { data: chestSubmission, error: chestSubmissionError } = await supabase
         .from('chest_log_submissions')
         .insert({
@@ -1944,6 +1959,7 @@ Deno.serve(async (request) => {
       return jsonResponse(200, {
         bundleId,
         fileName: fileNames.chest,
+        overridden: Boolean(body.overrideCurrentChestLog),
         submissionId: chestSubmission.id,
         summary: parsedSummary,
       });
@@ -2010,6 +2026,28 @@ Deno.serve(async (request) => {
       if (error) throw error;
       bundle = data;
       matchedExistingBundle = false;
+    }
+
+    if (requestedBundleId && body.overrideCurrentLootLog) {
+      await clearLootLogDeathChecks(supabase, bundle.id);
+      const { error: eventsDeleteError } = await supabase
+        .from('loot_log_events')
+        .delete()
+        .eq('bundle_id', bundle.id);
+      if (eventsDeleteError) throw eventsDeleteError;
+
+      const { error: submissionsDeleteError } = await supabase
+        .from('loot_log_submissions')
+        .delete()
+        .eq('bundle_id', bundle.id);
+      if (submissionsDeleteError) throw submissionsDeleteError;
+
+      const displaySubmitters = { ...(bundle.combined_loot_summary?.displaySubmitters || {}) };
+      delete displaySubmitters.loot;
+      bundle.combined_loot_summary = {
+        ...(bundle.combined_loot_summary || {}),
+        displaySubmitters,
+      };
     }
 
     const { data: submission, error: submissionError } = await supabase
@@ -2142,6 +2180,7 @@ Deno.serve(async (request) => {
       eventCount: mergeEvents.length,
       insertedEvents,
       matchedExistingBundle,
+      overridden: Boolean(requestedBundleId && body.overrideCurrentLootLog),
       skippedRows: parsed.skippedRows,
       submissionId: submission.id,
       summary: summaryWithFileNames,

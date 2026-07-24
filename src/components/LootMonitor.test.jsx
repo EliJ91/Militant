@@ -1095,6 +1095,45 @@ describe('LootMonitor', () => {
     expect(await screen.findByText('Merged - 18UTC-JUN-18 created.')).toBeInTheDocument();
   });
 
+  it('lets permitted users override existing loot and chest logs', async () => {
+    render(<LootLogArchive canOverrideChestLog canOverrideLootLog />);
+
+    await screen.findByRole('button', { name: 'Add Loot Log' });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Loot Log' }));
+    let dialog = screen.getByRole('dialog', { name: 'Upload Loot Logs' });
+    const lootOverride = within(dialog).getByRole('checkbox', { name: 'Override Current Loot Log' });
+    fireEvent.click(lootOverride);
+    fireEvent.change(dialog.querySelector('input[accept^=".csv"]'), {
+      target: { files: [new File([lootText], 'replacement-loot.txt', { type: 'text/plain' })] },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => expect(submitLootLog).toHaveBeenCalledWith({
+      actorName: 'manual-web-upload',
+      bundleId: 'bundle-18',
+      lootLogText: lootText,
+      originalFileName: 'replacement-loot.txt',
+      overrideCurrent: true,
+      username: 'manual-web-upload',
+    }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload Loot Logs' })).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Chest Log' }));
+    dialog = screen.getByRole('dialog', { name: 'Upload Chest Log' });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Override Current Chest Log' }));
+    fireEvent.change(within(dialog).getByLabelText('Paste chest log'), { target: { value: chestText } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => expect(submitChestLog).toHaveBeenCalledWith({
+      actorName: 'manual-web-upload',
+      bundleId: 'bundle-18',
+      chestLogText: chestText,
+      lootLogName: '18UTC-JUN-18',
+      overrideCurrent: true,
+      username: 'manual-web-upload',
+    }));
+  });
+
   it('marks merged loot log entries', async () => {
     fetchLootLogBundles.mockResolvedValue({
       bundles: [createBundle({ summary: { isMerged: true, totals: { lootedQuantity: 2, players: 1 } } })],

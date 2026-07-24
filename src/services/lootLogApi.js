@@ -25,6 +25,7 @@ export async function submitLootLog({
   bundleId = null,
   lootLogText,
   originalFileName,
+  overrideCurrent = false,
   username,
 }) {
   const response = await fetch(getLootLogApiUrl(), {
@@ -32,6 +33,7 @@ export async function submitLootLog({
       bundleId,
       lootLogText,
       originalFileName,
+      overrideCurrentLootLog: Boolean(overrideCurrent),
       username,
     }),
     headers: { 'Content-Type': 'application/json' },
@@ -44,7 +46,7 @@ export async function submitLootLog({
   }
 
   void recordActionLog({
-    action: 'Loot log uploaded',
+    action: overrideCurrent ? 'Loot log overridden' : 'Loot log uploaded',
     actorName,
     details: { fileName: originalFileName, source: 'webapp' },
     targetId: result.bundleId || bundleId,
@@ -60,6 +62,7 @@ export async function submitChestLog({
   bundleId,
   chestLogText,
   lootLogName = '',
+  overrideCurrent = false,
   username,
 }) {
   const response = await fetch(getLootLogApiUrl(), {
@@ -67,6 +70,7 @@ export async function submitChestLog({
       action: 'chest',
       bundleId,
       chestLogText,
+      overrideCurrentChestLog: Boolean(overrideCurrent),
       username,
     }),
     headers: { 'Content-Type': 'application/json' },
@@ -79,7 +83,7 @@ export async function submitChestLog({
   }
 
   void recordActionLog({
-    action: 'Chest log uploaded',
+    action: overrideCurrent ? 'Chest log overridden' : 'Chest log uploaded',
     actorName,
     details: { lootLogName },
     targetId: result.bundleId || bundleId,
