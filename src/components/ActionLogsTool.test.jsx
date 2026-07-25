@@ -119,4 +119,22 @@ describe('ActionLogsTool', () => {
 
     expect(await screen.findByText('Windyyyzz was hidden in loot logs')).toBeInTheDocument();
   });
+
+  it('retroactively deletes ignored death ID additions for the SuperUser', async () => {
+    fetchActionLogs.mockResolvedValue({
+      actionLogs: [{
+        action: 'Death ID added',
+        actorName: 'Onslawht',
+        createdAt: '2026-07-14T16:43:37.000Z',
+        id: 'action-4',
+      }],
+      hasMore: false,
+      total: 1,
+    });
+
+    render(<ActionLogsTool canDelete />);
+
+    await waitFor(() => expect(deleteActionLog).toHaveBeenCalledWith('action-4'));
+    expect(screen.queryByText('Death ID added')).not.toBeInTheDocument();
+  });
 });

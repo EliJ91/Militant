@@ -3,6 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { deleteActionLog, fetchActionLogs } from '../services/actionLogsApi';
 import { fetchLootLogBundles } from '../services/lootLogApi';
 
+const ACTION_LOG_PAGE_SIZE = 50;
+
+function isIgnoredAction(action) {
+  return /^death id add(?:ed|ing)$/i.test(cleanText(action));
+}
+
 function formatDateTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Unknown';
@@ -148,7 +154,7 @@ function formatAction(log, bundleById) {
 }
 
 function flattenLogs(logs, bundleById) {
-  return logs.filter((log) => !/^death id add(?:ed|ing)$/i.test(cleanText(log.action))).flatMap((log) => {
+  return logs.filter((log) => !isIgnoredAction(log.action)).flatMap((log) => {
     const details = log.details || {};
     if (log.action === 'Permissions updated' && Array.isArray(details.changes) && details.changes.length > 0) {
       return details.changes.map((change, index) => ({
@@ -181,15 +187,38 @@ export default function ActionLogsTool({ canDelete = false }) {
   const [deleteStatus, setDeleteStatus] = useState('');
   const contextMenuRef = useRef(null);
 
+  async function purgeLegacyIgnoredActions(firstPage) {
+    let page = firstPage;
+    let deletedCount = 0;
+
+    while (page) {
+      const ignoredIds = (page.actionLogs || [])
+        .filter((log) => isIgnoredAction(log.action))
+        .map((log) => log.id)
+        .filter(Boolean);
+      for (let index = 0; index < ignoredIds.length; index += 5) {
+        const results = await Promise.allSettled(
+          ignoredIds.slice(index, index + 5).map((actionLogId) => deleteActionLog(actionLogId)),
+        );
+        deletedCount += results.filter((result) => result.status === 'fulfilled').length;
+      }
+      if (!page.hasMore || !page.nextCursor) break;
+      page = await fetchActionLogs({ before: page.nextCursor, limit: ACTION_LOG_PAGE_SIZE });
+    }
+
+    if (deletedCount > 0) setTotal((current) => Math.max(0, current - deletedCount));
+  }
+
   async function loadLogs({ append = false, before = '' } = {}) {
     setStatus({ message: '', state: append ? 'loading-more' : 'loading' });
     try {
-      const result = await fetchActionLogs({ before, limit: 100 });
+      const result = await fetchActionLogs({ before, limit: ACTION_LOG_PAGE_SIZE });
       setLogs((current) => (append ? [...current, ...(result.actionLogs || [])] : result.actionLogs || []));
       setNextCursor(result.nextCursor || '');
       setHasMore(Boolean(result.hasMore));
       setTotal(Number(result.total) || 0);
       setStatus({ message: '', state: 'ready' });
+      if (canDelete && !append) void purgeLegacyIgnoredActions(result).catch(() => {});
     } catch (error) {
       setStatus({ message: error.message || 'Could not load action logs.', state: 'error' });
     }
