@@ -57,6 +57,15 @@ describe('action log identity', () => {
     expect(request.headers).not.toHaveProperty('Authorization');
   });
 
+  it('does not record death ID additions', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(recordActionLog({ action: 'Death ID added' })).resolves.toEqual({ ignored: true });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('sends direct Discord OAuth tokens only through the Discord identity header', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       json: vi.fn().mockResolvedValue({ actionLog: { id: 'action-3' } }),

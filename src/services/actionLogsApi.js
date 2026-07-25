@@ -6,6 +6,10 @@ const PRODUCTION_API_URL = 'https://maeljnrgffgrljqusnre.supabase.co/functions/v
 let currentActorName = 'System';
 let currentAuthSession = null;
 
+function isIgnoredAction(action) {
+  return /^death id add(?:ed|ing)$/i.test(String(action || '').trim());
+}
+
 function getActionLogsApiUrl() {
   if (import.meta.env.PROD) {
     return import.meta.env.VITE_PRODUCTION_ACTION_LOGS_API_URL || PRODUCTION_API_URL;
@@ -97,6 +101,7 @@ export async function recordActionLog({
   targetName = '',
   targetType = 'webapp',
 }) {
+  if (isIgnoredAction(action)) return { ignored: true };
   try {
     const authSession = currentAuthSession || await getCurrentAuthSession().catch(() => null);
     const response = await fetch(getActionLogsApiUrl(), {

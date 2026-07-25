@@ -205,11 +205,9 @@ export async function checkLootLogDeaths({
 }
 
 export async function addLootLogDeathId({
-  actorName,
   bundleId,
   checks,
   deathId,
-  lootLogName = '',
   player,
 }) {
   const response = await fetch(getLootLogApiUrl(), {
@@ -228,21 +226,6 @@ export async function addLootLogDeathId({
   if (!response.ok) {
     throw new Error(result.error || 'Could not add the death ID.');
   }
-
-  void recordActionLog({
-    action: 'Death ID added',
-    actorName,
-    details: {
-      deathId: result.deathCheck?.eventId || deathId,
-      lootLogName,
-      matchedQuantity: (result.deathCheck?.matchedItems || [])
-        .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0),
-      player: result.deathCheck?.playerName || result.deathCheck?.player || '',
-    },
-    targetId: bundleId,
-    targetName: lootLogName || `Death ${deathId}`,
-    targetType: 'death-check',
-  });
 
   return result;
 }

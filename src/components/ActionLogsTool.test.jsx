@@ -83,4 +83,40 @@ describe('ActionLogsTool', () => {
 
     expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument();
   });
+
+  it('hides legacy death ID addition entries', async () => {
+    fetchActionLogs.mockResolvedValue({
+      actionLogs: [{
+        action: 'Death ID added',
+        actorName: 'Onslawht',
+        createdAt: '2026-07-14T16:43:37.000Z',
+        id: 'action-4',
+      }],
+      hasMore: false,
+      total: 0,
+    });
+
+    render(<ActionLogsTool />);
+
+    await waitFor(() => expect(fetchActionLogs).toHaveBeenCalled());
+    expect(screen.queryByText('Death ID added')).not.toBeInTheDocument();
+  });
+
+  it('names players hidden from loot logs', async () => {
+    fetchActionLogs.mockResolvedValue({
+      actionLogs: [{
+        action: 'Player hidden globally',
+        actorName: 'Onslawht',
+        createdAt: '2026-07-14T16:44:37.000Z',
+        details: { player: 'Windyyyzz' },
+        id: 'action-5',
+      }],
+      hasMore: false,
+      total: 1,
+    });
+
+    render(<ActionLogsTool />);
+
+    expect(await screen.findByText('Windyyyzz was hidden in loot logs')).toBeInTheDocument();
+  });
 });

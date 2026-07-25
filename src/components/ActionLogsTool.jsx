@@ -136,11 +136,19 @@ function formatAction(log, bundleById) {
     return `Updated members list`;
   }
 
+  if (action === 'Player hidden globally' || action === 'Player hidden from loot log') {
+    return `${cleanText(details.player, 'Player')} was hidden in loot logs`;
+  }
+
+  if (action === 'Player unhidden globally' || action === 'Player unhidden from loot log') {
+    return `${cleanText(details.player, 'Player')} was unhidden in loot logs`;
+  }
+
   return cleanText(log.action, 'Updated webapp');
 }
 
 function flattenLogs(logs, bundleById) {
-  return logs.flatMap((log) => {
+  return logs.filter((log) => !/^death id add(?:ed|ing)$/i.test(cleanText(log.action))).flatMap((log) => {
     const details = log.details || {};
     if (log.action === 'Permissions updated' && Array.isArray(details.changes) && details.changes.length > 0) {
       return details.changes.map((change, index) => ({
