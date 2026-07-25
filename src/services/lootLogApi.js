@@ -123,10 +123,8 @@ export async function mergeLootLogBundles({ actorName = username, bundleIds, use
 }
 
 export async function checkLootLogDeath({
-  actorName,
   bundleId,
   keptItems,
-  lootLogName = '',
   player,
 }) {
   const response = await fetch(getLootLogApiUrl(), {
@@ -145,27 +143,12 @@ export async function checkLootLogDeath({
     throw new Error(result.error || 'Could not check the player death log.');
   }
 
-  void recordActionLog({
-    action: 'Death check completed',
-    actorName,
-    details: {
-      lootLogName,
-      players: [player],
-      status: result.deathCheck?.status || 'checked',
-    },
-    targetId: bundleId,
-    targetName: lootLogName || player,
-    targetType: 'death-check',
-  });
-
   return result;
 }
 
 export async function checkLootLogDeaths({
-  actorName,
   bundleId,
   checks,
-  lootLogName = '',
 }) {
   const response = await fetch(getLootLogApiUrl(), {
     body: JSON.stringify({
@@ -181,25 +164,6 @@ export async function checkLootLogDeaths({
   if (!response.ok) {
     throw new Error(result.error || 'Could not check the visible player deaths.');
   }
-
-  void recordActionLog({
-    action: 'Death checks completed',
-    actorName,
-    details: {
-      count: checks.length,
-      lootLogName,
-      players: checks.map((check) => check.player).filter(Boolean),
-      statuses: Array.isArray(result.deathChecks)
-        ? result.deathChecks.map((check) => ({
-          player: check.playerName || check.player,
-          status: check.status,
-        }))
-        : [],
-    },
-    targetId: bundleId,
-    targetName: lootLogName || `${checks.length} players`,
-    targetType: 'death-check',
-  });
 
   return result;
 }

@@ -4,9 +4,12 @@ import { deleteActionLog, fetchActionLogs } from '../services/actionLogsApi';
 import { fetchLootLogBundles } from '../services/lootLogApi';
 
 const ACTION_LOG_PAGE_SIZE = 50;
+const ACTION_LOG_RECONCILE_PAGE_SIZE = 250;
 
 function isIgnoredAction(action) {
-  return /^death id add(?:ed|ing)$/i.test(cleanText(action));
+  const cleanAction = cleanText(action);
+  return /^death id add(?:ed|ing)$/i.test(cleanAction)
+    || /^death checks? completed$/i.test(cleanAction);
 }
 
 function formatDateTime(value) {
@@ -70,28 +73,6 @@ function getLootLogReference(log, bundleById) {
   const name = /^\d+ players?$/i.test(rawName) ? '' : rawName;
   const prefix = number ? `Loot Log #${number}` : 'Loot Log';
   return name ? `${prefix}: ${name}` : prefix;
-}
-
-function deathCheckRows(log, bundleById) {
-  const details = log.details || {};
-  const players = Array.isArray(details.players) && details.players.length > 0
-    ? details.players
-    : [details.player].filter(Boolean);
-  const lootLogReference = getLootLogReference(log, bundleById);
-
-  if (players.length === 0) {
-    return [{
-      ...log,
-      actionText: `Checked death for ${lootLogReference}`,
-      rowId: `${log.id || log.createdAt}-death`,
-    }];
-  }
-
-  return players.map((player, index) => ({
-    ...log,
-    actionText: `Checked ${player} death for ${lootLogReference}`,
-    rowId: `${log.id || log.createdAt}-death-${index}`,
-  }));
 }
 
 function formatAction(log, bundleById) {
@@ -164,10 +145,6 @@ function flattenLogs(logs, bundleById) {
       }));
     }
 
-    if (log.action === 'Death check completed' || log.action === 'Death checks completed') {
-      return deathCheckRows(log, bundleById);
-    }
-
     return [{
       ...log,
       actionText: formatAction(log, bundleById),
@@ -187,26 +164,28 @@ export default function ActionLogsTool({ canDelete = false }) {
   const [deleteStatus, setDeleteStatus] = useState('');
   const contextMenuRef = useRef(null);
 
-  async function purgeLegacyIgnoredActions(firstPage) {
+  async function reconcileIgnoredActions(firstPage) {
     let page = firstPage;
-    let deletedCount = 0;
+    let ignoredCount = 0;
 
     while (page) {
       const ignoredIds = (page.actionLogs || [])
         .filter((log) => isIgnoredAction(log.action))
         .map((log) => log.id)
         .filter(Boolean);
-      for (let index = 0; index < ignoredIds.length; index += 5) {
-        const results = await Promise.allSettled(
-          ignoredIds.slice(index, index + 5).map((actionLogId) => deleteActionLog(actionLogId)),
-        );
-        deletedCount += results.filter((result) => result.status === 'fulfilled').length;
+      ignoredCount += ignoredIds.length;
+      if (canDelete) {
+        for (let index = 0; index < ignoredIds.length; index += 5) {
+          await Promise.allSettled(
+            ignoredIds.slice(index, index + 5).map((actionLogId) => deleteActionLog(actionLogId)),
+          );
+        }
       }
       if (!page.hasMore || !page.nextCursor) break;
-      page = await fetchActionLogs({ before: page.nextCursor, limit: ACTION_LOG_PAGE_SIZE });
+      page = await fetchActionLogs({ before: page.nextCursor, limit: ACTION_LOG_RECONCILE_PAGE_SIZE });
     }
 
-    if (deletedCount > 0) setTotal((current) => Math.max(0, current - deletedCount));
+    setTotal(Math.max(0, (Number(firstPage.total) || 0) - ignoredCount));
   }
 
   async function loadLogs({ append = false, before = '' } = {}) {
@@ -218,7 +197,7 @@ export default function ActionLogsTool({ canDelete = false }) {
       setHasMore(Boolean(result.hasMore));
       setTotal(Number(result.total) || 0);
       setStatus({ message: '', state: 'ready' });
-      if (canDelete && !append) void purgeLegacyIgnoredActions(result).catch(() => {});
+      if (!append) void reconcileIgnoredActions(result).catch(() => {});
     } catch (error) {
       setStatus({ message: error.message || 'Could not load action logs.', state: 'error' });
     }

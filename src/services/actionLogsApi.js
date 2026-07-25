@@ -7,7 +7,9 @@ let currentActorName = 'System';
 let currentAuthSession = null;
 
 function isIgnoredAction(action) {
-  return /^death id add(?:ed|ing)$/i.test(String(action || '').trim());
+  const cleanAction = String(action || '').trim();
+  return /^death id add(?:ed|ing)$/i.test(cleanAction)
+    || /^death checks? completed$/i.test(cleanAction);
 }
 
 function getActionLogsApiUrl() {

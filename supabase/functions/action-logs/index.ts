@@ -2,7 +2,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 250;
-const IGNORED_ACTION_PATTERN = /^death id add(?:ed|ing)$/i;
+const IGNORED_ACTION_PATTERNS = [
+  /^death id add(?:ed|ing)$/i,
+  /^death checks? completed$/i,
+];
+const IGNORED_ACTION_DATABASE_PATTERNS = ['death id add%', 'death check% completed'];
 const DISCORD_GUILD_ID = '805908199541702666';
 const SUPERUSER_DISCORD_USER_ID = '264193431830528006';
 const corsHeaders = {
@@ -146,15 +150,16 @@ async function getAuthenticatedDiscordUserId(supabase: any, request: Request) {
 }
 
 function isIgnoredAction(action: unknown) {
-  return IGNORED_ACTION_PATTERN.test(clean(action));
+  const cleanAction = clean(action);
+  return IGNORED_ACTION_PATTERNS.some((pattern) => pattern.test(cleanAction));
 }
 
 async function purgeIgnoredActionLogs(supabase: any) {
-  const { error } = await supabase
-    .from('webapp_action_logs')
-    .delete()
-    .ilike('action', 'death id add%');
-  if (error) throw error;
+  const results = await Promise.all(IGNORED_ACTION_DATABASE_PATTERNS.map((pattern) => (
+    supabase.from('webapp_action_logs').delete().ilike('action', pattern)
+  )));
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throw failed.error;
 }
 
 Deno.serve(async (request) => {

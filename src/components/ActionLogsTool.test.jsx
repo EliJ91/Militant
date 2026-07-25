@@ -55,13 +55,14 @@ describe('ActionLogsTool', () => {
 
   afterEach(() => cleanup());
 
-  it('shows the command user, file poster, player, title, and loot log number', async () => {
+  it('shows recorded actions while excluding death checks from the total', async () => {
     render(<ActionLogsTool />);
 
-    await waitFor(() => expect(screen.getAllByText('Onslawht')).toHaveLength(3));
+    await waitFor(() => expect(screen.getAllByText('Onslawht')).toHaveLength(2));
     expect(screen.getByText('Uploaded Chapper log from Discord to Loot Log #22: 02 CTA 7-13')).toBeInTheDocument();
-    expect(screen.getByText('Checked MarkMPM death for Loot Log #22: 02 CTA 7-13')).toBeInTheDocument();
+    expect(screen.queryByText('Checked MarkMPM death for Loot Log #22: 02 CTA 7-13')).not.toBeInTheDocument();
     expect(screen.getByText('Deleted Loot Log #22: 02 CTA 7-13 (Jul 13, 2026)')).toBeInTheDocument();
+    expect(await screen.findByLabelText('2 actions recorded')).toBeInTheDocument();
   });
 
   it('lets the SuperUser delete an entry from its right-click menu', async () => {
@@ -120,21 +121,31 @@ describe('ActionLogsTool', () => {
     expect(await screen.findByText('Windyyyzz was hidden in loot logs')).toBeInTheDocument();
   });
 
-  it('retroactively deletes ignored death ID additions for the SuperUser', async () => {
+  it('retroactively deletes ignored death actions for the SuperUser', async () => {
     fetchActionLogs.mockResolvedValue({
-      actionLogs: [{
-        action: 'Death ID added',
-        actorName: 'Onslawht',
-        createdAt: '2026-07-14T16:43:37.000Z',
-        id: 'action-4',
-      }],
+      actionLogs: [
+        {
+          action: 'Death ID added',
+          actorName: 'Onslawht',
+          createdAt: '2026-07-14T16:43:37.000Z',
+          id: 'action-4',
+        },
+        {
+          action: 'Death check completed',
+          actorName: 'Onslawht',
+          createdAt: '2026-07-14T16:44:37.000Z',
+          id: 'action-5',
+        },
+      ],
       hasMore: false,
-      total: 1,
+      total: 2,
     });
 
     render(<ActionLogsTool canDelete />);
 
     await waitFor(() => expect(deleteActionLog).toHaveBeenCalledWith('action-4'));
+    await waitFor(() => expect(deleteActionLog).toHaveBeenCalledWith('action-5'));
     expect(screen.queryByText('Death ID added')).not.toBeInTheDocument();
+    expect(await screen.findByLabelText('0 actions recorded')).toBeInTheDocument();
   });
 });
