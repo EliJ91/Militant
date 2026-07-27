@@ -910,7 +910,7 @@ describe('LootMonitor', () => {
 
     expect(await screen.findByText('loot-events-original')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Loot Logs' })).toBeInTheDocument();
-    expect(screen.getByText('Uploaded')).toBeInTheDocument();
+    expect(screen.queryByText('Uploaded')).not.toBeInTheDocument();
     expect(screen.getByText('Jun 20, 2026 11:45:00 EDT')).toBeInTheDocument();
     expect(screen.queryByText(/18:33 UTC/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Loot Monitor' })).not.toBeInTheDocument();

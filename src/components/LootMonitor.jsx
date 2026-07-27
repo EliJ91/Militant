@@ -2119,8 +2119,7 @@ function LootLogBundleList({
                   <div className="saved-log-card-main">
                     <div className="saved-log-time">
                       {isSelected ? <span className="saved-log-selected-badge">Selected</span> : null}
-                      {bundle.logNumber ? <span className="saved-log-number">Loot Log #{bundle.logNumber}</span> : null}
-                      <strong>Uploaded</strong>
+                      {bundle.logNumber ? <span className="saved-log-number">{bundle.logNumber}</span> : null}
                       <small>{formatEasternDateTime(uploadedAt)}</small>
                       {!isEditing && retention ? (
                         <small className="saved-log-countdown" title={`Scheduled deletion: ${formatUtcDate(retention.expiresAt)}`}>
