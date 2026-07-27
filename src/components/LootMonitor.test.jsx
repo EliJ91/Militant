@@ -939,8 +939,7 @@ describe('LootMonitor', () => {
     const instructionsDialog = screen.getByRole('dialog', { name: 'Upload Instructions' });
     const uploadGuide = within(instructionsDialog).getByRole('heading', { name: 'Upload Loot Logs' }).closest('details');
     expect(uploadGuide).toHaveTextContent('Use Upload to add one or more .csv/.txt loot log files.');
-    expect(uploadGuide).toHaveTextContent('Run /upload in the thread containing the loot log files and select the CTA Timer.');
-    expect(uploadGuide).toHaveTextContent('The CTA Timer is the earliest UTC hour kept in the uploaded log.');
+    expect(uploadGuide).toHaveTextContent("Run /upload in the thread containing the loot log files and select the CTA's UTC start hour for CTA Timer.");
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Upload From The Webapp' })).not.toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Upload From Discord' })).not.toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Add Loot Files Later' })).not.toBeInTheDocument();

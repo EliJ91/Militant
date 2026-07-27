@@ -1887,8 +1887,7 @@ function UploadInstructionsModal({ onClose }) {
     {
       steps: [
         <><strong>Webapp:</strong> Use <strong>Upload</strong> to add one or more <strong>.csv/.txt</strong> loot log files.</>,
-        <><strong>Discord:</strong> Run <code>/upload</code> in the thread containing the loot log files and select the <strong>CTA Timer</strong>.</>,
-        <>The CTA Timer is the earliest UTC hour kept in the uploaded log. Earlier entries are removed, including entries from the previous date when <strong>00 UTC</strong> is selected.</>,
+        <><strong>Discord:</strong> Run <code>/upload</code> in the thread containing the loot log files and select the CTA's UTC start hour for <strong>CTA Timer</strong>.</>,
       ],
       title: 'Upload Loot Logs',
     },
