@@ -30,31 +30,21 @@ function unique(values) {
 
 export const LOOT_LOG_START_WINDOW_MS = 30 * 60 * 1000;
 
-function filterLootLogBefore(text, cutoffTime) {
-  const lines = String(text || '').split(/\r?\n/);
-  const timestampIndex = lines
-    .map((line) => line.split(';').map((value) => value.trim().replace(/^"|"$/g, '')))
-    .find((values) => values.some((value) => /^timestamp_utc$/i.test(value)))
-    ?.findIndex((value) => /^timestamp_utc$/i.test(value)) ?? 0;
-
-  return lines.filter((line) => {
-    const value = String(line).split(';')[timestampIndex]?.trim().replace(/^"|"$/g, '');
-    const timestamp = new Date(value).getTime();
-    return !Number.isFinite(timestamp) || timestamp >= cutoffTime;
-  }).join('\n');
-}
-
-function closestStartPair(logs) {
-  const pairs = [];
-  for (let left = 0; left < logs.length; left += 1) {
-    for (let right = left + 1; right < logs.length; right += 1) {
-      pairs.push({
-        distance: Math.abs(logs[left].startTime - logs[right].startTime),
-        logs: [logs[left], logs[right]],
-      });
+export function assertLootLogStartWindow(entries) {
+  const starts = entries.map((entry, index) => {
+    const startAt = typeof entry === 'string' ? entry : entry?.startAt;
+    const startTime = new Date(startAt).getTime();
+    if (!Number.isFinite(startTime)) {
+      throw new Error(`${entry?.label || `Loot log ${index + 1}`} does not contain a valid starting timestamp.`);
     }
+    return { ...entry, startAt: new Date(startTime).toISOString(), startTime };
+  }).sort((left, right) => left.startTime - right.startTime);
+
+  if (starts.length > 1 && starts.at(-1).startTime - starts[0].startTime > LOOT_LOG_START_WINDOW_MS) {
+    throw new Error('All loot logs in one entry must start within 30 minutes of the earliest loot log.');
   }
-  return pairs.sort((left, right) => left.distance - right.distance)[0] || null;
+
+  return starts;
 }
 
 export function buildLootLogEvents(text) {
@@ -93,40 +83,17 @@ export function getLootLogTimeRange(events) {
 }
 
 export function validateLootLogStartWindow(logs) {
-  let inspected = logs.map((log, index) => {
+  const inspected = logs.map((log, index) => {
     const text = typeof log === 'string' ? log : (log?.text ?? log?.logText);
     const { events } = buildLootLogEvents(text);
     const range = getLootLogTimeRange(events);
     if (!range) {
       throw new Error(`${log?.label || log?.fileName || `Loot log ${index + 1}`} does not contain any valid timestamp_utc values.`);
     }
-    return { ...log, range, startAt: range.startAt, startTime: new Date(range.startAt).getTime() };
+    return { ...log, range, startAt: range.startAt };
   });
 
-  if (inspected.length === 3) {
-    const likelyPair = closestStartPair(inspected);
-    if (likelyPair && likelyPair.distance <= LOOT_LOG_START_WINDOW_MS) {
-      const likelyStart = Math.min(...likelyPair.logs.map((log) => log.startTime));
-      const cutoffTime = likelyStart - LOOT_LOG_START_WINDOW_MS;
-      inspected = inspected.map((log) => {
-        const originalText = log.text ?? log.logText;
-        const filteredText = filterLootLogBefore(originalText, cutoffTime);
-        const { events } = buildLootLogEvents(filteredText);
-        const range = getLootLogTimeRange(events);
-        if (!range) return null;
-        return {
-          ...log,
-          ...(Object.hasOwn(log, 'text') ? { text: filteredText } : {}),
-          ...(Object.hasOwn(log, 'logText') ? { logText: filteredText } : {}),
-          range,
-          startAt: range.startAt,
-          startTime: new Date(range.startAt).getTime(),
-        };
-      }).filter(Boolean);
-    }
-  }
-
-  return inspected.sort((left, right) => left.startTime - right.startTime);
+  return assertLootLogStartWindow(inspected);
 }
 
 export function aggregateLootLogEvents(events) {
