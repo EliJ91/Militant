@@ -2688,26 +2688,6 @@ button:focus-visible {
     0 18px 46px rgba(0, 0, 0, 0.42);
 }
 
-.saved-log-number {
-  position: absolute;
-  top: 10px;
-  left: 12px;
-  z-index: 1;
-  display: inline-flex;
-  min-width: 26px;
-  min-height: 22px;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 6px;
-  border: 1px solid rgba(87, 216, 120, 0.42);
-  border-radius: 5px;
-  background: rgba(87, 216, 120, 0.08);
-  color: var(--green-hot);
-  font-size: 0.68rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
 .saved-log-row.merge-selectable .saved-log-card {
   user-select: none;
 }
@@ -2736,12 +2716,13 @@ button:focus-visible {
 
 .saved-log-card-main {
   display: grid;
-  grid-template-columns: minmax(330px, 1.45fr) minmax(340px, 1.5fr) minmax(190px, 0.86fr) minmax(220px, 0.92fr);
+  grid-template-columns: 92px minmax(300px, 1.35fr) minmax(340px, 1.5fr) minmax(190px, 0.86fr) minmax(220px, 0.92fr);
   gap: 0;
   align-items: stretch;
   min-width: 0;
 }
 
+.saved-log-index,
 .saved-log-users,
 .saved-log-submitters,
 .saved-log-chest,
@@ -2753,6 +2734,7 @@ button:focus-visible {
   border-left: 1px solid rgba(247, 250, 245, 0.12);
 }
 
+.saved-log-index,
 .saved-log-time {
   border-left: 0;
   justify-items: center;
@@ -2760,9 +2742,24 @@ button:focus-visible {
   text-align: center;
 }
 
-.saved-log-card-main > .saved-log-users:first-child {
-  padding-left: 16px;
-  border-left: 0;
+.saved-log-index {
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  padding: 8px 14px;
+  color: var(--green-hot);
+  text-transform: uppercase;
+}
+
+.saved-log-index small {
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.saved-log-index strong {
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .saved-log-time,
@@ -5164,6 +5161,7 @@ button:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .saved-log-index,
   .saved-log-users,
   .saved-log-submitters,
   .saved-log-chest,
@@ -5183,9 +5181,12 @@ button:focus-visible {
     text-align: left;
   }
 
-  .saved-log-card-main > .saved-log-users:first-child {
-    padding-top: 18px;
+  .saved-log-index {
+    justify-items: start;
+    place-content: start;
+    padding: 0 0 14px;
     border-top: 0;
+    text-align: left;
   }
 
   .saved-log-users .saved-log-chest {
