@@ -2,7 +2,6 @@ import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import {
   aggregateLootLogEvents,
-  assertLootLogStartWindow,
   buildLootLogEvents,
   getLootLogTimeRange,
 } from '../utils/lootLogMerge.js';
@@ -1089,21 +1088,6 @@ export async function submitLootLog({
 
   const supabase = createSupabaseAdmin();
   const { bundle, matchedExistingBundle } = await getOrCreateBundle(supabase, { bundleId, range });
-
-  if (bundleId && !overrideCurrent) {
-    const { data: submissions, error: submissionsError } = await supabase
-      .from('loot_log_submissions')
-      .select('event_start_at')
-      .eq('bundle_id', bundle.id);
-    if (submissionsError) throw submissionsError;
-    assertLootLogStartWindow([
-      ...(submissions || []).map((submission, index) => ({
-        label: `Existing loot log ${index + 1}`,
-        startAt: submission.event_start_at,
-      })),
-      { label: originalFileName || 'New loot log', startAt: range.startAt },
-    ]);
-  }
 
   if (bundleId && overrideCurrent) {
     await clearLootLogDeathChecks(supabase, bundle.id);

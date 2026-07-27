@@ -2414,9 +2414,9 @@ export function LootLogArchive({
       }
 
       setActionStatus({
-        message: selectedFiles.length === 1
+        message: uploadedNames.length === 1
           ? `${uploadedNames[0]} uploaded.`
-          : `${selectedFiles.length} loot logs uploaded.`,
+          : `${uploadedNames.length} loot logs uploaded.`,
         state: 'success',
       });
       await loadSavedLogs();
