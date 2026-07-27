@@ -2690,7 +2690,7 @@ button:focus-visible {
 
 .saved-log-number {
   color: var(--green);
-  font-size: 0.68rem;
+  font-size: 1rem;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -2723,7 +2723,7 @@ button:focus-visible {
 
 .saved-log-card-main {
   display: grid;
-  grid-template-columns: minmax(170px, 0.78fr) minmax(285px, 1.32fr) minmax(320px, 1.48fr) minmax(190px, 0.86fr) minmax(220px, 0.92fr);
+  grid-template-columns: 112px minmax(300px, 1.35fr) minmax(320px, 1.5fr) minmax(190px, 0.86fr) minmax(220px, 0.92fr);
   gap: 0;
   align-items: stretch;
   min-width: 0;
@@ -2742,7 +2742,9 @@ button:focus-visible {
 
 .saved-log-time {
   border-left: 0;
-  padding-left: 0;
+  justify-items: center;
+  padding: 8px 18px 8px 0;
+  text-align: center;
 }
 
 .saved-log-time,
@@ -5156,8 +5158,10 @@ button:focus-visible {
   }
 
   .saved-log-time {
+    justify-items: start;
     padding-top: 0;
     border-top: 0;
+    text-align: left;
   }
 
   .saved-log-users .saved-log-chest {
