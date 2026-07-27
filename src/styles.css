@@ -2689,8 +2689,17 @@ button:focus-visible {
 }
 
 .saved-log-number {
-  color: var(--green);
-  font-size: 1rem;
+  display: inline-flex;
+  min-width: 26px;
+  min-height: 22px;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border: 1px solid rgba(87, 216, 120, 0.42);
+  border-radius: 5px;
+  background: rgba(87, 216, 120, 0.08);
+  color: var(--green-hot);
+  font-size: 0.68rem;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -2700,7 +2709,7 @@ button:focus-visible {
 }
 
 .saved-log-merged-badge,
-.saved-log-time .saved-log-selected-badge {
+.saved-log-selected-badge {
   width: auto;
   padding: 3px 7px;
   border: 1px solid rgba(80, 156, 255, 0.6);
@@ -2723,7 +2732,7 @@ button:focus-visible {
 
 .saved-log-card-main {
   display: grid;
-  grid-template-columns: 112px minmax(300px, 1.35fr) minmax(320px, 1.5fr) minmax(190px, 0.86fr) minmax(220px, 0.92fr);
+  grid-template-columns: minmax(330px, 1.45fr) minmax(340px, 1.5fr) minmax(190px, 0.86fr) minmax(220px, 0.92fr);
   gap: 0;
   align-items: stretch;
   min-width: 0;
@@ -2745,6 +2754,11 @@ button:focus-visible {
   justify-items: center;
   padding: 8px 18px 8px 0;
   text-align: center;
+}
+
+.saved-log-card-main > .saved-log-users:first-child {
+  padding-left: 0;
+  border-left: 0;
 }
 
 .saved-log-time,
@@ -2871,7 +2885,8 @@ button:focus-visible {
   font-size: inherit;
 }
 
-.saved-log-time .saved-log-countdown {
+.saved-log-time .saved-log-countdown,
+.saved-log-users .saved-log-countdown {
   width: max-content;
   margin-top: 5px;
   padding: 4px 7px;
@@ -5162,6 +5177,11 @@ button:focus-visible {
     padding-top: 0;
     border-top: 0;
     text-align: left;
+  }
+
+  .saved-log-card-main > .saved-log-users:first-child {
+    padding-top: 0;
+    border-top: 0;
   }
 
   .saved-log-users .saved-log-chest {
