@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchSiphonedEnergyTransactions,
   purgeSiphonedEnergyTransactions,
+  setSiphonedEnergyStartDate,
   updateSiphonedEnergyPlayerStar,
   updateSiphonedEnergyTransactions,
 } from '../services/siphonedEnergyApi';
@@ -12,6 +13,7 @@ import SiphonedEnergyTracker from './SiphonedEnergyTracker';
 vi.mock('../services/siphonedEnergyApi', () => ({
   fetchSiphonedEnergyTransactions: vi.fn(),
   purgeSiphonedEnergyTransactions: vi.fn(),
+  setSiphonedEnergyStartDate: vi.fn(),
   updateSiphonedEnergyPlayerStar: vi.fn(),
   updateSiphonedEnergyTransactions: vi.fn(),
 }));
@@ -64,6 +66,12 @@ describe('SiphonedEnergyTracker', () => {
       deletedRows: 2,
       guildMemberPlayers: ['Bhrennoh', 'Dyathix'],
       purgeDate: '2026-06-20',
+      starredPlayers: [],
+      transactions: [transactions[2]],
+    });
+    setSiphonedEnergyStartDate.mockResolvedValue({
+      guildMemberPlayers: ['Bhrennoh', 'Dyathix'],
+      startDate: '2026-06-20',
       starredPlayers: [],
       transactions: [transactions[2]],
     });
@@ -132,6 +140,20 @@ describe('SiphonedEnergyTracker', () => {
     expect(await screen.findByRole('heading', { name: 'Siphoned Energy Tracker' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Update Log' })).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Update Energy Log' })).not.toBeInTheDocument();
+  });
+
+  it('only lets permitted users set the tracker start date', async () => {
+    const { rerender } = render(<SiphonedEnergyTracker canSetStartDate={false} />);
+    await screen.findByRole('heading', { name: 'Siphoned Energy Tracker' });
+    expect(screen.queryByLabelText('Siphoned Energy start date')).not.toBeInTheDocument();
+
+    rerender(<SiphonedEnergyTracker canSetStartDate />);
+    const startDateInput = await screen.findByLabelText('Siphoned Energy start date');
+    fireEvent.change(startDateInput, { target: { value: '2026-06-20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+
+    await waitFor(() => expect(setSiphonedEnergyStartDate).toHaveBeenCalledWith('2026-06-20'));
+    expect(await screen.findByText('Start date set to 2026-06-20.')).toBeInTheDocument();
   });
 
   it('filters the negative tracker by starred and out of guild players', async () => {

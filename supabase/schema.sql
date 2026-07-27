@@ -136,6 +136,16 @@ create index if not exists siphoned_energy_transactions_occurred_idx
 create index if not exists siphoned_energy_transactions_player_idx
   on public.siphoned_energy_transactions (lower(player_name));
 
+create table if not exists public.siphoned_energy_settings (
+  id text primary key check (id = 'tracker'),
+  start_date date,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.siphoned_energy_settings (id)
+values ('tracker')
+on conflict (id) do nothing;
+
 create table if not exists public.siphoned_energy_starred_players (
   id uuid primary key default gen_random_uuid(),
   player_name text not null,
@@ -181,3 +191,4 @@ values ('default', '{"roles":[]}'::jsonb)
 on conflict (id) do nothing;
 
 alter table public.siphoned_energy_transactions enable row level security;
+alter table public.siphoned_energy_settings enable row level security;

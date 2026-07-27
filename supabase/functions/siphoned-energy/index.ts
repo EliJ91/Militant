@@ -192,6 +192,29 @@ function parsePurgeDate(value: unknown) {
   return cutoff.toISOString().slice(0, 19);
 }
 
+function parseStartDate(value: unknown) {
+  const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error('A valid start date is required.');
+
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const valid = date.getUTCFullYear() === Number(year)
+    && date.getUTCMonth() === Number(month) - 1
+    && date.getUTCDate() === Number(day);
+  if (!valid) throw new Error('A valid start date is required.');
+  return `${year}-${month}-${day}`;
+}
+
+async function readStartDate(supabase: any) {
+  const { data, error } = await supabase
+    .from('siphoned_energy_settings')
+    .select('start_date')
+    .eq('id', 'tracker')
+    .maybeSingle();
+  if (error) throw error;
+  return data?.start_date || null;
+}
+
 async function listStarredPlayers(supabase: any) {
   const { data, error } = await supabase
     .from('siphoned_energy_starred_players')
@@ -284,12 +307,14 @@ async function listGuildMemberPlayers(supabase: any) {
   return members.map((member: any) => member.playerName);
 }
 
-async function listTransactions(supabase: any) {
+async function listTransactions(supabase: any, startDate: string | null = null) {
   const transactions: any[] = [];
   for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('siphoned_energy_transactions')
-      .select('id,occurred_at,player_name,reason,amount')
+      .select('id,occurred_at,player_name,reason,amount');
+    if (startDate) query = query.gte('occurred_at', `${startDate}T00:00:00`);
+    const { data, error } = await query
       .order('occurred_at', { ascending: false })
       .order('id')
       .range(from, from + PAGE_SIZE - 1);
@@ -320,15 +345,36 @@ Deno.serve(async (request) => {
         });
       }
 
+      const startDate = await readStartDate(supabase);
       return jsonResponse(200, {
         guildMemberPlayers: await listGuildMemberPlayers(supabase),
+        startDate,
         starredPlayers: await listStarredPlayers(supabase),
-        transactions: await listTransactions(supabase),
+        transactions: await listTransactions(supabase, startDate),
       });
     }
 
     if (request.method === 'PATCH') {
       const body = await request.json();
+      if (body.action === 'set-start-date') {
+        const startDate = parseStartDate(body.startDate);
+        const { error } = await supabase
+          .from('siphoned_energy_settings')
+          .upsert({
+            id: 'tracker',
+            start_date: startDate,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        if (error) throw error;
+
+        return jsonResponse(200, {
+          guildMemberPlayers: await listGuildMemberPlayers(supabase),
+          startDate,
+          starredPlayers: await listStarredPlayers(supabase),
+          transactions: await listTransactions(supabase, startDate),
+        });
+      }
+
       const playerName = normalizePlayerName(body.player);
       if (!playerName) throw new Error('player is required.');
 
@@ -363,12 +409,14 @@ Deno.serve(async (request) => {
 
       if (error) throw error;
 
+      const startDate = await readStartDate(supabase);
       return jsonResponse(200, {
         deletedRows: count ?? data?.length ?? 0,
         guildMemberPlayers: await listGuildMemberPlayers(supabase),
         purgeDate,
+        startDate,
         starredPlayers: await listStarredPlayers(supabase),
-        transactions: await listTransactions(supabase),
+        transactions: await listTransactions(supabase, startDate),
       });
     }
 
@@ -404,13 +452,15 @@ Deno.serve(async (request) => {
       insertedRows += data?.length || 0;
     }
 
+    const startDate = await readStartDate(supabase);
     return jsonResponse(200, {
       duplicateRows: uniqueRows.length - insertedRows,
       guildMemberPlayers: await listGuildMemberPlayers(supabase),
       insertedRows,
       skippedRows: parsed.skippedRows,
+      startDate,
       starredPlayers: await listStarredPlayers(supabase),
-      transactions: await listTransactions(supabase),
+      transactions: await listTransactions(supabase, startDate),
     });
   } catch (error) {
     return jsonResponse(400, { error: error?.message || 'Could not update Siphoned Energy transactions.' });

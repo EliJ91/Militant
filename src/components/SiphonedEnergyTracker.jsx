@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchSiphonedEnergyTransactions,
   purgeSiphonedEnergyTransactions,
+  setSiphonedEnergyStartDate,
   updateSiphonedEnergyPlayerStar,
   updateSiphonedEnergyTransactions,
 } from '../services/siphonedEnergyApi';
@@ -92,7 +93,7 @@ function purgeDateValue({ day, month, year }) {
   return `${year}-${month}-${day}`;
 }
 
-export default function SiphonedEnergyTracker({ canUpdate = true }) {
+export default function SiphonedEnergyTracker({ canSetStartDate = false, canUpdate = true }) {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [isPurgeOpen, setIsPurgeOpen] = useState(false);
   const [ledgerSearch, setLedgerSearch] = useState('');
@@ -109,6 +110,9 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
   const [guildMemberPlayers, setGuildMemberPlayers] = useState([]);
   const [starredPlayers, setStarredPlayers] = useState([]);
   const [starUpdatingPlayer, setStarUpdatingPlayer] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [startDateDraft, setStartDateDraft] = useState('');
+  const [startDateSaving, setStartDateSaving] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
   const [updateStatus, setUpdateStatus] = useState({ message: '', state: 'idle' });
@@ -121,6 +125,8 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
         if (!active) return;
         setGuildMemberPlayers(result.guildMemberPlayers || []);
         setStarredPlayers(result.starredPlayers || []);
+        setStartDate(result.startDate || '');
+        setStartDateDraft(result.startDate || '');
         setTransactions(result.transactions || []);
         setLoadStatus({ message: '', state: 'ready' });
       })
@@ -257,6 +263,27 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
     }
   }
 
+  async function saveStartDate(event) {
+    event.preventDefault();
+    if (!canSetStartDate || !startDateDraft || startDateSaving) return;
+
+    setStartDateSaving(true);
+    try {
+      const result = await setSiphonedEnergyStartDate(startDateDraft);
+      const savedStartDate = result.startDate || startDateDraft;
+      setGuildMemberPlayers(result.guildMemberPlayers || []);
+      setStarredPlayers(result.starredPlayers || []);
+      setStartDate(savedStartDate);
+      setStartDateDraft(savedStartDate);
+      setTransactions(result.transactions || []);
+      setUpdateStatus({ message: `Start date set to ${savedStartDate}.`, state: 'success' });
+    } catch (error) {
+      setUpdateStatus({ message: error.message, state: 'error' });
+    } finally {
+      setStartDateSaving(false);
+    }
+  }
+
   async function updateLog() {
     if (!logText.trim() || updateStatus.state === 'updating') return;
     setUpdateStatus({ message: 'Updating...', state: 'updating' });
@@ -380,6 +407,25 @@ export default function SiphonedEnergyTracker({ canUpdate = true }) {
           <h1 id="siphoned-energy-title">Siphoned Energy Tracker</h1>
         </div>
         <div className="energy-heading-actions">
+          {canSetStartDate ? (
+            <form className="energy-start-date" onSubmit={saveStartDate}>
+              <label>
+                <small>Start Date</small>
+                <input
+                  aria-label="Siphoned Energy start date"
+                  type="date"
+                  value={startDateDraft}
+                  onChange={(event) => setStartDateDraft(event.target.value)}
+                />
+              </label>
+              <button
+                disabled={!startDateDraft || startDateDraft === startDate || startDateSaving}
+                type="submit"
+              >
+                {startDateSaving ? 'Setting' : 'Set'}
+              </button>
+            </form>
+          ) : null}
           <div className="energy-total">
             <small>Transactions</small>
             <strong>{new Intl.NumberFormat('en-US').format(transactions.length)}</strong>

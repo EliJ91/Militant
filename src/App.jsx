@@ -748,6 +748,7 @@ function LootLogsPage({
 }
 
 function SiphonedEnergyPage({
+  canSetStartDate = false,
   canUpdate = false,
   currentUser = null,
   isAuthenticated = false,
@@ -769,7 +770,7 @@ function SiphonedEnergyPage({
       viewAsRoleIds={viewAsRoleIds}
       viewAsRoles={viewAsRoles}
     >
-      <SiphonedEnergyTracker canUpdate={canUpdate} />
+      <SiphonedEnergyTracker canSetStartDate={canSetStartDate} canUpdate={canUpdate} />
     </ToolPage>
   );
 }
@@ -1113,6 +1114,7 @@ export default function App() {
   } else if (route === 'siphoned-energy') {
     page = (
       <SiphonedEnergyPage
+        canSetStartDate={Boolean(effectivePermissions.setSiphonedEnergyStartDate)}
         canUpdate={Boolean(effectivePermissions.updateSiphonedEnergy)}
         currentUser={currentUser}
         isAuthenticated={isAuthenticated}

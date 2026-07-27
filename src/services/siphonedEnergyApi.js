@@ -64,6 +64,22 @@ export async function updateSiphonedEnergyPlayerStar({ player, starred }) {
   return result;
 }
 
+export async function setSiphonedEnergyStartDate(startDate) {
+  const response = await fetch(getSiphonedEnergyApiUrl(), {
+    body: JSON.stringify({ action: 'set-start-date', startDate }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'PATCH',
+  });
+  const result = await readResult(response, 'Could not set the Siphoned Energy start date.');
+  void recordActionLog({
+    action: 'Siphoned Energy start date set',
+    details: { startDate: result.startDate },
+    targetName: result.startDate,
+    targetType: 'siphoned-energy',
+  });
+  return result;
+}
+
 export async function purgeSiphonedEnergyTransactions({ date }) {
   const response = await fetch(getSiphonedEnergyApiUrl(), {
     body: JSON.stringify({ date }),

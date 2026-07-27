@@ -43,6 +43,7 @@ describe('PermissionsTool', () => {
     expect(screen.getByRole('rowheader', { name: 'View Logs' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Delete Chest/Loot Logs' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Update Siphoned Energy Tracker' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'Set Start Date' })).toBeInTheDocument();
     expect(screen.getAllByRole('columnheader', { name: /General|Action Log|Loot Logs|Loot Log Viewer|Members|Player Loot History|Siphoned Energy/ }).map((heading) => heading.textContent)).toEqual([
       'General',
       'Action Log',

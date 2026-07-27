@@ -26,6 +26,7 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'viewPlayerHistory', label: 'View Player Loot History', area: 'Player Loot History' },
   { key: 'viewSiphonedEnergy', label: 'View Siphoned Energy Tracker', area: 'Siphoned Energy' },
   { key: 'updateSiphonedEnergy', label: 'Update Siphoned Energy Tracker', area: 'Siphoned Energy' },
+  { key: 'setSiphonedEnergyStartDate', label: 'Set Start Date', area: 'Siphoned Energy' },
 ];
 
 function createDefaultPermissionSettings() {

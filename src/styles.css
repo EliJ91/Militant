@@ -4125,6 +4125,74 @@ button:focus-visible {
   gap: 8px;
 }
 
+.energy-start-date {
+  display: grid;
+  grid-template-columns: minmax(132px, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 230px;
+  padding: 8px 10px;
+  border: 1px solid rgba(87, 216, 120, 0.34);
+  border-radius: 7px;
+  background: rgba(87, 216, 120, 0.08);
+}
+
+.energy-start-date label {
+  display: grid;
+  gap: 4px;
+}
+
+.energy-start-date small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.energy-start-date input {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid rgba(247, 250, 245, 0.18);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.42);
+  color: var(--white);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color-scheme: dark;
+}
+
+.energy-start-date input:focus {
+  border-color: var(--green-hot);
+  outline: none;
+}
+
+.energy-start-date button {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid rgba(87, 216, 120, 0.5);
+  border-radius: 5px;
+  background: rgba(87, 216, 120, 0.12);
+  color: var(--white);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.energy-start-date button:hover:not(:disabled) {
+  background: var(--green-hot);
+  color: var(--black);
+}
+
+.energy-start-date button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .energy-update-actions {
   align-items: stretch;
   display: flex;
@@ -5075,6 +5143,11 @@ button:focus-visible {
   .energy-heading-actions {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(130px, 1fr);
+  }
+
+  .energy-start-date {
+    grid-column: 1 / -1;
+    min-width: 0;
   }
 
   .energy-update-actions {
