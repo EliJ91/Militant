@@ -24,7 +24,6 @@ import {
   parseLootEvents,
 } from '../utils/lootMonitor';
 import { warmItemImageCache } from '../utils/itemImageCache';
-import { validateLootLogStartWindow } from '../utils/lootLogMerge';
 
 const FILTER_STORAGE_KEY = 'militant.lootMonitor.filters.v3';
 const LEGACY_FILTER_STORAGE_KEY = 'militant.lootMonitor.filters.v2';
@@ -2394,13 +2393,11 @@ export function LootLogArchive({
 
     try {
       const uploadedNames = [];
-      const preparedFiles = validateLootLogStartWindow(await Promise.all(selectedFiles.map(async (file) => {
+
+      for (const [index, file] of selectedFiles.entries()) {
         const text = await file.text();
         if (detectFileKind(text) !== 'loot') throw new Error(`${file.name} is not a valid loot-events file.`);
-        return { file, label: file.name, text };
-      })));
 
-      for (const [index, { file, text }] of preparedFiles.entries()) {
         const result = await submitLootLog({
           actorName: uploadUsername,
           bundleId: targetBundleId,
