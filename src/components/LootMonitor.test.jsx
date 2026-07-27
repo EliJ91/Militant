@@ -911,7 +911,7 @@ describe('LootMonitor', () => {
     expect(await screen.findByText('loot-events-original')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Loot Logs' })).toBeInTheDocument();
     expect(screen.queryByText('Uploaded')).not.toBeInTheDocument();
-    expect(screen.getByText('Jun 20, 2026 11:45:00 EDT')).toBeInTheDocument();
+    expect(screen.queryByText('Jun 20, 2026 11:45:00 EDT')).not.toBeInTheDocument();
     expect(screen.queryByText(/18:33 UTC/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Loot Monitor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toHaveAttribute('title', 'Refresh logs');
@@ -1262,7 +1262,7 @@ describe('LootMonitor', () => {
     const rows = [...container.querySelectorAll('.saved-log-row')];
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent('Newer CTA');
-    expect(rows[0]).toHaveTextContent('Jul 10, 2026 00:08:00 EDT');
+    expect(rows[0]).not.toHaveTextContent('Jul 10, 2026 00:08:00 EDT');
     expect(rows[1]).toHaveTextContent('Older CTA');
   });
 

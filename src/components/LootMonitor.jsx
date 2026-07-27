@@ -2087,7 +2087,6 @@ function LootLogBundleList({
               ? formatSubmitterList(chestSubmitters)
               : 'No chest log';
             const retention = getRetentionStatus(bundle.startAt);
-            const uploadedAt = getBundleUploadedAt(bundle);
             const isEditing = editingBundleId === bundle.id;
             const canEditSubmitters = canEditLogs;
             const canEditBundle = canEditLogs || canChangeLootLogTitle;
@@ -2120,7 +2119,6 @@ function LootLogBundleList({
                     <div className="saved-log-time">
                       {isSelected ? <span className="saved-log-selected-badge">Selected</span> : null}
                       {bundle.logNumber ? <span className="saved-log-number">{bundle.logNumber}</span> : null}
-                      <small>{formatEasternDateTime(uploadedAt)}</small>
                       {!isEditing && retention ? (
                         <small className="saved-log-countdown" title={`Scheduled deletion: ${formatUtcDate(retention.expiresAt)}`}>
                           {formatDeletionCountdown(retention.daysUntilDeletion)}
