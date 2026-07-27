@@ -1027,6 +1027,44 @@ button:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.members-update-control {
+  position: relative;
+  display: inline-flex;
+}
+
+.members-update-control.is-disabled .view-logs-button {
+  pointer-events: none;
+}
+
+.members-update-control[data-tooltip]::after {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 7px 9px;
+  border: 1px solid rgba(87, 216, 120, 0.34);
+  border-radius: 5px;
+  background: #050b08;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+  color: var(--white);
+  content: attr(data-tooltip);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.members-update-control[data-tooltip]:hover::after,
+.members-update-control[data-tooltip]:focus-within::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .members-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -4951,6 +4989,10 @@ button:focus-visible {
   .members-heading {
     align-items: stretch;
     grid-template-columns: 1fr;
+  }
+
+  .members-update-control {
+    width: 100%;
   }
 
   .members-summary-grid {

@@ -124,6 +124,15 @@ export default function MembersTool({ canUpdate = false }) {
   const updateCoolingDown = refreshedAtTime > 0
     && Date.now() - refreshedAtTime >= 0
     && Date.now() - refreshedAtTime < MEMBER_UPDATE_COOLDOWN_MS;
+  const updateInProgress = loadStatus.state === 'loading';
+  const updateDisabled = !canUpdate || updateInProgress || updateCoolingDown;
+  const updateDisabledReason = updateCoolingDown
+    ? 'Updated within the last 3 days'
+    : updateInProgress
+      ? 'Member list update is in progress'
+      : !canUpdate
+        ? 'You do not have permission to update members'
+        : '';
   const newestDateAdded = useMemo(() => Math.max(...members.map((member) => dateValue(member.dateAdded)), 0), [members]);
   const oldestDateAdded = useMemo(() => Math.min(
     ...members.map((member) => dateValue(member.dateAdded)).filter((value) => value > 0),
@@ -166,15 +175,20 @@ export default function MembersTool({ canUpdate = false }) {
           <p className="eyebrow">Tool</p>
           <h1 id="members-title">Members</h1>
         </div>
-        <button
-          className="view-logs-button"
-          disabled={!canUpdate || loadStatus.state === 'loading' || updateCoolingDown}
-          title={updateCoolingDown ? 'Member list was updated within the last 3 days' : 'Update members'}
-          type="button"
-          onClick={() => loadMembers({ recordUpdate: true })}
+        <span
+          className={`members-update-control${updateDisabled ? ' is-disabled' : ''}`}
+          data-tooltip={updateDisabledReason || undefined}
         >
-          {loadStatus.state === 'loading' ? 'Updating' : 'Update'}
-        </button>
+          <button
+            className="view-logs-button"
+            disabled={updateDisabled}
+            title={updateDisabled ? undefined : 'Update members'}
+            type="button"
+            onClick={() => loadMembers({ recordUpdate: true })}
+          >
+            {updateInProgress ? 'Updating' : 'Update'}
+          </button>
+        </span>
       </section>
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}

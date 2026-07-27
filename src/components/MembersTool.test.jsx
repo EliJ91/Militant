@@ -88,7 +88,7 @@ describe('MembersTool', () => {
 
     const updateButton = await screen.findByRole('button', { name: 'Update' });
     expect(updateButton).toBeDisabled();
-    expect(updateButton).toHaveAttribute('title', 'Member list was updated within the last 3 days');
+    expect(updateButton.closest('.members-update-control')).toHaveAttribute('data-tooltip', 'Updated within the last 3 days');
   });
 
   it('allows member updates after the three day cooldown', async () => {
