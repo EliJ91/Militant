@@ -2746,6 +2746,8 @@ button:focus-visible {
   display: grid;
   place-content: center;
   gap: 5px;
+  width: calc(100% + 18px);
+  margin-left: -18px;
   padding: 8px 14px;
   color: var(--green-hot);
   text-transform: uppercase;
@@ -5184,6 +5186,8 @@ button:focus-visible {
   .saved-log-index {
     justify-items: start;
     place-content: start;
+    width: auto;
+    margin-left: 0;
     padding: 0 0 14px;
     border-top: 0;
     text-align: left;
