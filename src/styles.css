@@ -2689,6 +2689,10 @@ button:focus-visible {
 }
 
 .saved-log-number {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 1;
   display: inline-flex;
   min-width: 26px;
   min-height: 22px;
@@ -2757,7 +2761,7 @@ button:focus-visible {
 }
 
 .saved-log-card-main > .saved-log-users:first-child {
-  padding-left: 0;
+  padding-left: 16px;
   border-left: 0;
 }
 
@@ -5180,7 +5184,7 @@ button:focus-visible {
   }
 
   .saved-log-card-main > .saved-log-users:first-child {
-    padding-top: 0;
+    padding-top: 18px;
     border-top: 0;
   }
 

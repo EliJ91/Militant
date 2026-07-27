@@ -2115,12 +2115,12 @@ function LootLogBundleList({
                 onPointerUp={cancelLongPress}
               >
                 <div className={`saved-log-card${isSelected ? ' selected' : ''}`}>
+                  {bundle.logNumber ? <span className="saved-log-number">#{bundle.logNumber}</span> : null}
                   <div className="saved-log-card-main">
                     <div className="saved-log-users">
                       <div className="saved-log-title-line">
                       {isSelected ? <span className="saved-log-selected-badge">Selected</span> : null}
                       <small>Loot Log</small>
-                      {bundle.logNumber ? <span className="saved-log-number">{bundle.logNumber}</span> : null}
                       {bundle.summary?.isMerged ? <span className="saved-log-merged-badge">Merged</span> : null}
                       {!isEditing && canUploadLootLogs ? (
                         <button
