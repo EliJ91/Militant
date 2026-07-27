@@ -8,7 +8,7 @@ import {
 } from 'discord.js';
 import { submitLootLog } from '../server/supabaseLootLogs.js';
 import { recordActionLog } from '../server/supabaseActionLogs.js';
-import { buildLootLogEvents } from '../utils/lootLogMerge.js';
+import { buildLootLogEvents, validateLootLogStartWindow } from '../utils/lootLogMerge.js';
 
 export const DEFAULT_LOOT_LOG_THREAD_CHANNEL_ID = '1492400020958351391';
 
@@ -439,7 +439,11 @@ export async function processLootLogThread({
     preparedJobs.push(await prepareJob({ fetchAttachmentTextFn, job }));
   }
 
-  for (const job of preparedJobs.filter((candidate) => candidate.logType === 'loot')) {
+  const orderedLootJobs = validateLootLogStartWindow(preparedJobs
+    .filter((candidate) => candidate.logType === 'loot')
+    .map((job) => ({ ...job, label: job.fileName })));
+
+  for (const job of orderedLootJobs) {
     const result = await processPreparedJob({
       bundleId,
       commandActorName,

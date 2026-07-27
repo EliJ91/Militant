@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const LOOT_LOG_START_WINDOW_MS = 30 * 60 * 1000;
 const NEARBY_DUPLICATE_MS = 30000;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 const HASH_LOOKUP_BATCH_SIZE = 40;
@@ -708,6 +709,20 @@ function getLootLogTimeRange(events: LootEvent[]) {
     endAt: new Date(Math.max(...timestamps)).toISOString(),
     startAt: new Date(Math.min(...timestamps)).toISOString(),
   };
+}
+
+function assertLootLogStartWindow(entries: Array<{ label?: string; startAt?: string | null }>) {
+  const starts = entries.map((entry, index) => {
+    const startTime = new Date(entry.startAt || '').getTime();
+    if (!Number.isFinite(startTime)) {
+      throw new Error(`${entry.label || `Loot log ${index + 1}`} does not contain a valid starting timestamp.`);
+    }
+    return startTime;
+  }).sort((left, right) => left - right);
+
+  if (starts.length > 1 && starts[starts.length - 1] - starts[0] > LOOT_LOG_START_WINDOW_MS) {
+    throw new Error('All loot logs in one entry must start within 30 minutes of the earliest loot log.');
+  }
 }
 
 function unique(values: unknown[]) {
@@ -2145,6 +2160,21 @@ Deno.serve(async (request) => {
 
       if (error) throw error;
       bundle = data;
+    }
+
+    if (requestedBundleId && !body.overrideCurrentLootLog) {
+      const { data: submissions, error: submissionsError } = await supabase
+        .from('loot_log_submissions')
+        .select('event_start_at')
+        .eq('bundle_id', bundle.id);
+      if (submissionsError) throw submissionsError;
+      assertLootLogStartWindow([
+        ...(submissions || []).map((submission: any, index: number) => ({
+          label: `Existing loot log ${index + 1}`,
+          startAt: submission.event_start_at,
+        })),
+        { label: originalFileName || 'New loot log', startAt: range.startAt },
+      ]);
     }
 
     if (requestedBundleId && body.overrideCurrentLootLog) {
