@@ -115,7 +115,7 @@ describe('player history service', () => {
       bundle: {
         chestLogReportText: [
           'Date\tPlayer\tItem\tEnchantment\tQuality\tAmount',
-          "07/20/2026 20:10:00\tMilitantOne\tAdept's Cape\t0\t1\t1",
+          "07/20/2026 20:21:00\tMilitantOne\tAdept's Cape\t0\t1\t1",
         ].join('\n'),
         deathChecks: [],
         endAt: '2026-07-20T20:20:00.000Z',

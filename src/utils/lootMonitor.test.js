@@ -39,13 +39,13 @@ describe('loot monitor parsing', () => {
     expect(parsed.withdrawals[0].isFinalChest).toBe(false);
   });
 
-  it('ignores chest entries before the loot start and over two hours after the loot end', () => {
+  it('keeps chest entries from the latest loot event through one hour afterward', () => {
     const chestText = [
       '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
-      '"07/10/2026 13:59:59"\t"Early"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
-      '"07/10/2026 14:00:00"\t"Start"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
-      '"07/10/2026 18:00:00"\t"Deadline"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
-      '"07/10/2026 18:00:01"\t"Late"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
+      '"07/10/2026 15:59:59"\t"Early"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
+      '"07/10/2026 16:00:00"\t"Start"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
+      '"07/10/2026 17:00:00"\t"Deadline"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
+      '"07/10/2026 17:00:01"\t"Late"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
     ].join('\n');
 
     const parsed = parseChestLog(chestText, {
@@ -59,10 +59,10 @@ describe('loot monitor parsing', () => {
   it('removes out-of-window entries from displayed chest log text', () => {
     const chestText = [
       '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
-      '"07/10/2026 13:59:59"\t"Early"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
-      '"07/10/2026 14:00:00"\t"Start"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
-      '"07/10/2026 18:00:00"\t"Deadline"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
-      '"07/10/2026 18:00:01"\t"Late"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
+      '"07/10/2026 15:59:59"\t"Early"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
+      '"07/10/2026 16:00:00"\t"Start"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
+      '"07/10/2026 17:00:00"\t"Deadline"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
+      '"07/10/2026 17:00:01"\t"Late"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
     ].join('\n');
 
     const filtered = filterChestLogTextByWindow(chestText, {

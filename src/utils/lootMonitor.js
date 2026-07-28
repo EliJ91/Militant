@@ -152,12 +152,12 @@ function isChestHeader(cells) {
 
 export function filterChestLogTextByWindow(
   text,
-  { endAt = '', graceMs = 2 * 60 * 60 * 1000, startAt = '' } = {},
+  { endAt = '', graceMs = 60 * 60 * 1000 } = {},
 ) {
   const source = String(text || '');
-  const rangeStart = timestampMs(startAt);
-  const rangeEnd = timestampMs(endAt);
-  if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd)) return source;
+  const rangeStart = timestampMs(endAt);
+  const rangeEnd = rangeStart + graceMs;
+  if (!Number.isFinite(rangeStart)) return source;
 
   const sections = [];
   let activeSection = null;
@@ -175,7 +175,7 @@ export function filterChestLogTextByWindow(
     if (!activeSection || !cells.some((cell) => cell.trim())) return;
     const dateIndex = activeSection.header.findIndex((cell) => cell === 'Date');
     const eventTime = timestampMs(parseTimestamp(cells[dateIndex] || ''));
-    if (Number.isFinite(eventTime) && eventTime >= rangeStart && eventTime <= rangeEnd + graceMs) {
+    if (Number.isFinite(eventTime) && eventTime >= rangeStart && eventTime <= rangeEnd) {
       activeSection.rows.push(cells);
     }
   });
@@ -253,7 +253,7 @@ export function parseLootEvents(text) {
   };
 }
 
-export function parseChestLog(text, { endAt = '', graceMs = 2 * 60 * 60 * 1000, startAt = '' } = {}) {
+export function parseChestLog(text, { endAt = '', graceMs = 60 * 60 * 1000 } = {}) {
   const tableRows = parseDelimited(text, '\t');
   const skippedRows = [];
   const withdrawals = [];
@@ -262,9 +262,9 @@ export function parseChestLog(text, { endAt = '', graceMs = 2 * 60 * 60 * 1000, 
   const sourceStats = new Map();
   let sourceIndex = -1;
   let headers = [];
-  const rangeStart = timestampMs(startAt);
-  const rangeEnd = timestampMs(endAt);
-  const hasTimeWindow = Number.isFinite(rangeStart) && Number.isFinite(rangeEnd);
+  const rangeStart = timestampMs(endAt);
+  const rangeEnd = rangeStart + graceMs;
+  const hasTimeWindow = Number.isFinite(rangeStart);
 
   tableRows.forEach((cells, index) => {
     const normalizedCells = cells.map((cell) => cell.trim());
@@ -309,7 +309,7 @@ export function parseChestLog(text, { endAt = '', graceMs = 2 * 60 * 60 * 1000, 
 
     if (hasTimeWindow) {
       const eventTime = timestampMs(row.timestamp);
-      if (!Number.isFinite(eventTime) || eventTime < rangeStart || eventTime > rangeEnd + graceMs) return;
+      if (!Number.isFinite(eventTime) || eventTime < rangeStart || eventTime > rangeEnd) return;
     }
 
     const stats = sourceStats.get(row.sourceIndex) || {
