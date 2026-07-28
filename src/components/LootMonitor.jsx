@@ -1896,7 +1896,7 @@ function UploadInstructionsModal({ onClose }) {
         <>Copy every relevant page from the bank tab's chest log.</>,
         <>Use the <strong>+</strong> beside <strong>Chest linked</strong> or <strong>No chest log</strong> to paste the log or add <strong>.txt/.tsv</strong> files.</>,
       ],
-      note: 'Use chest events from the latest loot event through one hour afterward.',
+      note: 'Use chest events from the first loot event through one hour after the last loot event.',
       title: 'Upload Chest Logs',
     },
     {

@@ -622,9 +622,9 @@ function filterChestLogTextByWindow(
   timeWindow: { endAt?: string; startAt?: string },
 ) {
   const source = String(text || '');
-  const rangeStart = chestTimestampMs(timeWindow.endAt);
-  const rangeEnd = rangeStart + ONE_HOUR_MS;
-  if (!Number.isFinite(rangeStart)) return source;
+  const rangeStart = chestTimestampMs(timeWindow.startAt);
+  const rangeEnd = chestTimestampMs(timeWindow.endAt) + ONE_HOUR_MS;
+  if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd)) return source;
 
   const sections: Array<{ header: string[]; rows: string[][] }> = [];
   let activeSection: { header: string[]; rows: string[][] } | null = null;
@@ -659,9 +659,9 @@ function parseChestLog(text: string, timeWindow: { endAt?: string; startAt?: str
   const rows: Array<Record<string, unknown>> = [];
   const withdrawals: Array<Record<string, unknown>> = [];
   const skippedRows: number[] = [];
-  const rangeStart = chestTimestampMs(timeWindow.endAt);
-  const rangeEnd = rangeStart + ONE_HOUR_MS;
-  const hasTimeWindow = Number.isFinite(rangeStart);
+  const rangeStart = chestTimestampMs(timeWindow.startAt);
+  const rangeEnd = chestTimestampMs(timeWindow.endAt) + ONE_HOUR_MS;
+  const hasTimeWindow = Number.isFinite(rangeStart) && Number.isFinite(rangeEnd);
 
   records.forEach((record, index) => {
     const player = record.Player;

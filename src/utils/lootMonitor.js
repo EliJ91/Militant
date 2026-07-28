@@ -152,12 +152,12 @@ function isChestHeader(cells) {
 
 export function filterChestLogTextByWindow(
   text,
-  { endAt = '', graceMs = 60 * 60 * 1000 } = {},
+  { endAt = '', graceMs = 60 * 60 * 1000, startAt = '' } = {},
 ) {
   const source = String(text || '');
-  const rangeStart = timestampMs(endAt);
-  const rangeEnd = rangeStart + graceMs;
-  if (!Number.isFinite(rangeStart)) return source;
+  const rangeStart = timestampMs(startAt);
+  const rangeEnd = timestampMs(endAt) + graceMs;
+  if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd)) return source;
 
   const sections = [];
   let activeSection = null;
@@ -253,7 +253,7 @@ export function parseLootEvents(text) {
   };
 }
 
-export function parseChestLog(text, { endAt = '', graceMs = 60 * 60 * 1000 } = {}) {
+export function parseChestLog(text, { endAt = '', graceMs = 60 * 60 * 1000, startAt = '' } = {}) {
   const tableRows = parseDelimited(text, '\t');
   const skippedRows = [];
   const withdrawals = [];
@@ -262,9 +262,9 @@ export function parseChestLog(text, { endAt = '', graceMs = 60 * 60 * 1000 } = {
   const sourceStats = new Map();
   let sourceIndex = -1;
   let headers = [];
-  const rangeStart = timestampMs(endAt);
-  const rangeEnd = rangeStart + graceMs;
-  const hasTimeWindow = Number.isFinite(rangeStart);
+  const rangeStart = timestampMs(startAt);
+  const rangeEnd = timestampMs(endAt) + graceMs;
+  const hasTimeWindow = Number.isFinite(rangeStart) && Number.isFinite(rangeEnd);
 
   tableRows.forEach((cells, index) => {
     const normalizedCells = cells.map((cell) => cell.trim());
