@@ -1910,19 +1910,8 @@ function UploadInstructionsModal({ onClose }) {
       steps: [
         <>Select a player's name and use <strong>Check Recent Deaths</strong> to view their Murderledger deaths.</>,
         <>Copy the numeric ID from the correct death. For example, in the URL <code>"/kill/123456789"</code> has death ID <strong>123456789</strong>.</>,
-        <>Users with <strong>Add Death ID</strong> permission can add the ID or full death link from that player's row.</>,
-        <>Matching <strong>Kept</strong> inventory becomes <strong>Accounted</strong>. Select an Accounted item to copy its Albion killboard link.</>,
       ],
       title: 'Check And Add Deaths',
-    },
-    {
-      steps: [
-        <>Use Tier, Item Type, Guild, Alliance, Sort, and Status to narrow the report.</>,
-        <><strong>Copy Screenshot</strong> captures the displayed report using minimum permission visibility.</>,
-        <><strong>View Raw</strong> shows source logs, while <strong>Share</strong> copies the current report link.</>,
-        <>Management actions appear when granted by your Discord roles.</>,
-      ],
-      title: 'Review And Manage',
     },
   ];
 

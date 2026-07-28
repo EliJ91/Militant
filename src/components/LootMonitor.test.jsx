@@ -954,7 +954,9 @@ describe('LootMonitor', () => {
     expect(within(instructionsDialog).getByText('/upload')).toBeInTheDocument();
     expect(deathGuide).toHaveTextContent("Select a player's name and use Check Recent Deaths to view their Murderledger deaths.");
     expect(deathGuide).toHaveTextContent('For example, in the URL "/kill/123456789" has death ID 123456789.');
-    expect(deathGuide).toHaveTextContent('Matching Kept inventory becomes Accounted.');
+    expect(deathGuide).not.toHaveTextContent('Add Death ID permission');
+    expect(deathGuide).not.toHaveTextContent('Matching Kept inventory becomes Accounted.');
+    expect(within(instructionsDialog).queryByRole('heading', { name: 'Review And Manage' })).not.toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('img')).not.toBeInTheDocument();
     fireEvent.click(within(instructionsDialog).getByRole('button', { name: 'Close upload instructions' }));
     expect(screen.queryByRole('dialog', { name: 'Upload Instructions' })).not.toBeInTheDocument();
