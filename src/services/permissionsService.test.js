@@ -31,6 +31,11 @@ describe('permissions service', () => {
       key: 'viewHiddenLootLogPlayers',
       label: 'View Hidden Players (Loot Log)',
     });
+    expect(WEBAPP_PERMISSION_DEFINITIONS).toContainEqual({
+      area: 'Loot Logs',
+      key: 'editHiddenLootLogPlayers',
+      label: 'Edit Hidden Players',
+    });
     expect(settings.roles[0].permissions.addDeathId).toBe(true);
     expect(settings.roles[0].permissions).not.toHaveProperty('searchDeaths');
   });

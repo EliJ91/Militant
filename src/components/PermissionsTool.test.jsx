@@ -42,6 +42,7 @@ describe('PermissionsTool', () => {
     expect(screen.getByRole('rowheader', { name: 'Change Permissions' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'View Logs' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Delete Chest/Loot Logs' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'Edit Hidden Players' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Copy Screenshot' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Edit Ignore Items' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Update Siphoned Energy Tracker' })).toBeInTheDocument();

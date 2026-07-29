@@ -289,7 +289,7 @@ describe('LootMonitor', () => {
     expect(screen.queryByRole('button', { name: 'Unhide' })).not.toBeInTheDocument();
     firstRender.unmount();
 
-    render(<LootMonitor bundleId="bundle-18" canViewHiddenPlayers uploadUsername="Onslawht" />);
+    render(<LootMonitor bundleId="bundle-18" canEditHiddenPlayers uploadUsername="Onslawht" />);
     expect(await screen.findByRole('button', { name: 'Unhide' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unhide' }));
 

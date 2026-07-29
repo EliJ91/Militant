@@ -653,9 +653,13 @@ export function applySoldierScreenshotView(element, permissions = {}) {
   const canAddDeathId = Boolean(permissions.addDeathId);
   const canViewDeaths = Boolean(permissions.viewDeaths);
   const canViewHiddenPlayers = Boolean(permissions.viewHiddenLootLogPlayers);
+  const canEditHiddenPlayers = Boolean(permissions.editHiddenLootLogPlayers);
 
   if (!canViewHiddenPlayers) {
     element.querySelectorAll('.hidden-player-row').forEach((row) => row.remove());
+  }
+
+  if (!canEditHiddenPlayers) {
     element.querySelectorAll('.loot-player-visibility-button').forEach((button) => button.remove());
     element.querySelectorAll('.has-visibility-control').forEach((row) => {
       row.classList.remove('has-visibility-control');
@@ -3065,6 +3069,7 @@ export default function LootMonitor({
   bundleId = '',
   canAddDeathId = false,
   canCopyScreenshot = false,
+  canEditHiddenPlayers = false,
   canEditItemIgnoreList = false,
   canViewDeaths = false,
   canViewHiddenPlayers = false,
@@ -3261,9 +3266,9 @@ export default function LootMonitor({
         ...player,
         hidden: hiddenPlayerKeys.has(String(player.player || '').trim().toLowerCase()),
       }))
-      .filter((player) => canViewHiddenPlayers || !player.hidden);
+      .filter((player) => canViewHiddenPlayers || canEditHiddenPlayers || !player.hidden);
     return players;
-  }, [activeFilters, canViewHiddenPlayers, hiddenPlayerKeys, visibleRows]);
+  }, [activeFilters, canEditHiddenPlayers, canViewHiddenPlayers, hiddenPlayerKeys, visibleRows]);
   const visiblePlayersWithEmv = useMemo(() => (
     sortVisiblePlayers(addPlayerEmv(visiblePlayers, marketPrices), activeFilters)
   ), [activeFilters, marketPrices, visiblePlayers]);
@@ -3496,7 +3501,7 @@ export default function LootMonitor({
   }
 
   async function updatePlayerVisibility(player, hidden) {
-    if (!canViewHiddenPlayers || !selectedBundle?.id || playerVisibilityStatus.state === 'loading') return;
+    if (!canEditHiddenPlayers || !selectedBundle?.id || playerVisibilityStatus.state === 'loading') return;
 
     setPlayerVisibilityStatus({ message: '', player, state: 'loading' });
     try {
@@ -3872,12 +3877,12 @@ export default function LootMonitor({
                     className={[
                       'loot-player-row',
                       localOnly ? 'local-viewer-row' : '',
-                      canViewHiddenPlayers ? 'has-visibility-control' : '',
+                      canEditHiddenPlayers ? 'has-visibility-control' : '',
                       player.hidden ? 'hidden-player-row' : '',
                     ].filter(Boolean).join(' ')}
                     key={player.player}
                   >
-                    {!localOnly && canViewHiddenPlayers ? (
+                    {!localOnly && canEditHiddenPlayers ? (
                       <button
                         className="loot-player-visibility-button"
                         disabled={playerVisibilityStatus.state === 'loading'}

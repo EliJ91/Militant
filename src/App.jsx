@@ -594,6 +594,7 @@ function LootMonitorPage({
   bundleId,
   canAddDeathId = false,
   canCopyScreenshot = false,
+  canEditHiddenPlayers = false,
   canEditItemIgnoreList = false,
   canViewDeaths = false,
   canViewHiddenPlayers = false,
@@ -625,6 +626,7 @@ function LootMonitorPage({
         bundleId={bundleId}
         canAddDeathId={canAddDeathId}
         canCopyScreenshot={canCopyScreenshot}
+        canEditHiddenPlayers={canEditHiddenPlayers}
         canEditItemIgnoreList={canEditItemIgnoreList}
         canViewDeaths={canViewDeaths}
         canViewHiddenPlayers={canViewHiddenPlayers}
@@ -640,6 +642,7 @@ function SharedLootMonitorPage({
   bundleId,
   canAddDeathId = false,
   canCopyScreenshot = false,
+  canEditHiddenPlayers = false,
   canEditItemIgnoreList = false,
   canViewDeaths = false,
   canViewHiddenPlayers = false,
@@ -651,6 +654,7 @@ function SharedLootMonitorPage({
       bundleId={bundleId}
       canAddDeathId={canAddDeathId}
       canCopyScreenshot={canCopyScreenshot}
+      canEditHiddenPlayers={canEditHiddenPlayers}
       canEditItemIgnoreList={canEditItemIgnoreList}
       canViewDeaths={canViewDeaths}
       canViewHiddenPlayers={canViewHiddenPlayers}
@@ -1115,6 +1119,7 @@ export default function App() {
         bundleId={selectedBundleId}
         canAddDeathId={Boolean(effectivePermissions.addDeathId)}
         canCopyScreenshot={Boolean(effectivePermissions.copyLootLogScreenshot)}
+        canEditHiddenPlayers={Boolean(effectivePermissions.editHiddenLootLogPlayers)}
         canEditItemIgnoreList={Boolean(effectivePermissions.editItemIgnoreList)}
         canViewDeaths={Boolean(effectivePermissions.viewDeaths)}
         canViewHiddenPlayers={Boolean(effectivePermissions.viewHiddenLootLogPlayers)}
@@ -1208,6 +1213,7 @@ export default function App() {
         bundleId={selectedBundleId}
         canAddDeathId={Boolean(effectivePermissions.addDeathId)}
         canCopyScreenshot={Boolean(effectivePermissions.copyLootLogScreenshot)}
+        canEditHiddenPlayers={Boolean(effectivePermissions.editHiddenLootLogPlayers)}
         canEditItemIgnoreList={Boolean(effectivePermissions.editItemIgnoreList)}
         canViewDeaths={Boolean(effectivePermissions.viewDeaths)}
         canViewHiddenPlayers={Boolean(effectivePermissions.viewHiddenLootLogPlayers)}
