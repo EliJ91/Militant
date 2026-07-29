@@ -6,8 +6,11 @@ import {
   getLootLogTimeRange,
 } from '../utils/lootLogMerge.js';
 import { dedupeNearbyLootEvents } from '../utils/dedupeLootEvents.js';
+import { buildPlayerHistory } from '../utils/playerHistory.js';
 import {
+  applyLootDeathChecks,
   buildLootLogExport,
+  buildLootMonitorReportFromEvents,
   combineChestLogTexts,
   filterChestLogTextByWindow,
   parseChestLog,
@@ -311,6 +314,7 @@ function mapBundleListRow(bundle, logNumber = null, hiddenPlayers = []) {
     : [...new Set(chestLogs.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
   const startAt = bundle.start_at;
   const endAt = bundle.end_at;
+  const { playerHistoryRows: _playerHistoryRows, ...publicSummary } = bundle.combined_loot_summary || {};
   return {
     chestLogCount: chestLogs.length,
     chestFileName: getBundleDisplayChestFileName(bundle, startAt),
@@ -335,7 +339,7 @@ function mapBundleListRow(bundle, logNumber = null, hiddenPlayers = []) {
     chestSubmitters,
     submitters,
     summary: {
-      ...(bundle.combined_loot_summary || {}),
+      ...publicSummary,
       hiddenPlayers,
     },
     updatedAt: bundle.updated_at,
@@ -733,6 +737,125 @@ function mapDeathCheck(row) {
   };
 }
 
+function compactPlayerHistoryRows(rows = []) {
+  return rows
+    .filter((row) => Number(row?.kept) > 0)
+    .map((row) => ({
+      enchantment: Number(row.enchantment) || 0,
+      guild: String(row.guild || ''),
+      item: String(row.item || ''),
+      itemId: String(row.itemId || ''),
+      kept: Number(row.kept) || 0,
+      player: String(row.player || ''),
+    }));
+}
+
+export async function rebuildPlayerLootHistoryCache(client = null) {
+  const supabase = client || createSupabaseAdmin();
+  const [membersResult, bundlesResult] = await Promise.all([
+    supabase.from('guild_members')
+      .select('player_id,player_name')
+      .eq('guild_id', MILITANT_GUILD_ID),
+    supabase.from('loot_log_bundles').select(`
+      id,start_at,created_at,combined_loot_summary,
+      chest_log_submissions ( id )
+    `),
+  ]);
+  if (membersResult.error) throw membersResult.error;
+  if (bundlesResult.error) throw bundlesResult.error;
+
+  const bundles = (bundlesResult.data || []).map((bundle) => ({
+    createdAt: bundle.created_at,
+    finalizedRows: Array.isArray(bundle.combined_loot_summary?.playerHistoryRows)
+      ? bundle.combined_loot_summary.playerHistoryRows
+      : [],
+    hasChestLog: Array.isArray(bundle.chest_log_submissions) && bundle.chest_log_submissions.length > 0,
+    id: bundle.id,
+    lootFileName: getBundleDisplayLootFileName(bundle),
+    startAt: bundle.start_at,
+    summary: bundle.combined_loot_summary || {},
+  }));
+  const players = buildPlayerHistory(membersResult.data || [], bundles);
+  const updatedAt = new Date().toISOString();
+  const { error } = await supabase.from('player_loot_history_cache').upsert({
+    cache_key: 'global',
+    players,
+    updated_at: updatedAt,
+  }, { onConflict: 'cache_key' });
+  if (error) throw error;
+  return { players, updatedAt };
+}
+
+export async function getPlayerLootHistoryCache() {
+  const supabase = createSupabaseAdmin();
+  const { data, error } = await supabase.from('player_loot_history_cache')
+    .select('players,updated_at')
+    .eq('cache_key', 'global')
+    .single();
+  if (error) throw error;
+  return { players: data.players || [], updatedAt: data.updated_at };
+}
+
+export async function refreshLootLogPlayerHistorySnapshot(bundleId, client = null, { rebuildCache = true } = {}) {
+  const cleanBundleId = String(bundleId || '').trim();
+  if (!cleanBundleId) throw new Error('bundleId is required.');
+  const supabase = client || createSupabaseAdmin();
+  const [bundleResult, events, chestResult, deathChecksResult] = await Promise.all([
+    supabase
+      .from('loot_log_bundles')
+      .select('id,start_at,end_at,combined_loot_summary')
+      .eq('id', cleanBundleId)
+      .single(),
+    fetchAllBundleEvents(supabase, cleanBundleId),
+    supabase
+      .from('chest_log_submissions')
+      .select('raw_log_text')
+      .eq('bundle_id', cleanBundleId)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('loot_log_death_checks')
+      .select('player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
+      .eq('bundle_id', cleanBundleId)
+      .order('checked_at'),
+  ]);
+
+  if (bundleResult.error) throw bundleResult.error;
+  if (chestResult.error) throw chestResult.error;
+  if (deathChecksResult.error) throw deathChecksResult.error;
+
+  const bundle = bundleResult.data;
+  const chestLogs = chestResult.data || [];
+  let playerHistoryRows = [];
+  if (chestLogs.length > 0) {
+    const report = buildLootMonitorReportFromEvents(
+      events.map(dbEventToMergeEvent),
+      chestLogs.map((row) => row.raw_log_text || '').filter(Boolean).join('\n'),
+      { endAt: bundle.end_at, startAt: bundle.start_at },
+    );
+    const finalizedReport = applyLootDeathChecks(
+      report,
+      (deathChecksResult.data || []).map(mapDeathCheck),
+    );
+    playerHistoryRows = compactPlayerHistoryRows(finalizedReport?.rows || []);
+  }
+
+  const updatedAt = new Date().toISOString();
+  const combinedSummary = {
+    ...(bundle.combined_loot_summary || {}),
+    playerHistoryRows,
+    playerHistoryUpdatedAt: updatedAt,
+  };
+  const { error } = await supabase
+    .from('loot_log_bundles')
+    .update({ combined_loot_summary: combinedSummary })
+    .eq('id', cleanBundleId);
+  if (error) throw error;
+
+  if (rebuildCache) await rebuildPlayerLootHistoryCache(supabase);
+
+  return { playerHistoryRows, playerHistoryUpdatedAt: updatedAt };
+}
+
 async function clearLootLogDeathChecks(supabase, bundleId) {
   const { error } = await supabase
     .from('loot_log_death_checks')
@@ -835,6 +958,7 @@ async function runLootLogDeathChecks(supabase, { bundleId, checks }) {
   }
 
   if (rangeUpdatePromise) await rangeUpdatePromise;
+  await refreshLootLogPlayerHistorySnapshot(cleanBundleId, supabase);
 
   return {
     deathChecks: savedChecks.map(mapDeathCheck),
@@ -927,6 +1051,7 @@ export async function addLootLogDeathId({ bundleId, checks, deathId, player }) {
     .select('player_key,player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
     .single();
   if (error) throw error;
+  await refreshLootLogPlayerHistorySnapshot(cleanBundleId, supabase);
   return { deathCheck: mapDeathCheck(data) };
 }
 
@@ -944,6 +1069,7 @@ export async function clearLootLogDeath({ bundleId, player }) {
     .eq('player_key', playerKey);
 
   if (error) throw error;
+  await refreshLootLogPlayerHistorySnapshot(cleanBundleId, supabase);
   return { playerKey, removed: true };
 }
 
@@ -1192,6 +1318,7 @@ export async function submitLootLog({
   const reconciliation = await reconcileBundleNearbyDuplicates(supabase, bundle.id);
   const refreshed = await refreshBundleSummary(supabase, bundle, originalFileName);
   await clearLootLogDeathChecks(supabase, bundle.id);
+  await refreshLootLogPlayerHistorySnapshot(bundle.id, supabase);
 
   return {
     bundle: refreshed.bundle,
@@ -1284,6 +1411,7 @@ export async function submitChestLog({ bundleId, chestLogText, overrideCurrent =
 
   if (updateError) throw updateError;
   await clearLootLogDeathChecks(supabase, bundleId);
+  await refreshLootLogPlayerHistorySnapshot(bundleId, supabase);
 
   return {
     bundleId,
@@ -1538,6 +1666,7 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
       .update({ combined_loot_summary: summary, updated_at: mergedAt })
       .eq('id', targetBundle.id);
     if (summaryError) throw summaryError;
+    await refreshLootLogPlayerHistorySnapshot(targetBundle.id, supabase);
 
     return {
       bundleId: targetBundle.id,
@@ -1566,6 +1695,7 @@ export async function repairLootLogBundleDuplicates(bundleId) {
 
   const reconciliation = await reconcileBundleNearbyDuplicates(supabase, cleanBundleId);
   const refreshed = await refreshBundleSummary(supabase, bundle);
+  await refreshLootLogPlayerHistorySnapshot(cleanBundleId, supabase);
   return {
     bundleId: cleanBundleId,
     eventCount: refreshed.eventCount,
@@ -1585,6 +1715,7 @@ export async function deleteLootLogBundle(bundleId) {
     .single();
 
   if (error) throw error;
+  await rebuildPlayerLootHistoryCache(supabase);
 
   return { bundleId: data.id, deleted: true };
 }
@@ -1624,6 +1755,7 @@ export async function deleteChestLogs(bundleId) {
 
   if (updateError) throw updateError;
   await clearLootLogDeathChecks(supabase, bundleId);
+  await refreshLootLogPlayerHistorySnapshot(bundleId, supabase);
 
   return {
     bundleId,
@@ -1642,6 +1774,7 @@ export async function deleteExpiredLootLogBundles() {
     .select('id');
 
   if (error) throw error;
+  if ((data || []).length > 0) await rebuildPlayerLootHistoryCache(supabase);
 
   return {
     cutoff,

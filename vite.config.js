@@ -78,12 +78,19 @@ function lootLogApi() {
         const requestUrl = new URL(req.url || '/', 'http://127.0.0.1');
         const bundleId = requestUrl.searchParams.get('bundleId');
         const resource = requestUrl.searchParams.get('resource');
-        const { getLootLogBundle, listLootLogBundles, listLootLogIgnoredItems } = await import('./src/server/supabaseLootLogs.js');
+        const {
+          getLootLogBundle,
+          getPlayerLootHistoryCache,
+          listLootLogBundles,
+          listLootLogIgnoredItems,
+        } = await import('./src/server/supabaseLootLogs.js');
         const result = resource === 'ignored-items'
           ? await listLootLogIgnoredItems()
-          : bundleId
-            ? await getLootLogBundle(bundleId)
-            : await listLootLogBundles();
+          : resource === 'player-history'
+            ? await getPlayerLootHistoryCache()
+            : bundleId
+              ? await getLootLogBundle(bundleId)
+              : await listLootLogBundles();
         sendJson(res, 200, result);
       } catch (error) {
         sendJson(res, 400, { error: error.message || 'Could not load loot logs.' });

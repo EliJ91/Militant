@@ -59,6 +59,7 @@ async function deleteExpiredLootLogBundles(supabase: any) {
     .select('id');
 
   if (error) throw error;
+  if ((data || []).length > 0) await rebuildPlayerHistoryCache(supabase);
 
   return {
     cutoff,
@@ -1285,6 +1286,351 @@ function mapDeathCheck(row: any) {
   };
 }
 
+function playerHistoryItemKey(item: unknown, enchantment: unknown) {
+  return `${normalize(item)}::${Number(enchantment) || 0}`;
+}
+
+function consumePlayerHistoryLots(lots: any[], quantity: number, predicate = (_lot: any) => true) {
+  const consumed: any[] = [];
+  let remaining = Math.max(0, Number(quantity) || 0);
+  for (const tracked of [true, false]) {
+    for (let index = 0; remaining > 0 && index < lots.length; index += 1) {
+      const lot = lots[index];
+      if ((lot.tracked !== false) !== tracked || !predicate(lot)) continue;
+      const used = Math.min(remaining, lot.quantity);
+      consumed.push({ ...lot, quantity: used });
+      lot.quantity -= used;
+      remaining -= used;
+      if (lot.quantity <= 0) {
+        lots.splice(index, 1);
+        index -= 1;
+      }
+    }
+  }
+  return { consumed, missing: remaining };
+}
+
+function buildPlayerHistorySnapshotRows(events: any[], chestLogs: any[], deathChecks: any[], bundle: any) {
+  if (chestLogs.length === 0) return [];
+  const identities = new Map<string, { alliance: string; guild: string }>();
+  events.forEach((event) => {
+    const playerKey = normalize(event.player_name);
+    const current = identities.get(playerKey) || { alliance: '', guild: '' };
+    if (event.alliance) current.alliance = event.alliance;
+    if (event.guild) current.guild = event.guild;
+    identities.set(playerKey, current);
+  });
+
+  const chestEvents: any[] = [];
+  const sourceStats = new Map<number, { hasDeposit: boolean; hasWithdrawal: boolean; latestDeposit: number }>();
+  let sourceIndex = -1;
+  chestLogs.forEach((submission) => {
+    let headers: string[] = [];
+    parseDelimited(String(submission.raw_log_text || ''), '\t').forEach((cells) => {
+      const normalizedCells = cells.map((cell) => cell.replace(/^\uFEFF/, '').trim());
+      if (normalizedCells[0] === 'Date' && normalizedCells.includes('Player') && normalizedCells.includes('Amount')) {
+        headers = normalizedCells;
+        sourceIndex += 1;
+        return;
+      }
+      if (headers.length === 0 || !cells.some((cell) => cell.trim())) return;
+      const record = headers.reduce((value: Record<string, string>, header, index) => {
+        value[header] = String(cells[index] || '').trim();
+        return value;
+      }, {});
+      const amount = parseInteger(record.Amount);
+      const timestamp = chestTimestampMs(record.Date);
+      const rangeStart = chestTimestampMs(bundle.start_at);
+      const rangeEnd = chestTimestampMs(bundle.end_at) + ONE_HOUR_MS;
+      if (!record.Player || !record.Item || amount === null || amount === 0
+        || !Number.isFinite(timestamp) || timestamp < rangeStart || timestamp > rangeEnd) return;
+      const row = {
+        amount,
+        enchantment: parseInteger(record.Enchantment) ?? 0,
+        item: record.Item,
+        player: record.Player,
+        sourceIndex,
+        timestamp,
+      };
+      const stats = sourceStats.get(sourceIndex) || {
+        hasDeposit: false,
+        hasWithdrawal: false,
+        latestDeposit: Number.NEGATIVE_INFINITY,
+      };
+      if (amount > 0) {
+        stats.hasDeposit = true;
+        stats.latestDeposit = Math.max(stats.latestDeposit, timestamp);
+      } else {
+        stats.hasWithdrawal = true;
+      }
+      sourceStats.set(sourceIndex, stats);
+      chestEvents.push(row);
+    });
+  });
+
+  const finalSourceIndex = [...sourceStats.entries()]
+    .filter(([, stats]) => stats.hasDeposit && !stats.hasWithdrawal)
+    .sort((left, right) => right[1].latestDeposit - left[1].latestDeposit)[0]?.[0] ?? -1;
+  if (chestEvents.length === 0 || finalSourceIndex < 0) return [];
+
+  const holders = new Map<string, any[]>();
+  const chestPool = new Map<string, any[]>();
+  const holderKey = (player: unknown, itemKey: string) => `${normalize(player)}::${itemKey}`;
+  const addLots = (store: Map<string, any[]>, key: string, lots: any[]) => {
+    store.set(key, [...(store.get(key) || []), ...lots.filter((lot) => lot.quantity > 0)]);
+  };
+  const consumeLots = (store: Map<string, any[]>, key: string, quantity: number) => {
+    const lots = store.get(key) || [];
+    const result = consumePlayerHistoryLots(lots, quantity);
+    if (lots.length) store.set(key, lots); else store.delete(key);
+    return result;
+  };
+  const consumeAnyHolder = (itemKey: string, quantity: number, guild: string) => {
+    const consumed: any[] = [];
+    let remaining = quantity;
+    for (const [key, lots] of holders) {
+      if (remaining <= 0) break;
+      if (!key.endsWith(`::${itemKey}`)) continue;
+      const result = consumePlayerHistoryLots(lots, remaining, (lot) => normalize(lot.guild) === normalize(guild));
+      consumed.push(...result.consumed);
+      remaining = result.missing;
+      if (lots.length) holders.set(key, lots); else holders.delete(key);
+    }
+    return { consumed, missing: remaining };
+  };
+
+  const timeline = [
+    ...events.map((event) => ({
+      order: event.event_type === 'lost' ? 1 : 0,
+      row: event,
+      timestamp: new Date(event.timestamp_utc).getTime(),
+      type: event.event_type === 'lost' ? 'lost' : 'loot',
+    })),
+    ...chestEvents.map((row) => ({
+      order: row.amount < 0 ? 2 : row.sourceIndex === finalSourceIndex ? 4 : 3,
+      row,
+      timestamp: row.amount > 0 && row.sourceIndex === finalSourceIndex
+        ? Number.POSITIVE_INFINITY
+        : row.timestamp,
+      type: row.amount < 0 ? 'withdrawal' : 'deposit',
+    })),
+  ].sort((left, right) => left.timestamp - right.timestamp || left.order - right.order);
+
+  timeline.forEach(({ row, type }) => {
+    const item = row.item_name || row.item || '';
+    const enchantment = Number(row.enchantment) || 0;
+    const itemKey = playerHistoryItemKey(item, enchantment);
+    if (!itemKey) return;
+    const identity = identities.get(normalize(row.player_name || row.player)) || { alliance: '', guild: '' };
+    const player = row.player_name || row.player;
+    const quantity = Math.abs(Number(row.quantity ?? row.amount) || 0);
+    const lot = {
+      alliance: row.alliance || identity.alliance,
+      enchantment,
+      guild: row.guild || identity.guild || (type === 'deposit' ? 'Militant' : ''),
+      item,
+      itemId: row.item_id || '',
+      player,
+      quantity,
+      tracked: type !== 'withdrawal',
+    };
+    if (type === 'loot') {
+      addLots(holders, holderKey(player, itemKey), [lot]);
+      return;
+    }
+    if (type === 'lost') {
+      consumeLots(holders, holderKey(player, itemKey), quantity);
+      return;
+    }
+    if (type === 'withdrawal') {
+      const result = consumeLots(chestPool, itemKey, quantity);
+      addLots(holders, holderKey(player, itemKey), [
+        ...result.consumed.map((value) => ({ ...value, player })),
+        ...(result.missing > 0 ? [{ ...lot, quantity: result.missing, tracked: false }] : []),
+      ]);
+      return;
+    }
+    const own = consumeLots(holders, holderKey(player, itemKey), quantity);
+    const traded = own.missing > 0
+      ? consumeAnyHolder(itemKey, own.missing, lot.guild)
+      : { consumed: [], missing: 0 };
+    addLots(chestPool, itemKey, [...own.consumed, ...traded.consumed]);
+    if (traded.missing > 0 && row.sourceIndex !== finalSourceIndex) {
+      addLots(chestPool, itemKey, [{ ...lot, quantity: traded.missing, tracked: false }]);
+    }
+  });
+
+  const keptByKey = new Map<string, any>();
+  holders.forEach((lots) => lots.filter((lot) => lot.tracked !== false).forEach((lot) => {
+    const key = `${normalize(lot.player)}::${normalize(lot.itemId || lot.item)}::${lot.enchantment}`;
+    const current = keptByKey.get(key) || { ...lot, kept: 0 };
+    current.kept += lot.quantity;
+    keptByKey.set(key, current);
+  }));
+
+  deathChecks.filter((check) => check.status === 'found').forEach((check) => {
+    const playerKey = normalize(check.player_name);
+    (Array.isArray(check.matched_items) ? check.matched_items : []).forEach((item) => {
+      let remaining = Math.max(0, Number(item.quantity) || 0);
+      for (const row of keptByKey.values()) {
+        if (remaining <= 0) break;
+        if (normalize(row.player) !== playerKey || normalize(row.itemId) !== normalize(item.itemId)) continue;
+        const used = Math.min(remaining, row.kept);
+        row.kept -= used;
+        remaining -= used;
+      }
+    });
+  });
+
+  return [...keptByKey.values()]
+    .filter((row) => row.kept > 0)
+    .map((row) => ({
+      enchantment: row.enchantment,
+      guild: row.guild || '',
+      item: row.item || '',
+      itemId: row.itemId || '',
+      kept: row.kept,
+      player: row.player || '',
+    }));
+}
+
+function buildCachedPlayerHistory(members: any[], bundles: any[]) {
+  const byPlayer = new Map<string, any>();
+  const makePlayer = (playerName: string, playerId = '') => ({
+    averageItemsLootedPerCta: 0,
+    ctas: [],
+    ctaCount: 0,
+    itemsKept: 0,
+    itemsLooted: 0,
+    itemsLost: 0,
+    lastCtaAt: '',
+    playerId,
+    playerKey: normalize(playerName),
+    playerName,
+  });
+  members.forEach((member) => {
+    const playerName = String(member.player_name || '').trim();
+    const playerKey = normalize(playerName);
+    if (playerKey && !byPlayer.has(playerKey)) byPlayer.set(playerKey, makePlayer(playerName, member.player_id || ''));
+  });
+  bundles.forEach((bundle) => (bundle.combined_loot_summary?.rows || []).forEach((row: any) => {
+    const playerName = String(row.player || '').trim();
+    const playerKey = normalize(playerName);
+    const isMilitant = String(row.guild || '').split(',').some((guild) => normalize(guild) === 'militant');
+    if (playerKey && isMilitant && !byPlayer.has(playerKey)) byPlayer.set(playerKey, makePlayer(playerName));
+  }));
+  bundles.forEach((bundle) => {
+    const participating = new Set<string>();
+    (bundle.combined_loot_summary?.rows || []).forEach((row: any) => {
+      const playerKey = normalize(row.player);
+      const player = byPlayer.get(playerKey);
+      if (!player) return;
+      player.itemsLooted += Number(row.looted) || 0;
+      player.itemsLost += Number(row.lost) || 0;
+      participating.add(playerKey);
+    });
+    participating.forEach((playerKey) => {
+      const player = byPlayer.get(playerKey);
+      player.ctaCount += 1;
+      const ctaAt = bundle.start_at || bundle.created_at || '';
+      if (ctaAt && (!player.lastCtaAt || new Date(ctaAt) > new Date(player.lastCtaAt))) player.lastCtaAt = ctaAt;
+    });
+    if (!Array.isArray(bundle.chest_log_submissions) || bundle.chest_log_submissions.length === 0) return;
+    const keptByPlayer = new Map<string, any[]>();
+    (bundle.combined_loot_summary?.playerHistoryRows || []).forEach((row: any) => {
+      const playerKey = normalize(row.player);
+      const player = byPlayer.get(playerKey);
+      const quantity = Number(row.kept) || 0;
+      if (!player || quantity <= 0) return;
+      player.itemsKept += quantity;
+      const items = keptByPlayer.get(playerKey) || [];
+      items.push({
+        enchantment: Number(row.enchantment) || 0,
+        item: String(row.item || row.itemId || 'Unknown Item'),
+        itemId: String(row.itemId || ''),
+        quantity,
+      });
+      keptByPlayer.set(playerKey, items);
+    });
+    keptByPlayer.forEach((itemsKept, playerKey) => byPlayer.get(playerKey).ctas.push({
+      bundleId: bundle.id,
+      date: bundle.start_at || bundle.created_at || '',
+      itemsKept: itemsKept.sort((left, right) => right.quantity - left.quantity || left.item.localeCompare(right.item)),
+      lootLogTitle: getBundleDisplayLootFileName(bundle),
+    }));
+  });
+  return [...byPlayer.values()].map((player) => ({
+    ...player,
+    averageItemsLootedPerCta: player.ctaCount ? player.itemsLooted / player.ctaCount : 0,
+    ctas: player.ctas.sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime()),
+  })).sort((left, right) => (
+    right.ctaCount - left.ctaCount
+    || right.itemsLooted - left.itemsLooted
+    || left.playerName.localeCompare(right.playerName)
+  ));
+}
+
+async function rebuildPlayerHistoryCache(supabase: any) {
+  const [membersResult, bundlesResult] = await Promise.all([
+    supabase.from('guild_members')
+      .select('player_id,player_name')
+      .eq('guild_id', MILITANT_GUILD_ID),
+    supabase.from('loot_log_bundles').select(`
+      id,start_at,created_at,combined_loot_summary,
+      chest_log_submissions ( id )
+    `),
+  ]);
+  if (membersResult.error) throw membersResult.error;
+  if (bundlesResult.error) throw bundlesResult.error;
+  const players = buildCachedPlayerHistory(membersResult.data || [], bundlesResult.data || []);
+  const updatedAt = new Date().toISOString();
+  const { error } = await supabase.from('player_loot_history_cache').upsert({
+    cache_key: 'global',
+    players,
+    updated_at: updatedAt,
+  }, { onConflict: 'cache_key' });
+  if (error) throw error;
+  return { players, updatedAt };
+}
+
+async function refreshPlayerHistorySnapshot(supabase: any, bundleId: string) {
+  const [bundleResult, events, chestResult, deathChecksResult] = await Promise.all([
+    supabase.from('loot_log_bundles')
+      .select('id,start_at,end_at,combined_loot_summary')
+      .eq('id', bundleId)
+      .single(),
+    fetchAllBundleEvents(supabase, bundleId),
+    supabase.from('chest_log_submissions')
+      .select('raw_log_text')
+      .eq('bundle_id', bundleId)
+      .order('created_at', { ascending: true }),
+    supabase.from('loot_log_death_checks')
+      .select('player_name,status,matched_items')
+      .eq('bundle_id', bundleId),
+  ]);
+  if (bundleResult.error) throw bundleResult.error;
+  if (chestResult.error) throw chestResult.error;
+  if (deathChecksResult.error) throw deathChecksResult.error;
+  const bundle = bundleResult.data;
+  const playerHistoryRows = buildPlayerHistorySnapshotRows(
+    events,
+    chestResult.data || [],
+    deathChecksResult.data || [],
+    bundle,
+  );
+  const playerHistoryUpdatedAt = new Date().toISOString();
+  const { error } = await supabase.from('loot_log_bundles').update({
+    combined_loot_summary: {
+      ...(bundle.combined_loot_summary || {}),
+      playerHistoryRows,
+      playerHistoryUpdatedAt,
+    },
+  }).eq('id', bundleId);
+  if (error) throw error;
+  await rebuildPlayerHistoryCache(supabase);
+  return { playerHistoryRows, playerHistoryUpdatedAt };
+}
+
 async function clearLootLogDeathChecks(supabase: any, bundleId: string) {
   const { error } = await supabase
     .from('loot_log_death_checks')
@@ -1534,6 +1880,7 @@ async function mergeLootLogBundles(supabase: any, body: any) {
       .eq('id', targetBundle.id);
     if (summaryError) throw summaryError;
 
+    await refreshPlayerHistorySnapshot(supabase, targetBundle.id);
     return {
       bundleId: targetBundle.id,
       lootFileName: displayLootFileName,
@@ -1640,6 +1987,7 @@ async function runLootLogDeathChecks(supabase: any, { bundleId, checks }: any) {
   }
 
   if (rangeUpdatePromise) await rangeUpdatePromise;
+  await refreshPlayerHistorySnapshot(supabase, cleanBundleId);
 
   return {
     deathChecks: savedChecks.map(mapDeathCheck),
@@ -1734,6 +2082,7 @@ async function addLootLogDeathId(supabase: any, body: any) {
     .select('player_key,player_name,player_id,status,event_id,death_url,death_at,matched_items,checked_at')
     .single();
   if (error) throw error;
+  await refreshPlayerHistorySnapshot(supabase, bundleId);
   return { deathCheck: mapDeathCheck(data) };
 }
 
@@ -1751,6 +2100,7 @@ async function clearLootLogDeath(supabase: any, body: any) {
     .eq('player_key', playerKey);
 
   if (error) throw error;
+  await refreshPlayerHistorySnapshot(supabase, bundleId);
   return { playerKey, removed: true };
 }
 
@@ -1894,6 +2244,7 @@ Deno.serve(async (request) => {
       }
 
       await clearLootLogDeathChecks(supabase, bundleId);
+      await refreshPlayerHistorySnapshot(supabase, bundleId);
 
       return jsonResponse(200, {
         bundle: updatedBundle,
@@ -1945,6 +2296,7 @@ Deno.serve(async (request) => {
 
         if (updateError) throw updateError;
         await clearLootLogDeathChecks(supabase, bundleId);
+        await refreshPlayerHistorySnapshot(supabase, bundleId);
 
         return jsonResponse(200, {
           bundleId,
@@ -1961,6 +2313,7 @@ Deno.serve(async (request) => {
         .single();
 
       if (error) throw error;
+      await rebuildPlayerHistoryCache(supabase);
       return jsonResponse(200, { bundleId: data.id, deleted: true });
     }
 
@@ -1968,6 +2321,14 @@ Deno.serve(async (request) => {
       const requestUrl = new URL(request.url);
       if (requestUrl.searchParams.get('resource') === 'ignored-items') {
         return jsonResponse(200, await listLootLogIgnoredItems(supabase));
+      }
+      if (requestUrl.searchParams.get('resource') === 'player-history') {
+        const { data, error } = await supabase.from('player_loot_history_cache')
+          .select('players,updated_at')
+          .eq('cache_key', 'global')
+          .single();
+        if (error) throw error;
+        return jsonResponse(200, { players: data.players || [], updatedAt: data.updated_at });
       }
       const bundleId = requestUrl.searchParams.get('bundleId');
 
@@ -2100,6 +2461,7 @@ Deno.serve(async (request) => {
             ? [displaySubmitters.chest]
             : [...new Set(chestLogs.map((submission: any) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
           const fileNames = getBundleFileNames(bundle);
+          const { playerHistoryRows: _playerHistoryRows, ...publicSummary } = bundle.combined_loot_summary || {};
 
           return {
             chestLogCount: chestLogs.length,
@@ -2125,7 +2487,7 @@ Deno.serve(async (request) => {
             chestSubmitters,
             submitters,
             summary: {
-              ...(bundle.combined_loot_summary || {}),
+              ...publicSummary,
               hiddenPlayers,
             },
             updatedAt: bundle.updated_at,
@@ -2230,6 +2592,7 @@ Deno.serve(async (request) => {
 
       if (chestUpdateError) throw chestUpdateError;
       await clearLootLogDeathChecks(supabase, bundleId);
+      await refreshPlayerHistorySnapshot(supabase, bundleId);
 
       return jsonResponse(200, {
         bundleId,
@@ -2437,6 +2800,7 @@ Deno.serve(async (request) => {
 
     if (updateError) throw updateError;
     await clearLootLogDeathChecks(supabase, bundle.id);
+    await refreshPlayerHistorySnapshot(supabase, bundle.id);
 
     return jsonResponse(200, {
       bundle: refreshedBundle,

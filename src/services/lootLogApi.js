@@ -359,6 +359,19 @@ export async function fetchLootLogBundles() {
   return result;
 }
 
+export async function fetchLootLogPlayerHistory() {
+  const requestUrl = new URL(getLootLogApiUrl(), window.location.href);
+  requestUrl.searchParams.set('resource', 'player-history');
+  const response = await fetch(requestUrl);
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not load player loot history.');
+  }
+
+  return result;
+}
+
 export async function fetchLootLogBundle(bundleId) {
   const requestUrl = new URL(getLootLogApiUrl(), window.location.href);
   requestUrl.searchParams.set('bundleId', bundleId);

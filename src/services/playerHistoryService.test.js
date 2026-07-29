@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchLootLogBundle, fetchLootLogBundles } from './lootLogApi';
+import { fetchLootLogPlayerHistory } from './lootLogApi';
 import { buildPlayerHistory, fetchPlayerHistory } from './playerHistoryService';
 import { fetchSiphonedEnergyMembers } from './siphonedEnergyApi';
 
 vi.mock('./lootLogApi', () => ({
-  fetchLootLogBundle: vi.fn(),
-  fetchLootLogBundles: vi.fn(),
+  fetchLootLogPlayerHistory: vi.fn(),
 }));
 
 vi.mock('./siphonedEnergyApi', () => ({
@@ -89,56 +88,27 @@ describe('player history service', () => {
     expect(players.some((player) => player.playerName === 'NeverAMember')).toBe(false);
   });
 
-  it('derives kept items from finalized chest comparisons instead of bundle summaries', async () => {
+  it('uses the finalized rows stored with the bundle summary', async () => {
     fetchSiphonedEnergyMembers.mockResolvedValue({
       members: [{ playerId: 'member-1', playerName: 'MilitantOne' }],
     });
-    fetchLootLogBundles.mockResolvedValue({
-      bundles: [{
-        endAt: '2026-07-20T20:20:00.000Z',
-        hasChestLog: true,
-        id: 'cta-finalized',
-        lootFileName: '20UTC-JUL-20',
-        startAt: '2026-07-20T20:00:00.000Z',
-        summary: { rows: [{
-          guild: 'Militant',
-          item: "Adept's Cape",
-          itemId: 'T4_CAPE',
-          kept: 2,
-          looted: 2,
-          lost: 0,
-          player: 'MilitantOne',
-        }] },
+    fetchLootLogPlayerHistory.mockResolvedValue({
+      players: [{
+        averageItemsLootedPerCta: 2,
+        ctaCount: 1,
+        ctas: [{ itemsKept: [{ itemId: 'T4_CAPE', quantity: 1 }] }],
+        itemsKept: 1,
+        itemsLooted: 2,
+        itemsLost: 0,
+        playerKey: 'militantone',
+        playerName: 'MilitantOne',
       }],
-    });
-    fetchLootLogBundle.mockResolvedValue({
-      bundle: {
-        chestLogReportText: [
-          'Date\tPlayer\tItem\tEnchantment\tQuality\tAmount',
-          "07/20/2026 20:21:00\tMilitantOne\tAdept's Cape\t0\t1\t1",
-        ].join('\n'),
-        deathChecks: [],
-        endAt: '2026-07-20T20:20:00.000Z',
-        events: [{
-          alliance: '',
-          enchantment: 0,
-          eventType: 'looted',
-          guild: 'Militant',
-          item: "Adept's Cape",
-          itemId: 'T4_CAPE',
-          lostTo: '',
-          player: 'MilitantOne',
-          quantity: 2,
-          timestamp: '2026-07-20T20:05:00.000Z',
-        }],
-        hasChestLog: true,
-        startAt: '2026-07-20T20:00:00.000Z',
-      },
+      updatedAt: '2026-07-20T21:00:00.000Z',
     });
 
     const result = await fetchPlayerHistory();
 
-    expect(fetchLootLogBundle).toHaveBeenCalledWith('cta-finalized');
+    expect(fetchLootLogPlayerHistory).toHaveBeenCalledTimes(1);
     expect(result.players[0]).toMatchObject({
       averageItemsLootedPerCta: 2,
       ctaCount: 1,
@@ -155,37 +125,18 @@ describe('player history service', () => {
     fetchSiphonedEnergyMembers.mockResolvedValue({
       members: [{ playerId: 'member-1', playerName: 'MilitantOne' }],
     });
-    fetchLootLogBundles.mockResolvedValue({
-      bundles: [{
-        hasChestLog: true,
-        id: 'cta-empty-chest',
-        lootFileName: '20UTC-JUL-21',
-        startAt: '2026-07-21T20:00:00.000Z',
-        summary: { rows: [{
-          guild: 'Militant',
-          item: "Adept's Cape",
-          itemId: 'T4_CAPE',
-          looted: 2,
-          lost: 0,
-          player: 'MilitantOne',
-        }] },
+    fetchLootLogPlayerHistory.mockResolvedValue({
+      players: [{
+        averageItemsLootedPerCta: 2,
+        ctaCount: 1,
+        ctas: [],
+        itemsKept: 0,
+        itemsLooted: 2,
+        itemsLost: 0,
+        playerKey: 'militantone',
+        playerName: 'MilitantOne',
       }],
     });
-    fetchLootLogBundle.mockResolvedValue({
-      bundle: {
-        chestLogText: '',
-        events: [{
-          eventType: 'looted',
-          item: "Adept's Cape",
-          itemId: 'T4_CAPE',
-          player: 'MilitantOne',
-          quantity: 2,
-          timestamp: '2026-07-21T20:05:00.000Z',
-        }],
-        hasChestLog: true,
-      },
-    });
-
     const result = await fetchPlayerHistory();
 
     expect(result.players[0]).toMatchObject({
