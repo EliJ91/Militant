@@ -18,6 +18,7 @@ import {
 } from '../services/lootLogApi';
 import {
   applyLootDeathChecks,
+  buildLootLogExport,
   buildLootMonitorReportFromEvents,
   combineChestLogTexts,
   filterChestLogTextByWindow,
@@ -2999,12 +3000,16 @@ export default function LootMonitor({
       : (selectedBundle?.submissions || []).map((submission) => submission.submittedBy),
   ), [selectedBundle?.submissions, selectedBundle?.submitters]);
   const rawLootLogText = useMemo(() => {
+    if (selectedBundle?.lootLogText) return selectedBundle.lootLogText;
+
+    if (selectedBundle?.events?.length) {
+      return buildLootLogExport(selectedBundle.events);
+    }
+
     const rawSubmissions = (selectedBundle?.submissions || [])
       .map((submission) => submission.rawLogText || '')
       .filter(Boolean);
-    return rawSubmissions.length > 0
-      ? rawSubmissions.join('\n\n--- NEXT LOOT LOG ---\n\n')
-      : selectedBundle?.lootLogText || '';
+    return rawSubmissions.join('\n\n--- NEXT LOOT LOG ---\n\n');
   }, [selectedBundle]);
   const rawChestLogText = useMemo(() => {
     const rawSubmissions = (selectedBundle?.chestSubmissions || [])

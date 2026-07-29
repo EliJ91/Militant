@@ -755,6 +755,25 @@ describe('LootMonitor', () => {
     expect(openSpy).toHaveBeenCalledWith('', '_blank');
   });
 
+  it('uses the canonical merged loot log instead of duplicate submission text', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        lootLogText: lootText,
+        submissions: [
+          { id: 'submission-1', rawLogText: `${lootText}\n${lootText}`, submittedBy: 'Manual' },
+          { id: 'submission-2', rawLogText: lootText, submittedBy: 'Manual' },
+        ],
+      }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View Raw' }));
+    const lootViewer = screen.getByRole('searchbox', { name: 'Search loot log' }).closest('section');
+    expect(lootViewer.textContent.match(/Windyyyzz/g)).toHaveLength(1);
+    expect(lootViewer).not.toHaveTextContent('NEXT LOOT LOG');
+  });
+
   it('keeps the Kept status filter accessible when no chest log is loaded', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({

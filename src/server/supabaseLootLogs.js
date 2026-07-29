@@ -7,6 +7,7 @@ import {
 } from '../utils/lootLogMerge.js';
 import { dedupeNearbyLootEvents } from '../utils/dedupeLootEvents.js';
 import {
+  buildLootLogExport,
   combineChestLogTexts,
   filterChestLogTextByWindow,
   parseChestLog,
@@ -1761,9 +1762,7 @@ export async function getLootLogBundle(bundleId) {
     }),
   }));
   const rawChestLogTexts = chestLogs.map((log) => log.raw_log_text || '').filter(Boolean);
-  const rawLootLogTexts = (lootSubmissionsResult.data || [])
-    .map((submission) => submission.raw_log_text || '')
-    .filter(Boolean);
+  const canonicalLootLogText = buildLootLogExport(eventsResult.map(dbEventToMergeEvent));
   const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
   const submitters = displaySubmitters.loot
     ? [displaySubmitters.loot]
@@ -1786,7 +1785,7 @@ export async function getLootLogBundle(bundleId) {
       hasChestLog: chestLogs.length > 0,
       id: bundle.id,
       lootFileName: getBundleDisplayLootFileName(bundle),
-      lootLogText: rawLootLogTexts.join('\n'),
+      lootLogText: canonicalLootLogText,
       startAt: bundle.start_at,
       submissions: (lootSubmissionsResult.data || []).map((submission) => ({
         createdAt: submission.created_at,

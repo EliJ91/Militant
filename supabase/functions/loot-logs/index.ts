@@ -598,6 +598,92 @@ function parseLootEvents(text: string) {
   };
 }
 
+function exportLootTimestamp(value: unknown) {
+  const date = new Date(String(value || ''));
+  return Number.isNaN(date.getTime()) ? String(value || '') : date.toISOString();
+}
+
+function exportLootEventMatchKey(event: LootEvent, player: unknown) {
+  return [
+    exportLootTimestamp(event.timestamp),
+    normalize(event.itemId || event.item),
+    String(event.enchantment || 0),
+    String(event.quantity || 0),
+    normalize(player),
+  ].join('|');
+}
+
+function escapeLootCell(value: unknown) {
+  const text = String(value ?? '');
+  return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function buildLootLogExport(events: LootEvent[]) {
+  const headers = [
+    'timestamp_utc',
+    'looted_by__alliance',
+    'looted_by__guild',
+    'looted_by__name',
+    'item_id',
+    'item_name',
+    'quantity',
+    'looted_from__alliance',
+    'looted_from__guild',
+    'looted_from__name',
+  ];
+  const lostByLootKey = new Map<string, LootEvent[]>();
+  const unmatchedLost = new Set<LootEvent>();
+
+  (events || []).filter((event) => event.eventType === 'lost').forEach((event) => {
+    const key = exportLootEventMatchKey(event, event.lostTo);
+    const matches = lostByLootKey.get(key) || [];
+    matches.push(event);
+    lostByLootKey.set(key, matches);
+    unmatchedLost.add(event);
+  });
+
+  const rows: unknown[][] = (events || [])
+    .filter((event) => event.eventType !== 'lost')
+    .sort((left, right) => exportLootTimestamp(left.timestamp).localeCompare(exportLootTimestamp(right.timestamp)))
+    .map((event) => {
+      const key = exportLootEventMatchKey(event, event.player);
+      const loss = lostByLootKey.get(key)?.shift();
+      if (loss) unmatchedLost.delete(loss);
+
+      return [
+        exportLootTimestamp(event.timestamp),
+        event.alliance,
+        event.guild,
+        event.player,
+        event.itemId,
+        event.item,
+        event.quantity,
+        loss?.alliance || '',
+        loss?.guild || '',
+        loss?.player || '',
+      ];
+    });
+
+  unmatchedLost.forEach((loss) => {
+    rows.push([
+      exportLootTimestamp(loss.timestamp),
+      '',
+      '',
+      loss.lostTo || '@UNKNOWN',
+      loss.itemId,
+      loss.item,
+      loss.quantity,
+      loss.alliance,
+      loss.guild,
+      loss.player,
+    ]);
+  });
+
+  return [headers, ...rows]
+    .map((row) => row.map(escapeLootCell).join(';'))
+    .join('\r\n');
+}
+
 function chestTimestampMs(value: unknown) {
   const text = String(value || '').trim();
   const localMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
@@ -1867,9 +1953,7 @@ Deno.serve(async (request) => {
           }),
         }));
         const chestLog = chestLogs[chestLogs.length - 1] || null;
-        const rawLootLogTexts = (submissionsResult.data || [])
-          .map((submission: any) => submission.raw_log_text || '')
-          .filter(Boolean);
+        const canonicalLootLogText = buildLootLogExport(eventsResult.map(dbEventToMergeEvent));
         const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
         const submitters = displaySubmitters.loot
           ? [displaySubmitters.loot]
@@ -1893,7 +1977,7 @@ Deno.serve(async (request) => {
             hasChestLog: chestLogs.length > 0,
             id: bundle.id,
             lootFileName: getBundleDisplayLootFileName(bundle),
-            lootLogText: rawLootLogTexts.join('\n'),
+            lootLogText: canonicalLootLogText,
             startAt: bundle.start_at,
             submissions: (submissionsResult.data || []).map((submission: any) => ({
               createdAt: submission.created_at,
