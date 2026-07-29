@@ -58,7 +58,6 @@ const SORT_OPTIONS = [
 const SORT_BY_OPTIONS = [
   { label: 'EMV', value: 'emv' },
   { label: 'Total Items', value: 'items' },
-  { label: 'Hide under 500k EMV', value: 'emv500k' },
 ];
 
 const STATUS_OPTIONS = [
@@ -90,6 +89,7 @@ const TILE_STATUS_LABELS = {
 const DEFAULT_FILTERS = {
   alliances: [],
   guilds: [],
+  hideUnder500kEmv: false,
   sortBy: 'items',
   sortDirection: 'desc',
   status: [],
@@ -399,6 +399,7 @@ function sanitizeFilters(value = {}) {
   return {
     alliances: sanitizeStringArray(value.alliances ?? (value.alliance ? [value.alliance] : [])),
     guilds: sanitizeStringArray(value.guilds ?? (value.guild ? [value.guild] : [])),
+    hideUnder500kEmv: Boolean(value.hideUnder500kEmv),
     sortBy: sortByValues.has(value.sortBy) ? value.sortBy : DEFAULT_FILTERS.sortBy,
     sortDirection: sortValues.has(value.sortDirection) ? value.sortDirection : DEFAULT_FILTERS.sortDirection,
     status: noneStatusSelected ? [NONE_SELECTED_VALUE] : (selectedStatuses.length === statusValues.size ? [] : selectedStatuses),
@@ -439,6 +440,9 @@ function encodeSharedFilters(filters) {
   if (sanitized.sortBy !== DEFAULT_FILTERS.sortBy) {
     params.set('b', sanitized.sortBy);
   }
+  if (sanitized.hideUnder500kEmv) {
+    params.set('h', '1');
+  }
 
   const query = params.toString();
   return query ? `?${query}` : '';
@@ -462,6 +466,7 @@ function getSharedFiltersFromHash() {
     });
     if (params.has('o')) sharedFilters.sortDirection = params.get('o');
     if (params.has('b')) sharedFilters.sortBy = params.get('b');
+    if (params.get('h') === '1') sharedFilters.hideUnder500kEmv = true;
 
     return Object.keys(sharedFilters).length > 0 ? sanitizeFilters(sharedFilters) : null;
   } catch {
@@ -811,10 +816,10 @@ function addPlayerEmv(players, marketPrices) {
 }
 
 function sortVisiblePlayers(players, filters) {
-  const visible = filters.sortBy === 'emv500k'
+  const visible = filters.hideUnder500kEmv
     ? players.filter((player) => (Number(player.emv?.value) || 0) >= 500000)
     : players;
-  const sortByEmv = filters.sortBy === 'emv' || filters.sortBy === 'emv500k';
+  const sortByEmv = filters.sortBy === 'emv';
 
   return [...visible].sort((left, right) => {
     const leftValue = sortByEmv ? Number(left.emv?.value) || 0 : left.totalQuantity;
@@ -3815,7 +3820,16 @@ export default function LootMonitor({
             />
           </section>
 
-          {!localOnly && (canEditItemIgnoreList || canCopyScreenshot) ? <div className="loot-board-toolbar">
+          {!localOnly ? <div className="loot-board-toolbar">
+            <button
+              aria-pressed={filters.hideUnder500kEmv}
+              className={`board-copy-button emv-threshold-button${filters.hideUnder500kEmv ? ' active' : ''}`}
+              title="Hide players whose displayed EMV is under $500,000"
+              type="button"
+              onClick={() => updateFilter('hideUnder500kEmv', !filters.hideUnder500kEmv)}
+            >
+              Hide under 500k EMV
+            </button>
             {canEditItemIgnoreList ? (
               <IgnoreItemsControl
                 active={ignoreItemsMode}

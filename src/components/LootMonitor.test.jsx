@@ -210,6 +210,7 @@ describe('LootMonitor', () => {
     await waitFor(() => expect(fetchIgnoredLootItems).toHaveBeenCalled());
     expect(screen.queryByLabelText(/Adept's Lymhurst Cape/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ignore Items' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hide under 500k EMV' })).toBeInTheDocument();
   });
 
   it('lets permitted users select and permanently ignore an item', async () => {
@@ -400,7 +401,8 @@ describe('LootMonitor', () => {
     expect(screen.queryByRole('button', { name: 'Choose files' })).not.toBeInTheDocument();
     expect(screen.getByText('Sort By')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Total Items')).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Hide under 500k EMV' })).toBeInTheDocument();
+    const emvThresholdButton = screen.getByRole('button', { name: 'Hide under 500k EMV' });
+    expect(emvThresholdButton).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByText('Item Type')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Least to most')).toBeInTheDocument();
     const statusControl = screen.getByText('Status').closest('.filter-dropdown-control');
@@ -413,6 +415,9 @@ describe('LootMonitor', () => {
     const renderedTile = container.querySelector('.loot-item-tile');
     expect(renderedTile.querySelector('img').getAttribute('src')).toContain('/item-image/');
     expect(renderedTile).toHaveAttribute('title', expect.stringContaining('T4_CAPEITEM_FW_LYMHURST@3'));
+    fireEvent.click(emvThresholdButton);
+    expect(emvThresholdButton).toHaveAttribute('aria-pressed', 'true');
+    expect(container.querySelector('.loot-item-tile')).not.toBeInTheDocument();
 
     await waitFor(() => {
       const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
@@ -731,6 +736,7 @@ describe('LootMonitor', () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       alliances: ['CHAIR'],
       guilds: ['Militant'],
+      hideUnder500kEmv: true,
       sortBy: 'emv',
       sortDirection: 'asc',
       status: ['kept'],
@@ -754,19 +760,21 @@ describe('LootMonitor', () => {
     expect(sharedParams.getAll('y')).toEqual(['cape']);
     expect(sharedParams.get('o')).toBe('asc');
     expect(sharedParams.get('b')).toBe('emv');
+    expect(sharedParams.get('h')).toBe('1');
     expect(sharedUrl.hash).toBe('');
     expect(await screen.findByText('Link copied')).toBeInTheDocument();
   });
 
   it('loads filters from a shared loot log link', async () => {
     const previousHash = window.location.hash;
-    window.location.hash = '#shared-log/bundle-18?a=CHAIR&g=Militant&s=kept&y=cape&o=asc&b=emv';
+    window.location.hash = '#shared-log/bundle-18?a=CHAIR&g=Militant&s=kept&y=cape&o=asc&b=emv&h=1';
 
     render(<LootMonitor bundleId="bundle-18" showShare={false} />);
 
     expect((await screen.findAllByText('18UTC-JUN-18')).length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue('Least to most')).toBeInTheDocument();
     expect(screen.getByDisplayValue('EMV')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hide under 500k EMV' })).toHaveAttribute('aria-pressed', 'true');
     const statusControl = screen.getByText('Status').closest('.filter-dropdown-control');
     expect(statusControl.querySelector('summary')).toHaveTextContent('Kept');
     const typeControl = screen.getByText('Item Type').closest('.filter-dropdown-control');

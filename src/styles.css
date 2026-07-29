@@ -3580,6 +3580,12 @@ button:focus-visible {
   color: #020403;
 }
 
+.emv-threshold-button.active {
+  border-color: var(--green-hot);
+  background: var(--green-hot);
+  color: #020403;
+}
+
 .ignore-items-menu {
   position: absolute;
   z-index: 30;
