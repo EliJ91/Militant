@@ -39,14 +39,6 @@ const RETENTION_DAYS = 90;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 const LOOT_TOOLTIP_OPEN_EVENT = 'militant:loot-tooltip-open';
 
-const TIER_OPTIONS = [
-  { label: 'T4', value: 'tier4' },
-  { label: 'T5', value: 'tier5' },
-  { label: 'T6', value: 'tier6' },
-  { label: 'T7', value: 'tier7' },
-  { label: 'T8', value: 'tier8' },
-];
-
 const TYPE_OPTIONS = [
   { label: 'Bag', value: 'bag' },
   { label: 'Cape', value: 'cape' },
@@ -61,6 +53,12 @@ const TYPE_OPTIONS = [
 const SORT_OPTIONS = [
   { label: 'Most to least', value: 'desc' },
   { label: 'Least to most', value: 'asc' },
+];
+
+const SORT_BY_OPTIONS = [
+  { label: 'EMV', value: 'emv' },
+  { label: 'Total Items', value: 'items' },
+  { label: 'Hide under 500k EMV', value: 'emv500k' },
 ];
 
 const STATUS_OPTIONS = [
@@ -92,9 +90,9 @@ const TILE_STATUS_LABELS = {
 const DEFAULT_FILTERS = {
   alliances: [],
   guilds: [],
+  sortBy: 'items',
   sortDirection: 'desc',
   status: [],
-  tierFilters: [],
   typeFilters: [],
 };
 
@@ -380,11 +378,6 @@ function sanitizeOptionArray(value, options) {
   return selected.length === options.length ? [] : selected;
 }
 
-function migrateOldTierFilters(value) {
-  const oldFilters = sanitizeStringArray(value.itemFilters);
-  return oldFilters.filter((filter) => filter.startsWith('tier'));
-}
-
 function migrateOldTypeFilters(value) {
   const typeValues = new Set(TYPE_OPTIONS.map((option) => option.value));
   return sanitizeStringArray(value.itemFilters)
@@ -394,6 +387,7 @@ function migrateOldTypeFilters(value) {
 
 function sanitizeFilters(value = {}) {
   const statusValues = new Set(STATUS_OPTIONS.filter((option) => option.value !== 'all').map((option) => option.value));
+  const sortByValues = new Set(SORT_BY_OPTIONS.map((option) => option.value));
   const sortValues = new Set(SORT_OPTIONS.map((option) => option.value));
   const migratedStatus = value.status === 'deposited' ? 'donated' : value.status;
   const rawStatuses = Array.isArray(migratedStatus) ? migratedStatus : [migratedStatus];
@@ -405,9 +399,9 @@ function sanitizeFilters(value = {}) {
   return {
     alliances: sanitizeStringArray(value.alliances ?? (value.alliance ? [value.alliance] : [])),
     guilds: sanitizeStringArray(value.guilds ?? (value.guild ? [value.guild] : [])),
+    sortBy: sortByValues.has(value.sortBy) ? value.sortBy : DEFAULT_FILTERS.sortBy,
     sortDirection: sortValues.has(value.sortDirection) ? value.sortDirection : DEFAULT_FILTERS.sortDirection,
     status: noneStatusSelected ? [NONE_SELECTED_VALUE] : (selectedStatuses.length === statusValues.size ? [] : selectedStatuses),
-    tierFilters: sanitizeOptionArray(value.tierFilters ?? migrateOldTierFilters(value), TIER_OPTIONS),
     typeFilters: sanitizeOptionArray(value.typeFilters ?? migrateOldTypeFilters(value), TYPE_OPTIONS),
   };
 }
@@ -428,7 +422,6 @@ const SHARED_FILTER_PARAMS = {
   alliances: 'a',
   guilds: 'g',
   status: 's',
-  tierFilters: 't',
   typeFilters: 'y',
 };
 
@@ -442,6 +435,9 @@ function encodeSharedFilters(filters) {
 
   if (sanitized.sortDirection !== DEFAULT_FILTERS.sortDirection) {
     params.set('o', sanitized.sortDirection);
+  }
+  if (sanitized.sortBy !== DEFAULT_FILTERS.sortBy) {
+    params.set('b', sanitized.sortBy);
   }
 
   const query = params.toString();
@@ -465,6 +461,7 @@ function getSharedFiltersFromHash() {
       if (values.length > 0) sharedFilters[filterKey] = values;
     });
     if (params.has('o')) sharedFilters.sortDirection = params.get('o');
+    if (params.has('b')) sharedFilters.sortBy = params.get('b');
 
     return Object.keys(sharedFilters).length > 0 ? sanitizeFilters(sharedFilters) : null;
   } catch {
@@ -589,11 +586,8 @@ function allowsTileStatus(tileStatus, selectedStatuses) {
 }
 
 function allowsItemFilters(row, filters) {
-  const tier = getItemTier(row);
   const kind = getItemKind(row);
 
-  if (filters.tierFilters.includes(NONE_SELECTED_VALUE)) return false;
-  if (filters.tierFilters.length > 0 && (!tier || !filters.tierFilters.includes(tier))) return false;
   if (kind === 'gear') return true;
   if (filters.typeFilters.includes(NONE_SELECTED_VALUE)) return false;
   if (filters.typeFilters.length > 0 && !filters.typeFilters.includes(kind)) return false;
@@ -816,6 +810,21 @@ function addPlayerEmv(players, marketPrices) {
   }));
 }
 
+function sortVisiblePlayers(players, filters) {
+  const visible = filters.sortBy === 'emv500k'
+    ? players.filter((player) => (Number(player.emv?.value) || 0) >= 500000)
+    : players;
+  const sortByEmv = filters.sortBy === 'emv' || filters.sortBy === 'emv500k';
+
+  return [...visible].sort((left, right) => {
+    const leftValue = sortByEmv ? Number(left.emv?.value) || 0 : left.totalQuantity;
+    const rightValue = sortByEmv ? Number(right.emv?.value) || 0 : right.totalQuantity;
+    const valueDelta = leftValue - rightValue;
+    return (filters.sortDirection === 'asc' ? valueDelta : -valueDelta)
+      || compareText(left.player, right.player);
+  });
+}
+
 function buildVisiblePlayerGroups(rows, filters) {
   const byPlayer = new Map();
 
@@ -859,11 +868,7 @@ function buildVisiblePlayerGroups(rows, filters) {
       TILE_STATUS_ORDER[left.status] - TILE_STATUS_ORDER[right.status]
       || compareText(left.item, right.item)
     )),
-  })).sort((left, right) => {
-    const quantityDelta = left.totalQuantity - right.totalQuantity;
-    return (filters.sortDirection === 'asc' ? quantityDelta : -quantityDelta)
-      || compareText(left.player, right.player);
-  });
+  }));
 }
 
 function buildKeptItemChecks(rows) {
@@ -3255,8 +3260,8 @@ export default function LootMonitor({
     return players;
   }, [activeFilters, canViewHiddenPlayers, hiddenPlayerKeys, visibleRows]);
   const visiblePlayersWithEmv = useMemo(() => (
-    addPlayerEmv(visiblePlayers, marketPrices)
-  ), [marketPrices, visiblePlayers]);
+    sortVisiblePlayers(addPlayerEmv(visiblePlayers, marketPrices), activeFilters)
+  ), [activeFilters, marketPrices, visiblePlayers]);
   const deathLinksByPlayer = useMemo(() => {
     const linksByPlayer = new Map();
     (selectedBundle?.deathChecks || []).forEach((deathCheck) => {
@@ -3762,14 +3767,14 @@ export default function LootMonitor({
               : 'loot-controls'}
             aria-label="Loot monitor controls"
           >
-            <MultiSelectDropdown
-              allLabel="All tiers"
-              getLabel={(value) => optionLabel(TIER_OPTIONS, value)}
-              label="Tier"
-              options={TIER_OPTIONS}
-              selectedValues={filters.tierFilters}
-              onChange={(value) => updateFilter('tierFilters', value)}
-            />
+            <label>
+              <span>Sort By</span>
+              <select value={filters.sortBy} onChange={(event) => updateFilter('sortBy', event.target.value)}>
+                {SORT_BY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
             <MultiSelectDropdown
               allLabel="All item types"
               getLabel={(value) => optionLabel(TYPE_OPTIONS, value)}
@@ -3824,7 +3829,7 @@ export default function LootMonitor({
             {canCopyScreenshot ? (
               <button
                 className="board-copy-button"
-                disabled={visiblePlayers.length === 0 || screenshotStatus.state === 'copying'}
+                disabled={visiblePlayersWithEmv.length === 0 || screenshotStatus.state === 'copying'}
                 title="Copy board"
                 type="button"
                 onClick={copyBoardScreenshot}
@@ -3844,7 +3849,7 @@ export default function LootMonitor({
               <span>Name</span>
               <span>Items</span>
             </header>
-            {visiblePlayers.length === 0 ? (
+            {visiblePlayersWithEmv.length === 0 ? (
               <p className="loot-message">No item icons match the current filters.</p>
             ) : (
               <div className="loot-player-list">

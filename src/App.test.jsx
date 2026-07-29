@@ -103,7 +103,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.163');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.164');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -304,7 +304,8 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Select a Stored Log' })).toBeInTheDocument();
-    expect(window.localStorage.getItem('militant.lootMonitor.filters.v3')).toContain('tier4');
+    expect(window.localStorage.getItem('militant.lootMonitor.filters.v3')).not.toContain('tier4');
+    expect(window.localStorage.getItem('militant.lootMonitor.filters.v3')).toContain('"sortBy":"items"');
   });
 
   it('keeps protected routes behind Discord login', async () => {
