@@ -58,6 +58,7 @@ describe('PermissionsTool', () => {
     ]);
     expect(screen.queryByRole('columnheader', { name: 'Area' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(screen.getByRole('table').querySelector('thead')).toHaveClass('permissions-sticky-header');
 
     fireEvent.change(screen.getByLabelText('New role name'), {
       target: { value: 'CTA Lead' },

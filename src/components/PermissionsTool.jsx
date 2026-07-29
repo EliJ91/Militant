@@ -255,7 +255,7 @@ export default function PermissionsTool({ currentUser = null }) {
 
         <div className="permissions-table-wrap">
           <table className="permissions-table">
-            <thead>
+            <thead className="permissions-sticky-header">
               <tr>
                 <th className="permissions-name-column" scope="col">Permission</th>
                 {settings.roles.map((role, index) => (
