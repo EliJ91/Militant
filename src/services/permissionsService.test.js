@@ -50,9 +50,9 @@ describe('permissions service', () => {
       label: 'Copy Screenshot',
     });
     expect(WEBAPP_PERMISSION_DEFINITIONS).toContainEqual({
-      area: 'Loot Log Viewer',
+      area: 'Loot Logs',
       key: 'editItemIgnoreList',
-      label: 'Edit Item Ignore List',
+      label: 'Edit Ignore Items',
     });
   });
 });
