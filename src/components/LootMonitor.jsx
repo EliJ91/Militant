@@ -727,6 +727,15 @@ function formatScreenshotError(error) {
   return message;
 }
 
+export function buildVisiblePlayerMentions(players = []) {
+  return players
+    .filter((player) => !player.hidden)
+    .map((player) => String(player.player || '').trim())
+    .filter(Boolean)
+    .map((player) => `@${player}`)
+    .join(', ');
+}
+
 function buildItemTiles(row, filters) {
   return [
     { quantity: row.kept, status: 'kept' },
@@ -2894,6 +2903,7 @@ export default function LootMonitor({
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
   const [marketPrices, setMarketPrices] = useState({});
   const [marketPriceError, setMarketPriceError] = useState('');
+  const [mentionStatus, setMentionStatus] = useState({ message: '', state: 'idle' });
   const [localLoadError, setLocalLoadError] = useState('');
   const [playerContextMenu, setPlayerContextMenu] = useState(null);
   const [deathIdEntryPlayer, setDeathIdEntryPlayer] = useState('');
@@ -3360,6 +3370,24 @@ export default function LootMonitor({
     }
   }
 
+  async function copyVisiblePlayerMentions() {
+    const mentions = buildVisiblePlayerMentions(visiblePlayers);
+    if (!mentions || mentionStatus.state === 'copying') return;
+
+    setMentionStatus({ message: 'Copying...', state: 'copying' });
+    try {
+      await navigator.clipboard.writeText(mentions);
+      setMentionStatus({ message: "@'s copied", state: 'copied' });
+      window.setTimeout(() => {
+        setMentionStatus((current) => (
+          current.state === 'copied' ? { message: '', state: 'idle' } : current
+        ));
+      }, 1800);
+    } catch {
+      setMentionStatus({ message: "Could not copy @'s", state: 'error' });
+    }
+  }
+
   function openRawLogsInNewWindow() {
     const rawWindow = window.open('', '_blank');
     if (!rawWindow) return;
@@ -3462,7 +3490,7 @@ export default function LootMonitor({
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {!localOnly && marketPriceError ? <p className="loot-message error">{marketPriceError}</p> : null}
-      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus, deathIdStatus, deathLinkStatus, playerVisibilityStatus]} /> : null}
+      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus, mentionStatus, deathIdStatus, deathLinkStatus, playerVisibilityStatus]} /> : null}
       {rawModalOpen ? (
         <div className="raw-log-modal-backdrop" role="presentation" onMouseDown={() => setRawModalOpen(false)}>
           <section
@@ -3566,6 +3594,15 @@ export default function LootMonitor({
           </section>
 
           {!localOnly ? <div className="loot-board-toolbar">
+            <button
+              className="board-copy-button"
+              disabled={visiblePlayers.every((player) => player.hidden) || mentionStatus.state === 'copying'}
+              title="Copy visible player mentions"
+              type="button"
+              onClick={copyVisiblePlayerMentions}
+            >
+              {mentionStatus.state === 'copying' ? 'Copying...' : "Create @'s"}
+            </button>
             <button
               className="board-copy-button"
               disabled={visiblePlayers.length === 0 || screenshotStatus.state === 'copying'}

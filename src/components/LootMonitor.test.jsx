@@ -12,7 +12,11 @@ import {
   submitLootLog,
   updateLootLogBundle,
 } from '../services/lootLogApi';
-import LootMonitor, { applySoldierScreenshotView, LootLogArchive } from './LootMonitor';
+import LootMonitor, {
+  applySoldierScreenshotView,
+  buildVisiblePlayerMentions,
+  LootLogArchive,
+} from './LootMonitor';
 
 vi.mock('../services/lootLogApi', () => ({
   addLootLogDeathId: vi.fn(),
@@ -170,6 +174,28 @@ describe('LootMonitor', () => {
         loot: 'Custom Loot Log',
       },
     });
+  });
+
+  it('builds mentions from visible non-hidden players', () => {
+    expect(buildVisiblePlayerMentions([
+      { hidden: false, player: 'Gh0st31' },
+      { hidden: true, player: 'HiddenPlayer' },
+      { hidden: false, player: 'Jbeil' },
+      { hidden: false, player: 'tommy666' },
+    ])).toBe('@Gh0st31, @Jbeil, @tommy666');
+  });
+
+  it('copies visible player mentions from the loot board toolbar', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: "Create @'s" }));
+    expect(writeText).toHaveBeenCalledWith('@Windyyyzz');
   });
 
   afterEach(() => {
