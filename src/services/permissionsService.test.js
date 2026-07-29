@@ -42,4 +42,17 @@ describe('permissions service', () => {
       { area: 'Loot Logs', key: 'overrideChestLog', label: 'Override Chest Log' },
     ]);
   });
+
+  it('keeps screenshot and ignore-list controls as separate viewer permissions', () => {
+    expect(WEBAPP_PERMISSION_DEFINITIONS).toContainEqual({
+      area: 'Loot Log Viewer',
+      key: 'copyLootLogScreenshot',
+      label: 'Copy Screenshot',
+    });
+    expect(WEBAPP_PERMISSION_DEFINITIONS).toContainEqual({
+      area: 'Loot Log Viewer',
+      key: 'editItemIgnoreList',
+      label: 'Edit Item Ignore List',
+    });
+  });
 });

@@ -31,6 +31,62 @@ function createSupabaseAdmin() {
   });
 }
 
+export function getLootLogIgnoredItemKey(item = {}) {
+  const itemId = String(item.itemId || item.item_id || '').trim().toLowerCase();
+  if (itemId) return `id:${itemId}`;
+  const itemName = String(item.item || item.itemName || item.item_name || '').trim().toLowerCase();
+  return itemName ? `name:${itemName}|${Number(item.enchantment) || 0}` : '';
+}
+
+export async function listLootLogIgnoredItems() {
+  const supabase = createSupabaseAdmin();
+  const { data, error } = await supabase
+    .from('loot_log_ignored_items')
+    .select('item_key,item_id,item_name,enchantment,created_at,updated_at')
+    .order('item_name');
+  if (error) throw error;
+  return {
+    items: (data || []).map((item) => ({
+      createdAt: item.created_at,
+      enchantment: item.enchantment,
+      itemId: item.item_id,
+      itemKey: item.item_key,
+      itemName: item.item_name,
+      updatedAt: item.updated_at,
+    })),
+  };
+}
+
+export async function setLootLogItemIgnored({ ignored, item = {} }) {
+  const supabase = createSupabaseAdmin();
+  const itemKey = getLootLogIgnoredItemKey(item);
+  const itemId = String(item.itemId || item.item_id || '').trim();
+  const itemName = String(item.item || item.itemName || item.item_name || '').trim();
+  const enchantment = Number(item.enchantment) || 0;
+  if (!itemKey || !itemName) throw new Error('A valid loot item is required.');
+
+  if (ignored) {
+    const { error } = await supabase.from('loot_log_ignored_items').upsert({
+      enchantment,
+      item_id: itemId,
+      item_key: itemKey,
+      item_name: itemName,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'item_key' });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('loot_log_ignored_items').delete().eq('item_key', itemKey);
+    if (error) throw error;
+  }
+
+  const result = await listLootLogIgnoredItems();
+  return {
+    ...result,
+    ignored: Boolean(ignored),
+    item: { enchantment, itemId, itemKey, itemName },
+  };
+}
+
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 const HASH_LOOKUP_BATCH_SIZE = 40;
 const INSERT_BATCH_SIZE = 250;

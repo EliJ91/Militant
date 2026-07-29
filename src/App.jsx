@@ -593,6 +593,8 @@ function DashboardPage({
 function LootMonitorPage({
   bundleId,
   canAddDeathId = false,
+  canCopyScreenshot = false,
+  canEditItemIgnoreList = false,
   canViewDeaths = false,
   canViewHiddenPlayers = false,
   currentUser = null,
@@ -622,6 +624,8 @@ function LootMonitorPage({
       <LootMonitor
         bundleId={bundleId}
         canAddDeathId={canAddDeathId}
+        canCopyScreenshot={canCopyScreenshot}
+        canEditItemIgnoreList={canEditItemIgnoreList}
         canViewDeaths={canViewDeaths}
         canViewHiddenPlayers={canViewHiddenPlayers}
         onViewLogs={() => navigateTo('#loot-logs')}
@@ -635,6 +639,8 @@ function LootMonitorPage({
 function SharedLootMonitorPage({
   bundleId,
   canAddDeathId = false,
+  canCopyScreenshot = false,
+  canEditItemIgnoreList = false,
   canViewDeaths = false,
   canViewHiddenPlayers = false,
   currentUser = null,
@@ -644,6 +650,8 @@ function SharedLootMonitorPage({
     <LootMonitor
       bundleId={bundleId}
       canAddDeathId={canAddDeathId}
+      canCopyScreenshot={canCopyScreenshot}
+      canEditItemIgnoreList={canEditItemIgnoreList}
       canViewDeaths={canViewDeaths}
       canViewHiddenPlayers={canViewHiddenPlayers}
       screenshotPermissions={screenshotPermissions}
@@ -654,6 +662,7 @@ function SharedLootMonitorPage({
 }
 
 function LocalLootViewerPage({
+  canEditItemIgnoreList = false,
   currentUser = null,
   isAuthenticated = false,
   isSuperUserProfile = false,
@@ -674,7 +683,7 @@ function LocalLootViewerPage({
       viewAsRoleIds={viewAsRoleIds}
       viewAsRoles={viewAsRoles}
     >
-      <LootMonitor localOnly showShare={false} />
+      <LootMonitor canEditItemIgnoreList={canEditItemIgnoreList} localOnly showShare={false} />
     </ToolPage>
   );
 }
@@ -1105,6 +1114,8 @@ export default function App() {
       <SharedLootMonitorPage
         bundleId={selectedBundleId}
         canAddDeathId={Boolean(effectivePermissions.addDeathId)}
+        canCopyScreenshot={Boolean(effectivePermissions.copyLootLogScreenshot)}
+        canEditItemIgnoreList={Boolean(effectivePermissions.editItemIgnoreList)}
         canViewDeaths={Boolean(effectivePermissions.viewDeaths)}
         canViewHiddenPlayers={Boolean(effectivePermissions.viewHiddenLootLogPlayers)}
         currentUser={currentUser}
@@ -1158,6 +1169,7 @@ export default function App() {
   } else if (route === 'loot-viewer') {
     page = effectivePermissions.viewLootLogViewer ? (
       <LocalLootViewerPage
+        canEditItemIgnoreList={Boolean(effectivePermissions.editItemIgnoreList)}
         currentUser={currentUser}
         isAuthenticated={isAuthenticated}
         onSignOut={handleSignOut}
@@ -1195,6 +1207,8 @@ export default function App() {
       <LootMonitorPage
         bundleId={selectedBundleId}
         canAddDeathId={Boolean(effectivePermissions.addDeathId)}
+        canCopyScreenshot={Boolean(effectivePermissions.copyLootLogScreenshot)}
+        canEditItemIgnoreList={Boolean(effectivePermissions.editItemIgnoreList)}
         canViewDeaths={Boolean(effectivePermissions.viewDeaths)}
         canViewHiddenPlayers={Boolean(effectivePermissions.viewHiddenLootLogPlayers)}
         currentUser={currentUser}

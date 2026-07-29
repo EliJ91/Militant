@@ -311,6 +311,43 @@ export async function setLootLogPlayerHidden({
   return result;
 }
 
+export async function fetchIgnoredLootItems() {
+  const requestUrl = new URL(getLootLogApiUrl(), window.location.href);
+  requestUrl.searchParams.set('resource', 'ignored-items');
+  const response = await fetch(requestUrl);
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not load ignored items.');
+  }
+
+  return result;
+}
+
+export async function setLootLogItemIgnored({ actorName, ignored, item }) {
+  const response = await fetch(getLootLogApiUrl(), {
+    body: JSON.stringify({ action: 'set-item-ignored', ignored, item }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'PATCH',
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not update the item ignore list.');
+  }
+
+  void recordActionLog({
+    action: ignored ? 'Item added to ignore list' : 'Item removed from ignore list',
+    actorName,
+    details: { itemId: item?.itemId || '', itemName: item?.item || item?.itemName || '' },
+    targetId: result.item?.itemKey || item?.itemId || '',
+    targetName: item?.item || item?.itemName || item?.itemId || 'Loot item',
+    targetType: 'loot-item',
+  });
+
+  return result;
+}
+
 export async function fetchLootLogBundles() {
   const response = await fetch(getLootLogApiUrl());
   const result = await response.json();

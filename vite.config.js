@@ -77,10 +77,13 @@ function lootLogApi() {
       try {
         const requestUrl = new URL(req.url || '/', 'http://127.0.0.1');
         const bundleId = requestUrl.searchParams.get('bundleId');
-        const { getLootLogBundle, listLootLogBundles } = await import('./src/server/supabaseLootLogs.js');
-        const result = bundleId
-          ? await getLootLogBundle(bundleId)
-          : await listLootLogBundles();
+        const resource = requestUrl.searchParams.get('resource');
+        const { getLootLogBundle, listLootLogBundles, listLootLogIgnoredItems } = await import('./src/server/supabaseLootLogs.js');
+        const result = resource === 'ignored-items'
+          ? await listLootLogIgnoredItems()
+          : bundleId
+            ? await getLootLogBundle(bundleId)
+            : await listLootLogBundles();
         sendJson(res, 200, result);
       } catch (error) {
         sendJson(res, 400, { error: error.message || 'Could not load loot logs.' });
@@ -110,9 +113,11 @@ function lootLogApi() {
 
     if (req.method === 'PATCH') {
       try {
-        const { setLootLogPlayerHidden, updateLootLogBundle } = await import('./src/server/supabaseLootLogs.js');
+        const { setLootLogItemIgnored, setLootLogPlayerHidden, updateLootLogBundle } = await import('./src/server/supabaseLootLogs.js');
         const body = await readJsonBody(req);
-        const result = body.action === 'set-player-hidden'
+        const result = body.action === 'set-item-ignored'
+          ? await setLootLogItemIgnored({ ignored: body.ignored, item: body.item })
+          : body.action === 'set-player-hidden'
           ? await setLootLogPlayerHidden({
             bundleId: body.bundleId,
             hidden: body.hidden,

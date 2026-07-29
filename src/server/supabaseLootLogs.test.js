@@ -5,11 +5,21 @@ import {
   getBundleDisplayChestFileName,
   getBundleDisplayLootFileName,
   getBundleFileNames,
+  getLootLogIgnoredItemKey,
   mergeLootLogDeathChecks,
   normalizeDeathCheckRanges,
   sortLootLogBundlesChronologically,
   validateDeathForPlayerAndBundle,
 } from './supabaseLootLogs.js';
+
+describe('getLootLogIgnoredItemKey', () => {
+  it('uses the exact item id and falls back to name plus enchantment', () => {
+    expect(getLootLogIgnoredItemKey({ itemId: 'T8_SWORD@3', item: 'Elder Sword' }))
+      .toBe('id:t8_sword@3');
+    expect(getLootLogIgnoredItemKey({ enchantment: 2, itemName: 'Master Sword' }))
+      .toBe('name:master sword|2');
+  });
+});
 
 describe('collectGlobalHiddenPlayers', () => {
   it('combines hidden players from every loot log into one normalized global list', () => {

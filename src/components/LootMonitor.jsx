@@ -8,9 +8,11 @@ import {
   buildLootLogShareUrl,
   deleteChestLogs,
   deleteLootLogBundle,
+  fetchIgnoredLootItems,
   fetchLootLogBundle,
   fetchLootLogBundles,
   mergeLootLogBundles,
+  setLootLogItemIgnored,
   submitChestLog,
   submitLootLog,
   setLootLogPlayerHidden,
@@ -727,13 +729,11 @@ function formatScreenshotError(error) {
   return message;
 }
 
-export function buildVisiblePlayerMentions(players = []) {
-  return players
-    .filter((player) => !player.hidden)
-    .map((player) => String(player.player || '').trim())
-    .filter(Boolean)
-    .map((player) => `@${player}`)
-    .join(', ');
+export function getLootLogIgnoredItemKey(item = {}) {
+  const itemId = String(item.itemId || item.item_id || '').trim().toLowerCase();
+  if (itemId) return `id:${itemId}`;
+  const itemName = String(item.item || item.itemName || item.item_name || '').trim().toLowerCase();
+  return itemName ? `name:${itemName}|${Number(item.enchantment) || 0}` : '';
 }
 
 function buildItemTiles(row, filters) {
@@ -1194,7 +1194,13 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
   );
 }
 
-function LootItemTile({ canViewDeaths = false, onDeathLinkCopy = () => {}, tile }) {
+function LootItemTile({
+  canViewDeaths = false,
+  ignoreMode = false,
+  onDeathLinkCopy = () => {},
+  onIgnore = () => {},
+  tile,
+}) {
   const tooltipId = useId();
   const tileRef = useRef(null);
   const tooltipRef = useRef(null);
@@ -1365,6 +1371,10 @@ function LootItemTile({ canViewDeaths = false, onDeathLinkCopy = () => {}, tile 
   }
 
   function handleTileClick() {
+    if (ignoreMode) {
+      onIgnore(tile);
+      return;
+    }
     if (tile.status === 'accounted' && deathLinks.length > 0) {
       copyDeathLinks();
       return;
@@ -1373,6 +1383,11 @@ function LootItemTile({ canViewDeaths = false, onDeathLinkCopy = () => {}, tile 
   }
 
   function handleTileKeyDown(event) {
+    if (ignoreMode && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      onIgnore(tile);
+      return;
+    }
     if (!hasCustodyTooltip || (tile.status !== 'accounted' && !usesMobileTooltipClick())) return;
 
     if (event.key === 'Enter' || event.key === ' ') {
@@ -1387,15 +1402,21 @@ function LootItemTile({ canViewDeaths = false, onDeathLinkCopy = () => {}, tile 
     <>
       <figure
         ref={tileRef}
-        aria-describedby={hasCustodyTooltip && custodyTooltip.visible ? tooltipId : undefined}
+        aria-describedby={!ignoreMode && hasCustodyTooltip && custodyTooltip.visible ? tooltipId : undefined}
         aria-label={label}
-        className={`loot-item-tile ${tile.status}-tile ${hasCustodyTooltip ? 'has-custody-tooltip' : ''}`}
-        title={hasCustodyTooltip ? undefined : title}
+        className={`loot-item-tile ${tile.status}-tile ${hasCustodyTooltip && !ignoreMode ? 'has-custody-tooltip' : ''} ${ignoreMode ? 'ignore-selection-tile' : ''}`}
+        role={ignoreMode ? 'button' : undefined}
+        tabIndex={ignoreMode ? 0 : undefined}
+        title={ignoreMode ? `Ignore ${tile.item}` : hasCustodyTooltip ? undefined : title}
         onBlur={closeCustodyTooltip}
         onClick={handleTileClick}
         onKeyDown={handleTileKeyDown}
-        onMouseEnter={() => showCustodyTooltip(false)}
-        onMouseLeave={hideCustodyTooltip}
+        onMouseEnter={() => {
+          if (!ignoreMode) showCustodyTooltip(false);
+        }}
+        onMouseLeave={() => {
+          if (!ignoreMode) hideCustodyTooltip();
+        }}
       >
         {tile.imageUrl && !imageFailed ? (
           <img
@@ -1412,7 +1433,7 @@ function LootItemTile({ canViewDeaths = false, onDeathLinkCopy = () => {}, tile 
         )}
         <figcaption>{formatNumber(tile.quantity)}</figcaption>
       </figure>
-      {hasCustodyTooltip && custodyTooltip.visible && typeof document !== 'undefined' ? createPortal(
+      {!ignoreMode && hasCustodyTooltip && custodyTooltip.visible && typeof document !== 'undefined' ? createPortal(
         <div
           ref={tooltipRef}
           className="loot-item-custody-tooltip"
@@ -1878,6 +1899,150 @@ function StatusToasts({ messages }) {
         </p>
       ))}
     </div>
+  );
+}
+
+function IgnoreItemsControl({
+  active,
+  disabled = false,
+  ignoredItems = [],
+  onRemoveItem = () => {},
+  onToggle = () => {},
+  removingItemKey = '',
+}) {
+  const controlRef = useRef(null);
+  const longPressTimerRef = useRef(null);
+  const suppressClickRef = useRef(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+
+    function closeMenu(event) {
+      if (!controlRef.current?.contains(event.target)) setMenuOpen(false);
+    }
+
+    function closeMenuWithEscape(event) {
+      if (event.key === 'Escape') setMenuOpen(false);
+    }
+
+    document.addEventListener('pointerdown', closeMenu, true);
+    document.addEventListener('keydown', closeMenuWithEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeMenu, true);
+      document.removeEventListener('keydown', closeMenuWithEscape);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => () => window.clearTimeout(longPressTimerRef.current), []);
+
+  function openMenu() {
+    suppressClickRef.current = true;
+    setMenuOpen(true);
+  }
+
+  function startLongPress(event) {
+    if (event.pointerType === 'mouse') return;
+    window.clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = window.setTimeout(openMenu, 550);
+  }
+
+  function cancelLongPress() {
+    window.clearTimeout(longPressTimerRef.current);
+  }
+
+  return (
+    <>
+      <div className="ignore-items-control" ref={controlRef}>
+        <button
+          aria-expanded={menuOpen}
+          className={`board-copy-button ignore-items-button${active ? ' active' : ''}`}
+          disabled={disabled}
+          title="Select items to permanently hide. Right-click or press and hold to view the ignore list."
+          type="button"
+          onClick={() => {
+            if (suppressClickRef.current) {
+              suppressClickRef.current = false;
+              return;
+            }
+            setMenuOpen(false);
+            onToggle();
+          }}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            setMenuOpen(true);
+          }}
+          onPointerCancel={cancelLongPress}
+          onPointerDown={startLongPress}
+          onPointerLeave={cancelLongPress}
+          onPointerUp={cancelLongPress}
+        >
+          {active ? 'Done' : 'Ignore Items'}
+        </button>
+        {menuOpen ? (
+          <div className="ignore-items-menu" role="menu">
+            <button
+              role="menuitem"
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                setModalOpen(true);
+              }}
+            >
+              View Items
+            </button>
+          </div>
+        ) : null}
+      </div>
+      {modalOpen && typeof document !== 'undefined' ? createPortal(
+        <div className="ignored-items-modal-backdrop" role="presentation" onMouseDown={() => setModalOpen(false)}>
+          <section
+            aria-label="Ignored items"
+            aria-modal="true"
+            className="ignored-items-modal"
+            role="dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="ignored-items-modal-heading">
+              <div>
+                <small>Loot Log Viewer</small>
+                <h2>Ignored Items</h2>
+              </div>
+              <button className="raw-log-modal-close" type="button" onClick={() => setModalOpen(false)}>
+                Close
+              </button>
+            </header>
+            {ignoredItems.length === 0 ? (
+              <p className="ignored-items-empty">No items are ignored.</p>
+            ) : (
+              <div className="ignored-items-list">
+                {ignoredItems.map((item) => (
+                  <article className="ignored-item-row" key={item.itemKey}>
+                    <img alt="" src={itemImageUrl(item.itemId)} />
+                    <div>
+                      <strong>{item.itemName}</strong>
+                      <small>{item.itemId || `Enchantment ${item.enchantment || 0}`}</small>
+                    </div>
+                    <button
+                      aria-label={`Remove ${item.itemName} from ignore list`}
+                      className="ignored-item-remove"
+                      disabled={removingItemKey === item.itemKey}
+                      title="Remove from ignore list"
+                      type="button"
+                      onClick={() => onRemoveItem(item)}
+                    >
+                      <Trash2 aria-hidden="true" size={17} />
+                    </button>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>,
+        document.body,
+      ) : null}
+    </>
   );
 }
 
@@ -2889,6 +3054,8 @@ export function LootLogArchive({
 export default function LootMonitor({
   bundleId = '',
   canAddDeathId = false,
+  canCopyScreenshot = false,
+  canEditItemIgnoreList = false,
   canViewDeaths = false,
   canViewHiddenPlayers = false,
   screenshotPermissions = {},
@@ -2903,7 +3070,9 @@ export default function LootMonitor({
   const [loadStatus, setLoadStatus] = useState({ message: '', state: bundleId ? 'loading' : 'idle' });
   const [marketPrices, setMarketPrices] = useState({});
   const [marketPriceError, setMarketPriceError] = useState('');
-  const [mentionStatus, setMentionStatus] = useState({ message: '', state: 'idle' });
+  const [ignoredItems, setIgnoredItems] = useState([]);
+  const [ignoreItemsMode, setIgnoreItemsMode] = useState(false);
+  const [itemIgnoreStatus, setItemIgnoreStatus] = useState({ itemKey: '', message: '', state: 'idle' });
   const [localLoadError, setLocalLoadError] = useState('');
   const [playerContextMenu, setPlayerContextMenu] = useState(null);
   const [deathIdEntryPlayer, setDeathIdEntryPlayer] = useState('');
@@ -2915,6 +3084,20 @@ export default function LootMonitor({
   const [shareStatus, setShareStatus] = useState({ message: '', state: 'idle' });
   const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
   const [selectedBundle, setSelectedBundle] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchIgnoredLootItems()
+      .then((result) => {
+        if (!cancelled) setIgnoredItems(Array.isArray(result.items) ? result.items : []);
+      })
+      .catch(() => {
+        if (!cancelled) setIgnoredItems([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -3037,18 +3220,24 @@ export default function LootMonitor({
   }, [selectedBundle]);
   const selectedTotals = selectedBundle?.summary?.totals || report?.totals || {};
   const activeFilters = filters;
+  const ignoredItemKeys = useMemo(() => new Set(
+    ignoredItems.map((item) => item.itemKey || getLootLogIgnoredItemKey(item)).filter(Boolean),
+  ), [ignoredItems]);
+  const displayableRows = useMemo(() => (
+    report?.rows?.filter((row) => !ignoredItemKeys.has(getLootLogIgnoredItemKey(row))) || []
+  ), [ignoredItemKeys, report]);
   const filterOptions = useMemo(() => {
     if (!report) return { alliances: [], guilds: [] };
 
     return {
-      alliances: valuesToOptions(report.rows.flatMap(allianceValuesForRow), displayAlliance),
-      guilds: valuesToOptions(report.rows.flatMap(guildValuesForRow), displayGuild),
+      alliances: valuesToOptions(displayableRows.flatMap(allianceValuesForRow), displayAlliance),
+      guilds: valuesToOptions(displayableRows.flatMap(guildValuesForRow), displayGuild),
     };
-  }, [report]);
+  }, [displayableRows, report]);
 
   const visibleRows = useMemo(() => (
-    report ? getVisibleRows(report.rows, activeFilters) : []
-  ), [activeFilters, report]);
+    report ? getVisibleRows(displayableRows, activeFilters) : []
+  ), [activeFilters, displayableRows, report]);
 
   const hiddenPlayerKeys = useMemo(() => new Set(
     (Array.isArray(selectedBundle?.summary?.hiddenPlayers) ? selectedBundle.summary.hiddenPlayers : [])
@@ -3370,21 +3559,49 @@ export default function LootMonitor({
     }
   }
 
-  async function copyVisiblePlayerMentions() {
-    const mentions = buildVisiblePlayerMentions(visiblePlayers);
-    if (!mentions || mentionStatus.state === 'copying') return;
+  async function ignoreLootItem(item) {
+    if (!canEditItemIgnoreList || itemIgnoreStatus.state === 'loading') return;
+    const itemKey = getLootLogIgnoredItemKey(item);
+    if (!itemKey || ignoredItemKeys.has(itemKey)) return;
 
-    setMentionStatus({ message: 'Copying...', state: 'copying' });
+    setItemIgnoreStatus({ itemKey, message: 'Saving...', state: 'loading' });
     try {
-      await navigator.clipboard.writeText(mentions);
-      setMentionStatus({ message: "@'s copied", state: 'copied' });
+      const result = await setLootLogItemIgnored({
+        actorName: uploadUsername,
+        ignored: true,
+        item,
+      });
+      setIgnoredItems(Array.isArray(result.items) ? result.items : []);
+      setItemIgnoreStatus({ itemKey: '', message: `${item.item} ignored`, state: 'copied' });
       window.setTimeout(() => {
-        setMentionStatus((current) => (
+        setItemIgnoreStatus((current) => (
           current.state === 'copied' ? { message: '', state: 'idle' } : current
         ));
       }, 1800);
-    } catch {
-      setMentionStatus({ message: "Could not copy @'s", state: 'error' });
+    } catch (error) {
+      setItemIgnoreStatus({ itemKey: '', message: error.message || 'Could not ignore item', state: 'error' });
+    }
+  }
+
+  async function removeIgnoredLootItem(item) {
+    if (!canEditItemIgnoreList || itemIgnoreStatus.state === 'loading') return;
+    const itemKey = item.itemKey || getLootLogIgnoredItemKey(item);
+    setItemIgnoreStatus({ itemKey, message: 'Saving...', state: 'loading' });
+    try {
+      const result = await setLootLogItemIgnored({
+        actorName: uploadUsername,
+        ignored: false,
+        item,
+      });
+      setIgnoredItems(Array.isArray(result.items) ? result.items : []);
+      setItemIgnoreStatus({ itemKey: '', message: `${item.itemName} restored`, state: 'copied' });
+      window.setTimeout(() => {
+        setItemIgnoreStatus((current) => (
+          current.state === 'copied' ? { itemKey: '', message: '', state: 'idle' } : current
+        ));
+      }, 1800);
+    } catch (error) {
+      setItemIgnoreStatus({ itemKey: '', message: error.message || 'Could not restore item', state: 'error' });
     }
   }
 
@@ -3490,7 +3707,7 @@ export default function LootMonitor({
 
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {!localOnly && marketPriceError ? <p className="loot-message error">{marketPriceError}</p> : null}
-      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus, mentionStatus, deathIdStatus, deathLinkStatus, playerVisibilityStatus]} /> : null}
+      {!localOnly ? <StatusToasts messages={[shareStatus, screenshotStatus, itemIgnoreStatus, deathIdStatus, deathLinkStatus, playerVisibilityStatus]} /> : null}
       {rawModalOpen ? (
         <div className="raw-log-modal-backdrop" role="presentation" onMouseDown={() => setRawModalOpen(false)}>
           <section
@@ -3593,30 +3810,33 @@ export default function LootMonitor({
             />
           </section>
 
-          {!localOnly ? <div className="loot-board-toolbar">
-            <button
-              className="board-copy-button"
-              disabled={visiblePlayers.every((player) => player.hidden) || mentionStatus.state === 'copying'}
-              title="Copy visible player mentions"
-              type="button"
-              onClick={copyVisiblePlayerMentions}
-            >
-              {mentionStatus.state === 'copying' ? 'Copying...' : "Create @'s"}
-            </button>
-            <button
-              className="board-copy-button"
-              disabled={visiblePlayers.length === 0 || screenshotStatus.state === 'copying'}
-              title="Copy board"
-              type="button"
-              onClick={copyBoardScreenshot}
-            >
-              {screenshotStatus.state === 'copying' ? 'Copying...' : 'Copy Screenshot'}
-            </button>
+          {!localOnly && (canEditItemIgnoreList || canCopyScreenshot) ? <div className="loot-board-toolbar">
+            {canEditItemIgnoreList ? (
+              <IgnoreItemsControl
+                active={ignoreItemsMode}
+                disabled={itemIgnoreStatus.state === 'loading'}
+                ignoredItems={ignoredItems}
+                removingItemKey={itemIgnoreStatus.itemKey}
+                onRemoveItem={removeIgnoredLootItem}
+                onToggle={() => setIgnoreItemsMode((current) => !current)}
+              />
+            ) : null}
+            {canCopyScreenshot ? (
+              <button
+                className="board-copy-button"
+                disabled={visiblePlayers.length === 0 || screenshotStatus.state === 'copying'}
+                title="Copy board"
+                type="button"
+                onClick={copyBoardScreenshot}
+              >
+                {screenshotStatus.state === 'copying' ? 'Copying...' : 'Copy Screenshot'}
+              </button>
+            ) : null}
           </div> : null}
 
           <section
             aria-label="Player loot board"
-            className="loot-board-section"
+            className={`loot-board-section${ignoreItemsMode ? ' ignore-items-mode' : ''}`}
             data-loot-board-screenshot="true"
             ref={boardRef}
           >
@@ -3691,9 +3911,11 @@ export default function LootMonitor({
                       {player.tiles.map((tile, index) => (
                         <LootItemTile
                           canViewDeaths={canViewDeaths}
+                          ignoreMode={ignoreItemsMode}
                           key={`${tile.status}:${tile.itemId}:${tile.item}:${index}`}
                           tile={tile}
                           onDeathLinkCopy={handleDeathLinkCopy}
+                          onIgnore={ignoreLootItem}
                         />
                       ))}
                     </div>

@@ -361,6 +361,60 @@ async function getGlobalHiddenPlayers(supabase: any) {
   return collectGlobalHiddenPlayers(await fetchLootLogBundleVisibility(supabase));
 }
 
+function getLootLogIgnoredItemKey(item: any = {}) {
+  const itemId = String(item.itemId || item.item_id || '').trim().toLowerCase();
+  if (itemId) return `id:${itemId}`;
+  const itemName = String(item.item || item.itemName || item.item_name || '').trim().toLowerCase();
+  return itemName ? `name:${itemName}|${Number(item.enchantment) || 0}` : '';
+}
+
+async function listLootLogIgnoredItems(supabase: any) {
+  const { data, error } = await supabase
+    .from('loot_log_ignored_items')
+    .select('item_key,item_id,item_name,enchantment,created_at,updated_at')
+    .order('item_name');
+  if (error) throw error;
+  return {
+    items: (data || []).map((item: any) => ({
+      createdAt: item.created_at,
+      enchantment: item.enchantment,
+      itemId: item.item_id,
+      itemKey: item.item_key,
+      itemName: item.item_name,
+      updatedAt: item.updated_at,
+    })),
+  };
+}
+
+async function setLootLogItemIgnored(supabase: any, body: any) {
+  const item = body.item || {};
+  const itemKey = getLootLogIgnoredItemKey(item);
+  const itemId = String(item.itemId || item.item_id || '').trim();
+  const itemName = String(item.item || item.itemName || item.item_name || '').trim();
+  const enchantment = Number(item.enchantment) || 0;
+  if (!itemKey || !itemName) throw new Error('A valid loot item is required.');
+
+  if (body.ignored) {
+    const { error } = await supabase.from('loot_log_ignored_items').upsert({
+      enchantment,
+      item_id: itemId,
+      item_key: itemKey,
+      item_name: itemName,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'item_key' });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('loot_log_ignored_items').delete().eq('item_key', itemKey);
+    if (error) throw error;
+  }
+
+  return {
+    ...(await listLootLogIgnoredItems(supabase)),
+    ignored: Boolean(body.ignored),
+    item: { enchantment, itemId, itemKey, itemName },
+  };
+}
+
 function sourceActorKey(event: LootEvent, actor: unknown) {
   return [
     duplicateItemIdentity(event),
@@ -1723,6 +1777,9 @@ Deno.serve(async (request) => {
 
     if (request.method === 'PATCH') {
       const body = await request.json();
+      if (body.action === 'set-item-ignored') {
+        return jsonResponse(200, await setLootLogItemIgnored(supabase, body));
+      }
       const bundleId = String(body.bundleId || '').trim();
       if (!bundleId) throw new Error('bundleId is required.');
 
@@ -1908,7 +1965,11 @@ Deno.serve(async (request) => {
     }
 
     if (request.method === 'GET') {
-      const bundleId = new URL(request.url).searchParams.get('bundleId');
+      const requestUrl = new URL(request.url);
+      if (requestUrl.searchParams.get('resource') === 'ignored-items') {
+        return jsonResponse(200, await listLootLogIgnoredItems(supabase));
+      }
+      const bundleId = requestUrl.searchParams.get('bundleId');
 
       if (bundleId) {
         const { data: bundle, error: bundleError } = await supabase

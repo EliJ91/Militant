@@ -4,9 +4,11 @@ import {
   addLootLogDeathId,
   deleteChestLogs,
   deleteLootLogBundle,
+  fetchIgnoredLootItems,
   fetchLootLogBundle,
   fetchLootLogBundles,
   mergeLootLogBundles,
+  setLootLogItemIgnored,
   setLootLogPlayerHidden,
   submitChestLog,
   submitLootLog,
@@ -14,7 +16,6 @@ import {
 } from '../services/lootLogApi';
 import LootMonitor, {
   applySoldierScreenshotView,
-  buildVisiblePlayerMentions,
   LootLogArchive,
 } from './LootMonitor';
 
@@ -30,9 +31,11 @@ vi.mock('../services/lootLogApi', () => ({
   },
   deleteChestLogs: vi.fn(),
   deleteLootLogBundle: vi.fn(),
+  fetchIgnoredLootItems: vi.fn(),
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
   mergeLootLogBundles: vi.fn(),
+  setLootLogItemIgnored: vi.fn(),
   setLootLogPlayerHidden: vi.fn(),
   submitChestLog: vi.fn(),
   submitLootLog: vi.fn(),
@@ -160,7 +163,23 @@ describe('LootMonitor', () => {
     stubMarketPrices();
     fetchLootLogBundle.mockResolvedValue({ bundle: createBundle() });
     fetchLootLogBundles.mockResolvedValue({ bundles: [createBundle()] });
+    fetchIgnoredLootItems.mockResolvedValue({ items: [] });
     mergeLootLogBundles.mockResolvedValue({ bundleId: 'merged-bundle', lootFileName: 'Merged - 18UTC-JUN-18' });
+    setLootLogItemIgnored.mockImplementation(({ ignored, item }) => Promise.resolve({
+      ignored,
+      item: {
+        enchantment: item.enchantment,
+        itemId: item.itemId,
+        itemKey: `id:${String(item.itemId || '').toLowerCase()}`,
+        itemName: item.item || item.itemName,
+      },
+      items: ignored ? [{
+        enchantment: item.enchantment,
+        itemId: item.itemId,
+        itemKey: `id:${String(item.itemId || '').toLowerCase()}`,
+        itemName: item.item || item.itemName,
+      }] : [],
+    }));
     setLootLogPlayerHidden.mockResolvedValue({ bundleId: 'bundle-18', hidden: false, hiddenPlayers: [] });
     submitLootLog.mockResolvedValue({ bundleId: 'bundle-18', summary: { fileNames: { loot: '18UTC-JUN-18 Loot Log' } } });
     submitChestLog.mockResolvedValue({ fileName: '18UTC-JUN-18 Chest Log' });
@@ -176,26 +195,65 @@ describe('LootMonitor', () => {
     });
   });
 
-  it('builds mentions from visible non-hidden players', () => {
-    expect(buildVisiblePlayerMentions([
-      { hidden: false, player: 'Gh0st31' },
-      { hidden: true, player: 'HiddenPlayer' },
-      { hidden: false, player: 'Jbeil' },
-      { hidden: false, player: 'tommy666' },
-    ])).toBe('@Gh0st31, @Jbeil, @tommy666');
-  });
-
-  it('copies visible player mentions from the loot board toolbar', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText },
+  it('hides globally ignored items from every loot log viewer', async () => {
+    fetchIgnoredLootItems.mockResolvedValue({
+      items: [{
+        enchantment: 3,
+        itemId: 'T4_CAPEITEM_FW_LYMHURST@3',
+        itemKey: 'id:t4_capeitem_fw_lymhurst@3',
+        itemName: "Adept's Lymhurst Cape",
+      }],
     });
 
     render(<LootMonitor bundleId="bundle-18" />);
 
-    fireEvent.click(await screen.findByRole('button', { name: "Create @'s" }));
-    expect(writeText).toHaveBeenCalledWith('@Windyyyzz');
+    await waitFor(() => expect(fetchIgnoredLootItems).toHaveBeenCalled());
+    expect(screen.queryByLabelText(/Adept's Lymhurst Cape/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ignore Items' })).not.toBeInTheDocument();
+  });
+
+  it('lets permitted users select and permanently ignore an item', async () => {
+    const { container } = render(
+      <LootMonitor bundleId="bundle-18" canEditItemIgnoreList uploadUsername="Onslawht" />,
+    );
+
+    const ignoreButton = await screen.findByRole('button', { name: 'Ignore Items' });
+    fireEvent.click(ignoreButton);
+    expect(container.querySelector('.loot-board-section')).toHaveClass('ignore-items-mode');
+    const tile = container.querySelector('.loot-item-tile');
+    expect(tile).toHaveClass('ignore-selection-tile');
+    fireEvent.click(tile);
+
+    await waitFor(() => expect(setLootLogItemIgnored).toHaveBeenCalledWith(expect.objectContaining({
+      actorName: 'Onslawht',
+      ignored: true,
+      item: expect.objectContaining({ itemId: 'T4_CAPEITEM_FW_LYMHURST@3' }),
+    })));
+    await waitFor(() => expect(container.querySelector('.loot-item-tile')).not.toBeInTheDocument());
+  });
+
+  it('opens the ignored-item list from the button menu and restores an item', async () => {
+    const ignoredItem = {
+      enchantment: 3,
+      itemId: 'T4_CAPEITEM_FW_LYMHURST@3',
+      itemKey: 'id:t4_capeitem_fw_lymhurst@3',
+      itemName: "Adept's Lymhurst Cape",
+    };
+    fetchIgnoredLootItems.mockResolvedValue({ items: [ignoredItem] });
+
+    render(<LootMonitor bundleId="bundle-18" canEditItemIgnoreList uploadUsername="Onslawht" />);
+
+    const ignoreButton = await screen.findByRole('button', { name: 'Ignore Items' });
+    fireEvent.contextMenu(ignoreButton);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'View Items' }));
+    expect(await screen.findByRole('dialog', { name: 'Ignored items' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: "Remove Adept's Lymhurst Cape from ignore list" }));
+
+    await waitFor(() => expect(setLootLogItemIgnored).toHaveBeenCalledWith({
+      actorName: 'Onslawht',
+      ignored: false,
+      item: ignoredItem,
+    }));
   });
 
   afterEach(() => {
@@ -335,7 +393,7 @@ describe('LootMonitor', () => {
       typeFilters: ['cape'],
     }));
 
-    const { container } = render(<LootMonitor bundleId="bundle-18" />);
+    const { container } = render(<LootMonitor bundleId="bundle-18" canCopyScreenshot />);
 
     expect((await screen.findAllByText('18UTC-JUN-18')).length).toBeGreaterThan(0);
     expect(screen.queryByText('Log Upload')).not.toBeInTheDocument();

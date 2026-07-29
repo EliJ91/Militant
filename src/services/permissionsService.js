@@ -20,6 +20,8 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'viewDeaths', label: 'View Deaths', area: 'Loot Logs' },
   { key: 'addDeathId', label: 'Add Death ID', area: 'Loot Logs' },
   { key: 'viewHiddenLootLogPlayers', label: 'View Hidden Players (Loot Log)', area: 'Loot Logs' },
+  { key: 'copyLootLogScreenshot', label: 'Copy Screenshot', area: 'Loot Log Viewer' },
+  { key: 'editItemIgnoreList', label: 'Edit Item Ignore List', area: 'Loot Log Viewer' },
   { key: 'viewLootLogViewer', label: 'View Loot Log Viewer', area: 'Loot Log Viewer' },
   { key: 'viewMembers', label: 'View Members', area: 'Members' },
   { key: 'updateMembersList', label: 'Update Members List', area: 'Members' },
