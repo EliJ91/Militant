@@ -1,14 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchLootLogPlayerHistory } from './lootLogApi';
 import { buildPlayerHistory, fetchPlayerHistory } from './playerHistoryService';
-import { fetchSiphonedEnergyMembers } from './siphonedEnergyApi';
 
 vi.mock('./lootLogApi', () => ({
   fetchLootLogPlayerHistory: vi.fn(),
-}));
-
-vi.mock('./siphonedEnergyApi', () => ({
-  fetchSiphonedEnergyMembers: vi.fn(),
 }));
 
 describe('player history service', () => {
@@ -89,9 +84,6 @@ describe('player history service', () => {
   });
 
   it('uses the finalized rows stored with the bundle summary', async () => {
-    fetchSiphonedEnergyMembers.mockResolvedValue({
-      members: [{ playerId: 'member-1', playerName: 'MilitantOne' }],
-    });
     fetchLootLogPlayerHistory.mockResolvedValue({
       players: [{
         averageItemsLootedPerCta: 2,
@@ -122,9 +114,6 @@ describe('player history service', () => {
   });
 
   it('does not count kept items when a linked chest log has no comparable chest entries', async () => {
-    fetchSiphonedEnergyMembers.mockResolvedValue({
-      members: [{ playerId: 'member-1', playerName: 'MilitantOne' }],
-    });
     fetchLootLogPlayerHistory.mockResolvedValue({
       players: [{
         averageItemsLootedPerCta: 2,
@@ -144,5 +133,18 @@ describe('player history service', () => {
       itemsLooted: 2,
     });
     expect(result.players[0].ctas).toEqual([]);
+  });
+
+  it('loads the static history cache without requesting any other data source', async () => {
+    fetchLootLogPlayerHistory.mockResolvedValue({
+      players: [{ playerKey: 'militantone', playerName: 'MilitantOne' }],
+      updatedAt: '2026-07-29T22:00:00.000Z',
+    });
+
+    await expect(fetchPlayerHistory()).resolves.toEqual({
+      players: [{ playerKey: 'militantone', playerName: 'MilitantOne' }],
+      updatedAt: '2026-07-29T22:00:00.000Z',
+    });
+    expect(fetchLootLogPlayerHistory).toHaveBeenCalledTimes(1);
   });
 });
