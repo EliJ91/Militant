@@ -372,6 +372,20 @@ describe('LootMonitor', () => {
     expect(within(summary).getByText('Onslawt, Manual')).toBeInTheDocument();
   });
 
+  it('normalizes decorative Discord uploader names', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        submissions: [{ id: 'submission-1', submittedBy: '\u{1D440}\u{1D44E}\u{1D45F}\u{1D458}' }],
+        submitters: ['\u{1D440}\u{1D44E}\u{1D45F}\u{1D458}'],
+      }),
+    });
+
+    render(<LootMonitor bundleId="bundle-18" />);
+
+    const summary = await screen.findByRole('region', { name: 'Selected CTA log' });
+    expect(within(summary).getByText('Mark')).toBeInTheDocument();
+  });
+
   it('states when the selected loot log has no chest log', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({ chestFileName: '', chestLogText: '', hasChestLog: false }),

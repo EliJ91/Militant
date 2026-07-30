@@ -65,6 +65,25 @@ describe('ActionLogsTool', () => {
     expect(await screen.findByLabelText('2 actions recorded')).toBeInTheDocument();
   });
 
+  it('normalizes decorative Discord names in action history', async () => {
+    fetchActionLogs.mockResolvedValue({
+      actionLogs: [{
+        action: 'Loot log uploaded from Discord',
+        actorName: 'Zikeman',
+        createdAt: '2026-07-14T16:40:37.000Z',
+        details: { uploadedBy: '\u{1D440}\u{1D44E}\u{1D45F}\u{1D458}' },
+        id: 'action-1',
+        targetId: 'bundle-1',
+      }],
+      hasMore: false,
+      total: 1,
+    });
+
+    render(<ActionLogsTool />);
+
+    expect(await screen.findByText('Uploaded Mark log from Discord to Loot Log #22: 02 CTA 7-13')).toBeInTheDocument();
+  });
+
   it('lets the SuperUser delete an entry from its right-click menu', async () => {
     render(<ActionLogsTool canDelete />);
     const actionText = await screen.findByText('Uploaded Chapper log from Discord to Loot Log #22: 02 CTA 7-13');

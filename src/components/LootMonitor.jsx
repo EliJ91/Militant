@@ -2062,7 +2062,7 @@ function IgnoreItemsControl({
 
 function formatSubmitterList(submitters, fallback = 'Manual') {
   const names = [...new Set((submitters || [])
-    .map((submitter) => String(submitter || '').trim())
+    .map((submitter) => String(submitter || '').normalize('NFKC').trim())
     .filter(Boolean))];
   return names.length ? names.join(', ') : fallback;
 }
@@ -3202,11 +3202,14 @@ export default function LootMonitor({
   }, [selectedBundle]);
 
   const hasChestLog = Boolean(selectedBundle?.hasChestLog && selectedBundle?.chestLogText);
-  const lootLoggers = useMemo(() => uniqueStrings(
+  const lootLoggers = useMemo(() => uniqueStrings((
     selectedBundle?.submitters?.length
       ? selectedBundle.submitters
-      : (selectedBundle?.submissions || []).map((submission) => submission.submittedBy),
-  ), [selectedBundle?.submissions, selectedBundle?.submitters]);
+      : (selectedBundle?.submissions || []).map((submission) => submission.submittedBy)
+  ).map((submitter) => String(submitter || '').normalize('NFKC'))), [
+    selectedBundle?.submissions,
+    selectedBundle?.submitters,
+  ]);
   const rawLootLogText = useMemo(() => {
     if (selectedBundle?.lootLogText) return selectedBundle.lootLogText;
 

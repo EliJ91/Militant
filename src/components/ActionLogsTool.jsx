@@ -28,7 +28,7 @@ function formatDateTime(value) {
 }
 
 function cleanText(value, fallback = '') {
-  return String(value || '').trim() || fallback;
+  return String(value || '').normalize('NFKC').trim() || fallback;
 }
 
 function formatLogDate(value) {
