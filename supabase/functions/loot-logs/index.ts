@@ -2605,6 +2605,7 @@ Deno.serve(async (request) => {
 
     const lootLogText = body.lootLogText || body.lootText || body.text;
     const requestedBundleId = String(body.bundleId || '').trim();
+    const discordAttachmentId = String(body.discordAttachmentId || '').trim();
     const originalFileName = body.originalFileName
       || body.original_filename
       || body.lootFileName
@@ -2614,6 +2615,23 @@ Deno.serve(async (request) => {
       || body.file_name
       || request.headers.get('x-file-name')
       || request.headers.get('x-filename');
+
+    if (discordAttachmentId) {
+      const { data: existingDiscordSubmission, error: existingDiscordSubmissionError } = await supabase
+        .from('loot_log_submissions')
+        .select('id,bundle_id')
+        .eq('discord_attachment_id', discordAttachmentId)
+        .maybeSingle();
+
+      if (existingDiscordSubmissionError) throw existingDiscordSubmissionError;
+      if (existingDiscordSubmission) {
+        return jsonResponse(200, {
+          bundleId: existingDiscordSubmission.bundle_id,
+          duplicateSubmission: true,
+          submissionId: existingDiscordSubmission.id,
+        });
+      }
+    }
 
     if (!lootLogText || typeof lootLogText !== 'string') {
       throw new Error('lootLogText is required.');
@@ -2681,6 +2699,7 @@ Deno.serve(async (request) => {
       .from('loot_log_submissions')
       .insert({
         bundle_id: bundle.id,
+        discord_attachment_id: discordAttachmentId || null,
         event_end_at: range.endAt,
         event_start_at: range.startAt,
         raw_log_text: lootLogText,
