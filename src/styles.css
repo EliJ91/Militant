@@ -1813,6 +1813,10 @@ button:focus-visible {
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.72);
 }
 
+.chest-upload-modal {
+  width: min(1200px, 100%);
+}
+
 .loot-upload-modal-heading {
   display: flex;
   justify-content: space-between;
@@ -1845,6 +1849,8 @@ button:focus-visible {
   background: rgba(2, 4, 3, 0.78);
   color: var(--white);
   font: 500 0.78rem/1.45 Consolas, monospace;
+  overflow-x: auto;
+  white-space: pre;
 }
 
 .chest-upload-paste textarea:focus {

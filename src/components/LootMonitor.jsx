@@ -1802,7 +1802,7 @@ function ChestLogUploadDialog({
       <section
         aria-labelledby="chest-upload-title"
         aria-modal="true"
-        className="loot-upload-modal"
+        className="loot-upload-modal chest-upload-modal"
         role="dialog"
       >
         <div className="loot-upload-modal-heading">
@@ -1826,6 +1826,7 @@ function ChestLogUploadDialog({
             aria-label="Paste chest log"
             disabled={disabled}
             placeholder="Paste the copied chest log here"
+            wrap="off"
             value={text}
             onChange={(event) => onTextChange(event.target.value)}
           />
