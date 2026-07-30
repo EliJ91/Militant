@@ -150,43 +150,6 @@ function isChestHeader(cells) {
   return normalizedCells[0] === 'Date' && normalizedCells.includes('Player') && normalizedCells.includes('Amount');
 }
 
-export function filterChestLogTextByWindow(
-  text,
-  { endAt = '', graceMs = 60 * 60 * 1000, startAt = '' } = {},
-) {
-  const source = String(text || '');
-  const rangeStart = timestampMs(startAt);
-  const rangeEnd = timestampMs(endAt) + graceMs;
-  if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd)) return source;
-
-  const sections = [];
-  let activeSection = null;
-
-  parseDelimited(source, '\t').forEach((cells) => {
-    if (isChestHeader(cells)) {
-      activeSection = {
-        header: cells.map((cell) => cell.replace(/^\uFEFF/, '').trim()),
-        rows: [],
-      };
-      sections.push(activeSection);
-      return;
-    }
-
-    if (!activeSection || !cells.some((cell) => cell.trim())) return;
-    const dateIndex = activeSection.header.findIndex((cell) => cell === 'Date');
-    const eventTime = timestampMs(parseTimestamp(cells[dateIndex] || ''));
-    if (Number.isFinite(eventTime) && eventTime >= rangeStart && eventTime <= rangeEnd) {
-      activeSection.rows.push(cells);
-    }
-  });
-
-  return sections
-    .filter((section) => section.rows.length > 0)
-    .flatMap((section) => [section.header, ...section.rows])
-    .map((row) => row.map(escapeTabCell).join('\t'))
-    .join('\n');
-}
-
 function resolveChestItemId(item, enchantment) {
   const baseId = albionItemLookup[normalizeItemLookupName(item)] || '';
   if (!baseId) return '';
@@ -253,7 +216,7 @@ export function parseLootEvents(text) {
   };
 }
 
-export function parseChestLog(text, { endAt = '', graceMs = 60 * 60 * 1000, startAt = '' } = {}) {
+export function parseChestLog(text) {
   const tableRows = parseDelimited(text, '\t');
   const skippedRows = [];
   const withdrawals = [];
@@ -262,9 +225,6 @@ export function parseChestLog(text, { endAt = '', graceMs = 60 * 60 * 1000, star
   const sourceStats = new Map();
   let sourceIndex = -1;
   let headers = [];
-  const rangeStart = timestampMs(startAt);
-  const rangeEnd = timestampMs(endAt) + graceMs;
-  const hasTimeWindow = Number.isFinite(rangeStart) && Number.isFinite(rangeEnd);
 
   tableRows.forEach((cells, index) => {
     const normalizedCells = cells.map((cell) => cell.trim());
@@ -306,11 +266,6 @@ export function parseChestLog(text, { endAt = '', graceMs = 60 * 60 * 1000, star
       sourceIndex: Math.max(sourceIndex, 0),
       timestamp: parseTimestamp(record.Date),
     };
-
-    if (hasTimeWindow) {
-      const eventTime = timestampMs(row.timestamp);
-      if (!Number.isFinite(eventTime) || eventTime < rangeStart || eventTime > rangeEnd) return;
-    }
 
     const stats = sourceStats.get(row.sourceIndex) || {
       hasDeposit: false,
@@ -668,8 +623,8 @@ function consumePoolLots(pool, itemKey, quantity) {
   return { consumed, missing };
 }
 
-function buildLootMonitorReportFromParsedLoot(loot, chestText, chestTimeWindow) {
-  const chest = parseChestLog(chestText, chestTimeWindow);
+function buildLootMonitorReportFromParsedLoot(loot, chestText) {
+  const chest = parseChestLog(chestText);
   const itemIdLookup = buildItemIdLookup([...loot.rows, ...loot.lostRows]);
   const playerIdentity = buildPlayerIdentity([...loot.rows, ...loot.lostRows]);
   const rowMap = new Map();
@@ -829,8 +784,8 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText, chestTimeWindow) 
   };
 }
 
-export function buildLootMonitorReport(lootText, chestText, chestTimeWindow) {
-  return buildLootMonitorReportFromParsedLoot(parseLootEvents(lootText), chestText, chestTimeWindow);
+export function buildLootMonitorReport(lootText, chestText) {
+  return buildLootMonitorReportFromParsedLoot(parseLootEvents(lootText), chestText);
 }
 
 function getReportStatus(row) {
@@ -922,7 +877,7 @@ export function applyLootDeathChecks(report, deathChecks) {
   };
 }
 
-export function buildLootMonitorReportFromEvents(events, chestText, chestTimeWindow) {
+export function buildLootMonitorReportFromEvents(events, chestText) {
   const loot = {
     lostRows: [],
     rows: [],
@@ -952,7 +907,7 @@ export function buildLootMonitorReportFromEvents(events, chestText, chestTimeWin
     }
   });
 
-  return buildLootMonitorReportFromParsedLoot(loot, chestText, chestTimeWindow);
+  return buildLootMonitorReportFromParsedLoot(loot, chestText);
 }
 
 function exportTimestamp(value) {

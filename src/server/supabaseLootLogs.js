@@ -12,7 +12,6 @@ import {
   buildLootLogExport,
   buildLootMonitorReportFromEvents,
   combineChestLogTexts,
-  filterChestLogTextByWindow,
   parseChestLog,
 } from '../utils/lootMonitor.js';
 
@@ -830,7 +829,6 @@ export async function refreshLootLogPlayerHistorySnapshot(bundleId, client = nul
     const report = buildLootMonitorReportFromEvents(
       events.map(dbEventToMergeEvent),
       chestLogs.map((row) => row.raw_log_text || '').filter(Boolean).join('\n'),
-      { endAt: bundle.end_at, startAt: bundle.start_at },
     );
     const finalizedReport = applyLootDeathChecks(
       report,
@@ -1349,13 +1347,9 @@ export async function submitChestLog({ bundleId, chestLogText, overrideCurrent =
 
   if (bundleError) throw bundleError;
 
-  const filteredChestLogText = filterChestLogTextByWindow(chestLogText, {
-    endAt: bundle.end_at,
-    startAt: bundle.start_at,
-  });
-  const parsed = parseChestLog(filteredChestLogText);
+  const parsed = parseChestLog(chestLogText);
   if (parsed.rows.length === 0 && parsed.withdrawals.length === 0) {
-    throw new Error('The chest log does not contain any item rows within the loot log time window.');
+    throw new Error('The chest log does not contain any valid item rows.');
   }
 
   const fileNames = getBundleFileNames(bundle);
@@ -1389,7 +1383,7 @@ export async function submitChestLog({ bundleId, chestLogText, overrideCurrent =
     .insert({
       bundle_id: bundleId,
       parsed_chest_summary: parsedSummary,
-      raw_log_text: filteredChestLogText,
+      raw_log_text: chestLogText,
       submitted_by: cleanUsername,
     })
     .select('id,created_at')
@@ -1943,13 +1937,7 @@ export async function getLootLogBundle(bundleId) {
     ...aggregateLootLogEvents(eventsResult.map(dbEventToMergeEvent)),
     hiddenPlayers,
   };
-  const chestLogs = (chestResult.data || []).map((log) => ({
-    ...log,
-    raw_log_text: filterChestLogTextByWindow(log.raw_log_text, {
-      endAt: bundle.end_at,
-      startAt: bundle.start_at,
-    }),
-  }));
+  const chestLogs = chestResult.data || [];
   const rawChestLogTexts = chestLogs.map((log) => log.raw_log_text || '').filter(Boolean);
   const canonicalLootLogText = buildLootLogExport(eventsResult.map(dbEventToMergeEvent));
   const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};

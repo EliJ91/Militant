@@ -23,7 +23,6 @@ import {
   buildLootLogExport,
   buildLootMonitorReportFromEvents,
   combineChestLogTexts,
-  filterChestLogTextByWindow,
   parseLootEvents,
 } from '../utils/lootMonitor';
 import { warmItemImageCache } from '../utils/itemImageCache';
@@ -2085,7 +2084,6 @@ function UploadInstructionsModal({ onClose }) {
         <>Copy every relevant page from the bank tab's chest log.</>,
         <>Use the <strong>+</strong> beside <strong>Chest linked</strong> or <strong>No chest log</strong> to paste the log or add <strong>.txt/.tsv</strong> files.</>,
       ],
-      note: 'Use chest events from the first loot event through one hour after the last loot event.',
       title: 'Upload Chest Logs',
     },
     {
@@ -3196,7 +3194,6 @@ export default function LootMonitor({
     const baseReport = buildLootMonitorReportFromEvents(
       selectedBundle.events || [],
       selectedBundle.chestLogReportText || selectedBundle.chestLogText || '',
-      { endAt: selectedBundle.endAt, startAt: selectedBundle.startAt },
     );
     return applyLootDeathChecks(baseReport, selectedBundle.deathChecks || []);
   }, [selectedBundle]);
@@ -3226,15 +3223,11 @@ export default function LootMonitor({
     const rawSubmissions = (selectedBundle?.chestSubmissions || [])
       .map((submission) => submission.rawLogText || '')
       .filter(Boolean);
-    const filteredSubmissions = (rawSubmissions.length > 0
+    const chestSubmissions = (rawSubmissions.length > 0
       ? rawSubmissions
       : [selectedBundle?.chestLogText || ''])
-      .map((text) => filterChestLogTextByWindow(text, {
-        endAt: selectedBundle?.endAt,
-        startAt: selectedBundle?.startAt,
-      }))
       .filter(Boolean);
-    return combineChestLogTexts(filteredSubmissions);
+    return combineChestLogTexts(chestSubmissions);
   }, [selectedBundle]);
   const selectedTotals = selectedBundle?.summary?.totals || report?.totals || {};
   const activeFilters = filters;

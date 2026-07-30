@@ -6,7 +6,6 @@ import {
   buildLootMonitorReportFromEvents,
   combineChestLogTexts,
   extractEnchantment,
-  filterChestLogTextByWindow,
   parseChestLog,
   parseLootEvents,
 } from './lootMonitor';
@@ -39,7 +38,7 @@ describe('loot monitor parsing', () => {
     expect(parsed.withdrawals[0].isFinalChest).toBe(false);
   });
 
-  it('keeps chest entries from the first loot event through one hour after the last', () => {
+  it('keeps all valid chest entries regardless of the loot event time range', () => {
     const chestText = [
       '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
       '"07/10/2026 13:59:59"\t"Early"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
@@ -48,33 +47,9 @@ describe('loot monitor parsing', () => {
       '"07/10/2026 17:00:01"\t"Late"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
     ].join('\n');
 
-    const parsed = parseChestLog(chestText, {
-      endAt: '2026-07-10T16:00:00.000Z',
-      startAt: '2026-07-10T14:00:00.000Z',
-    });
+    const parsed = parseChestLog(chestText);
 
-    expect(parsed.rows.map((row) => row.player)).toEqual(['Start', 'Deadline']);
-  });
-
-  it('removes out-of-window entries from displayed chest log text', () => {
-    const chestText = [
-      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
-      '"07/10/2026 13:59:59"\t"Early"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
-      '"07/10/2026 14:00:00"\t"Start"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
-      '"07/10/2026 17:00:00"\t"Deadline"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
-      '"07/10/2026 17:00:01"\t"Late"\t"Adept\'s Bag"\t"0"\t"1"\t"1"',
-    ].join('\n');
-
-    const filtered = filterChestLogTextByWindow(chestText, {
-      endAt: '2026-07-10T16:00:00.000Z',
-      startAt: '2026-07-10T14:00:00.000Z',
-    });
-
-    expect(filtered).toContain('"Start"');
-    expect(filtered).toContain('"Deadline"');
-    expect(filtered).not.toContain('"Early"');
-    expect(filtered).not.toContain('"Late"');
-    expect(parseChestLog(filtered).rows.map((row) => row.player)).toEqual(['Start', 'Deadline']);
+    expect(parsed.rows.map((row) => row.player)).toEqual(['Early', 'Start', 'Deadline', 'Late']);
   });
 
   it('combines chest logs with one header in chronological order', () => {
