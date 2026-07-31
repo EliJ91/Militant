@@ -5318,9 +5318,16 @@ button:focus-visible {
   }
 
   .loot-monitor-heading-actions {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     width: 100%;
+    scrollbar-width: thin;
+  }
+
+  .loot-monitor-heading-actions > * {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .loot-upload-modal-backdrop {
@@ -5329,8 +5336,13 @@ button:focus-visible {
   }
 
   .loot-upload-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  .loot-upload-actions > button {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .view-logs-icon-button {
@@ -5376,8 +5388,13 @@ button:focus-visible {
   }
 
   .energy-import-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  .energy-import-actions > button {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .energy-purge-date-row {
@@ -5533,11 +5550,14 @@ button:focus-visible {
   }
 
   .saved-log-actions {
-    width: auto;
+    display: flex;
+    flex-wrap: nowrap;
+    width: 100%;
+    gap: 6px;
   }
 
   .saved-log-actions.editing {
-    width: min(100%, 250px);
+    width: 100%;
   }
 
   .saved-log-view-button,
@@ -5546,7 +5566,22 @@ button:focus-visible {
   .saved-log-save-button,
   .saved-log-cancel-button,
   .saved-log-delete-button {
+    flex: 1 1 0;
     width: auto;
+    min-width: 0;
+    padding-inline: 5px;
+  }
+
+  .raw-log-modal-actions,
+  .loot-board-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .raw-log-modal-actions > *,
+  .loot-board-toolbar > * {
+    flex: 0 0 auto;
   }
 
   .selected-log-summary {
