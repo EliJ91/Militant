@@ -1648,17 +1648,17 @@ button:focus-visible {
 }
 
 .loot-monitor-title-row .view-logs-icon-button {
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  min-height: 34px;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   padding: 0;
   border: 1px solid rgba(87, 216, 120, 0.44);
   border-radius: 50%;
   background: rgba(87, 216, 120, 0.13);
   color: var(--white);
-  font-size: 0.9rem;
+  font-size: 0.76rem;
   line-height: 1;
 }
 
