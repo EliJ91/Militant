@@ -1637,6 +1637,20 @@ button:focus-visible {
   justify-content: flex-end;
 }
 
+.loot-monitor-title-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.loot-monitor-title-row h1 {
+  margin: 0;
+}
+
+.loot-monitor-title-row .view-logs-icon-button {
+  flex: 0 0 42px;
+}
+
 .view-logs-button {
   appearance: none;
   align-items: center;
@@ -5348,7 +5362,6 @@ button:focus-visible {
 
   .view-logs-icon-button {
     width: 42px;
-    justify-self: end;
   }
 
   .tool-board {

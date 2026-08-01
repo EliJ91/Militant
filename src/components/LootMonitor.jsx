@@ -2939,18 +2939,20 @@ export function LootLogArchive({
       <section className="dashboard-heading loot-monitor-heading" aria-labelledby="view-logs-title">
         <div>
           <p className="eyebrow">Tool</p>
-          <h1 id="view-logs-title">Loot Logs</h1>
+          <div className="loot-monitor-title-row">
+            <h1 id="view-logs-title">Loot Logs</h1>
+            <button
+              aria-label="Open upload instructions"
+              className="view-logs-button view-logs-icon-button"
+              title="Upload instructions"
+              type="button"
+              onClick={() => setLootUploadHelpOpen(true)}
+            >
+              ?
+            </button>
+          </div>
         </div>
         <div className="loot-monitor-heading-actions">
-          <button
-            aria-label="Open upload instructions"
-            className="view-logs-button view-logs-icon-button"
-            title="Upload instructions"
-            type="button"
-            onClick={() => setLootUploadHelpOpen(true)}
-          >
-            ?
-          </button>
           {canMergeLogs ? (
             <button
               aria-label="Merge"
