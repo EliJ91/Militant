@@ -1649,6 +1649,33 @@ button:focus-visible {
 
 .loot-monitor-title-row .view-logs-icon-button {
   flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
+  border: 2px solid var(--green-hot);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(247, 250, 245, 0.38), transparent 24%),
+    linear-gradient(180deg, #1c502a 0%, #0d2d16 48%, #061109 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(247, 250, 245, 0.18),
+    inset 0 -7px 12px rgba(0, 0, 0, 0.35),
+    0 0 14px rgba(87, 216, 120, 0.32);
+  color: var(--white);
+  font-size: 1.45rem;
+  line-height: 1;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.72);
+}
+
+.loot-monitor-title-row .view-logs-icon-button:hover:not(:disabled) {
+  border-color: var(--white);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(247, 250, 245, 0.48), transparent 24%),
+    linear-gradient(180deg, #2c7840 0%, #155128 48%, #0a2111 100%);
+  color: var(--white);
+  transform: translateY(-1px);
 }
 
 .view-logs-button {
