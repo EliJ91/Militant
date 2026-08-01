@@ -5263,6 +5263,7 @@ button:focus-visible {
   .loot-monitor-heading {
     align-items: stretch;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .members-heading {
