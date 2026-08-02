@@ -74,7 +74,7 @@ async function getDiscordUserIdFromOAuth(accessToken: string) {
 }
 
 function discordMemberDisplayName(member: any) {
-  return clean(member?.nick || member?.user?.global_name || member?.user?.username);
+  return clean(member?.nick);
 }
 
 async function getDiscordMemberFromWorker(discordUserId: string) {
