@@ -205,6 +205,7 @@ export function parseZvZCell(value, slot) {
   if (!normalizedCell || /^(?:n ?a|none)$/.test(normalizedCell)) return [];
 
   const items = [];
+  let pendingAlternative = false;
   text.split(/\n+/).map((line) => line.trim()).filter(Boolean).forEach((rawLine) => {
     const tolerantAnnotations = [];
     const annotationCleanedLine = rawLine.replace(
@@ -218,10 +219,27 @@ export function parseZvZCell(value, slot) {
     const annotations = parentheticals.filter((annotation) => ANNOTATION_PATTERN.test(annotation));
     annotations.unshift(...tolerantAnnotations);
     const withoutParentheticals = annotationCleanedLine.replace(/\([^()]*\)/g, ' ');
-    const name = cleanItemLine(withoutParentheticals);
+    let name = cleanItemLine(withoutParentheticals);
+    const normalizedRawName = normalizeText(name);
+    const alternativesOnSameLine = annotations.length > 1 && /\bor\b/i.test(withoutParentheticals);
 
-    if (!name && annotations.length > 0 && items.length > 0) {
-      items[items.length - 1].annotation = annotations.join(' / ');
+    if (normalizedRawName === 'or' && annotations.length === 0) {
+      pendingAlternative = true;
+      return;
+    }
+
+    if (annotations.length > 0 && /\s+or\s*$/i.test(name)) {
+      name = name.replace(/\s+or\s*$/i, '').trim();
+      pendingAlternative = true;
+    }
+
+    if ((!name || normalizeText(name) === 'or') && annotations.length > 0 && items.length > 0) {
+      const previous = items[items.length - 1];
+      const separator = pendingAlternative || normalizeText(name) === 'or' ? ' or ' : ' / ';
+      previous.annotation = [previous.annotation, annotations.join(alternativesOnSameLine ? ' or ' : ' / ')]
+        .filter(Boolean)
+        .join(separator);
+      pendingAlternative = false;
       return;
     }
 
@@ -236,7 +254,7 @@ export function parseZvZCell(value, slot) {
       ? `${match.itemId.replace(/@\d+$/, '')}@1`
       : match.itemId;
     items.push({
-      annotation: annotations.join(' / '),
+      annotation: annotations.join(alternativesOnSameLine ? ' or ' : ' / '),
       imageUrl: zvzItemImageUrl(itemId),
       itemId,
       lookupName: match.lookupName,
@@ -244,6 +262,7 @@ export function parseZvZCell(value, slot) {
       quantity: isFood ? 2 : isGigantifyPotion ? 10 : 1,
       resolved: match.resolved,
     });
+    if (!/\s+or\s*$/i.test(rawLine)) pendingAlternative = false;
   });
 
   return items;

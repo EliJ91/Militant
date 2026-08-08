@@ -10,6 +10,13 @@ import {
 
 const ACCEPTED_FILE_TYPES = '.xlsx,.csv,.tsv,.txt,.png,.jpg,.jpeg,.webp,.bmp';
 
+function formatAnnotation(annotation) {
+  return String(annotation || '')
+    .split(/\s+or\s+/i)
+    .map((option) => `(${option})`)
+    .join(' or ');
+}
+
 function ItemVariant({ item, multiple }) {
   const [imageFailed, setImageFailed] = useState(false);
   const initials = item.name
@@ -29,7 +36,7 @@ function ItemVariant({ item, multiple }) {
       </span>
       <span className="zvz-item-copy">
         <strong>{item.name}</strong>
-        {item.annotation ? <small>{`(${item.annotation})`}</small> : null}
+        {item.annotation ? <small>{formatAnnotation(item.annotation)}</small> : null}
       </span>
     </div>
   );

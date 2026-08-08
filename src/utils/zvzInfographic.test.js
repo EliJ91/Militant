@@ -38,6 +38,16 @@ describe('ZvZ infographic parsing', () => {
     expect(items[1]).toMatchObject({ name: 'Royal Armor', annotation: 'R3/P1' });
   });
 
+  it('attaches alternative annotations to the preceding item instead of creating an or item', () => {
+    const items = parseZvZCell('Heavy Mace\n(Q3/W2/P4)\nor\n(Q1/W2/P4)', 'mainHand');
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      annotation: 'Q3/W2/P4 or Q1/W2/P4',
+      name: 'Heavy Mace',
+    });
+  });
+
   it('uses slot-aware aliases and tier-eight equipment images', () => {
     expect(resolveZvZItem('Censor', 'offHand').itemId).toBe('T8_OFF_CENSER_AVALON');
     expect(resolveZvZItem('Mistwalker', 'helm').itemId).toBe('T8_HEAD_LEATHER_FEY');
