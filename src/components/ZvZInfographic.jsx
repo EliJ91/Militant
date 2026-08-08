@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FileImage, FileSpreadsheet, Upload, X } from 'lucide-react';
+import { warmItemImageCache } from '../utils/itemImageCache';
 import {
   parseZvZSpreadsheet,
   ZVZ_SLOT_DEFINITIONS,
@@ -48,8 +49,7 @@ function BuildCard({ build }) {
           const items = build.slots[key];
           const multiple = items.length > 1;
           return (
-            <section className="zvz-build-slot" key={key}>
-              <h3>{label}</h3>
+            <section className="zvz-build-slot" key={key} aria-label={label}>
               <div className={multiple ? 'zvz-slot-variants multiple' : 'zvz-slot-variants'}>
                 {items.map((item, index) => (
                   <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple={multiple} />
@@ -111,6 +111,12 @@ export default function ZvZInfographic() {
   const unresolvedCount = builds.reduce((total, build) => (
     total + Object.values(build.slots).flat().filter((item) => !item.resolved).length
   ), 0);
+
+  useEffect(() => {
+    warmItemImageCache(builds.flatMap((build) => (
+      Object.values(build.slots).flat().map((item) => item.imageUrl)
+    )));
+  }, [builds]);
 
   return (
     <main className="zvz-shell">
