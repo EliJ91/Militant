@@ -515,7 +515,9 @@ export async function readZvZSpreadsheet(file, onProgress) {
   if (extension === 'xlsx') {
     onProgress?.({ label: 'Reading workbook', progress: 0.35 });
     const { default: readXlsxFile } = await import('read-excel-file');
-    return readXlsxFile(file);
+    // Some exported workbooks contain blank shared-string cells. The reader's
+    // default trimming attempts to call trim() on those undefined values.
+    return readXlsxFile(file, { trim: false });
   }
   if (['csv', 'tsv', 'txt'].includes(extension)) {
     onProgress?.({ label: 'Reading spreadsheet', progress: 0.6 });
