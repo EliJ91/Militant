@@ -204,6 +204,7 @@ create index if not exists loot_log_ignored_items_name_idx
 
 create table if not exists public.zvz_build_layouts (
   id uuid primary key default gen_random_uuid(),
+  singleton_key text not null default 'master',
   title text not null check (char_length(title) between 1 and 120),
   builds jsonb not null default '[]'::jsonb,
   source_file_name text not null default '',
@@ -211,6 +212,9 @@ create table if not exists public.zvz_build_layouts (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create unique index if not exists zvz_build_layouts_singleton_idx
+  on public.zvz_build_layouts (singleton_key);
 
 create index if not exists zvz_build_layouts_updated_idx
   on public.zvz_build_layouts (updated_at desc);

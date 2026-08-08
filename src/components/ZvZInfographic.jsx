@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileImage, FileSpreadsheet, Plus, Save, Trash2, Upload, X } from 'lucide-react';
+import { FileImage, FileSpreadsheet, Plus, Save, Upload, X } from 'lucide-react';
 import {
   createZvZBuildLayout,
-  deleteZvZBuildLayout,
   fetchZvZBuildLayouts,
   updateZvZBuildLayout,
 } from '../services/zvzBuildsApi';
@@ -277,28 +276,6 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
     }
   }
 
-  async function deleteLayout() {
-    if (!canEdit || !selectedLayoutId || saving) return;
-    const selectedLayout = layouts.find((layout) => layout.id === selectedLayoutId);
-    if (!window.confirm(`Delete "${selectedLayout?.title || title}"?`)) return;
-    setSaving(true);
-    setError('');
-    setStatus('Deleting build...');
-    try {
-      await deleteZvZBuildLayout({ id: selectedLayoutId, title: selectedLayout?.title || title });
-      const remaining = layouts.filter((layout) => layout.id !== selectedLayoutId);
-      setLayouts(remaining);
-      if (remaining[0]) openLayout(remaining[0]);
-      else clearFile();
-      setStatus('Build deleted.');
-    } catch (caughtError) {
-      setError(caughtError.message || 'Could not delete the ZvZ build.');
-      setStatus('');
-    } finally {
-      setSaving(false);
-    }
-  }
-
   function handleDrop(event) {
     event.preventDefault();
     setDragging(false);
@@ -325,7 +302,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
           <div className="zvz-heading-actions">
             <button className="secondary-button" type="button" onClick={startNewLayout}>
               <Plus size={17} aria-hidden="true" />
-              New Layout
+              {layouts[0] ? 'Update Layout' : 'Add Layout'}
             </button>
           </div>
         ) : null}
@@ -334,14 +311,13 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
       <section className="zvz-library" aria-labelledby="zvz-library-title">
         <div className="zvz-library-heading">
           <div>
-            <p className="eyebrow">Saved Layouts</p>
-            <h2 id="zvz-library-title">Build Library</h2>
+            <p className="eyebrow">Current Layout</p>
+            <h2 id="zvz-library-title">Master Layout</h2>
           </div>
-          <strong>{layouts.length}</strong>
         </div>
-        {loadingLayouts ? <p className="zvz-library-message">Loading saved builds...</p> : null}
+        {loadingLayouts ? <p className="zvz-library-message">Loading master layout...</p> : null}
         {!loadingLayouts && layouts.length === 0 ? (
-          <p className="zvz-library-message">{canEdit ? 'No layouts have been saved yet.' : 'No saved ZVZ build layouts are available.'}</p>
+          <p className="zvz-library-message">No ZVZ layout has been saved.</p>
         ) : null}
         {layouts.length > 0 ? (
           <div className="zvz-library-list">
@@ -382,7 +358,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
             <header className="zvz-upload-modal-heading">
               <div>
                 <p className="eyebrow">ZVZ Build Layouts</p>
-                <h2 id="zvz-upload-modal-title">New Layout</h2>
+                <h2 id="zvz-upload-modal-title">{layouts[0] ? 'Update Master Layout' : 'Add Master Layout'}</h2>
               </div>
               <button className="icon-button" disabled={processing} type="button" title="Close" aria-label="Close new layout" onClick={() => setUploadModalOpen(false)}>
                 <X size={19} aria-hidden="true" />
@@ -469,14 +445,8 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
               </button>
               <button className="primary-button" disabled={saving || !title.trim()} type="button" onClick={saveLayout}>
                 <Save size={17} aria-hidden="true" />
-                {selectedLayoutId ? 'Overwrite Layout' : 'Save Layout'}
+                Save Master Layout
               </button>
-              {selectedLayoutId ? (
-                <button className="zvz-delete-button" disabled={saving} type="button" onClick={deleteLayout}>
-                  <Trash2 size={17} aria-hidden="true" />
-                  Delete
-                </button>
-              ) : null}
               <button className="icon-button" disabled={saving} type="button" title="Clear build sheet" aria-label="Clear build sheet" onClick={clearFile}>
                 <X size={19} aria-hidden="true" />
               </button>

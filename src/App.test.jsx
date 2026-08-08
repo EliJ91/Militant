@@ -111,7 +111,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.9.17');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.9.18');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -157,11 +157,11 @@ describe('App', () => {
 
     expect(window.location.hash).toBe('#zvz-infographic');
     expect(screen.getByRole('heading', { level: 1, name: 'ZVZ Build Layouts' })).toBeInTheDocument();
-    const newLayoutButton = screen.getByRole('button', { name: /new layout/i });
-    expect(newLayoutButton).toBeInTheDocument();
+    const addLayoutButton = screen.getByRole('button', { name: /add layout/i });
+    expect(addLayoutButton).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
-    fireEvent.click(newLayoutButton);
-    expect(screen.getByRole('dialog', { name: /new layout/i })).toBeInTheDocument();
+    fireEvent.click(addLayoutButton);
+    expect(screen.getByRole('dialog', { name: /add master layout/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
 

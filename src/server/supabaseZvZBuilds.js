@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 const MAX_BUILDS = 500;
+const MASTER_LAYOUT_KEY = 'master';
+const SELECT = 'id,title,builds,source_file_name,uploaded_by,created_at,updated_at';
 
 function createSupabaseAdmin() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -45,30 +47,29 @@ function mapLayout(row) {
 export async function listZvZBuildLayouts() {
   const { data, error } = await createSupabaseAdmin()
     .from('zvz_build_layouts')
-    .select('id,title,builds,source_file_name,uploaded_by,created_at,updated_at')
-    .order('updated_at', { ascending: false });
+    .select(SELECT)
+    .eq('singleton_key', MASTER_LAYOUT_KEY)
+    .maybeSingle();
   if (error) throw error;
-  return { layouts: (data || []).map(mapLayout) };
+  const layout = data ? mapLayout(data) : null;
+  return { layout, layouts: layout ? [layout] : [] };
 }
 
 export async function createZvZBuildLayout(payload) {
   const { data, error } = await createSupabaseAdmin()
     .from('zvz_build_layouts')
-    .insert(normalizePayload(payload))
-    .select('id,title,builds,source_file_name,uploaded_by,created_at,updated_at')
+    .upsert({ ...normalizePayload(payload), singleton_key: MASTER_LAYOUT_KEY }, { onConflict: 'singleton_key' })
+    .select(SELECT)
     .single();
   if (error) throw error;
   return { layout: mapLayout(data) };
 }
 
 export async function updateZvZBuildLayout(payload) {
-  const id = clean(payload.id);
-  if (!id) throw new Error('A saved build is required.');
   const { data, error } = await createSupabaseAdmin()
     .from('zvz_build_layouts')
-    .update(normalizePayload(payload))
-    .eq('id', id)
-    .select('id,title,builds,source_file_name,uploaded_by,created_at,updated_at')
+    .upsert({ ...normalizePayload(payload), singleton_key: MASTER_LAYOUT_KEY }, { onConflict: 'singleton_key' })
+    .select(SELECT)
     .single();
   if (error) throw error;
   return { layout: mapLayout(data) };

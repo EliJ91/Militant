@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const MAX_BUILDS = 500;
 const DISCORD_GUILD_ID = '805908199541702666';
+const MASTER_LAYOUT_KEY = 'master';
 const SUPERUSER_DISCORD_USER_IDS = new Set(['264193431830528006']);
 const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-discord-access-token',
@@ -108,6 +109,32 @@ async function getDiscordIdentity(admin: any, request: Request) {
     if (botResponse.ok) member = await botResponse.json();
   }
 
+  if (!member) {
+    const memberLookupUrl = clean(Deno.env.get('MEMBER_LOOKUP_URL'));
+    const memberLookupSecret = clean(Deno.env.get('MEMBER_LOOKUP_SECRET'));
+    if (memberLookupUrl && memberLookupSecret) {
+      const workerResponse = await fetch(memberLookupUrl, {
+        body: JSON.stringify({ guildId: DISCORD_GUILD_ID, userId: discordUserId }),
+        headers: {
+          Authorization: `Bearer ${memberLookupSecret}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      });
+      if (workerResponse.ok) {
+        const workerMember = await workerResponse.json();
+        member = {
+          nick: clean(workerMember?.guildNickname || workerMember?.serverNickname),
+          roles: Array.isArray(workerMember?.roleIds) ? workerMember.roleIds : [],
+          user: { id: clean(workerMember?.discordUserId, discordUserId) },
+        };
+      }
+    }
+  }
+
+  if (!member && SUPERUSER_DISCORD_USER_IDS.has(discordUserId)) {
+    member = { nick: 'Onslawht', roles: [], user: { id: discordUserId } };
+  }
   if (!member) throw new Error('Could not load Discord member roles.');
   if (member?.user?.id && clean(member.user.id) !== discordUserId) throw new Error('Discord user mismatch.');
   return {
@@ -144,24 +171,26 @@ Deno.serve(async (request) => {
       return jsonResponse(403, { error: 'You do not have permission to access ZvZ builds.' });
     }
     if (request.method === 'GET') {
-      const { data, error } = await admin.from('zvz_build_layouts').select(SELECT).order('updated_at', { ascending: false });
+      const { data, error } = await admin
+        .from('zvz_build_layouts')
+        .select(SELECT)
+        .eq('singleton_key', MASTER_LAYOUT_KEY)
+        .maybeSingle();
       if (error) throw error;
-      return jsonResponse(200, { layouts: (data || []).map(mapLayout) });
+      const layout = data ? mapLayout(data) : null;
+      return jsonResponse(200, { layout, layouts: layout ? [layout] : [] });
     }
 
     const body = await request.json();
     body.uploadedBy = identity.guildNickname;
-    if (request.method === 'POST') {
-      const { data, error } = await admin.from('zvz_build_layouts').insert(normalizePayload(body)).select(SELECT).single();
+    if (request.method === 'POST' || request.method === 'PUT') {
+      const { data, error } = await admin
+        .from('zvz_build_layouts')
+        .upsert({ ...normalizePayload(body), singleton_key: MASTER_LAYOUT_KEY }, { onConflict: 'singleton_key' })
+        .select(SELECT)
+        .single();
       if (error) throw error;
-      return jsonResponse(201, { layout: mapLayout(data) });
-    }
-    if (request.method === 'PUT') {
-      const id = clean(body.id);
-      if (!id) throw new Error('A saved build is required.');
-      const { data, error } = await admin.from('zvz_build_layouts').update(normalizePayload(body)).eq('id', id).select(SELECT).single();
-      if (error) throw error;
-      return jsonResponse(200, { layout: mapLayout(data) });
+      return jsonResponse(request.method === 'POST' ? 201 : 200, { layout: mapLayout(data) });
     }
     if (request.method === 'DELETE') {
       const id = clean(body.id);
