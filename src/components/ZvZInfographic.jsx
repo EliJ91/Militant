@@ -117,7 +117,12 @@ function BuildCard({ build }) {
             <section className="zvz-build-slot" key={key} aria-label={label}>
               <div className={multiple ? 'zvz-slot-variants multiple' : 'zvz-slot-variants'}>
                 {items.map((item, index) => (
-                  <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple={multiple} />
+                  <ItemVariant
+                    item={item}
+                    key={`${item.name}-${item.annotation}-${index}`}
+                    multiple={multiple}
+                    stacked={items.length >= 3}
+                  />
                 ))}
               </div>
             </section>
