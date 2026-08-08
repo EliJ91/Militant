@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   filterZvZBuilds,
+  groupDuplicateZvZBuilds,
   parseZvZCell,
   resolveZvZItem,
   rowsToZvZBuilds,
@@ -61,5 +62,19 @@ describe('ZvZ infographic parsing', () => {
     expect(filterZvZBuilds(builds, 'Q1/W3')).toEqual([builds[0]]);
     expect(filterZvZBuilds([{ number: '42', role: 'Caller', slots: { mainHand: [] } }], '42')).toHaveLength(1);
     expect(filterZvZBuilds(builds, '10')).toEqual([]);
+  });
+
+  it('groups identical builds and preserves every source row number', () => {
+    const builds = rowsToZvZBuilds([
+      ['', 'ROLE', 'MAIN HAND', 'OFF HAND', 'HELM', 'ARMOR', 'BOOTS', 'CAPE', 'FOOD/POTS'],
+      ['16', 'DPS', 'Realmbreaker (Q2/W2/P3)', 'N/A', 'Soldier Helm', 'Mistwalker Jacket', 'Boots of Valor', 'Smuggler Cape', 'Eel Stew'],
+      ['17', 'DPS', 'Realmbreaker (Q2/W2/P3)', 'N/A', 'Soldier Helm', 'Mistwalker Jacket', 'Boots of Valor', 'Smuggler Cape', 'Eel Stew'],
+      ['18', 'DPS', 'Realmbreaker (Q2/W2/P3)', 'N/A', 'Knight Helm', 'Mistwalker Jacket', 'Boots of Valor', 'Smuggler Cape', 'Eel Stew'],
+    ]);
+
+    const grouped = groupDuplicateZvZBuilds(builds);
+    expect(grouped).toHaveLength(2);
+    expect(grouped[0]).toMatchObject({ number: '16, 17', buildNumbers: ['16', '17'] });
+    expect(grouped[1]).toMatchObject({ number: '18', buildNumbers: ['18'] });
   });
 });

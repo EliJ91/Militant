@@ -298,10 +298,7 @@ export function rowsToZvZBuilds(rows) {
     build.role
     && !/^(?:role|n ?a)$/i.test(build.role)
     && Object.values(build.slots).some((items) => items.length > 0)
-  )).map((build, index) => ({
-    ...build,
-    number: /^alt\.?$/i.test(build.number) ? build.number : String(index + 1),
-  }));
+  ));
 }
 
 export function filterZvZBuilds(builds, query) {
@@ -318,6 +315,35 @@ export function filterZvZBuilds(builds, query) {
       item.annotation,
     ])),
   ].filter(Boolean).join(' ').toLowerCase().includes(normalizedSearch));
+}
+
+export function groupDuplicateZvZBuilds(builds) {
+  const groupedBySignature = new Map();
+
+  builds.forEach((build) => {
+    const slotSignature = ZVZ_SLOT_DEFINITIONS.map(({ key }) => {
+      const itemSignatures = (build.slots[key] || []).map((item) => [
+        item.itemId || normalizeText(item.name),
+        normalizeText(item.annotation),
+      ].join(':')).sort();
+      return `${key}=${itemSignatures.join('|')}`;
+    }).join(';');
+    const signature = `${normalizeText(build.role)};${slotSignature}`;
+    const existing = groupedBySignature.get(signature);
+
+    if (existing) {
+      existing.buildNumbers.push(build.number);
+      existing.number = existing.buildNumbers.join(', ');
+      return;
+    }
+
+    groupedBySignature.set(signature, {
+      ...build,
+      buildNumbers: [build.number],
+    });
+  });
+
+  return [...groupedBySignature.values()];
 }
 
 function parseDelimited(text, delimiter) {

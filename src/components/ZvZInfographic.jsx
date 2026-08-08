@@ -3,6 +3,7 @@ import { FileImage, FileSpreadsheet, Upload, X } from 'lucide-react';
 import { warmItemImageCache } from '../utils/itemImageCache';
 import {
   filterZvZBuilds,
+  groupDuplicateZvZBuilds,
   parseZvZSpreadsheet,
   ZVZ_SLOT_DEFINITIONS,
 } from '../utils/zvzInfographic';
@@ -39,6 +40,7 @@ function BuildCard({ build }) {
     key !== 'offHand' && build.slots[key]?.length > 0
   ));
   const hasWeaponRow = build.slots.mainHand?.length > 0 || build.slots.offHand?.length > 0;
+  const compactWeaponItems = (build.slots.mainHand?.length || 0) + (build.slots.offHand?.length || 0) > 1;
 
   return (
     <article className="zvz-build-card">
@@ -59,7 +61,7 @@ function BuildCard({ build }) {
               return (
                 <div className={multiple ? 'zvz-slot-variants multiple' : 'zvz-slot-variants'} key={key}>
                   {items.map((item, index) => (
-                    <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple={multiple} />
+                    <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple={compactWeaponItems} />
                   ))}
                 </div>
               );
@@ -135,7 +137,8 @@ export default function ZvZInfographic() {
   const unresolvedCount = builds.reduce((total, build) => (
     total + Object.values(build.slots).flat().filter((item) => !item.resolved).length
   ), 0);
-  const visibleBuilds = filterZvZBuilds(builds, searchQuery);
+  const groupedBuilds = groupDuplicateZvZBuilds(builds);
+  const visibleBuilds = filterZvZBuilds(groupedBuilds, searchQuery);
 
   useEffect(() => {
     warmItemImageCache(builds.flatMap((build) => (
