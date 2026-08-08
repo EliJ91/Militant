@@ -531,7 +531,7 @@ function DashboardPage({
       group: 'tools',
       icon: Swords,
       permissions: ['viewZvZBuilds', 'editZvZBuilds'],
-      title: 'ZvZ Builds',
+      title: 'ZVZ Build Layouts',
       to: '#zvz-infographic',
     },
   ].filter((tool) => (
@@ -1119,7 +1119,7 @@ export default function App() {
       : route === 'player-loot-history' ? 'Player Loot History'
       : route === 'permissions' ? 'Permissions'
       : route === 'action-logs' ? 'Action Logs'
-      : route === 'zvz-infographic' ? 'ZvZ Builds'
+      : route === 'zvz-infographic' ? 'ZVZ Build Layouts'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);

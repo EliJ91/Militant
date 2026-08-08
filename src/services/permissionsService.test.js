@@ -64,8 +64,8 @@ describe('permissions service', () => {
   it('groups ZvZ build view and edit access with view first', () => {
     const viewIndex = WEBAPP_PERMISSION_DEFINITIONS.findIndex(({ key }) => key === 'viewZvZBuilds');
     expect(WEBAPP_PERMISSION_DEFINITIONS.slice(viewIndex, viewIndex + 2)).toEqual([
-      { area: 'ZvZ Builds', key: 'viewZvZBuilds', label: 'View ZvZ Builds' },
-      { area: 'ZvZ Builds', key: 'editZvZBuilds', label: 'Edit ZvZ Builds' },
+      { area: 'ZVZ Build Layouts', key: 'viewZvZBuilds', label: 'View ZVZ Build Layouts' },
+      { area: 'ZVZ Build Layouts', key: 'editZvZBuilds', label: 'Edit ZVZ Build Layouts' },
     ]);
   });
 });

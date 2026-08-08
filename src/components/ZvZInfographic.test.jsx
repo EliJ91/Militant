@@ -49,8 +49,8 @@ describe('ZvZInfographic saved layouts', () => {
 
     expect((await screen.findAllByText('Castle Defense')).length).toBeGreaterThan(0);
     expect(screen.getByText('Uploaded by Dyathix')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /new build/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /overwrite build/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /new layout/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /overwrite layout/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
   });
 
@@ -58,7 +58,7 @@ describe('ZvZInfographic saved layouts', () => {
     render(<ZvZInfographic canEdit uploadedBy="Officer" />);
 
     await screen.findByDisplayValue('Castle Defense');
-    fireEvent.click(screen.getByRole('button', { name: /overwrite build/i }));
+    fireEvent.click(screen.getByRole('button', { name: /overwrite layout/i }));
     await waitFor(() => expect(updateZvZBuildLayout).toHaveBeenCalledWith(expect.objectContaining({
       id: 'layout-1',
       title: 'Castle Defense',
@@ -71,5 +71,16 @@ describe('ZvZInfographic saved layouts', () => {
       id: 'layout-1',
       title: 'Castle Defense',
     }));
+  });
+
+  it('opens the build-sheet uploader in a modal for a new layout', async () => {
+    render(<ZvZInfographic canEdit uploadedBy="Officer" />);
+
+    await screen.findByDisplayValue('Castle Defense');
+    expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /new layout/i }));
+
+    expect(screen.getByRole('dialog', { name: /new layout/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
 });

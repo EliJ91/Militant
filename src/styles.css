@@ -178,6 +178,65 @@
   transition: border-color 140ms ease, background 140ms ease;
 }
 
+.zvz-upload-modal-backdrop {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: grid;
+  padding: 18px;
+  place-items: center;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.zvz-upload-modal {
+  width: min(820px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  border: 1px solid rgba(87, 216, 120, 0.42);
+  border-radius: 8px;
+  background: #030906;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.6);
+}
+
+.zvz-upload-modal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(247, 250, 245, 0.12);
+}
+
+.zvz-upload-modal-heading p,
+.zvz-upload-modal-heading h2 {
+  margin: 0;
+}
+
+.zvz-upload-modal-heading h2 {
+  margin-top: 3px;
+  font-size: 1.15rem;
+}
+
+.zvz-upload-modal-heading .icon-button {
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(247, 250, 245, 0.24);
+  border-radius: 6px;
+  background: rgba(247, 250, 245, 0.05);
+  color: var(--white);
+}
+
+.zvz-upload-modal .zvz-upload {
+  width: auto;
+  min-height: 320px;
+  margin: 18px;
+}
+
 .zvz-upload.drag-over {
   border-color: var(--green-hot);
   background: #0b1d11;

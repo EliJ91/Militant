@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FileImage, FileSpreadsheet, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import {
   createZvZBuildLayout,
@@ -157,6 +158,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
   const [fileName, setFileName] = useState('');
   const [layouts, setLayouts] = useState([]);
   const [loadingLayouts, setLoadingLayouts] = useState(true);
+  const [pendingFileName, setPendingFileName] = useState('');
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState({ label: '', progress: 0 });
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,6 +166,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [title, setTitle] = useState('');
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   function openLayout(layout) {
     setBuilds(layout.builds || []);
@@ -186,7 +189,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
         if (savedLayouts[0]) openLayout(savedLayouts[0]);
       })
       .catch((caughtError) => {
-        if (!cancelled) setError(caughtError.message || 'Could not load saved ZvZ builds.');
+        if (!cancelled) setError(caughtError.message || 'Could not load saved ZVZ build layouts.');
       })
       .finally(() => {
         if (!cancelled) setLoadingLayouts(false);
@@ -197,20 +200,21 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
   async function processFile(file) {
     if (!file || processing) return;
     setError('');
-    setBuilds([]);
-    setFileName(file.name);
+    setPendingFileName(file.name);
     setProcessing(true);
     setProgress({ label: 'Opening file', progress: 0.02 });
     try {
       const parsedBuilds = await parseZvZSpreadsheet(file, setProgress);
       setBuilds(parsedBuilds);
+      setFileName(file.name);
       setSelectedLayoutId('');
       setTitle(file.name.replace(/\.[^.]+$/, ''));
       setStatus('');
+      setUploadModalOpen(false);
     } catch (caughtError) {
-      setFileName('');
       setError(caughtError.message || 'Could not read the build sheet.');
     } finally {
+      setPendingFileName('');
       setProcessing(false);
     }
   }
@@ -223,11 +227,22 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
     setBuilds([]);
     setError('');
     setFileName('');
+    setPendingFileName('');
     setSelectedLayoutId('');
     setSearchQuery('');
     setStatus('');
     setTitle('');
+    setUploadModalOpen(false);
     setProgress({ label: '', progress: 0 });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function startNewLayout() {
+    setError('');
+    setPendingFileName('');
+    setProgress({ label: '', progress: 0 });
+    setStatus('');
+    setUploadModalOpen(true);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -304,13 +319,13 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
       <section className="zvz-heading">
         <div>
           <p className="eyebrow">Tool</p>
-          <h1>ZvZ Builds</h1>
+          <h1>ZVZ Build Layouts</h1>
         </div>
         {canEdit ? (
           <div className="zvz-heading-actions">
-            <button className="secondary-button" type="button" onClick={clearFile}>
+            <button className="secondary-button" type="button" onClick={startNewLayout}>
               <Plus size={17} aria-hidden="true" />
-              New Build
+              New Layout
             </button>
           </div>
         ) : null}
@@ -326,7 +341,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
         </div>
         {loadingLayouts ? <p className="zvz-library-message">Loading saved builds...</p> : null}
         {!loadingLayouts && layouts.length === 0 ? (
-          <p className="zvz-library-message">{canEdit ? 'No builds have been saved yet.' : 'No saved ZvZ builds are available.'}</p>
+          <p className="zvz-library-message">{canEdit ? 'No layouts have been saved yet.' : 'No saved ZVZ build layouts are available.'}</p>
         ) : null}
         {layouts.length > 0 ? (
           <div className="zvz-library-list">
@@ -355,40 +370,62 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
         onChange={(event) => processFile(event.target.files?.[0])}
       />
 
-      {builds.length === 0 && canEdit ? (
-        <section
-          className={dragging ? 'zvz-upload drag-over' : 'zvz-upload'}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setDragging(true);
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false);
-          }}
-          onDrop={handleDrop}
-        >
-          <div className="zvz-upload-icons" aria-hidden="true">
-            <FileSpreadsheet size={30} />
-            <FileImage size={30} />
-          </div>
-          <div className="zvz-upload-copy">
-            <h2>{processing ? progress.label : 'Drop a build sheet'}</h2>
-            <p>{processing ? fileName : 'Spreadsheet or image'}</p>
-          </div>
-          {processing ? (
-            <div className="zvz-progress" aria-label={progress.label} role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(progress.progress * 100)}>
-              <span style={{ width: `${Math.max(3, progress.progress * 100)}%` }} />
+      {canEdit && uploadModalOpen && typeof document !== 'undefined' ? createPortal(
+        <div className="zvz-upload-modal-backdrop" role="presentation" onMouseDown={() => !processing && setUploadModalOpen(false)}>
+          <section
+            aria-labelledby="zvz-upload-modal-title"
+            aria-modal="true"
+            className="zvz-upload-modal"
+            role="dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="zvz-upload-modal-heading">
+              <div>
+                <p className="eyebrow">ZVZ Build Layouts</p>
+                <h2 id="zvz-upload-modal-title">New Layout</h2>
+              </div>
+              <button className="icon-button" disabled={processing} type="button" title="Close" aria-label="Close new layout" onClick={() => setUploadModalOpen(false)}>
+                <X size={19} aria-hidden="true" />
+              </button>
+            </header>
+            <div
+              className={dragging ? 'zvz-upload drag-over' : 'zvz-upload'}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDragLeave={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false);
+              }}
+              onDrop={handleDrop}
+            >
+              <div className="zvz-upload-icons" aria-hidden="true">
+                <FileSpreadsheet size={30} />
+                <FileImage size={30} />
+              </div>
+              <div className="zvz-upload-copy">
+                <h2>{processing ? progress.label : 'Drop a build sheet'}</h2>
+                <p>{processing ? pendingFileName : 'Spreadsheet or image'}</p>
+              </div>
+              {processing ? (
+                <div className="zvz-progress" aria-label={progress.label} role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(progress.progress * 100)}>
+                  <span style={{ width: `${Math.max(3, progress.progress * 100)}%` }} />
+                </div>
+              ) : (
+                <button className="primary-button" type="button" onClick={chooseFile}>
+                  <Upload size={18} aria-hidden="true" />
+                  Choose File
+                </button>
+              )}
+              {error ? <p className="zvz-error" role="alert">{error}</p> : null}
             </div>
-          ) : (
-            <button className="primary-button" type="button" onClick={chooseFile}>
-              <Upload size={18} aria-hidden="true" />
-              Choose File
-            </button>
-          )}
-          {error ? <p className="zvz-error" role="alert">{error}</p> : null}
-        </section>
-      ) : builds.length > 0 ? (
+          </section>
+        </div>,
+        document.body,
+      ) : null}
+
+      {builds.length > 0 ? (
         <>
           <section className="zvz-file-summary">
             {canEdit ? (
@@ -432,7 +469,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
               </button>
               <button className="primary-button" disabled={saving || !title.trim()} type="button" onClick={saveLayout}>
                 <Save size={17} aria-hidden="true" />
-                {selectedLayoutId ? 'Overwrite Build' : 'Save Build'}
+                {selectedLayoutId ? 'Overwrite Layout' : 'Save Layout'}
               </button>
               {selectedLayoutId ? (
                 <button className="zvz-delete-button" disabled={saving} type="button" onClick={deleteLayout}>
@@ -447,7 +484,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
           ) : null}
           {status ? <p className="zvz-status" role="status">{status}</p> : null}
           {error ? <p className="zvz-error" role="alert">{error}</p> : null}
-          <section className="zvz-build-board" aria-label="ZvZ builds">
+          <section className="zvz-build-board" aria-label="ZVZ build layouts">
             {visibleBuilds.map((build) => <BuildCard build={build} key={build.id} />)}
           </section>
           {visibleBuilds.length === 0 ? <p className="zvz-no-results">No builds match this search.</p> : null}

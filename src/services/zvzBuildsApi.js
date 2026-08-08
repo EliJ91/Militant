@@ -34,7 +34,7 @@ async function getAuthHeaders() {
 
 export async function fetchZvZBuildLayouts() {
   const response = await fetch(getApiUrl(), { headers: await getAuthHeaders() });
-  return readResult(response, 'Could not load saved ZvZ builds.');
+  return readResult(response, 'Could not load saved ZVZ build layouts.');
 }
 
 export async function createZvZBuildLayout({ builds, sourceFileName, title, uploadedBy }) {
