@@ -45,8 +45,8 @@ describe('ZvZInfographic saved layouts', () => {
 
     expect((await screen.findAllByText('Castle Defense')).length).toBeGreaterThan(0);
     expect(screen.getByText('Uploaded by Dyathix')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /update layout/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /save master layout/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save layout/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
   });
 
@@ -54,7 +54,7 @@ describe('ZvZInfographic saved layouts', () => {
     render(<ZvZInfographic canEdit uploadedBy="Officer" />);
 
     await screen.findByDisplayValue('Castle Defense');
-    fireEvent.click(screen.getByRole('button', { name: /save master layout/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save layout/i }));
     await waitFor(() => expect(updateZvZBuildLayout).toHaveBeenCalledWith(expect.objectContaining({
       id: 'layout-1',
       title: 'Castle Defense',
@@ -68,9 +68,9 @@ describe('ZvZInfographic saved layouts', () => {
 
     await screen.findByDisplayValue('Castle Defense');
     expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /update layout/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^update$/i }));
 
-    expect(screen.getByRole('dialog', { name: /update master layout/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /update zvz layout/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
 });

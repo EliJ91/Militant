@@ -302,20 +302,20 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
           <div className="zvz-heading-actions">
             <button className="secondary-button" type="button" onClick={startNewLayout}>
               <Plus size={17} aria-hidden="true" />
-              {layouts[0] ? 'Update Layout' : 'Add Layout'}
+              {layouts[0] ? 'Update' : 'Add Layout'}
             </button>
           </div>
         ) : null}
       </section>
 
-      <section className="zvz-library" aria-labelledby="zvz-library-title">
+      <section className="zvz-library" aria-labelledby="zvz-library-title" hidden>
         <div className="zvz-library-heading">
           <div>
             <p className="eyebrow">Current Layout</p>
-            <h2 id="zvz-library-title">Master Layout</h2>
+            <h2 id="zvz-library-title">Current Layout</h2>
           </div>
         </div>
-        {loadingLayouts ? <p className="zvz-library-message">Loading master layout...</p> : null}
+        {loadingLayouts ? <p className="zvz-library-message">Loading current layout...</p> : null}
         {!loadingLayouts && layouts.length === 0 ? (
           <p className="zvz-library-message">No ZVZ layout has been saved.</p>
         ) : null}
@@ -336,6 +336,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
           </div>
         ) : null}
       </section>
+      {!loadingLayouts && layouts.length === 0 ? <p className="zvz-library-message">No ZVZ layout has been saved.</p> : null}
       {error && builds.length === 0 && !canEdit ? <p className="zvz-error zvz-load-error" role="alert">{error}</p> : null}
 
       <input
@@ -358,7 +359,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
             <header className="zvz-upload-modal-heading">
               <div>
                 <p className="eyebrow">ZVZ Build Layouts</p>
-                <h2 id="zvz-upload-modal-title">{layouts[0] ? 'Update Master Layout' : 'Add Master Layout'}</h2>
+                <h2 id="zvz-upload-modal-title">{layouts[0] ? 'Update ZVZ Layout' : 'Add ZVZ Layout'}</h2>
               </div>
               <button className="icon-button" disabled={processing} type="button" title="Close" aria-label="Close new layout" onClick={() => setUploadModalOpen(false)}>
                 <X size={19} aria-hidden="true" />
@@ -445,7 +446,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
               </button>
               <button className="primary-button" disabled={saving || !title.trim()} type="button" onClick={saveLayout}>
                 <Save size={17} aria-hidden="true" />
-                Save Master Layout
+                Save Layout
               </button>
               <button className="icon-button" disabled={saving} type="button" title="Clear build sheet" aria-label="Clear build sheet" onClick={clearFile}>
                 <X size={19} aria-hidden="true" />

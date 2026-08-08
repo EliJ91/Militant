@@ -111,7 +111,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.9.18');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.9.19');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -161,7 +161,7 @@ describe('App', () => {
     expect(addLayoutButton).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
     fireEvent.click(addLayoutButton);
-    expect(screen.getByRole('dialog', { name: /add master layout/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /add zvz layout/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
 
