@@ -89,20 +89,26 @@ async function getDiscordIdentity(admin: any, request: Request) {
     discordUserId = clean((await userResponse.json())?.id);
   }
 
-  let memberResponse: Response;
+  let member: any = null;
   if (discordAccessToken) {
-    memberResponse = await fetch(`https://discord.com/api/v10/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
+    const oauthResponse = await fetch(`https://discord.com/api/v10/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
       headers: { Authorization: `Bearer ${discordAccessToken}` },
     });
-  } else {
-    const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
-    if (!botToken) throw new Error('Discord bot token is not configured.');
-    memberResponse = await fetch(`https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`, {
+    if (oauthResponse.ok) {
+      const oauthMember = await oauthResponse.json();
+      if (!oauthMember?.user?.id || clean(oauthMember.user.id) === discordUserId) member = oauthMember;
+    }
+  }
+
+  const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
+  if (!member && botToken) {
+    const botResponse = await fetch(`https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`, {
       headers: { Authorization: `Bot ${botToken}` },
     });
+    if (botResponse.ok) member = await botResponse.json();
   }
-  if (!memberResponse.ok) throw new Error('Could not load Discord member roles.');
-  const member = await memberResponse.json();
+
+  if (!member) throw new Error('Could not load Discord member roles.');
   if (member?.user?.id && clean(member.user.id) !== discordUserId) throw new Error('Discord user mismatch.');
   return {
     discordUserId,

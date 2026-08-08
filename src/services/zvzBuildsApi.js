@@ -12,8 +12,16 @@ function getApiUrl() {
 }
 
 async function readResult(response, fallbackMessage) {
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error || fallbackMessage);
+  const responseText = await response.text();
+  let result = {};
+  try {
+    result = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    result = {};
+  }
+  if (!response.ok) {
+    throw new Error(result.error || responseText.trim() || `${fallbackMessage} (${response.status})`);
+  }
   return result;
 }
 
