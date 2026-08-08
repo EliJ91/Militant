@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BatteryCharging, ChartBar, Eye, History, ScrollText, ShieldCheck, Users } from 'lucide-react';
+import { BatteryCharging, ChartBar, Eye, History, ScrollText, ShieldCheck, Swords, Users } from 'lucide-react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import MembersTool from './components/MembersTool';
 import PlayerHistoryTool from './components/PlayerHistoryTool';
 import PermissionsTool from './components/PermissionsTool';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
 import ActionLogsTool from './components/ActionLogsTool';
+import ZvZInfographic from './components/ZvZInfographic';
 import { setActionLogActorName, setActionLogAuthSession } from './services/actionLogsApi';
 import {
   clearPendingAuthRoute,
@@ -44,6 +45,7 @@ function getRoute() {
   if (route === 'player-history' || route === 'player-loot-history') return 'player-loot-history';
   if (route === 'permissions') return 'permissions';
   if (route === 'action-logs') return 'action-logs';
+  if (route === 'zvz-infographic') return 'zvz-infographic';
   return route === 'dashboard' ? 'dashboard' : 'landing';
 }
 
@@ -524,7 +526,15 @@ function DashboardPage({
       title: 'Action Logs',
       to: '#action-logs',
     },
-  ].filter((tool) => permissions[tool.permission]);
+    {
+      description: 'Turn ZvZ build sheets into item-based build boards.',
+      group: 'admin',
+      icon: Swords,
+      superUserOnly: true,
+      title: 'ZvZ Infographic',
+      to: '#zvz-infographic',
+    },
+  ].filter((tool) => (tool.superUserOnly ? isSuperUserProfile : permissions[tool.permission]));
   const toolGroups = [
     { key: 'tools', label: 'Tools' },
     { key: 'admin', label: 'Administration' },
@@ -885,6 +895,30 @@ function ActionLogsPage({
   );
 }
 
+function ZvZInfographicPage({
+  currentUser = null,
+  isSuperUserProfile = false,
+  onResetViewAsRole = () => {},
+  onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
+}) {
+  return (
+    <ToolPage
+      currentUser={currentUser}
+      isSuperUserProfile={isSuperUserProfile}
+      onResetViewAsRole={onResetViewAsRole}
+      onSignOut={onSignOut}
+      onToggleViewAsRole={onToggleViewAsRole}
+      viewAsRoleIds={viewAsRoleIds}
+      viewAsRoles={viewAsRoles}
+    >
+      <ZvZInfographic />
+    </ToolPage>
+  );
+}
+
 export default function App() {
   const [route, setRoute] = useState(getRoute);
   const [isDiscordAuthenticated, setIsDiscordAuthenticated] = useState(false);
@@ -1080,6 +1114,7 @@ export default function App() {
       : route === 'player-loot-history' ? 'Player Loot History'
       : route === 'permissions' ? 'Permissions'
       : route === 'action-logs' ? 'Action Logs'
+      : route === 'zvz-infographic' ? 'ZvZ Infographic'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);
@@ -1192,6 +1227,12 @@ export default function App() {
   } else if (route === 'action-logs') {
     page = effectivePermissions.viewActionLog ? (
       <ActionLogsPage currentUser={currentUser} onSignOut={handleSignOut} {...topbarContext} />
+    ) : (
+      <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
+    );
+  } else if (route === 'zvz-infographic') {
+    page = currentUserIsSuperUser ? (
+      <ZvZInfographicPage currentUser={currentUser} onSignOut={handleSignOut} {...topbarContext} />
     ) : (
       <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
     );

@@ -99,11 +99,12 @@ describe('App', () => {
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Loot Log Viewer' })).toBeInTheDocument();
     expect(screen.getByText('Open loot logs locally without saving or changing any data.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ZvZ Infographic' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.181');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.8.182');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -138,6 +139,18 @@ describe('App', () => {
     expect(await screen.findByRole('button', { name: /login with discord/i })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Loot Log Viewer' })).not.toBeInTheDocument();
     expect(fetchLootLogBundle).not.toHaveBeenCalled();
+  });
+
+  it('opens ZvZ Infographic for the SuperUser only', async () => {
+    getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006' } });
+    window.location.hash = '#dashboard';
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('link', { name: /zvz infographic/i }));
+
+    expect(window.location.hash).toBe('#zvz-infographic');
+    expect(screen.getByRole('heading', { level: 1, name: 'ZvZ Infographic' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
 
   it('opens Player Loot History from the dashboard', async () => {

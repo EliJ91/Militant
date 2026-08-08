@@ -1,6 +1,6 @@
 {
   "name": "militant-webapp",
-  "version": "1.8.181",
+  "version": "1.8.182",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,7 +18,9 @@
     "jszip": "^3.10.1",
     "lucide-react": "^1.24.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "read-excel-file": "^5.8.7",
+    "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
