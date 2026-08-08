@@ -1,0 +1,4 @@
+project_id = "maeljnrgffgrljqusnre"
+
+[functions.zvz-builds]
+verify_jwt = false
