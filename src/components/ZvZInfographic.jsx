@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FileImage, FileSpreadsheet, Upload, X } from 'lucide-react';
 import { warmItemImageCache } from '../utils/itemImageCache';
 import {
+  filterZvZBuilds,
   parseZvZSpreadsheet,
   ZVZ_SLOT_DEFINITIONS,
 } from '../utils/zvzInfographic';
@@ -92,6 +93,7 @@ export default function ZvZInfographic() {
   const [fileName, setFileName] = useState('');
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState({ label: '', progress: 0 });
+  const [searchQuery, setSearchQuery] = useState('');
 
   async function processFile(file) {
     if (!file || processing) return;
@@ -119,6 +121,7 @@ export default function ZvZInfographic() {
     setBuilds([]);
     setError('');
     setFileName('');
+    setSearchQuery('');
     setProgress({ label: '', progress: 0 });
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -132,6 +135,7 @@ export default function ZvZInfographic() {
   const unresolvedCount = builds.reduce((total, build) => (
     total + Object.values(build.slots).flat().filter((item) => !item.resolved).length
   ), 0);
+  const visibleBuilds = filterZvZBuilds(builds, searchQuery);
 
   useEffect(() => {
     warmItemImageCache(builds.flatMap((build) => (
@@ -207,6 +211,16 @@ export default function ZvZInfographic() {
               <span>Source</span>
               <strong>{fileName}</strong>
             </div>
+            <label className="zvz-build-search">
+              <span>Search</span>
+              <input
+                aria-label="Search builds"
+                placeholder="Role, item, build..."
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </label>
             <div>
               <span>Builds</span>
               <strong>{builds.length}</strong>
@@ -217,8 +231,9 @@ export default function ZvZInfographic() {
             </div>
           </section>
           <section className="zvz-build-board" aria-label="ZvZ builds">
-            {builds.map((build) => <BuildCard build={build} key={build.id} />)}
+            {visibleBuilds.map((build) => <BuildCard build={build} key={build.id} />)}
           </section>
+          {visibleBuilds.length === 0 ? <p className="zvz-no-results">No builds match this search.</p> : null}
         </>
       )}
     </main>

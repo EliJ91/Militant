@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  filterZvZBuilds,
   parseZvZCell,
   resolveZvZItem,
   rowsToZvZBuilds,
@@ -46,5 +47,19 @@ describe('ZvZ infographic parsing', () => {
       itemId: 'T8_ARMOR_PLATE_KEEPER',
       name: 'Judicator Armor',
     });
+  });
+
+  it('searches build numbers, roles, items, and annotations without quantities', () => {
+    const builds = rowsToZvZBuilds([
+      ['', 'ROLE', 'MAIN HAND', 'OFF HAND', 'HELM', 'ARMOR', 'BOOTS', 'CAPE', 'FOOD/POTS'],
+      ['1', 'Engage', 'Oathkeepers (Q1/W3/P2)', 'N/A', 'Assassin Hood', 'Demon Armor', 'Royal Shoes', 'Martlock Cape', 'Gigantify'],
+      ['2', 'Healer', 'Hallowfall', 'Censor', 'Hood of Tenacity', 'Judicator Armor', 'Mercenary Shoes', 'Lymhurst Cape', 'Ava Omelette'],
+    ]);
+
+    expect(filterZvZBuilds(builds, 'engage')).toEqual([builds[0]]);
+    expect(filterZvZBuilds(builds, 'hallowfall')).toEqual([builds[1]]);
+    expect(filterZvZBuilds(builds, 'Q1/W3')).toEqual([builds[0]]);
+    expect(filterZvZBuilds([{ number: '42', role: 'Caller', slots: { mainHand: [] } }], '42')).toHaveLength(1);
+    expect(filterZvZBuilds(builds, '10')).toEqual([]);
   });
 });

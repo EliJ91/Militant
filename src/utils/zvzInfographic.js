@@ -304,6 +304,22 @@ export function rowsToZvZBuilds(rows) {
   }));
 }
 
+export function filterZvZBuilds(builds, query) {
+  const normalizedSearch = String(query || '').trim().toLowerCase();
+  if (!normalizedSearch) return builds;
+
+  return builds.filter((build) => [
+    build.number,
+    build.role,
+    ...Object.values(build.slots).flatMap((items) => items.flatMap((item) => [
+      item.name,
+      item.lookupName,
+      item.itemId,
+      item.annotation,
+    ])),
+  ].filter(Boolean).join(' ').toLowerCase().includes(normalizedSearch));
+}
+
 function parseDelimited(text, delimiter) {
   const rows = [];
   let row = [];

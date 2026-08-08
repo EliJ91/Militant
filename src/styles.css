@@ -148,7 +148,7 @@
 
 .zvz-file-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 130px 130px;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 280px) 110px 110px;
   margin-top: 22px;
   overflow: hidden;
   border: 1px solid rgba(87, 216, 120, 0.28);
@@ -156,15 +156,22 @@
   background: #07110b;
 }
 
-.zvz-file-summary > div {
+.zvz-file-summary > div,
+.zvz-build-search {
   display: grid;
   min-width: 0;
   padding: 13px 16px;
   gap: 3px;
 }
 
-.zvz-file-summary > div + div {
+.zvz-file-summary > div + div,
+.zvz-build-search,
+.zvz-build-search + div {
   border-left: 1px solid rgba(247, 250, 245, 0.12);
+}
+
+.zvz-file-summary > div + div,
+.zvz-build-search + div {
   text-align: center;
 }
 
@@ -174,6 +181,24 @@
   font-size: 0.66rem;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.zvz-build-search input {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(87, 216, 120, 0.35);
+  border-radius: 5px;
+  background: #020805;
+  color: var(--white);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.zvz-build-search input:focus {
+  border-color: var(--green-hot);
+  outline: 1px solid var(--green-hot);
 }
 
 .zvz-file-summary strong {
@@ -267,8 +292,8 @@
 
 .zvz-item-variant {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  width: min(100%, 230px);
+  grid-template-columns: minmax(72px, 1fr) minmax(0, 1fr);
+  width: 100%;
   min-width: 0;
   align-items: center;
   justify-content: center;
@@ -277,7 +302,7 @@
 }
 
 .zvz-item-variant.compact {
-  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-columns: minmax(48px, 1fr) minmax(0, 1fr);
   gap: 4px;
 }
 
@@ -294,6 +319,7 @@
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 900;
+  justify-self: center;
 }
 
 .zvz-item-quantity {
@@ -335,6 +361,7 @@
   display: grid;
   min-width: 0;
   gap: 4px;
+  justify-self: stretch;
 }
 
 .zvz-item-copy strong {
@@ -356,6 +383,13 @@
 
 .zvz-item-variant.compact .zvz-item-copy small {
   font-size: 0.6rem;
+}
+
+.zvz-no-results {
+  margin: 28px 0;
+  color: var(--muted);
+  font-weight: 800;
+  text-align: center;
 }
 
 @media (max-width: 720px) {
@@ -382,7 +416,14 @@
   }
 
   .zvz-file-summary {
-    grid-template-columns: minmax(0, 1fr) 82px 82px;
+    grid-template-columns: minmax(0, 1fr) 88px 88px;
+  }
+
+  .zvz-build-search {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    border-top: 1px solid rgba(247, 250, 245, 0.12);
+    border-left: 0;
   }
 
   .zvz-file-summary > div {
