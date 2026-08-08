@@ -4,7 +4,7 @@ const MAX_BUILDS = 500;
 const DISCORD_GUILD_ID = '805908199541702666';
 const SUPERUSER_DISCORD_USER_IDS = new Set(['264193431830528006']);
 const corsHeaders = {
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-discord-access-token',
   'Access-Control-Allow-Methods': 'DELETE, GET, POST, PUT, OPTIONS',
   'Access-Control-Allow-Origin': '*',
 };
