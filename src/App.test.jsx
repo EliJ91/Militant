@@ -54,6 +54,13 @@ vi.mock('./services/permissionsApi', () => ({
   updatePermissionSettings: vi.fn().mockResolvedValue({ settings: { roles: [] }, updatedAt: null }),
 }));
 
+vi.mock('./services/zvzBuildsApi', () => ({
+  createZvZBuildLayout: vi.fn(),
+  deleteZvZBuildLayout: vi.fn(),
+  fetchZvZBuildLayouts: vi.fn().mockResolvedValue({ layouts: [] }),
+  updateZvZBuildLayout: vi.fn(),
+}));
+
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -99,12 +106,12 @@ describe('App', () => {
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Loot Log Viewer' })).toBeInTheDocument();
     expect(screen.getByText('Open loot logs locally without saving or changing any data.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'ZvZ Infographic' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ZvZ Builds' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.9.12');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.9.13');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -141,16 +148,44 @@ describe('App', () => {
     expect(fetchLootLogBundle).not.toHaveBeenCalled();
   });
 
-  it('opens ZvZ Infographic for the SuperUser only', async () => {
+  it('opens ZvZ Builds for users with view access and shows editing to editors', async () => {
     getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006' } });
     window.location.hash = '#dashboard';
     render(<App />);
 
-    fireEvent.click(await screen.findByRole('link', { name: /zvz infographic/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /zvz builds/i }));
 
     expect(window.location.hash).toBe('#zvz-infographic');
-    expect(screen.getByRole('heading', { level: 1, name: 'ZvZ Infographic' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'ZvZ Builds' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /new build/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
+  });
+
+  it('keeps ZvZ build editing hidden from view-only roles', async () => {
+    fetchPermissionSettings.mockResolvedValue({
+      settings: {
+        roles: [{
+          id: 'zvz-viewer',
+          name: 'ZvZ Viewer',
+          permissions: { viewZvZBuilds: true },
+          roleId: 'zvz-viewer-role',
+        }],
+      },
+      updatedAt: null,
+    });
+    fetchDiscordMemberRoles.mockResolvedValue({ roleIds: ['zvz-viewer-role'] });
+    getCurrentAuthSession.mockResolvedValue({
+      access_token: 'supabase-jwt',
+      user: { id: 'viewer', user_metadata: { provider_id: 'viewer' } },
+    });
+    window.location.hash = '#dashboard';
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('link', { name: /zvz builds/i }));
+
+    expect(screen.getByRole('heading', { level: 1, name: 'ZvZ Builds' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /new build/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
   });
 
   it('opens Player Loot History from the dashboard', async () => {

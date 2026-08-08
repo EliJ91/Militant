@@ -60,4 +60,12 @@ describe('permissions service', () => {
       label: 'Edit Ignore Items',
     });
   });
+
+  it('groups ZvZ build view and edit access with view first', () => {
+    const viewIndex = WEBAPP_PERMISSION_DEFINITIONS.findIndex(({ key }) => key === 'viewZvZBuilds');
+    expect(WEBAPP_PERMISSION_DEFINITIONS.slice(viewIndex, viewIndex + 2)).toEqual([
+      { area: 'ZvZ Builds', key: 'viewZvZBuilds', label: 'View ZvZ Builds' },
+      { area: 'ZvZ Builds', key: 'editZvZBuilds', label: 'Edit ZvZ Builds' },
+    ]);
+  });
 });

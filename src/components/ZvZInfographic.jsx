@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { FileImage, FileSpreadsheet, Upload, X } from 'lucide-react';
+import { FileImage, FileSpreadsheet, Plus, Save, Trash2, Upload, X } from 'lucide-react';
+import {
+  createZvZBuildLayout,
+  deleteZvZBuildLayout,
+  fetchZvZBuildLayouts,
+  updateZvZBuildLayout,
+} from '../services/zvzBuildsApi';
 import { warmItemImageCache } from '../utils/itemImageCache';
 import {
   filterZvZBuilds,
@@ -133,15 +139,60 @@ function BuildCard({ build }) {
   );
 }
 
-export default function ZvZInfographic() {
+function formatSavedDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown Server Member' }) {
   const fileInputRef = useRef(null);
   const [builds, setBuilds] = useState([]);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState('');
   const [fileName, setFileName] = useState('');
+  const [layouts, setLayouts] = useState([]);
+  const [loadingLayouts, setLoadingLayouts] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState({ label: '', progress: 0 });
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLayoutId, setSelectedLayoutId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState('');
+  const [title, setTitle] = useState('');
+
+  function openLayout(layout) {
+    setBuilds(layout.builds || []);
+    setError('');
+    setFileName(layout.sourceFileName || 'Saved build');
+    setProgress({ label: '', progress: 0 });
+    setSearchQuery('');
+    setSelectedLayoutId(layout.id);
+    setStatus('');
+    setTitle(layout.title);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchZvZBuildLayouts()
+      .then((result) => {
+        if (cancelled) return;
+        const savedLayouts = Array.isArray(result.layouts) ? result.layouts : [];
+        setLayouts(savedLayouts);
+        if (savedLayouts[0]) openLayout(savedLayouts[0]);
+      })
+      .catch((caughtError) => {
+        if (!cancelled) setError(caughtError.message || 'Could not load saved ZvZ builds.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLayouts(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   async function processFile(file) {
     if (!file || processing) return;
@@ -153,6 +204,9 @@ export default function ZvZInfographic() {
     try {
       const parsedBuilds = await parseZvZSpreadsheet(file, setProgress);
       setBuilds(parsedBuilds);
+      setSelectedLayoutId('');
+      setTitle(file.name.replace(/\.[^.]+$/, ''));
+      setStatus('');
     } catch (caughtError) {
       setFileName('');
       setError(caughtError.message || 'Could not read the build sheet.');
@@ -169,9 +223,65 @@ export default function ZvZInfographic() {
     setBuilds([]);
     setError('');
     setFileName('');
+    setSelectedLayoutId('');
     setSearchQuery('');
+    setStatus('');
+    setTitle('');
     setProgress({ label: '', progress: 0 });
     if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  async function saveLayout() {
+    if (!canEdit || saving) return;
+    if (!title.trim()) {
+      setError('Enter a title before saving.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    setStatus(selectedLayoutId ? 'Overwriting saved build...' : 'Saving build...');
+    try {
+      const payload = {
+        builds,
+        sourceFileName: fileName,
+        title: title.trim(),
+        uploadedBy,
+      };
+      const result = selectedLayoutId
+        ? await updateZvZBuildLayout({ ...payload, id: selectedLayoutId })
+        : await createZvZBuildLayout(payload);
+      const savedLayout = result.layout;
+      setLayouts((current) => [savedLayout, ...current.filter((layout) => layout.id !== savedLayout.id)]);
+      openLayout(savedLayout);
+      setStatus(selectedLayoutId ? 'Build overwritten.' : 'Build saved.');
+    } catch (caughtError) {
+      setError(caughtError.message || 'Could not save the ZvZ build.');
+      setStatus('');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteLayout() {
+    if (!canEdit || !selectedLayoutId || saving) return;
+    const selectedLayout = layouts.find((layout) => layout.id === selectedLayoutId);
+    if (!window.confirm(`Delete "${selectedLayout?.title || title}"?`)) return;
+    setSaving(true);
+    setError('');
+    setStatus('Deleting build...');
+    try {
+      await deleteZvZBuildLayout({ id: selectedLayoutId, title: selectedLayout?.title || title });
+      const remaining = layouts.filter((layout) => layout.id !== selectedLayoutId);
+      setLayouts(remaining);
+      if (remaining[0]) openLayout(remaining[0]);
+      else clearFile();
+      setStatus('Build deleted.');
+    } catch (caughtError) {
+      setError(caughtError.message || 'Could not delete the ZvZ build.');
+      setStatus('');
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleDrop(event) {
@@ -194,20 +304,48 @@ export default function ZvZInfographic() {
       <section className="zvz-heading">
         <div>
           <p className="eyebrow">Tool</p>
-          <h1>ZvZ Infographic</h1>
+          <h1>ZvZ Builds</h1>
         </div>
-        {builds.length > 0 ? (
+        {canEdit ? (
           <div className="zvz-heading-actions">
-            <button className="secondary-button" type="button" onClick={chooseFile}>
-              <Upload size={17} aria-hidden="true" />
-              Replace
-            </button>
-            <button className="icon-button" type="button" title="Clear build sheet" aria-label="Clear build sheet" onClick={clearFile}>
-              <X size={19} aria-hidden="true" />
+            <button className="secondary-button" type="button" onClick={clearFile}>
+              <Plus size={17} aria-hidden="true" />
+              New Build
             </button>
           </div>
         ) : null}
       </section>
+
+      <section className="zvz-library" aria-labelledby="zvz-library-title">
+        <div className="zvz-library-heading">
+          <div>
+            <p className="eyebrow">Saved Layouts</p>
+            <h2 id="zvz-library-title">Build Library</h2>
+          </div>
+          <strong>{layouts.length}</strong>
+        </div>
+        {loadingLayouts ? <p className="zvz-library-message">Loading saved builds...</p> : null}
+        {!loadingLayouts && layouts.length === 0 ? (
+          <p className="zvz-library-message">{canEdit ? 'No builds have been saved yet.' : 'No saved ZvZ builds are available.'}</p>
+        ) : null}
+        {layouts.length > 0 ? (
+          <div className="zvz-library-list">
+            {layouts.map((layout) => (
+              <button
+                className={selectedLayoutId === layout.id ? 'zvz-library-card selected' : 'zvz-library-card'}
+                key={layout.id}
+                type="button"
+                onClick={() => openLayout(layout)}
+              >
+                <strong>{layout.title}</strong>
+                <span>Uploaded by {layout.uploadedBy}</span>
+                <small>{layout.builds.length} builds · {formatSavedDate(layout.updatedAt)}</small>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </section>
+      {error && builds.length === 0 && !canEdit ? <p className="zvz-error zvz-load-error" role="alert">{error}</p> : null}
 
       <input
         accept={ACCEPTED_FILE_TYPES}
@@ -217,7 +355,7 @@ export default function ZvZInfographic() {
         onChange={(event) => processFile(event.target.files?.[0])}
       />
 
-      {builds.length === 0 ? (
+      {builds.length === 0 && canEdit ? (
         <section
           className={dragging ? 'zvz-upload drag-over' : 'zvz-upload'}
           onDragEnter={(event) => {
@@ -250,13 +388,27 @@ export default function ZvZInfographic() {
           )}
           {error ? <p className="zvz-error" role="alert">{error}</p> : null}
         </section>
-      ) : (
+      ) : builds.length > 0 ? (
         <>
           <section className="zvz-file-summary">
-            <div>
-              <span>Source</span>
-              <strong>{fileName}</strong>
-            </div>
+            {canEdit ? (
+              <label className="zvz-title-input">
+                <span>Build Title</span>
+                <input
+                  aria-label="Build title"
+                  maxLength="120"
+                  placeholder="Name this build"
+                  type="text"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                />
+              </label>
+            ) : (
+              <div>
+                <span>Build</span>
+                <strong>{title}</strong>
+              </div>
+            )}
             <label className="zvz-build-search">
               <span>Search</span>
               <input
@@ -268,16 +420,39 @@ export default function ZvZInfographic() {
               />
             </label>
             <div>
-              <span>Builds</span>
-              <strong>{builds.length}</strong>
+              <span>Uploaded By</span>
+              <strong>{layouts.find((layout) => layout.id === selectedLayoutId)?.uploadedBy || uploadedBy}</strong>
             </div>
           </section>
+          {canEdit ? (
+            <div className="zvz-editor-actions">
+              <button className="secondary-button" disabled={saving} type="button" onClick={chooseFile}>
+                <Upload size={17} aria-hidden="true" />
+                Replace File
+              </button>
+              <button className="primary-button" disabled={saving || !title.trim()} type="button" onClick={saveLayout}>
+                <Save size={17} aria-hidden="true" />
+                {selectedLayoutId ? 'Overwrite Build' : 'Save Build'}
+              </button>
+              {selectedLayoutId ? (
+                <button className="zvz-delete-button" disabled={saving} type="button" onClick={deleteLayout}>
+                  <Trash2 size={17} aria-hidden="true" />
+                  Delete
+                </button>
+              ) : null}
+              <button className="icon-button" disabled={saving} type="button" title="Clear build sheet" aria-label="Clear build sheet" onClick={clearFile}>
+                <X size={19} aria-hidden="true" />
+              </button>
+            </div>
+          ) : null}
+          {status ? <p className="zvz-status" role="status">{status}</p> : null}
+          {error ? <p className="zvz-error" role="alert">{error}</p> : null}
           <section className="zvz-build-board" aria-label="ZvZ builds">
             {visibleBuilds.map((build) => <BuildCard build={build} key={build.id} />)}
           </section>
           {visibleBuilds.length === 0 ? <p className="zvz-no-results">No builds match this search.</p> : null}
         </>
-      )}
+      ) : null}
     </main>
   );
 }

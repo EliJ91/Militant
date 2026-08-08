@@ -527,14 +527,18 @@ function DashboardPage({
       to: '#action-logs',
     },
     {
-      description: 'Turn ZvZ build sheets into item-based build boards.',
-      group: 'admin',
+      description: 'View saved ZvZ build layouts and item-based build boards.',
+      group: 'tools',
       icon: Swords,
-      superUserOnly: true,
-      title: 'ZvZ Infographic',
+      permissions: ['viewZvZBuilds', 'editZvZBuilds'],
+      title: 'ZvZ Builds',
       to: '#zvz-infographic',
     },
-  ].filter((tool) => (tool.superUserOnly ? isSuperUserProfile : permissions[tool.permission]));
+  ].filter((tool) => (
+    tool.superUserOnly
+      ? isSuperUserProfile
+      : tool.permissions?.some((permission) => permissions[permission]) || permissions[tool.permission]
+  ));
   const toolGroups = [
     { key: 'tools', label: 'Tools' },
     { key: 'admin', label: 'Administration' },
@@ -896,6 +900,7 @@ function ActionLogsPage({
 }
 
 function ZvZInfographicPage({
+  canEdit = false,
   currentUser = null,
   isSuperUserProfile = false,
   onResetViewAsRole = () => {},
@@ -914,7 +919,7 @@ function ZvZInfographicPage({
       viewAsRoleIds={viewAsRoleIds}
       viewAsRoles={viewAsRoles}
     >
-      <ZvZInfographic />
+      <ZvZInfographic canEdit={canEdit} uploadedBy={getUploadUsername(currentUser)} />
     </ToolPage>
   );
 }
@@ -1114,7 +1119,7 @@ export default function App() {
       : route === 'player-loot-history' ? 'Player Loot History'
       : route === 'permissions' ? 'Permissions'
       : route === 'action-logs' ? 'Action Logs'
-      : route === 'zvz-infographic' ? 'ZvZ Infographic'
+      : route === 'zvz-infographic' ? 'ZvZ Builds'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);
@@ -1231,8 +1236,13 @@ export default function App() {
       <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
     );
   } else if (route === 'zvz-infographic') {
-    page = currentUserIsSuperUser ? (
-      <ZvZInfographicPage currentUser={currentUser} onSignOut={handleSignOut} {...topbarContext} />
+    page = effectivePermissions.viewZvZBuilds || effectivePermissions.editZvZBuilds ? (
+      <ZvZInfographicPage
+        canEdit={Boolean(effectivePermissions.editZvZBuilds)}
+        currentUser={currentUser}
+        onSignOut={handleSignOut}
+        {...topbarContext}
+      />
     ) : (
       <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
     );

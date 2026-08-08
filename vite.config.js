@@ -400,6 +400,76 @@ function actionLogsApi() {
   };
 }
 
+function zvzBuildsApi() {
+  async function handleZvZBuilds(req, res) {
+    if (req.method === 'OPTIONS') {
+      sendJson(res, 204, {});
+      return;
+    }
+
+    try {
+      const { getDiscordMemberRoles, getPermissionSettings } = await import('./src/server/supabasePermissions.js');
+      const accessToken = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+      const discordToken = String(req.headers['x-discord-access-token'] || '');
+      const member = await getDiscordMemberRoles(accessToken, discordToken);
+      const permissionSettings = await getPermissionSettings();
+      const isSuperUser = member.discordUserId === '264193431830528006';
+      const assignedRoleIds = new Set(member.roleIds || []);
+      const requiredPermission = req.method === 'GET' ? 'viewZvZBuilds' : 'editZvZBuilds';
+      const hasPermission = (permissionSettings.settings?.roles || []).some((role) => (
+        assignedRoleIds.has(String(role.roleId || ''))
+          && (role.permissions?.[requiredPermission]
+            || (requiredPermission === 'viewZvZBuilds' && role.permissions?.editZvZBuilds))
+      ));
+      if (!isSuperUser && !hasPermission) {
+        sendJson(res, 403, { error: 'You do not have permission to access ZvZ builds.' });
+        return;
+      }
+      const actorName = member.guildNickname || 'Unknown Server Member';
+
+      const {
+        createZvZBuildLayout,
+        deleteZvZBuildLayout,
+        listZvZBuildLayouts,
+        updateZvZBuildLayout,
+      } = await import('./src/server/supabaseZvZBuilds.js');
+
+      if (req.method === 'GET') {
+        sendJson(res, 200, await listZvZBuildLayouts());
+        return;
+      }
+
+      const body = await readJsonBody(req);
+      body.uploadedBy = actorName;
+      if (req.method === 'POST') {
+        sendJson(res, 201, await createZvZBuildLayout(body));
+        return;
+      }
+      if (req.method === 'PUT') {
+        sendJson(res, 200, await updateZvZBuildLayout(body));
+        return;
+      }
+      if (req.method === 'DELETE') {
+        sendJson(res, 200, await deleteZvZBuildLayout(body.id));
+        return;
+      }
+      sendJson(res, 405, { error: 'Method not allowed.' });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || 'Could not update ZvZ builds.' });
+    }
+  }
+
+  return {
+    name: 'zvz-builds-api',
+    configureServer(server) {
+      server.middlewares.use('/api/zvz-builds', handleZvZBuilds);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use('/api/zvz-builds', handleZvZBuilds);
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   process.env.SUPABASE_URL ||= env.SUPABASE_URL || env.VITE_SUPABASE_URL;
@@ -407,7 +477,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',
-    plugins: [react(), albionItemProxy(), lootLogApi(), siphonedEnergyApi(), permissionsApi(), actionLogsApi()],
+    plugins: [react(), albionItemProxy(), lootLogApi(), siphonedEnergyApi(), permissionsApi(), actionLogsApi(), zvzBuildsApi()],
     server: {
       host: '127.0.0.1',
       port: 5173,
