@@ -248,9 +248,15 @@
   border-top: 1px solid rgba(247, 250, 245, 0.09);
 }
 
+.zvz-weapon-row {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
 .zvz-slot-variants {
   display: grid;
   align-items: center;
+  justify-items: center;
   min-width: 0;
 }
 
@@ -262,9 +268,12 @@
 .zvz-item-variant {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
+  width: min(100%, 230px);
   min-width: 0;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  margin-inline: auto;
 }
 
 .zvz-item-variant.compact {
@@ -273,6 +282,7 @@
 }
 
 .zvz-item-image {
+  position: relative;
   display: grid;
   width: 72px;
   height: 72px;
@@ -284,6 +294,23 @@
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 900;
+}
+
+.zvz-item-quantity {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  font-size: 0.66rem;
+  line-height: 1;
 }
 
 .zvz-item-variant.compact .zvz-item-image {

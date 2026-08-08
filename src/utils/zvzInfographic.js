@@ -229,12 +229,19 @@ export function parseZvZCell(value, slot) {
     if (!normalizedName || /^(?:n ?a|none)$/.test(normalizedName) || ITEM_NOTE_PATTERN.test(normalizedName)) return;
 
     const match = resolveZvZItem(name, slot);
+    const isFood = match.itemId.includes('_MEAL_');
+    const isGigantifyPotion = match.itemId.includes('_POTION_REVIVE')
+      || normalizeText(name).includes('gigantify');
+    const itemId = isFood
+      ? `${match.itemId.replace(/@\d+$/, '')}@1`
+      : match.itemId;
     items.push({
       annotation: annotations.join(' / '),
-      imageUrl: zvzItemImageUrl(match.itemId),
-      itemId: match.itemId,
+      imageUrl: zvzItemImageUrl(itemId),
+      itemId,
       lookupName: match.lookupName,
       name,
+      quantity: isFood ? 2 : isGigantifyPotion ? 10 : 1,
       resolved: match.resolved,
     });
   });

@@ -23,6 +23,7 @@ function ItemVariant({ item, multiple }) {
         {item.imageUrl && !imageFailed ? (
           <img src={item.imageUrl} alt={item.name} onError={() => setImageFailed(true)} />
         ) : <span>{initials || '?'}</span>}
+        {item.quantity > 1 ? <small className="zvz-item-quantity">{item.quantity}</small> : null}
       </span>
       <span className="zvz-item-copy">
         <strong>{item.name}</strong>
@@ -33,7 +34,10 @@ function ItemVariant({ item, multiple }) {
 }
 
 function BuildCard({ build }) {
-  const visibleSlots = ZVZ_SLOT_DEFINITIONS.filter(({ key }) => build.slots[key]?.length > 0);
+  const visibleSlots = ZVZ_SLOT_DEFINITIONS.filter(({ key }) => (
+    key !== 'offHand' && build.slots[key]?.length > 0
+  ));
+  const hasWeaponRow = build.slots.mainHand?.length > 0 || build.slots.offHand?.length > 0;
 
   return (
     <article className="zvz-build-card">
@@ -45,7 +49,24 @@ function BuildCard({ build }) {
         </div>
       </header>
       <div className="zvz-build-slots">
+        {hasWeaponRow ? (
+          <section className="zvz-build-slot zvz-weapon-row" aria-label="Main Hand and Off Hand">
+            {['mainHand', 'offHand'].map((key) => {
+              const items = build.slots[key] || [];
+              if (items.length === 0) return null;
+              const multiple = items.length > 1;
+              return (
+                <div className={multiple ? 'zvz-slot-variants multiple' : 'zvz-slot-variants'} key={key}>
+                  {items.map((item, index) => (
+                    <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple={multiple} />
+                  ))}
+                </div>
+              );
+            })}
+          </section>
+        ) : null}
         {visibleSlots.map(({ key, label }) => {
+          if (key === 'mainHand') return null;
           const items = build.slots[key];
           const multiple = items.length > 1;
           return (

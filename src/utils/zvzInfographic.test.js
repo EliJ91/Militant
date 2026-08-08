@@ -22,9 +22,10 @@ describe('ZvZ infographic parsing', () => {
     expect(builds[0].slots.offHand).toEqual([]);
     expect(builds[0].slots.boots).toHaveLength(2);
     expect(builds[0].slots.foodPots.map((item) => item.itemId)).toEqual([
-      'T7_MEAL_OMELETTE_AVALON',
+      'T7_MEAL_OMELETTE_AVALON@1',
       'T7_POTION_REVIVE',
     ]);
+    expect(builds[0].slots.foodPots.map((item) => item.quantity)).toEqual([2, 10]);
   });
 
   it('keeps build annotations separate from item names', () => {
