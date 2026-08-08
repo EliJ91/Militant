@@ -286,6 +286,7 @@
   grid-column: 1 / -1;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   width: 100%;
+  align-items: start;
 }
 
 .zvz-slot-variants {
@@ -319,7 +320,8 @@
 .zvz-item-variant.stacked {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 48px auto;
-  align-content: center;
+  align-content: start;
+  align-self: start;
   gap: 5px;
   text-align: center;
 }
