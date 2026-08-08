@@ -5,6 +5,7 @@ import {
   filterZvZBuilds,
   groupDuplicateZvZBuilds,
   parseZvZSpreadsheet,
+  sortIncompleteZvZBuildsLast,
   ZVZ_SLOT_DEFINITIONS,
 } from '../utils/zvzInfographic';
 
@@ -144,7 +145,7 @@ export default function ZvZInfographic() {
   const unresolvedCount = builds.reduce((total, build) => (
     total + Object.values(build.slots).flat().filter((item) => !item.resolved).length
   ), 0);
-  const groupedBuilds = groupDuplicateZvZBuilds(builds);
+  const groupedBuilds = sortIncompleteZvZBuildsLast(groupDuplicateZvZBuilds(builds));
   const visibleBuilds = filterZvZBuilds(groupedBuilds, searchQuery);
 
   useEffect(() => {

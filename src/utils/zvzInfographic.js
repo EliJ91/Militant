@@ -365,6 +365,21 @@ export function groupDuplicateZvZBuilds(builds) {
   return [...groupedBySignature.values()];
 }
 
+export function sortIncompleteZvZBuildsLast(builds) {
+  return builds
+    .map((build, index) => {
+      const hasWeapon = (build.slots.mainHand || []).some((item) => item.resolved && item.itemId);
+      const hasArmor = (build.slots.armor || []).some((item) => item.resolved && item.itemId);
+      return {
+        build,
+        incomplete: !hasWeapon || !hasArmor,
+        index,
+      };
+    })
+    .sort((left, right) => Number(left.incomplete) - Number(right.incomplete) || left.index - right.index)
+    .map(({ build }) => build);
+}
+
 function parseDelimited(text, delimiter) {
   const rows = [];
   let row = [];

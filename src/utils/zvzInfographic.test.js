@@ -5,6 +5,7 @@ import {
   parseZvZCell,
   resolveZvZItem,
   rowsToZvZBuilds,
+  sortIncompleteZvZBuildsLast,
 } from './zvzInfographic';
 
 describe('ZvZ infographic parsing', () => {
@@ -86,5 +87,16 @@ describe('ZvZ infographic parsing', () => {
     expect(grouped).toHaveLength(2);
     expect(grouped[0]).toMatchObject({ number: '16, 17', buildNumbers: ['16', '17'] });
     expect(grouped[1]).toMatchObject({ number: '18', buildNumbers: ['18'] });
+  });
+
+  it('moves builds missing a weapon or armor behind complete builds', () => {
+    const builds = rowsToZvZBuilds([
+      ['', 'ROLE', 'MAIN HAND', 'OFF HAND', 'HELM', 'ARMOR', 'BOOTS', 'CAPE', 'FOOD/POTS'],
+      ['21', 'Battle Mount', 'Chariot', 'Grimoire', 'N/A', 'N/A', 'N/A', 'N/A', 'Pork Omelette'],
+      ['22', 'Engage', 'Oathkeepers', 'N/A', 'Assassin Hood', 'Demon Armor', 'Royal Shoes', 'Martlock Cape', 'Gigantify'],
+      ['23', 'DPS', 'Realmbreaker', 'N/A', 'Soldier Helm', 'Mistwalker Jacket', 'Boots of Valor', 'Smuggler Cape', 'Eel Stew'],
+    ]);
+
+    expect(sortIncompleteZvZBuildsLast(builds).map((build) => build.number)).toEqual(['22', '23', '21']);
   });
 });
