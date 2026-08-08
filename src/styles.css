@@ -148,7 +148,7 @@
 
 .zvz-file-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(190px, 280px) 110px 110px;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 280px) 110px;
   margin-top: 22px;
   overflow: hidden;
   border: 1px solid rgba(87, 216, 120, 0.28);
@@ -221,7 +221,7 @@
 }
 
 .zvz-build-card {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid rgba(87, 216, 120, 0.3);
   border-radius: 7px;
   background: #070e09;
@@ -229,7 +229,7 @@
 
 .zvz-build-heading {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   min-height: 72px;
@@ -254,11 +254,74 @@
   white-space: nowrap;
 }
 
-.zvz-build-heading h2 {
-  margin: 3px 0 0;
+.zvz-build-identity {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.zvz-build-identity p {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
   color: var(--white);
-  font-size: 1.08rem;
-  line-height: 1.15;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zvz-build-identity p span {
+  color: var(--green-hot);
+  font-size: inherit;
+  text-transform: none;
+}
+
+.zvz-build-identity strong {
+  color: var(--white);
+}
+
+.zvz-notes-control {
+  position: relative;
+}
+
+.zvz-notes-control > button {
+  min-width: 58px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(87, 216, 120, 0.45);
+  border-radius: 5px;
+  background: #07110b;
+  color: var(--white);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.zvz-notes-control > button:hover,
+.zvz-notes-control > button:focus-visible {
+  border-color: var(--green-hot);
+  color: var(--green-hot);
+}
+
+.zvz-notes-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 7px);
+  right: 0;
+  width: min(240px, 72vw);
+  max-height: 150px;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid rgba(87, 216, 120, 0.5);
+  border-radius: 6px;
+  background: #020805;
+  color: var(--white);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
 }
 
 .zvz-build-slots {
@@ -440,7 +503,7 @@
   }
 
   .zvz-file-summary {
-    grid-template-columns: minmax(0, 1fr) 88px 88px;
+    grid-template-columns: minmax(0, 1fr) 88px;
   }
 
   .zvz-build-search {

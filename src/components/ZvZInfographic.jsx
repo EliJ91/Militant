@@ -44,20 +44,46 @@ function ItemVariant({ item, multiple, stacked = false }) {
 }
 
 function BuildCard({ build }) {
+  const notesControlRef = useRef(null);
+  const [notesOpen, setNotesOpen] = useState(false);
   const visibleSlots = ZVZ_SLOT_DEFINITIONS.filter(({ key }) => (
     key !== 'offHand' && build.slots[key]?.length > 0
   ));
   const hasWeaponRow = build.slots.mainHand?.length > 0 || build.slots.offHand?.length > 0;
   const weaponItems = [...(build.slots.mainHand || []), ...(build.slots.offHand || [])];
   const compactWeaponItems = weaponItems.length > 1;
+  const weaponName = build.slots.mainHand?.length === 1
+    ? build.slots.mainHand[0].name
+    : build.slots.mainHand?.length > 1 ? 'Choose' : 'Not listed';
+
+  useEffect(() => {
+    if (!notesOpen) return undefined;
+
+    function closeNotes(event) {
+      if (!notesControlRef.current?.contains(event.target)) setNotesOpen(false);
+    }
+
+    document.addEventListener('pointerdown', closeNotes);
+    return () => document.removeEventListener('pointerdown', closeNotes);
+  }, [notesOpen]);
 
   return (
     <article className="zvz-build-card">
       <header className="zvz-build-heading">
         <span className="zvz-build-number">{build.number}</span>
-        <div>
-          <span>Role</span>
-          <h2>{build.role}</h2>
+        <div className="zvz-build-identity">
+          <p><span>Weapon:</span> <strong>{weaponName}</strong></p>
+          <p><span>Role:</span> <strong>{build.role}</strong></p>
+        </div>
+        <div className="zvz-notes-control" ref={notesControlRef}>
+          <button type="button" onClick={() => setNotesOpen((open) => !open)} aria-expanded={notesOpen}>
+            Notes
+          </button>
+          {notesOpen ? (
+            <div className="zvz-notes-popover" role="note">
+              {build.notes || 'No notes.'}
+            </div>
+          ) : null}
         </div>
       </header>
       <div className="zvz-build-slots">
@@ -149,9 +175,6 @@ export default function ZvZInfographic() {
     processFile(event.dataTransfer.files?.[0]);
   }
 
-  const unresolvedCount = builds.reduce((total, build) => (
-    total + Object.values(build.slots).flat().filter((item) => !item.resolved).length
-  ), 0);
   const groupedBuilds = sortIncompleteZvZBuildsLast(groupDuplicateZvZBuilds(builds));
   const visibleBuilds = filterZvZBuilds(groupedBuilds, searchQuery);
 
@@ -242,10 +265,6 @@ export default function ZvZInfographic() {
             <div>
               <span>Builds</span>
               <strong>{builds.length}</strong>
-            </div>
-            <div>
-              <span>Unmatched</span>
-              <strong className={unresolvedCount > 0 ? 'warning' : ''}>{unresolvedCount}</strong>
             </div>
           </section>
           <section className="zvz-build-board" aria-label="ZvZ builds">

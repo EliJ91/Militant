@@ -11,12 +11,13 @@ import {
 describe('ZvZ infographic parsing', () => {
   it('turns spreadsheet rows into builds and ignores N/A cells', () => {
     const builds = rowsToZvZBuilds([
-      ['', 'ROLE', 'MAIN HAND', 'OFF HAND', 'HELM', 'ARMOR', 'BOOTS', 'CAPE', 'FOOD/POTS'],
-      ['1', 'Engage', 'Oathkeepers\n(Q1/W3/P2)', 'N/A', 'Assassin Hood (D3/P3)', 'Demon Armor (R3/P1)', 'Royal Shoes (F3/P2)\nGraveguard (F3/P2)', 'Smuggler Cape\nMartlock Cape', '7.1+ Ava Omelette\n7.0 Gigantify'],
+      ['', 'ROLE', 'MAIN HAND', 'OFF HAND', 'HELM', 'ARMOR', 'BOOTS', 'CAPE', 'FOOD/POTS', 'NOTES'],
+      ['1', 'Engage', 'Oathkeepers\n(Q1/W3/P2)', 'N/A', 'Assassin Hood (D3/P3)', 'Demon Armor (R3/P1)', 'Royal Shoes (F3/P2)\nGraveguard (F3/P2)', 'Smuggler Cape\nMartlock Cape', '7.1+ Ava Omelette\n7.0 Gigantify', 'Hold for the caller.'],
     ]);
 
     expect(builds).toHaveLength(1);
     expect(builds[0]).toMatchObject({ number: '1', role: 'Engage' });
+    expect(builds[0].notes).toBe('Hold for the caller.');
     expect(builds[0].slots.mainHand[0]).toMatchObject({
       annotation: 'Q1/W3/P2',
       itemId: 'T8_2H_DUALMACE_AVALON',

@@ -31,6 +31,9 @@ const HEADER_KEYS = new Map([
   ['food potion', 'foodPots'],
   ['food potions', 'foodPots'],
   ['foodpots', 'foodPots'],
+  ['notes', 'notes'],
+  ['note', 'notes'],
+  ['comments', 'notes'],
 ]);
 
 const SLOT_ID_MATCHERS = {
@@ -309,6 +312,7 @@ export function rowsToZvZBuilds(rows) {
     ]));
     return {
       id: `${headerIndex + rowOffset + 1}-${numberCell || role || 'build'}`,
+      notes: columnMap.notes === undefined ? '' : String(cells[columnMap.notes] ?? '').trim(),
       number: numberCell || String(rowOffset + 1),
       role,
       slots,
@@ -327,6 +331,7 @@ export function filterZvZBuilds(builds, query) {
   return builds.filter((build) => [
     build.number,
     build.role,
+    build.notes,
     ...Object.values(build.slots).flatMap((items) => items.flatMap((item) => [
       item.name,
       item.lookupName,
@@ -353,6 +358,7 @@ export function groupDuplicateZvZBuilds(builds) {
     if (existing) {
       existing.buildNumbers.push(build.number);
       existing.number = existing.buildNumbers.join(', ');
+      existing.notes = [...new Set([existing.notes, build.notes].map((note) => String(note || '').trim()).filter(Boolean))].join('\n');
       return;
     }
 
