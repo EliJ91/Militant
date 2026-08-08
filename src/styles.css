@@ -49,6 +49,15 @@
   gap: 8px;
 }
 
+.zvz-heading-search {
+  width: min(300px, 38vw);
+}
+
+.zvz-heading-search input {
+  width: 100%;
+  height: 42px;
+}
+
 .zvz-heading-actions .secondary-button {
   display: inline-flex;
   align-items: center;
@@ -691,6 +700,7 @@
 
   .zvz-heading {
     align-items: start;
+    flex-wrap: wrap;
   }
 
   .zvz-heading h1 {
@@ -700,6 +710,16 @@
   .zvz-heading-actions .secondary-button {
     min-width: 0;
     padding-inline: 12px;
+  }
+
+  .zvz-heading-actions {
+    width: 100%;
+  }
+
+  .zvz-heading-search {
+    flex: 1;
+    width: auto;
+    min-width: 0;
   }
 
   .zvz-upload {
@@ -718,13 +738,6 @@
   .zvz-editor-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .zvz-build-search {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    border-top: 1px solid rgba(247, 250, 245, 0.12);
-    border-left: 0;
   }
 
   .zvz-file-summary > div {

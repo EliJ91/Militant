@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileImage, FileSpreadsheet, Plus, Save, Upload, X } from 'lucide-react';
+import { FileImage, FileSpreadsheet, Plus, Upload, X } from 'lucide-react';
 import {
   createZvZBuildLayout,
   fetchZvZBuildLayouts,
@@ -139,22 +139,11 @@ function BuildCard({ build }) {
   );
 }
 
-function formatSavedDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
-
 export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown Server Member' }) {
   const fileInputRef = useRef(null);
   const [builds, setBuilds] = useState([]);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState('');
-  const [fileName, setFileName] = useState('');
   const [layouts, setLayouts] = useState([]);
   const [loadingLayouts, setLoadingLayouts] = useState(true);
   const [pendingFileName, setPendingFileName] = useState('');
@@ -162,7 +151,6 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
   const [progress, setProgress] = useState({ label: '', progress: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLayoutId, setSelectedLayoutId] = useState('');
-  const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [title, setTitle] = useState('');
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -170,7 +158,6 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
   function openLayout(layout) {
     setBuilds(layout.builds || []);
     setError('');
-    setFileName(layout.sourceFileName || 'Saved build');
     setProgress({ label: '', progress: 0 });
     setSearchQuery('');
     setSelectedLayoutId(layout.id);
@@ -204,11 +191,21 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
     setProgress({ label: 'Opening file', progress: 0.02 });
     try {
       const parsedBuilds = await parseZvZSpreadsheet(file, setProgress);
-      setBuilds(parsedBuilds);
-      setFileName(file.name);
-      setSelectedLayoutId('');
-      setTitle(file.name.replace(/\.[^.]+$/, ''));
-      setStatus('');
+      const nextTitle = title.trim() || file.name.replace(/\.[^.]+$/, '');
+      setProgress({ label: 'Saving layout', progress: 0.96 });
+      const payload = {
+        builds: parsedBuilds,
+        sourceFileName: file.name,
+        title: nextTitle,
+        uploadedBy,
+      };
+      const result = selectedLayoutId
+        ? await updateZvZBuildLayout({ ...payload, id: selectedLayoutId })
+        : await createZvZBuildLayout(payload);
+      const savedLayout = result.layout;
+      setLayouts([savedLayout]);
+      openLayout(savedLayout);
+      setStatus('Layout updated.');
       setUploadModalOpen(false);
     } catch (caughtError) {
       setError(caughtError.message || 'Could not read the build sheet.');
@@ -222,20 +219,6 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
     fileInputRef.current?.click();
   }
 
-  function clearFile() {
-    setBuilds([]);
-    setError('');
-    setFileName('');
-    setPendingFileName('');
-    setSelectedLayoutId('');
-    setSearchQuery('');
-    setStatus('');
-    setTitle('');
-    setUploadModalOpen(false);
-    setProgress({ label: '', progress: 0 });
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
   function startNewLayout() {
     setError('');
     setPendingFileName('');
@@ -243,37 +226,6 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
     setStatus('');
     setUploadModalOpen(true);
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
-  async function saveLayout() {
-    if (!canEdit || saving) return;
-    if (!title.trim()) {
-      setError('Enter a title before saving.');
-      return;
-    }
-    setSaving(true);
-    setError('');
-    setStatus(selectedLayoutId ? 'Overwriting saved build...' : 'Saving build...');
-    try {
-      const payload = {
-        builds,
-        sourceFileName: fileName,
-        title: title.trim(),
-        uploadedBy,
-      };
-      const result = selectedLayoutId
-        ? await updateZvZBuildLayout({ ...payload, id: selectedLayoutId })
-        : await createZvZBuildLayout(payload);
-      const savedLayout = result.layout;
-      setLayouts((current) => [savedLayout, ...current.filter((layout) => layout.id !== savedLayout.id)]);
-      openLayout(savedLayout);
-      setStatus(selectedLayoutId ? 'Build overwritten.' : 'Build saved.');
-    } catch (caughtError) {
-      setError(caughtError.message || 'Could not save the ZvZ build.');
-      setStatus('');
-    } finally {
-      setSaving(false);
-    }
   }
 
   function handleDrop(event) {
@@ -298,44 +250,31 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
           <p className="eyebrow">Tool</p>
           <h1>ZVZ Build Layouts</h1>
         </div>
-        {canEdit ? (
+        {builds.length > 0 || canEdit ? (
           <div className="zvz-heading-actions">
-            <button className="secondary-button" type="button" onClick={startNewLayout}>
-              <Plus size={17} aria-hidden="true" />
-              {layouts[0] ? 'Update' : 'Add Layout'}
-            </button>
+            {builds.length > 0 ? (
+              <label className="zvz-build-search zvz-heading-search">
+                <span className="visually-hidden">Search</span>
+                <input
+                  aria-label="Search builds"
+                  placeholder="Role, item, build..."
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+              </label>
+            ) : null}
+            {canEdit ? (
+              <button className="secondary-button" type="button" onClick={startNewLayout}>
+                <Plus size={17} aria-hidden="true" />
+                {layouts[0] ? 'Update' : 'Add Layout'}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </section>
 
-      <section className="zvz-library" aria-labelledby="zvz-library-title" hidden>
-        <div className="zvz-library-heading">
-          <div>
-            <p className="eyebrow">Current Layout</p>
-            <h2 id="zvz-library-title">Current Layout</h2>
-          </div>
-        </div>
-        {loadingLayouts ? <p className="zvz-library-message">Loading current layout...</p> : null}
-        {!loadingLayouts && layouts.length === 0 ? (
-          <p className="zvz-library-message">No ZVZ layout has been saved.</p>
-        ) : null}
-        {layouts.length > 0 ? (
-          <div className="zvz-library-list">
-            {layouts.map((layout) => (
-              <button
-                className={selectedLayoutId === layout.id ? 'zvz-library-card selected' : 'zvz-library-card'}
-                key={layout.id}
-                type="button"
-                onClick={() => openLayout(layout)}
-              >
-                <strong>{layout.title}</strong>
-                <span>Uploaded by {layout.uploadedBy}</span>
-                <small>{layout.builds.length} builds · {formatSavedDate(layout.updatedAt)}</small>
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </section>
+      {loadingLayouts ? <p className="zvz-library-message">Loading current layout...</p> : null}
       {!loadingLayouts && layouts.length === 0 ? <p className="zvz-library-message">No ZVZ layout has been saved.</p> : null}
       {error && builds.length === 0 && !canEdit ? <p className="zvz-error zvz-load-error" role="alert">{error}</p> : null}
 
@@ -404,55 +343,6 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
 
       {builds.length > 0 ? (
         <>
-          <section className="zvz-file-summary">
-            {canEdit ? (
-              <label className="zvz-title-input">
-                <span>Build Title</span>
-                <input
-                  aria-label="Build title"
-                  maxLength="120"
-                  placeholder="Name this build"
-                  type="text"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-              </label>
-            ) : (
-              <div>
-                <span>Build</span>
-                <strong>{title}</strong>
-              </div>
-            )}
-            <label className="zvz-build-search">
-              <span>Search</span>
-              <input
-                aria-label="Search builds"
-                placeholder="Role, item, build..."
-                type="search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-              />
-            </label>
-            <div>
-              <span>Uploaded By</span>
-              <strong>{layouts.find((layout) => layout.id === selectedLayoutId)?.uploadedBy || uploadedBy}</strong>
-            </div>
-          </section>
-          {canEdit ? (
-            <div className="zvz-editor-actions">
-              <button className="secondary-button" disabled={saving} type="button" onClick={chooseFile}>
-                <Upload size={17} aria-hidden="true" />
-                Replace File
-              </button>
-              <button className="primary-button" disabled={saving || !title.trim()} type="button" onClick={saveLayout}>
-                <Save size={17} aria-hidden="true" />
-                Save Layout
-              </button>
-              <button className="icon-button" disabled={saving} type="button" title="Clear build sheet" aria-label="Clear build sheet" onClick={clearFile}>
-                <X size={19} aria-hidden="true" />
-              </button>
-            </div>
-          ) : null}
           {status ? <p className="zvz-status" role="status">{status}</p> : null}
           {error ? <p className="zvz-error" role="alert">{error}</p> : null}
           <section className="zvz-build-board" aria-label="ZVZ build layouts">

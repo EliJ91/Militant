@@ -1,10 +1,7 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ZvZInfographic from './ZvZInfographic';
-import {
-  fetchZvZBuildLayouts,
-  updateZvZBuildLayout,
-} from '../services/zvzBuildsApi';
+import { fetchZvZBuildLayouts } from '../services/zvzBuildsApi';
 
 vi.mock('../services/zvzBuildsApi', () => ({
   createZvZBuildLayout: vi.fn(),
@@ -32,7 +29,6 @@ describe('ZvZInfographic saved layouts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchZvZBuildLayouts.mockResolvedValue({ layouts: [savedLayout] });
-    updateZvZBuildLayout.mockResolvedValue({ layout: savedLayout });
   });
 
   afterEach(() => {
@@ -43,30 +39,28 @@ describe('ZvZInfographic saved layouts', () => {
   it('lets viewers open saved builds without exposing editing controls', async () => {
     render(<ZvZInfographic />);
 
-    expect((await screen.findAllByText('Castle Defense')).length).toBeGreaterThan(0);
-    expect(screen.getByText('Uploaded by Dyathix')).toBeInTheDocument();
+    expect(await screen.findByText('Tank')).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: /search builds/i })).toBeInTheDocument();
+    expect(screen.queryByText('Uploaded By')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /save layout/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
   });
 
-  it('lets editors replace the single master layout', async () => {
+  it('places search directly before the editor update control', async () => {
     render(<ZvZInfographic canEdit uploadedBy="Officer" />);
 
-    await screen.findByDisplayValue('Castle Defense');
-    fireEvent.click(screen.getByRole('button', { name: /save layout/i }));
-    await waitFor(() => expect(updateZvZBuildLayout).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'layout-1',
-      title: 'Castle Defense',
-      uploadedBy: 'Officer',
-    })));
-
+    const search = await screen.findByRole('searchbox', { name: /search builds/i });
+    const update = screen.getByRole('button', { name: /^update$/i });
+    expect(search.compareDocumentPosition(update) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByLabelText(/build title/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save layout/i })).not.toBeInTheDocument();
   });
 
   it('opens the build-sheet uploader in a modal for a new layout', async () => {
     render(<ZvZInfographic canEdit uploadedBy="Officer" />);
 
-    await screen.findByDisplayValue('Castle Defense');
+    await screen.findByRole('searchbox', { name: /search builds/i });
     expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^update$/i }));
 
