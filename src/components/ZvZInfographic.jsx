@@ -18,7 +18,7 @@ function formatAnnotation(annotation) {
     .join(' or ');
 }
 
-function ItemVariant({ item, multiple }) {
+function ItemVariant({ item, multiple, stacked = false }) {
   const [imageFailed, setImageFailed] = useState(false);
   const initials = item.name
     .split(/\s+/)
@@ -28,7 +28,7 @@ function ItemVariant({ item, multiple }) {
     .toUpperCase();
 
   return (
-    <div className={multiple ? 'zvz-item-variant compact' : 'zvz-item-variant'} title={item.resolved ? item.lookupName : `${item.name} (image not matched)`}>
+    <div className={`zvz-item-variant${multiple ? ' compact' : ''}${stacked ? ' stacked' : ''}`} title={item.resolved ? item.lookupName : `${item.name} (image not matched)`}>
       <span className={item.resolved ? 'zvz-item-image' : 'zvz-item-image unresolved'}>
         {item.imageUrl && !imageFailed ? (
           <img src={item.imageUrl} alt={item.name} onError={() => setImageFailed(true)} />
@@ -48,7 +48,8 @@ function BuildCard({ build }) {
     key !== 'offHand' && build.slots[key]?.length > 0
   ));
   const hasWeaponRow = build.slots.mainHand?.length > 0 || build.slots.offHand?.length > 0;
-  const compactWeaponItems = (build.slots.mainHand?.length || 0) + (build.slots.offHand?.length || 0) > 1;
+  const weaponItems = [...(build.slots.mainHand || []), ...(build.slots.offHand || [])];
+  const compactWeaponItems = weaponItems.length > 1;
 
   return (
     <article className="zvz-build-card">
@@ -62,18 +63,24 @@ function BuildCard({ build }) {
       <div className="zvz-build-slots">
         {hasWeaponRow ? (
           <section className="zvz-build-slot zvz-weapon-row" aria-label="Main Hand and Off Hand">
-            {['mainHand', 'offHand'].map((key) => {
-              const items = build.slots[key] || [];
-              if (items.length === 0) return null;
-              const multiple = items.length > 1;
-              return (
-                <div className={multiple ? 'zvz-slot-variants multiple' : 'zvz-slot-variants'} key={key}>
-                  {items.map((item, index) => (
-                    <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple={compactWeaponItems} />
-                  ))}
-                </div>
-              );
-            })}
+            {weaponItems.length >= 3 ? (
+              <div className="zvz-slot-variants multiple zvz-weapon-variants">
+                {weaponItems.map((item, index) => (
+                  <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple stacked />
+                ))}
+              </div>
+            ) : ['mainHand', 'offHand'].map((key) => {
+                const items = build.slots[key] || [];
+                if (items.length === 0) return null;
+                const multiple = items.length > 1;
+                return (
+                  <div className={multiple ? 'zvz-slot-variants multiple' : 'zvz-slot-variants'} key={key}>
+                    {items.map((item, index) => (
+                      <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple={compactWeaponItems} />
+                    ))}
+                  </div>
+                );
+              })}
           </section>
         ) : null}
         {visibleSlots.map(({ key, label }) => {
