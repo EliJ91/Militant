@@ -67,6 +67,8 @@ describe('ZvZ infographic parsing', () => {
     expect(resolveZvZItem('Hideout Construction Kit', 'mainHand').itemId).toBe('UNIQUE_HIDEOUT');
     expect(resolveZvZItem('Crystal Tower Chariot', 'mainHand').itemId)
       .toBe('UNIQUE_MOUNT_TOWER_CHARIOT_CRYSTAL');
+    expect(resolveZvZItem('Chariot', 'mainHand').itemId)
+      .toBe('UNIQUE_MOUNT_TOWER_CHARIOT_CRYSTAL');
   });
 
   it('searches build numbers, roles, items, and annotations without quantities', () => {

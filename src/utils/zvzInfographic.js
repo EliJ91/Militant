@@ -49,6 +49,7 @@ const SLOT_ID_MATCHERS = {
 const SLOT_ALIASES = {
   mainHand: {
     astral: 'astral staff',
+    chariot: 'crystal tower chariot',
     earthrune: 'earthrune staff',
     enigmatic: 'enigmatic staff',
     exalted: 'exalted staff',
