@@ -62,6 +62,13 @@ describe('ZvZ infographic parsing', () => {
     });
   });
 
+  it('resolves hideout and crystal chariot utility items', () => {
+    expect(resolveZvZItem('Hideout Kit', 'mainHand').itemId).toBe('UNIQUE_HIDEOUT');
+    expect(resolveZvZItem('Hideout Construction Kit', 'mainHand').itemId).toBe('UNIQUE_HIDEOUT');
+    expect(resolveZvZItem('Crystal Tower Chariot', 'mainHand').itemId)
+      .toBe('UNIQUE_MOUNT_TOWER_CHARIOT_CRYSTAL');
+  });
+
   it('searches build numbers, roles, items, and annotations without quantities', () => {
     const builds = rowsToZvZBuilds([
       ['', 'ROLE', 'MAIN HAND', 'OFF HAND', 'HELM', 'ARMOR', 'BOOTS', 'CAPE', 'FOOD/POTS'],
