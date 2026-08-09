@@ -67,4 +67,23 @@ describe('ZvZInfographic saved layouts', () => {
     expect(screen.getByRole('dialog', { name: /update zvz layout/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
+
+  it('resolves a saved chariot image from its item name', async () => {
+    fetchZvZBuildLayouts.mockResolvedValue({ layouts: [{
+      ...savedLayout,
+      builds: [{
+        ...savedLayout.builds[0],
+        role: 'Battle Mount',
+        slots: {
+          ...savedLayout.builds[0].slots,
+          mainHand: [{ imageUrl: '', itemId: '', name: 'Chariot', resolved: false }],
+        },
+      }],
+    }] });
+
+    render(<ZvZInfographic />);
+
+    const image = await screen.findByRole('img', { name: 'Chariot' });
+    expect(image).toHaveAttribute('src', expect.stringContaining('UNIQUE_MOUNT_TOWER_CHARIOT_CRYSTAL'));
+  });
 });

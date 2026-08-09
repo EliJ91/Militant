@@ -11,7 +11,9 @@ import {
   filterZvZBuilds,
   groupDuplicateZvZBuilds,
   parseZvZSpreadsheet,
+  resolveZvZItem,
   sortIncompleteZvZBuildsLast,
+  zvzItemImageUrl,
   ZVZ_SLOT_DEFINITIONS,
 } from '../utils/zvzInfographic';
 
@@ -24,8 +26,11 @@ function formatAnnotation(annotation) {
     .join(' or ');
 }
 
-function ItemVariant({ item, multiple, stacked = false }) {
+function ItemVariant({ item, multiple, slot, stacked = false }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const resolvedFallback = resolveZvZItem(item.name, slot);
+  const resolved = item.resolved || resolvedFallback.resolved;
+  const imageUrl = item.imageUrl || zvzItemImageUrl(item.itemId || resolvedFallback.itemId);
   const initials = item.name
     .split(/\s+/)
     .slice(0, 2)
@@ -34,10 +39,10 @@ function ItemVariant({ item, multiple, stacked = false }) {
     .toUpperCase();
 
   return (
-    <div className={`zvz-item-variant${multiple ? ' compact' : ''}${stacked ? ' stacked' : ''}`} title={item.resolved ? item.lookupName : `${item.name} (image not matched)`}>
-      <span className={item.resolved ? 'zvz-item-image' : 'zvz-item-image unresolved'}>
-        {item.imageUrl && !imageFailed ? (
-          <img src={item.imageUrl} alt={item.name} onError={() => setImageFailed(true)} />
+    <div className={`zvz-item-variant${multiple ? ' compact' : ''}${stacked ? ' stacked' : ''}`} title={resolved ? item.lookupName || resolvedFallback.lookupName : `${item.name} (image not matched)`}>
+      <span className={resolved ? 'zvz-item-image' : 'zvz-item-image unresolved'}>
+        {imageUrl && !imageFailed ? (
+          <img src={imageUrl} alt={item.name} onError={() => setImageFailed(true)} />
         ) : <span>{initials || '?'}</span>}
         {item.quantity > 1 ? <small className="zvz-item-quantity">{item.quantity}</small> : null}
       </span>
@@ -56,7 +61,10 @@ function BuildCard({ build }) {
     key !== 'offHand' && build.slots[key]?.length > 0
   ));
   const hasWeaponRow = build.slots.mainHand?.length > 0 || build.slots.offHand?.length > 0;
-  const weaponItems = [...(build.slots.mainHand || []), ...(build.slots.offHand || [])];
+  const weaponItems = [
+    ...(build.slots.mainHand || []).map((item) => ({ item, slot: 'mainHand' })),
+    ...(build.slots.offHand || []).map((item) => ({ item, slot: 'offHand' })),
+  ];
   const compactWeaponItems = weaponItems.length > 1;
   const weaponName = build.slots.mainHand?.length === 1
     ? build.slots.mainHand[0].name
@@ -97,8 +105,8 @@ function BuildCard({ build }) {
           <section className="zvz-build-slot zvz-weapon-row" aria-label="Main Hand and Off Hand">
             {weaponItems.length >= 3 ? (
               <div className="zvz-slot-variants multiple zvz-weapon-variants">
-                {weaponItems.map((item, index) => (
-                  <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple stacked />
+                {weaponItems.map(({ item, slot }, index) => (
+                  <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple slot={slot} stacked />
                 ))}
               </div>
             ) : ['mainHand', 'offHand'].map((key) => {
@@ -108,7 +116,7 @@ function BuildCard({ build }) {
                 return (
                   <div className={multiple ? 'zvz-slot-variants multiple' : 'zvz-slot-variants'} key={key}>
                     {items.map((item, index) => (
-                      <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple={compactWeaponItems} />
+                      <ItemVariant item={item} key={`${item.name}-${item.annotation}-${index}`} multiple={compactWeaponItems} slot={key} />
                     ))}
                   </div>
                 );
@@ -127,6 +135,7 @@ function BuildCard({ build }) {
                     item={item}
                     key={`${item.name}-${item.annotation}-${index}`}
                     multiple={multiple}
+                    slot={key}
                     stacked={items.length >= 3}
                   />
                 ))}
