@@ -28,6 +28,15 @@ function parseFilterNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function formatFilterInput(value) {
+  const compact = String(value || '').replace(/[$,\s]/g, '');
+  if (!compact) return '';
+  const match = compact.match(/^(-?)(\d*)(\.\d*)?([kmb])?$/i);
+  if (!match) return String(value || '');
+  const groupedInteger = match[2].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${match[1]}${groupedInteger}${match[3] || ''}${(match[4] || '').toLowerCase()}`;
+}
+
 function formatNumber(value) {
   return new Intl.NumberFormat('en-US').format(Number(value) || 0);
 }
@@ -173,7 +182,7 @@ export default function MembersTool({ canUpdate = false }) {
   function updateNumberFilter(key, field, value) {
     setNumberFilters((current) => ({
       ...current,
-      [key]: { ...current[key], [field]: value },
+      [key]: { ...current[key], [field]: field === 'value' ? formatFilterInput(value) : value },
     }));
   }
 

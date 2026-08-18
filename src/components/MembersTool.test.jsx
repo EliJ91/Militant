@@ -159,8 +159,9 @@ describe('MembersTool', () => {
       target: { value: 'greater' },
     });
     fireEvent.change(screen.getByRole('textbox', { name: 'PvP Kill Fame filter value' }), {
-      target: { value: '100,000' },
+      target: { value: '100000' },
     });
+    expect(screen.getByRole('textbox', { name: 'PvP Kill Fame filter value' })).toHaveValue('100,000');
 
     expect(screen.getByText('Alpha')).toBeInTheDocument();
     expect(screen.queryByText('Beta')).not.toBeInTheDocument();
