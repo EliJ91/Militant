@@ -1887,7 +1887,7 @@ button:focus-visible {
 
 .members-table {
   width: 100%;
-  min-width: 940px;
+  min-width: 1180px;
   border-collapse: collapse;
 }
 
@@ -1910,6 +1910,36 @@ button:focus-visible {
   color: var(--muted);
   font-size: 0.68rem;
   text-transform: uppercase;
+  vertical-align: bottom;
+}
+
+.members-column-filter {
+  display: grid;
+  grid-template-columns: minmax(102px, 1fr) minmax(68px, 0.72fr);
+  gap: 5px;
+  margin-bottom: 9px;
+}
+
+.members-column-filter select,
+.members-column-filter input {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 31px;
+  width: 100%;
+  padding: 5px 7px;
+  border: 1px solid rgba(247, 250, 245, 0.16);
+  border-radius: 5px;
+  background: rgba(2, 4, 3, 0.9);
+  color: var(--white);
+  font: inherit;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.members-column-filter select:focus,
+.members-column-filter input:focus {
+  border-color: var(--green-hot);
+  outline: 1px solid var(--green-hot);
 }
 
 .members-table tr.members-new-row td {

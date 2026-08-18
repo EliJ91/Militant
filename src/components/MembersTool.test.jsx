@@ -138,8 +138,45 @@ describe('MembersTool', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search member usernames' }), {
       target: { value: 'missing' },
     });
-    expect(screen.getByText('No members match that username.')).toBeInTheDocument();
+    expect(screen.getByText('No members match the current filters.')).toBeInTheDocument();
     expect(screen.getByText('0 listed')).toBeInTheDocument();
+  });
+
+  it('combines greater-than and less-than filters across numeric columns', async () => {
+    fetchSiphonedEnergyMembers.mockResolvedValue({
+      members: [{
+        playerId: 'alpha', playerName: 'Alpha', pveKillFame: 40_000, pvpKillFame: 150_000,
+      }, {
+        playerId: 'beta', playerName: 'Beta', pveKillFame: 30_000, pvpKillFame: 90_000,
+      }, {
+        playerId: 'gamma', playerName: 'Gamma', pveKillFame: 60_000, pvpKillFame: 200_000,
+      }],
+    });
+    render(<MembersTool />);
+
+    expect(await screen.findByText('Alpha')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'PvP Kill Fame filter operator' }), {
+      target: { value: 'greater' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'PvP Kill Fame filter value' }), {
+      target: { value: '100,000' },
+    });
+
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    expect(screen.queryByText('Beta')).not.toBeInTheDocument();
+    expect(screen.getByText('Gamma')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'PvE Kill Fame filter operator' }), {
+      target: { value: 'less' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'PvE Kill Fame filter value' }), {
+      target: { value: '50k' },
+    });
+
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    expect(screen.queryByText('Beta')).not.toBeInTheDocument();
+    expect(screen.queryByText('Gamma')).not.toBeInTheDocument();
+    expect(screen.getByText('1 listed')).toBeInTheDocument();
   });
 
   it('shows an error when members cannot be loaded', async () => {

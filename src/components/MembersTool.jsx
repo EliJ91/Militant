@@ -10,7 +10,23 @@ const SORT_COLUMNS = [
   { key: 'deathFame', label: 'Death Fame', type: 'number' },
   { key: 'pvpDeathFameRatio', label: 'PvP/Death', type: 'number' },
 ];
+const NUMBER_FILTER_COLUMNS = SORT_COLUMNS.filter((column) => column.type === 'number');
 const MEMBER_UPDATE_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+
+function emptyNumberFilters() {
+  return Object.fromEntries(NUMBER_FILTER_COLUMNS.map((column) => [column.key, {
+    operator: '',
+    value: '',
+  }]));
+}
+
+function parseFilterNumber(value) {
+  const match = String(value || '').trim().toLowerCase().replace(/[$,\s]/g, '').match(/^(-?\d*\.?\d+)([kmb])?$/);
+  if (!match) return null;
+  const multiplier = match[2] === 'k' ? 1_000 : match[2] === 'm' ? 1_000_000 : match[2] === 'b' ? 1_000_000_000 : 1;
+  const parsed = Number(match[1]) * multiplier;
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 function formatNumber(value) {
   return new Intl.NumberFormat('en-US').format(Number(value) || 0);
@@ -61,6 +77,7 @@ export default function MembersTool({ canUpdate = false }) {
   const [copyStatus, setCopyStatus] = useState('');
   const [members, setMembers] = useState([]);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
+  const [numberFilters, setNumberFilters] = useState(emptyNumberFilters);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortState, setSortState] = useState({ direction: 'desc', key: 'dateAdded' });
 
@@ -103,6 +120,13 @@ export default function MembersTool({ canUpdate = false }) {
 
     return members
       .filter((member) => !query || String(member.playerName || '').toLowerCase().includes(query))
+      .filter((member) => NUMBER_FILTER_COLUMNS.every(({ key }) => {
+        const filter = numberFilters[key];
+        const target = parseFilterNumber(filter?.value);
+        if (!filter?.operator || target === null) return true;
+        const memberValue = Number(member[key]) || 0;
+        return filter.operator === 'greater' ? memberValue > target : memberValue < target;
+      }))
       .sort((left, right) => {
         if (column.type === 'date') {
           const difference = dateValue(left[column.key]) - dateValue(right[column.key]);
@@ -118,7 +142,7 @@ export default function MembersTool({ canUpdate = false }) {
 
         return String(left[column.key] || '').localeCompare(String(right[column.key] || '')) * direction;
       });
-  }, [members, searchQuery, sortState]);
+  }, [members, numberFilters, searchQuery, sortState]);
   const refreshedAt = members.find((member) => member.refreshedAt)?.refreshedAt;
   const refreshedAtTime = useMemo(() => mostRecentRefreshTime(members), [members]);
   const updateCoolingDown = refreshedAtTime > 0
@@ -143,6 +167,13 @@ export default function MembersTool({ canUpdate = false }) {
     setSortState((current) => ({
       direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
       key,
+    }));
+  }
+
+  function updateNumberFilter(key, field, value) {
+    setNumberFilters((current) => ({
+      ...current,
+      [key]: { ...current[key], [field]: value },
     }));
   }
 
@@ -235,7 +266,7 @@ export default function MembersTool({ canUpdate = false }) {
 
         {loadStatus.state === 'loading' ? <p className="members-empty">Loading members...</p> : null}
         {loadStatus.state === 'loaded' && members.length === 0 ? <p className="members-empty">No members found.</p> : null}
-        {members.length > 0 && visibleMembers.length === 0 ? <p className="members-empty">No members match that username.</p> : null}
+        {members.length > 0 && visibleMembers.length === 0 ? <p className="members-empty">No members match the current filters.</p> : null}
         {visibleMembers.length > 0 ? (
           <div className="members-table-wrap">
             <table className="members-table">
@@ -247,6 +278,27 @@ export default function MembersTool({ canUpdate = false }) {
                       className={column.align === 'left' ? 'members-text-column' : ''}
                       key={column.key}
                     >
+                      {column.type === 'number' ? (
+                        <div className="members-column-filter">
+                          <select
+                            aria-label={`${column.label} filter operator`}
+                            value={numberFilters[column.key].operator}
+                            onChange={(event) => updateNumberFilter(column.key, 'operator', event.target.value)}
+                          >
+                            <option value="">Any</option>
+                            <option value="greater">Greater than</option>
+                            <option value="less">Less than</option>
+                          </select>
+                          <input
+                            aria-label={`${column.label} filter value`}
+                            inputMode="decimal"
+                            placeholder="Value"
+                            type="text"
+                            value={numberFilters[column.key].value}
+                            onChange={(event) => updateNumberFilter(column.key, 'value', event.target.value)}
+                          />
+                        </div>
+                      ) : null}
                       <button
                         aria-label={`Sort by ${column.label}`}
                         className={sortState.key === column.key ? 'members-sort-button active' : 'members-sort-button'}
