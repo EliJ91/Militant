@@ -30,6 +30,7 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'viewRatCatcher', label: 'View Rat Catcher', area: 'Rat Catcher' },
   { key: 'viewZvZBuilds', label: 'View ZVZ Sheet', area: 'ZVZ Sheet' },
   { key: 'editZvZBuilds', label: 'Edit ZVZ Sheet', area: 'ZVZ Sheet' },
+  { key: 'copyZvZSheetScreenshot', label: 'Copy ZVZ Screenshot', area: 'ZVZ Sheet' },
   { key: 'viewSiphonedEnergy', label: 'View Siphoned Energy Tracker', area: 'Siphoned Energy' },
   { key: 'updateSiphonedEnergy', label: 'Update Siphoned Energy Tracker', area: 'Siphoned Energy' },
   { key: 'setSiphonedEnergyStartDate', label: 'Set Start Date', area: 'Siphoned Energy' },

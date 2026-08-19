@@ -51,6 +51,7 @@ describe('ZvZSheet saved layouts', () => {
     expect(screen.getByRole('heading', { name: 'ZVZ Sheet' })).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: /search builds/i })).toBeInTheDocument();
     expect(screen.queryByText('Uploaded By')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /copy screenshot/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
@@ -75,6 +76,13 @@ describe('ZvZSheet saved layouts', () => {
 
     expect(screen.getByRole('dialog', { name: /update zvz sheet/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
+  });
+
+  it('shows the screenshot control only with its permission', async () => {
+    render(<ZvZSheet canCopyScreenshot />);
+
+    await screen.findByText('Tank');
+    expect(screen.getByRole('button', { name: /copy screenshot/i })).toBeInTheDocument();
   });
 
   it('resolves a saved chariot image from its item name', async () => {

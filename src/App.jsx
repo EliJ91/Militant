@@ -935,6 +935,7 @@ function ActionLogsPage({
 }
 
 function ZvZSheetPage({
+  canCopyScreenshot = false,
   canEdit = false,
   currentUser = null,
   isSuperUserProfile = false,
@@ -954,7 +955,7 @@ function ZvZSheetPage({
       viewAsRoleIds={viewAsRoleIds}
       viewAsRoles={viewAsRoles}
     >
-      <ZvZSheet canEdit={canEdit} uploadedBy={getUploadUsername(currentUser)} />
+      <ZvZSheet canCopyScreenshot={canCopyScreenshot} canEdit={canEdit} uploadedBy={getUploadUsername(currentUser)} />
     </ToolPage>
   );
 }
@@ -1285,6 +1286,7 @@ export default function App() {
   } else if (route === 'zvz-sheet') {
     page = effectivePermissions.viewZvZBuilds || effectivePermissions.editZvZBuilds ? (
       <ZvZSheetPage
+        canCopyScreenshot={Boolean(effectivePermissions.copyZvZSheetScreenshot)}
         canEdit={Boolean(effectivePermissions.editZvZBuilds)}
         currentUser={currentUser}
         onSignOut={handleSignOut}

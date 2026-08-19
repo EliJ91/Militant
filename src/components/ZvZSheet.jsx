@@ -498,7 +498,7 @@ function SheetCell({ cell, columnKey, canEdit, forceT8 = false, onChange }) {
   );
 }
 
-export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server Member' }) {
+export default function ZvZSheet({ canCopyScreenshot = false, canEdit = false, uploadedBy = 'Unknown Server Member' }) {
   const captureRef = useRef(null);
   const fileInputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
@@ -709,7 +709,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
               </button>
             </>
           ) : null}
-          {rows.length > 0 ? (
+          {rows.length > 0 && canCopyScreenshot ? (
             <button className="secondary-button" type="button" onClick={copyVisibleSheetScreenshot}>
               <Clipboard size={17} aria-hidden="true" />
               Copy Screenshot

@@ -61,11 +61,12 @@ describe('permissions service', () => {
     });
   });
 
-  it('groups ZvZ build view and edit access with view first', () => {
+  it('groups ZvZ sheet permissions together', () => {
     const viewIndex = WEBAPP_PERMISSION_DEFINITIONS.findIndex(({ key }) => key === 'viewZvZBuilds');
-    expect(WEBAPP_PERMISSION_DEFINITIONS.slice(viewIndex, viewIndex + 2)).toEqual([
+    expect(WEBAPP_PERMISSION_DEFINITIONS.slice(viewIndex, viewIndex + 3)).toEqual([
       { area: 'ZVZ Sheet', key: 'viewZvZBuilds', label: 'View ZVZ Sheet' },
       { area: 'ZVZ Sheet', key: 'editZvZBuilds', label: 'Edit ZVZ Sheet' },
+      { area: 'ZVZ Sheet', key: 'copyZvZSheetScreenshot', label: 'Copy ZVZ Screenshot' },
     ]);
   });
 });
