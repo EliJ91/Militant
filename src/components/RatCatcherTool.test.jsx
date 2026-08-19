@@ -92,6 +92,9 @@ describe('RatCatcherTool', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
       "12:34 Looted by RatPlayer: Adept's Broadsword x1 from DeadPlayer ([ENEMY] EnemyGuild) at Skysand Ridge",
     );
-    expect(screen.getByRole('link', { name: /Raw Rat Test/i })).toHaveAttribute('href', '#loot-monitor/bundle-raw');
+    expect(screen.getByRole('link', { name: /Raw Rat Test/i })).toHaveAttribute(
+      'href',
+      "#loot-monitor/bundle-raw?player=RatPlayer&itemId=T4_MAIN_SWORD&item=Adept%27s+Broadsword",
+    );
   });
 });

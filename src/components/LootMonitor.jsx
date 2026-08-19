@@ -482,6 +482,18 @@ function usesMobileTooltipClick() {
   return window.matchMedia('(hover: none), (pointer: coarse)').matches;
 }
 
+function buildLootLogHistoryUrl(entry) {
+  const bundleId = String(entry?.bundleId || '').trim();
+  if (!bundleId) return '';
+
+  const params = new URLSearchParams();
+  if (entry.player) params.set('player', entry.player);
+  if (entry.itemId) params.set('itemId', entry.itemId);
+  if (entry.item) params.set('item', entry.item);
+  const query = params.toString();
+  return `#loot-monitor/${encodeURIComponent(bundleId)}${query ? `?${query}` : ''}`;
+}
+
 function clampNumber(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -1428,7 +1440,7 @@ export function LootItemTile({
         role={ignoreMode ? 'button' : undefined}
         tabIndex={ignoreMode ? 0 : undefined}
         title={ignoreMode ? `Ignore ${tile.item}` : hasCustodyTooltip ? undefined : title}
-        onBlur={closeCustodyTooltip}
+        onBlur={historyClickMode ? undefined : closeCustodyTooltip}
         onClick={handleTileClick}
         onKeyDown={handleTileKeyDown}
         onMouseEnter={() => {
@@ -1468,7 +1480,7 @@ export function LootItemTile({
           {hasHistoryTooltip ? historyEntries.map((entry, index) => (
             entry.bundleId ? (
               <a
-                href={`#loot-monitor/${encodeURIComponent(entry.bundleId)}`}
+                href={buildLootLogHistoryUrl(entry)}
                 key={`${entry.bundleId}-${entry.label}-${index}`}
                 rel="noreferrer"
                 target="_blank"

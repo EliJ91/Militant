@@ -202,7 +202,14 @@ function buildRatHistoryEntries(row, bundle) {
     .split('\n')
     .filter(Boolean)
     .flatMap((chain) => chain.split(' -> ').filter(Boolean))
-    .map((label) => ({ bundleId, bundleLabel, label }));
+    .map((label) => ({
+      bundleId,
+      bundleLabel,
+      item: row.item || row.itemName || '',
+      itemId: row.itemId || '',
+      label,
+      player: row.player || '',
+    }));
 }
 
 function buildRatBundleReport(bundle) {
