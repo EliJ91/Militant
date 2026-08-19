@@ -4554,6 +4554,83 @@ button:focus-visible {
 .rat-stats-player-list > div { border-bottom: 1px solid #17271e; gap: 16px; padding: 9px 12px; }
 .rat-stats-player-list > div:last-child { border-bottom: 0; }
 
+@media (max-width: 720px) {
+  .rat-catcher-shell {
+    overflow-x: hidden;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .rat-source-panel {
+    align-items: stretch;
+    gap: 10px;
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .rat-bundle-picker,
+  .rat-bundle-picker-button,
+  .rat-combine-button,
+  .rat-source-summary {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .rat-bundle-picker-button {
+    margin-top: 5px;
+  }
+
+  .rat-combine-button {
+    height: 40px;
+  }
+
+  .rat-source-summary {
+    align-items: center;
+    background: rgba(2, 7, 5, 0.72);
+    border: 1px solid rgba(247, 250, 245, 0.12);
+    border-radius: 7px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-content: start;
+    padding: 10px 12px;
+    text-align: left;
+  }
+
+  .rat-source-summary strong {
+    font-size: 1.25rem;
+  }
+
+  .rat-source-summary span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .rat-combine-progress {
+    margin-top: 0;
+  }
+
+  .rat-toolbar {
+    justify-content: flex-start;
+    margin-left: 0;
+    margin-right: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .rat-toolbar .board-copy-button {
+    flex: 0 0 auto;
+    min-height: 36px;
+    min-width: max-content;
+    padding: 8px 10px;
+  }
+
+  .rat-player-row .loot-player-actions {
+    min-width: 0;
+  }
+}
+
 .ignore-items-control {
   position: relative;
 }
