@@ -294,12 +294,10 @@ function StatsModal({ onClose, players }) {
       byGuild.set(guild, current);
     });
     return [...byGuild.values()]
-      .sort((left, right) => (
-        left.guild === 'No Guild' ? -1 : right.guild === 'No Guild' ? 1 : compareText(left.guild, right.guild)
-      ))
+      .sort((left, right) => (right.total - left.total) || compareText(left.guild, right.guild))
       .map((group) => ({
         ...group,
-        players: group.players.sort((left, right) => compareText(left.name, right.name)),
+        players: group.players.sort((left, right) => (right.value - left.value) || compareText(left.name, right.name)),
       }));
   }, [players]);
 
