@@ -251,6 +251,23 @@ function buildItemsFromCell(cell) {
   }).filter((item) => item.name || item.itemId);
 }
 
+function csvEscape(value) {
+  const text = String(value ?? '');
+  const escaped = text.replace(/"/g, '""');
+  return /[",\r\n]/.test(escaped) ? `"${escaped}"` : escaped;
+}
+
+function sheetCellExportValue(cell, columnKey) {
+  const normalized = normalizeCell(cell);
+  if (!ITEM_COLUMNS.has(columnKey)) return normalized.text || '';
+  const itemText = buildSlotItems(normalized)
+    .map((item) => item.itemName)
+    .filter(Boolean)
+    .join('\n');
+  const notes = normalized.notes?.trim() ? `(${normalized.notes.trim()})` : '';
+  return [itemText, notes].filter(Boolean).join(itemText && notes ? '\n' : '');
+}
+
 function sheetToBuilds(headers, rows, t8Columns = DEFAULT_T8_COLUMNS) {
   const normalizedHeaders = normalizeHeaders(headers);
   return rows.map((row, index) => {
@@ -511,7 +528,12 @@ function SheetCell({ cell, columnKey, canEdit, forceT8 = false, onChange }) {
   );
 }
 
-export default function ZvZSheet({ canCopyScreenshot = false, canEdit = false, uploadedBy = 'Unknown Server Member' }) {
+export default function ZvZSheet({
+  canCopyScreenshot = false,
+  canEdit = false,
+  canExtract = false,
+  uploadedBy = 'Unknown Server Member',
+}) {
   const captureRef = useRef(null);
   const fileInputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
@@ -690,6 +712,26 @@ export default function ZvZSheet({ canCopyScreenshot = false, canEdit = false, u
     }
   }
 
+  function extractVisibleSheet() {
+    if (visibleRows.length === 0) return;
+    const csvRows = [
+      headers,
+      ...visibleRows.map(({ row }) => COLUMN_KEYS.map((key, columnIndex) => sheetCellExportValue(row[columnIndex], key))),
+    ];
+    const csv = csvRows.map((row) => row.map(csvEscape).join(',')).join('\r\n');
+    const fileName = `zvz-sheet-${new Date().toISOString().slice(0, 10)}.csv`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    const objectUrl = URL.createObjectURL(blob);
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+    setStatus('Sheet extracted.');
+  }
+
   return (
     <main className="zvz-shell">
       <section className="zvz-heading">
@@ -726,6 +768,12 @@ export default function ZvZSheet({ canCopyScreenshot = false, canEdit = false, u
             <button className="secondary-button" type="button" onClick={copyVisibleSheetScreenshot}>
               <Clipboard size={17} aria-hidden="true" />
               Copy Screenshot
+            </button>
+          ) : null}
+          {rows.length > 0 && canExtract ? (
+            <button className="secondary-button" type="button" onClick={extractVisibleSheet}>
+              <FileSpreadsheet size={17} aria-hidden="true" />
+              Extract
             </button>
           ) : null}
         </div>

@@ -52,6 +52,7 @@ describe('ZvZSheet saved layouts', () => {
     expect(screen.getByRole('searchbox', { name: /search builds/i })).toBeInTheDocument();
     expect(screen.queryByText('Uploaded By')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /copy screenshot/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /extract/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
@@ -83,6 +84,13 @@ describe('ZvZSheet saved layouts', () => {
 
     await screen.findByText('Tank');
     expect(screen.getByRole('button', { name: /copy screenshot/i })).toBeInTheDocument();
+  });
+
+  it('shows the extract control only with its permission', async () => {
+    render(<ZvZSheet canExtract />);
+
+    await screen.findByText('Tank');
+    expect(screen.getByRole('button', { name: /extract/i })).toBeInTheDocument();
   });
 
   it('resolves a saved chariot image from its item name', async () => {

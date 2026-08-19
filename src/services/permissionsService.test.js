@@ -63,10 +63,11 @@ describe('permissions service', () => {
 
   it('groups ZvZ sheet permissions together', () => {
     const viewIndex = WEBAPP_PERMISSION_DEFINITIONS.findIndex(({ key }) => key === 'viewZvZBuilds');
-    expect(WEBAPP_PERMISSION_DEFINITIONS.slice(viewIndex, viewIndex + 3)).toEqual([
+    expect(WEBAPP_PERMISSION_DEFINITIONS.slice(viewIndex, viewIndex + 4)).toEqual([
       { area: 'ZVZ Sheet', key: 'viewZvZBuilds', label: 'View ZVZ Sheet' },
       { area: 'ZVZ Sheet', key: 'editZvZBuilds', label: 'Edit ZVZ Sheet' },
       { area: 'ZVZ Sheet', key: 'copyZvZSheetScreenshot', label: 'Copy ZVZ Screenshot' },
+      { area: 'ZVZ Sheet', key: 'extractZvZSheet', label: 'Extract ZVZ Sheet' },
     ]);
   });
 });

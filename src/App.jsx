@@ -937,6 +937,7 @@ function ActionLogsPage({
 function ZvZSheetPage({
   canCopyScreenshot = false,
   canEdit = false,
+  canExtract = false,
   currentUser = null,
   isSuperUserProfile = false,
   onResetViewAsRole = () => {},
@@ -955,7 +956,7 @@ function ZvZSheetPage({
       viewAsRoleIds={viewAsRoleIds}
       viewAsRoles={viewAsRoles}
     >
-      <ZvZSheet canCopyScreenshot={canCopyScreenshot} canEdit={canEdit} uploadedBy={getUploadUsername(currentUser)} />
+      <ZvZSheet canCopyScreenshot={canCopyScreenshot} canEdit={canEdit} canExtract={canExtract} uploadedBy={getUploadUsername(currentUser)} />
     </ToolPage>
   );
 }
@@ -1288,6 +1289,7 @@ export default function App() {
       <ZvZSheetPage
         canCopyScreenshot={Boolean(effectivePermissions.copyZvZSheetScreenshot)}
         canEdit={Boolean(effectivePermissions.editZvZBuilds)}
+        canExtract={Boolean(effectivePermissions.extractZvZSheet)}
         currentUser={currentUser}
         onSignOut={handleSignOut}
         {...topbarContext}
