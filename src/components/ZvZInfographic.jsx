@@ -10,8 +10,8 @@ import { warmItemImageCache } from '../utils/itemImageCache';
 import {
   getZvZItemOptions,
   parseZvZSpreadsheet,
-  rowsToZvZBuilds,
   stripAlbionRankPrefix,
+  zvzItemImageUrl,
 } from '../utils/zvzInfographic';
 
 const ACCEPTED_FILE_TYPES = '.xlsx,.csv,.tsv,.txt,.png,.jpg,.jpeg,.webp,.bmp';
@@ -21,12 +21,27 @@ const ITEM_COLUMNS = new Set(['mainHand', 'offHand', 'helm', 'armor', 'boots', '
 const ITEM_OPTIONS = getZvZItemOptions();
 
 function emptyCell() {
-  return { itemId: '', itemName: '', notes: '', text: '' };
+  return { itemId: '', itemName: '', items: [], notes: '', text: '' };
 }
 
 function normalizeCell(cell) {
   if (cell && typeof cell === 'object') {
-    return { ...emptyCell(), ...cell, itemName: stripAlbionRankPrefix(cell.itemName || '') };
+    const legacyItem = cell.itemId || cell.itemName
+      ? [{ itemId: cell.itemId || '', itemName: cell.itemName || '' }]
+      : [];
+    const items = (Array.isArray(cell.items) && cell.items.length > 0 ? cell.items : legacyItem)
+      .map((item) => ({
+        itemId: item.itemId || '',
+        itemName: stripAlbionRankPrefix(item.itemName || item.name || ''),
+      }))
+      .filter((item) => item.itemId || item.itemName);
+    return {
+      ...emptyCell(),
+      ...cell,
+      itemId: items[0]?.itemId || '',
+      itemName: items[0]?.itemName || '',
+      items,
+    };
   }
   return { ...emptyCell(), text: String(cell || '') };
 }
@@ -39,10 +54,15 @@ function makeEmptyRow(index = 0) {
 }
 
 function buildItemCell(item) {
+  const items = [item].filter(Boolean).map((entry) => ({
+    itemId: entry.itemId || '',
+    itemName: stripAlbionRankPrefix(entry.name || ''),
+  }));
   return {
     ...emptyCell(),
-    itemId: item?.itemId || '',
-    itemName: stripAlbionRankPrefix(item?.name || ''),
+    itemId: items[0]?.itemId || '',
+    itemName: items[0]?.itemName || '',
+    items,
     notes: item?.annotation || '',
   };
 }
@@ -51,15 +71,29 @@ function buildToSheetRow(build, index = 0) {
   const row = makeEmptyRow(index);
   row[0].text = String(build?.number || index + 1);
   row[1].text = build?.role || '';
-  row[2] = buildItemCell(build?.slots?.mainHand?.[0]);
-  row[3] = buildItemCell(build?.slots?.offHand?.[0]);
-  row[4] = buildItemCell(build?.slots?.helm?.[0]);
-  row[5] = buildItemCell(build?.slots?.armor?.[0]);
-  row[6] = buildItemCell(build?.slots?.boots?.[0]);
-  row[7] = buildItemCell(build?.slots?.cape?.[0]);
-  row[8] = buildItemCell(build?.slots?.foodPots?.[0]);
+  row[2] = buildSlotCell(build?.slots?.mainHand);
+  row[3] = buildSlotCell(build?.slots?.offHand);
+  row[4] = buildSlotCell(build?.slots?.helm);
+  row[5] = buildSlotCell(build?.slots?.armor);
+  row[6] = buildSlotCell(build?.slots?.boots);
+  row[7] = buildSlotCell(build?.slots?.cape);
+  row[8] = buildSlotCell(build?.slots?.foodPots);
   row[9].text = build?.notes || '';
   return row;
+}
+
+function buildSlotCell(slotItems = []) {
+  const items = (slotItems || []).map((item) => ({
+    itemId: item?.itemId || '',
+    itemName: stripAlbionRankPrefix(item?.name || ''),
+  })).filter((item) => item.itemId || item.itemName);
+  return {
+    ...emptyCell(),
+    itemId: items[0]?.itemId || '',
+    itemName: items[0]?.itemName || '',
+    items,
+    notes: [...new Set((slotItems || []).map((item) => item?.annotation || '').filter(Boolean))].join(' / '),
+  };
 }
 
 function buildSheetFromBuilds(builds = []) {
@@ -81,23 +115,6 @@ function buildSheetFromBuilds(builds = []) {
   };
 }
 
-function cellTextForBuild(cell, key) {
-  if (ITEM_COLUMNS.has(key)) return [cell.itemName, cell.notes].filter(Boolean).join('\n');
-  return cell.text || '';
-}
-
-function sheetToBuilds(headers, rows) {
-  const spreadsheetRows = [
-    DEFAULT_HEADERS,
-    ...rows.map((row) => row.map((cell, index) => cellTextForBuild(normalizeCell(cell), COLUMN_KEYS[index]))),
-  ];
-  return rowsToZvZBuilds(spreadsheetRows).map((build, index) => ({
-    ...build,
-    sheetHeaders: headers,
-    sheetRow: rows[index] || makeEmptyRow(index),
-  }));
-}
-
 function findOption(cell) {
   const name = String(cell.itemName || '').toLowerCase();
   return ITEM_OPTIONS.find((item) => item.itemId === cell.itemId)
@@ -107,16 +124,88 @@ function findOption(cell) {
     ));
 }
 
+function findOptionForItem(item) {
+  return findOption({ itemId: item.itemId, itemName: item.itemName });
+}
+
+function buildSlotItems(cell) {
+  const normalized = normalizeCell(cell);
+  return normalized.items.length > 0
+    ? normalized.items
+    : (normalized.itemId || normalized.itemName ? [{ itemId: normalized.itemId, itemName: normalized.itemName }] : []);
+}
+
+function quantityForItem(itemId) {
+  if (String(itemId || '').includes('_MEAL_')) return 2;
+  if (String(itemId || '').includes('_POTION_REVIVE')) return 10;
+  return 1;
+}
+
+function buildItemsFromCell(cell) {
+  const normalized = normalizeCell(cell);
+  return buildSlotItems(normalized).map((item) => {
+    const option = findOptionForItem(item);
+    const itemId = item.itemId || option?.itemId || '';
+    return {
+      annotation: normalized.notes || '',
+      imageUrl: option?.imageUrl || zvzItemImageUrl(itemId),
+      itemId,
+      lookupName: option?.label || item.itemName,
+      name: item.itemName || option?.label || '',
+      quantity: quantityForItem(itemId),
+      resolved: Boolean(itemId),
+    };
+  }).filter((item) => item.name || item.itemId);
+}
+
+function sheetToBuilds(headers, rows) {
+  return rows.map((row, index) => {
+    const normalizedRow = COLUMN_KEYS.map((_key, columnIndex) => normalizeCell(row[columnIndex]));
+    const slots = {
+      armor: buildItemsFromCell(normalizedRow[5]),
+      boots: buildItemsFromCell(normalizedRow[6]),
+      cape: buildItemsFromCell(normalizedRow[7]),
+      foodPots: buildItemsFromCell(normalizedRow[8]),
+      helm: buildItemsFromCell(normalizedRow[4]),
+      mainHand: buildItemsFromCell(normalizedRow[2]),
+      offHand: buildItemsFromCell(normalizedRow[3]),
+    };
+    return {
+      id: `${index}-${normalizedRow[0].text || normalizedRow[1].text || 'build'}`,
+      notes: normalizedRow[9].text || '',
+      number: normalizedRow[0].text || String(index + 1),
+      role: normalizedRow[1].text || '',
+      sheetHeaders: headers,
+      sheetRow: normalizedRow,
+      slots,
+    };
+  }).filter((build) => (
+    build.role
+    && Object.values(build.slots).some((items) => items.length > 0)
+  ));
+}
+
 function ItemPreview({ cell }) {
-  const option = findOption(cell);
-  if (!option && !cell.itemName) return null;
+  const items = buildSlotItems(cell);
+  if (items.length === 0) return null;
   return (
-    <span className="zvz-sheet-item-preview">
-      {option?.imageUrl ? <img src={option.imageUrl} alt="" loading="lazy" /> : <span>{String(cell.itemName || '?').slice(0, 2).toUpperCase()}</span>}
-      <span className="zvz-sheet-item-copy">
-        <strong>{cell.itemName || option?.label}</strong>
-        {cell.notes ? <small>{cell.notes}</small> : null}
-      </span>
+    <span className="zvz-sheet-item-preview-list">
+      {items.map((item, index) => {
+        const option = findOptionForItem(item);
+        return (
+          <span className="zvz-sheet-item-preview" key={`${item.itemId}-${item.itemName}-${index}`}>
+            {option?.imageUrl ? <img src={option.imageUrl} alt="" loading="lazy" /> : <span>{String(item.itemName || '?').slice(0, 2).toUpperCase()}</span>}
+            <span className="zvz-sheet-item-copy">
+              <strong>{item.itemName || option?.label}</strong>
+            </span>
+          </span>
+        );
+      })}
+      {cell.notes ? (
+        <span className="zvz-sheet-cell-notes">
+          <small>{cell.notes}</small>
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -124,7 +213,8 @@ function ItemPreview({ cell }) {
 function ItemCellEditor({ cell, disabled, onChange }) {
   const containerRef = useRef(null);
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(cell.itemName || '');
+  const [query, setQuery] = useState('');
+  const selectedItems = buildSlotItems(cell);
   const visibleOptions = useMemo(() => {
     const search = query.trim().toLowerCase();
     return ITEM_OPTIONS
@@ -133,8 +223,8 @@ function ItemCellEditor({ cell, disabled, onChange }) {
   }, [query]);
 
   useEffect(() => {
-    setQuery(cell.itemName || '');
-  }, [cell.itemName]);
+    setQuery('');
+  }, [cell.itemName, cell.items]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -155,14 +245,37 @@ function ItemCellEditor({ cell, disabled, onChange }) {
 
   return (
     <div className="zvz-sheet-item-editor" ref={containerRef}>
+      {selectedItems.length > 0 ? (
+        <div className="zvz-sheet-selected-items">
+          {selectedItems.map((item, index) => (
+            <span key={`${item.itemId}-${item.itemName}-${index}`}>
+              {item.itemName}
+              <button
+                aria-label={`Remove ${item.itemName}`}
+                type="button"
+                onClick={() => {
+                  const nextItems = selectedItems.filter((_selected, selectedIndex) => selectedIndex !== index);
+                  onChange({
+                    ...cell,
+                    itemId: nextItems[0]?.itemId || '',
+                    itemName: nextItems[0]?.itemName || '',
+                    items: nextItems,
+                  });
+                }}
+              >
+                <X size={12} aria-hidden="true" />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
       <input
-        aria-label="Select item"
-        placeholder="Select item"
+        aria-label="Add item"
+        placeholder={selectedItems.length > 0 ? 'Add another item' : 'Select item'}
         value={query}
         onChange={(event) => {
           const value = event.target.value;
           setQuery(value);
-          onChange({ ...cell, itemId: '', itemName: value });
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
@@ -174,8 +287,17 @@ function ItemCellEditor({ cell, disabled, onChange }) {
               key={`${option.itemId}-${option.label}`}
               type="button"
               onClick={() => {
-                onChange({ ...cell, itemId: option.itemId, itemName: option.value });
-                setQuery(option.value);
+                const exists = selectedItems.some((item) => item.itemId === option.itemId);
+                const nextItems = exists
+                  ? selectedItems
+                  : [...selectedItems, { itemId: option.itemId, itemName: option.value }];
+                onChange({
+                  ...cell,
+                  itemId: nextItems[0]?.itemId || '',
+                  itemName: nextItems[0]?.itemName || '',
+                  items: nextItems,
+                });
+                setQuery('');
                 setOpen(false);
               }}
             >
@@ -187,8 +309,8 @@ function ItemCellEditor({ cell, disabled, onChange }) {
         </div>
       ) : null}
       <textarea
-        aria-label="Item notes"
-        placeholder="Notes"
+        aria-label="Cell notes"
+        placeholder="Cell notes"
         value={cell.notes}
         onChange={(event) => onChange({ ...cell, notes: event.target.value })}
       />
@@ -238,6 +360,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
         cell.itemName,
         cell.notes,
         cell.itemId,
+        ...(cell.items || []).flatMap((item) => [item.itemName, item.itemId]),
       ].filter(Boolean).join(' ').toLowerCase().includes(search)));
   }, [rows, searchQuery]);
 
@@ -271,7 +394,7 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
 
   useEffect(() => {
     warmItemImageCache(rows.flatMap((row) => (
-      row.map((cell) => findOption(cell)?.imageUrl).filter(Boolean)
+      row.flatMap((cell) => buildSlotItems(cell).map((item) => findOptionForItem(item)?.imageUrl)).filter(Boolean)
     )));
   }, [rows]);
 
