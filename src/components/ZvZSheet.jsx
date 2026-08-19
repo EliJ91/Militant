@@ -94,7 +94,7 @@ function cellHasContent(cell, columnKey) {
 
 function cellHasUnresolvedItem(cell, columnKey) {
   if (!ITEM_COLUMNS.has(columnKey)) return false;
-  return buildSlotItems(cell).some((item) => item.unresolved);
+  return buildSlotItems(cell).some((item) => item.unresolved || (item.itemName && !findOptionForItem(item)));
 }
 
 function sheetCellClass(cell, columnKey) {
@@ -288,16 +288,11 @@ function ItemPreview({ cell, forceT8 = false }) {
       <span className="zvz-sheet-view-items">
         {items.map((item, index) => {
           const option = findOptionForItem(item, forceT8);
-          const textOnly = !option?.imageUrl && !item.itemId;
+          const textOnly = !option?.imageUrl;
           return (
             <span className={`zvz-sheet-view-item${textOnly ? ' text-only' : ''}`} key={`${item.itemId}-${item.itemName}-${index}`}>
               {!textOnly && option?.imageUrl ? (
                 <img src={option.imageUrl} alt="" loading="lazy" />
-              ) : null}
-              {!textOnly && !option?.imageUrl ? (
-                <span className="zvz-sheet-item-fallback">
-                  {String(item.itemName || '?').slice(0, 2).toUpperCase()}
-                </span>
               ) : null}
               <strong>{item.itemName || option?.label}</strong>
             </span>
@@ -417,17 +412,12 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
         <div className="zvz-sheet-edit-items">
           {selectedItems.map((item, index) => {
             const option = findOptionForItem(item, forceT8);
-            const textOnly = !option?.imageUrl && !item.itemId;
+            const textOnly = !option?.imageUrl;
             return (
               <div className="zvz-sheet-edit-item-group" key={`${item.itemId}-${item.itemName}-${index}`}>
                 <div className={`zvz-sheet-edit-item${textOnly ? ' text-only' : ''}`}>
                   {!textOnly && option?.imageUrl ? (
                     <img src={option.imageUrl} alt="" loading="lazy" />
-                  ) : null}
-                  {!textOnly && !option?.imageUrl ? (
-                    <span className="zvz-sheet-item-fallback">
-                      {String(item.itemName || '?').slice(0, 2).toUpperCase()}
-                    </span>
                   ) : null}
                   <strong>{item.itemName || option?.label}</strong>
                   <button

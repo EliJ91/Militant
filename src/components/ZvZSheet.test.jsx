@@ -139,5 +139,35 @@ describe('ZvZSheet saved layouts', () => {
     expect(screen.getByText('Q2/W2/P3')).toBeInTheDocument();
     expect(container.querySelector('.zvz-sheet-item-fallback')).toBeNull();
   });
+
+  it('does not show an image placeholder for unresolved item ids', async () => {
+    fetchZvZBuildLayouts.mockResolvedValue({ layouts: [{
+      ...savedLayout,
+      builds: [{
+        ...savedLayout.builds[0],
+        role: 'Healer',
+        sheetHeaders: ['#', 'Role', 'Main Hand', 'Off Hand', 'Helm', 'Armor', 'Boots', 'Cape', 'Food/Pots'],
+        sheetRow: [
+          { text: '1' },
+          { text: 'Healer' },
+          { items: [{ itemId: '1H', itemName: '1h Nature' }], notes: 'Q1/W5/P1' },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+        ],
+      }],
+    }] });
+
+    const { container } = render(<ZvZSheet />);
+
+    await screen.findByText('1h Nature');
+    const unresolvedCell = screen.getByText('1h Nature').closest('td');
+    expect(unresolvedCell).toHaveClass('zvz-sheet-unresolved-cell');
+    expect(unresolvedCell.querySelector('img')).toBeNull();
+    expect(container.querySelector('.zvz-sheet-item-fallback')).toBeNull();
+  });
 });
 
