@@ -736,6 +736,7 @@
   border-right: 1px solid rgba(247, 250, 245, 0.1);
   border-bottom: 1px solid rgba(247, 250, 245, 0.1);
   padding: 6px;
+  height: 1px;
   vertical-align: middle;
   white-space: nowrap;
 }
@@ -844,8 +845,8 @@
 
 .zvz-sheet-item-editor {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 1fr auto;
   gap: 3px;
   align-items: flex-start;
   justify-content: flex-start;
@@ -1023,15 +1024,34 @@
   line-height: 1;
 }
 
+.zvz-sheet-sign-button::before,
+.zvz-sheet-sign-button::after {
+  grid-area: 1 / 1;
+  content: "";
+  display: block;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.zvz-sheet-sign-button::before {
+  width: 7px;
+  height: 2px;
+}
+
 .zvz-sheet-sign-minus {
   align-self: center;
   color: #ff526b;
-  font-size: 0.76rem;
+  font-size: 0;
 }
 
 .zvz-sheet-sign-plus {
   color: var(--green-hot);
-  font-size: 0.8rem;
+  font-size: 0;
+}
+
+.zvz-sheet-sign-plus::after {
+  width: 2px;
+  height: 7px;
 }
 
 .zvz-sheet-empty-item-editor {
@@ -1059,7 +1079,7 @@
   justify-content: center;
   align-self: center;
   gap: 5px;
-  margin-top: auto;
+  margin-top: 0;
   min-width: 0;
 }
 
