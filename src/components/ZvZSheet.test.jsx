@@ -53,6 +53,7 @@ describe('ZvZSheet saved layouts', () => {
     expect(screen.queryByText('Uploaded By')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /copy screenshot/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /extract/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
@@ -65,7 +66,13 @@ describe('ZvZSheet saved layouts', () => {
     const update = screen.getByRole('button', { name: /^update$/i });
     expect(search.compareDocumentPosition(update) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByLabelText(/build title/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/main hand header/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    expect(screen.getByRole('button', { name: /^view$/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/main hand header/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add row/i })).toBeInTheDocument();
   });
 
   it('opens the build-sheet uploader in a modal for a new layout', async () => {
@@ -145,7 +152,7 @@ describe('ZvZSheet saved layouts', () => {
     expect(unresolvedCell).toHaveClass('zvz-sheet-unresolved-cell');
     expect(unresolvedCell.querySelector('img')).toBeNull();
     expect(screen.getByText('Q2/W2/P3')).toBeInTheDocument();
-    expect(container.querySelector('.zvz-sheet-item-fallback')).toBeNull();
+    expect(container.querySelector('.zvz-sheet-view-item .zvz-sheet-item-fallback')).toBeNull();
   });
 
   it('does not show an image placeholder for unresolved item ids', async () => {
@@ -175,7 +182,7 @@ describe('ZvZSheet saved layouts', () => {
     const unresolvedCell = screen.getByText('1h Nature').closest('td');
     expect(unresolvedCell).toHaveClass('zvz-sheet-unresolved-cell');
     expect(unresolvedCell.querySelector('img')).toBeNull();
-    expect(container.querySelector('.zvz-sheet-item-fallback')).toBeNull();
+    expect(container.querySelector('.zvz-sheet-view-item .zvz-sheet-item-fallback')).toBeNull();
   });
 });
 

@@ -436,6 +436,11 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
                   {!textOnly && option?.imageUrl ? (
                     <img src={option.imageUrl} alt="" loading="lazy" />
                   ) : null}
+                  {textOnly ? (
+                    <span className="zvz-sheet-item-fallback">
+                      {String(item.itemName || '?').slice(0, 2).toUpperCase()}
+                    </span>
+                  ) : null}
                   <strong>{item.itemName || option?.label}</strong>
                   <button
                     aria-label={`Remove ${item.itemName || option?.label || 'item'}`}
@@ -545,6 +550,8 @@ export default function ZvZSheet({
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState({ label: '', progress: 0 });
   const [copyingSheet, setCopyingSheet] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [rows, setRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFileName, setSourceFileName] = useState('');
@@ -575,6 +582,8 @@ export default function ZvZSheet({
     setSearchQuery('');
     setSourceFileName(layout.sourceFileName || layout.source_file_name || '');
     setStatus('');
+    setHasUnsavedChanges(false);
+    setIsEditing(false);
   }
 
   useEffect(() => {
@@ -610,11 +619,22 @@ export default function ZvZSheet({
         : row
     )));
     setStatus('');
+    setHasUnsavedChanges(true);
   }
 
   function updateHeader(index, value) {
     setHeaders((current) => current.map((header, headerIndex) => (headerIndex === index ? value : header)));
     setStatus('');
+    setHasUnsavedChanges(true);
+  }
+
+  function toggleT8Column(key) {
+    setT8Columns((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+    setStatus('');
+    setHasUnsavedChanges(true);
   }
 
   async function saveSheet(nextRows = rows, nextSourceFileName = sourceFileName, allowDuringProcessing = false, nextHeaders = headers) {
@@ -660,7 +680,10 @@ export default function ZvZSheet({
       setSourceFileName(file.name);
       setPendingFileName('');
       setProcessing(false);
-      await saveSheet(sheet.rows, file.name, true, sheet.headers);
+      setUploadModalOpen(false);
+      setStatus('Sheet loaded. Save to keep changes.');
+      setHasUnsavedChanges(true);
+      setIsEditing(true);
     } catch (caughtError) {
       setError(caughtError.message || 'Could not read the build sheet.');
       setPendingFileName('');
@@ -690,11 +713,13 @@ export default function ZvZSheet({
   function addRow() {
     setRows((current) => [...current, makeEmptyRow(current.length)]);
     setStatus('');
+    setHasUnsavedChanges(true);
   }
 
   function removeRow(rowIndex) {
     setRows((current) => current.filter((_row, index) => index !== rowIndex));
     setStatus('');
+    setHasUnsavedChanges(true);
   }
 
   async function copyVisibleSheetScreenshot() {
@@ -753,27 +778,26 @@ export default function ZvZSheet({
             </label>
           ) : null}
           {canEdit ? (
-            <>
-              <button className="secondary-button" type="button" onClick={startUpload}>
-                <Upload size={17} aria-hidden="true" />
-                Update
-              </button>
-              <button className="primary-button" disabled={processing} type="button" onClick={() => saveSheet()}>
-                <Save size={17} aria-hidden="true" />
-                Save
-              </button>
-            </>
-          ) : null}
-          {rows.length > 0 && canCopyScreenshot ? (
-            <button className="secondary-button" type="button" onClick={copyVisibleSheetScreenshot}>
-              <Clipboard size={17} aria-hidden="true" />
-              Copy Screenshot
+            <button
+              className={hasUnsavedChanges ? 'primary-button' : 'secondary-button'}
+              disabled={processing}
+              type="button"
+              onClick={hasUnsavedChanges ? () => saveSheet() : startUpload}
+            >
+              {hasUnsavedChanges ? <Save size={17} aria-hidden="true" /> : <Upload size={17} aria-hidden="true" />}
+              {hasUnsavedChanges ? 'Save' : 'Update'}
             </button>
           ) : null}
           {rows.length > 0 && canExtract ? (
             <button className="secondary-button" type="button" onClick={extractVisibleSheet}>
               <FileSpreadsheet size={17} aria-hidden="true" />
               Extract
+            </button>
+          ) : null}
+          {rows.length > 0 && canCopyScreenshot ? (
+            <button className="secondary-button" type="button" onClick={copyVisibleSheetScreenshot}>
+              <Clipboard size={17} aria-hidden="true" />
+              Copy Screenshot
             </button>
           ) : null}
         </div>
@@ -850,12 +874,20 @@ export default function ZvZSheet({
         <section className="zvz-sheet-panel" aria-label="ZVZ sheet">
           <div className="zvz-sheet-toolbar">
             <strong>{visibleRows.length} rows</strong>
-            {canEdit ? (
-              <button className="secondary-button" type="button" onClick={addRow}>
-                <Plus size={16} aria-hidden="true" />
-                Add Row
-              </button>
-            ) : null}
+            <div className="zvz-sheet-toolbar-actions">
+              {canEdit ? (
+                <button className={isEditing ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setIsEditing((current) => !current)}>
+                  <Pencil size={16} aria-hidden="true" />
+                  {isEditing ? 'View' : 'Edit'}
+                </button>
+              ) : null}
+              {canEdit && isEditing ? (
+                <button className="secondary-button" type="button" onClick={addRow}>
+                  <Plus size={16} aria-hidden="true" />
+                  Add Row
+                </button>
+              ) : null}
+            </div>
           </div>
           <div className="zvz-sheet-scroll">
             <table className="zvz-sheet-table">
@@ -864,7 +896,7 @@ export default function ZvZSheet({
                   {headers.map((header, index) => (
                     <th key={`${COLUMN_KEYS[index]}-${index}`}>
                       <span className="zvz-sheet-header-cell">
-                        {canEdit ? (
+                        {canEdit && isEditing ? (
                           <input
                             aria-label={`${header || COLUMN_KEYS[index]} header`}
                             value={header}
@@ -876,10 +908,8 @@ export default function ZvZSheet({
                             aria-pressed={Boolean(t8Columns[COLUMN_KEYS[index]])}
                             className="zvz-sheet-tier-toggle"
                             type="button"
-                            onClick={() => setT8Columns((current) => ({
-                              ...current,
-                              [COLUMN_KEYS[index]]: !current[COLUMN_KEYS[index]],
-                            }))}
+                            disabled={!isEditing}
+                            onClick={() => toggleT8Column(COLUMN_KEYS[index])}
                           >
                             T8
                           </button>
@@ -887,7 +917,7 @@ export default function ZvZSheet({
                       </span>
                     </th>
                   ))}
-                  {canEdit ? <th className="zvz-sheet-row-action-cell" aria-label="Row actions" /> : null}
+                  {canEdit && isEditing ? <th className="zvz-sheet-row-action-cell" aria-label="Row actions" /> : null}
                 </tr>
               </thead>
               <tbody>
@@ -896,7 +926,7 @@ export default function ZvZSheet({
                     {COLUMN_KEYS.map((key, columnIndex) => (
                       <td className={sheetCellClass(row[columnIndex], key)} key={`${rowIndex}-${key}`}>
                         <SheetCell
-                          canEdit={canEdit}
+                          canEdit={canEdit && isEditing}
                           cell={row[columnIndex] || emptyCell()}
                           columnKey={key}
                           forceT8={Boolean(t8Columns[key])}
@@ -904,7 +934,7 @@ export default function ZvZSheet({
                         />
                       </td>
                     ))}
-                    {canEdit ? (
+                    {canEdit && isEditing ? (
                       <td className="zvz-sheet-row-action-cell">
                         <button className="zvz-row-delete" type="button" aria-label={`Delete row ${rowIndex + 1}`} onClick={() => removeRow(rowIndex)}>
                           <Trash2 size={15} aria-hidden="true" />

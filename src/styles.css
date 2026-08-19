@@ -716,6 +716,13 @@
   text-transform: uppercase;
 }
 
+.zvz-sheet-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .zvz-sheet-scroll {
   overflow: auto;
   max-height: calc(100vh - 250px);
@@ -987,10 +994,6 @@
   width: max-content;
 }
 
-.zvz-sheet-edit-item.text-only {
-  grid-template-columns: max-content 15px;
-}
-
 .zvz-sheet-edit-item img {
   width: 44px;
   height: 44px;
@@ -1012,7 +1015,7 @@
 
 .zvz-sheet-edit-item.text-only strong,
 .zvz-sheet-view-item.text-only strong {
-  color: #ffcf68;
+  color: #ff526b;
 }
 
 .zvz-sheet-add-item {
