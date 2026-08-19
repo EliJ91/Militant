@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileImage, FileSpreadsheet, Plus, Save, Upload, X } from 'lucide-react';
+import { FileImage, FileSpreadsheet, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import {
   createZvZBuildLayout,
   fetchZvZBuildLayouts,
@@ -283,6 +283,8 @@ function ItemPreview({ cell, forceT8 = false }) {
 
 function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
   const containerRef = useRef(null);
+  const [addingItem, setAddingItem] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const selectedItems = buildSlotItems(cell);
@@ -319,74 +321,110 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
   return (
     <div className="zvz-sheet-item-editor" ref={containerRef}>
       {selectedItems.length > 0 ? (
-        <div className="zvz-sheet-selected-items">
-          {selectedItems.map((item, index) => (
-            <span key={`${item.itemId}-${item.itemName}-${index}`}>
-              {item.itemName}
-              <button
-                aria-label={`Remove ${item.itemName}`}
-                type="button"
-                onClick={() => {
-                  const nextItems = selectedItems.filter((_selected, selectedIndex) => selectedIndex !== index);
-                  onChange({
-                    ...cell,
-                    itemId: nextItems[0]?.itemId || '',
-                    itemName: nextItems[0]?.itemName || '',
-                    items: nextItems,
-                  });
-                }}
-              >
-                <X size={12} aria-hidden="true" />
-              </button>
-            </span>
-          ))}
+        <div className="zvz-sheet-edit-items">
+          {selectedItems.map((item, index) => {
+            const option = findOptionForItem(item, forceT8);
+            return (
+              <div className="zvz-sheet-edit-item" key={`${item.itemId}-${item.itemName}-${index}`}>
+                {option?.imageUrl ? (
+                  <img src={option.imageUrl} alt="" loading="lazy" />
+                ) : (
+                  <span className="zvz-sheet-item-fallback">
+                    {String(item.itemName || '?').slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+                <strong>{item.itemName || option?.label}</strong>
+                <button
+                  aria-label={`Remove ${item.itemName || option?.label || 'item'}`}
+                  className="zvz-sheet-mini-action zvz-sheet-mini-danger"
+                  type="button"
+                  onClick={() => {
+                    const nextItems = selectedItems.filter((_selected, selectedIndex) => selectedIndex !== index);
+                    onChange({
+                      ...cell,
+                      itemId: nextItems[0]?.itemId || '',
+                      itemName: nextItems[0]?.itemName || '',
+                      items: nextItems,
+                    });
+                  }}
+                >
+                  <Trash2 size={12} aria-hidden="true" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       ) : null}
-      <input
-        aria-label="Add item"
-        placeholder={selectedItems.length > 0 ? 'Add another item' : 'Select item'}
-        value={query}
-        onChange={(event) => {
-          const value = event.target.value;
-          setQuery(value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-      />
-      {open ? (
-        <div className="zvz-sheet-item-menu" role="listbox">
-          {visibleOptions.map((option) => (
-            <button
-              key={`${option.itemId}-${option.label}`}
-              type="button"
-              onClick={() => {
-                const exists = selectedItems.some((item) => item.itemId === option.itemId);
-                const nextItems = exists
-                  ? selectedItems
-                  : [...selectedItems, { itemId: option.itemId, itemName: option.label }];
-                onChange({
-                  ...cell,
-                  itemId: nextItems[0]?.itemId || '',
-                  itemName: nextItems[0]?.itemName || '',
-                  items: nextItems,
-                });
-                setQuery('');
-                setOpen(false);
-              }}
-            >
-              <img src={option.imageUrl} alt="" loading="lazy" />
-              <span>{option.label}</span>
+
+      {addingItem ? (
+        <div className="zvz-sheet-add-item">
+          <input
+            aria-label="Add item"
+            placeholder={selectedItems.length > 0 ? 'Search item' : 'Select item'}
+            value={query}
+            onChange={(event) => {
+              const value = event.target.value;
+              setQuery(value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+          />
+          {open ? (
+            <div className="zvz-sheet-item-menu" role="listbox">
+              {visibleOptions.map((option) => (
+                <button
+                  key={`${option.itemId}-${option.label}`}
+                  type="button"
+                  onClick={() => {
+                    const exists = selectedItems.some((item) => item.itemId === option.itemId);
+                    const nextItems = exists
+                      ? selectedItems
+                      : [...selectedItems, { itemId: option.itemId, itemName: option.label }];
+                    onChange({
+                      ...cell,
+                      itemId: nextItems[0]?.itemId || '',
+                      itemName: nextItems[0]?.itemName || '',
+                      items: nextItems,
+                    });
+                    setQuery('');
+                    setOpen(false);
+                    setAddingItem(false);
+                  }}
+                >
+                  <img src={option.imageUrl} alt="" loading="lazy" />
+                  <span>{option.label}</span>
+                </button>
+              ))}
+              {visibleOptions.length === 0 ? <p>No items found.</p> : null}
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <button className="zvz-sheet-mini-action zvz-sheet-add-button" type="button" onClick={() => setAddingItem(true)}>
+          <Plus size={12} aria-hidden="true" />
+          Add item
+        </button>
+      )}
+
+      <div className="zvz-sheet-notes-editor">
+        {editingNotes ? (
+          <textarea
+            aria-label="Cell notes"
+            autoFocus
+            placeholder="Cell notes"
+            value={cell.notes}
+            onChange={(event) => onChange({ ...cell, notes: event.target.value })}
+            onBlur={() => setEditingNotes(false)}
+          />
+        ) : (
+          <>
+            <small>{cell.notes || 'No notes'}</small>
+            <button className="zvz-sheet-mini-action" type="button" aria-label="Edit cell notes" onClick={() => setEditingNotes(true)}>
+              <Pencil size={12} aria-hidden="true" />
             </button>
-          ))}
-          {visibleOptions.length === 0 ? <p>No items found.</p> : null}
-        </div>
-      ) : null}
-      <textarea
-        aria-label="Cell notes"
-        placeholder="Cell notes"
-        value={cell.notes}
-        onChange={(event) => onChange({ ...cell, notes: event.target.value })}
-      />
+          </>
+        )}
+      </div>
     </div>
   );
 }

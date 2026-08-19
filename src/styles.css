@@ -837,6 +837,8 @@
   position: relative;
   display: grid;
   gap: 7px;
+  align-content: center;
+  justify-items: stretch;
 }
 
 .zvz-sheet-item-menu {
@@ -895,6 +897,102 @@
   color: var(--muted);
   font-size: 0.74rem;
   font-weight: 800;
+}
+
+.zvz-sheet-edit-items {
+  display: grid;
+  gap: 6px;
+}
+
+.zvz-sheet-edit-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.zvz-sheet-edit-item img {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(247, 250, 245, 0.18);
+  border-radius: 6px;
+  background: #101713;
+  object-fit: contain;
+}
+
+.zvz-sheet-edit-item strong {
+  min-width: 0;
+  color: var(--white);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.18;
+  text-align: left;
+}
+
+.zvz-sheet-add-item {
+  display: grid;
+  gap: 6px;
+}
+
+.zvz-sheet-mini-action {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 4px 7px;
+  border: 1px solid rgba(87, 216, 120, 0.42);
+  border-radius: 5px;
+  background: rgba(87, 216, 120, 0.1);
+  color: var(--green-hot);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.zvz-sheet-mini-action:hover,
+.zvz-sheet-mini-action:focus-visible {
+  border-color: rgba(87, 216, 120, 0.8);
+  background: rgba(87, 216, 120, 0.18);
+}
+
+.zvz-sheet-mini-danger {
+  width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-color: rgba(255, 82, 107, 0.45);
+  background: rgba(255, 82, 107, 0.08);
+  color: #ff526b;
+}
+
+.zvz-sheet-add-button {
+  justify-self: start;
+}
+
+.zvz-sheet-notes-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.zvz-sheet-notes-editor small {
+  min-width: 0;
+  color: var(--green-hot);
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.zvz-sheet-notes-editor textarea {
+  grid-column: 1 / -1;
 }
 
 .zvz-sheet-view-cell {
