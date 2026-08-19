@@ -832,7 +832,14 @@
 }
 
 .zvz-sheet-header-cell input {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  width: 74px;
+  text-align: center;
+}
+
+.zvz-sheet-table th:nth-child(8) input,
+.zvz-sheet-table th:nth-child(9) input {
+  width: 84px;
 }
 
 .zvz-sheet-text-editor,
@@ -851,7 +858,7 @@
   justify-content: flex-start;
   height: 100%;
   width: max-content;
-  min-width: 100%;
+  min-width: max-content;
   min-height: 84px;
 }
 
@@ -920,20 +927,20 @@
 
 .zvz-sheet-edit-items {
   display: grid;
-  width: 100%;
+  width: max-content;
   gap: 2px;
   justify-items: start;
 }
 
 .zvz-sheet-edit-item-group {
   display: grid;
-  width: 100%;
+  width: max-content;
   gap: 2px;
 }
 
 .zvz-sheet-edit-item {
   display: grid;
-  grid-template-columns: 34px max-content 15px;
+  grid-template-columns: 38px max-content 15px;
   align-items: center;
   justify-content: start;
   gap: 5px;
@@ -942,8 +949,8 @@
 }
 
 .zvz-sheet-edit-item img {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   border: 1px solid rgba(247, 250, 245, 0.18);
   border-radius: 6px;
   background: #101713;
@@ -1083,20 +1090,20 @@
   align-items: center;
   gap: 5px;
   width: max-content;
-  min-width: 100%;
+  min-width: max-content;
   min-height: 58px;
 }
 
 .zvz-sheet-item-preview-list {
   display: grid;
-  grid-template-columns: 34px max-content;
+  grid-template-columns: 38px max-content;
   align-items: center;
   justify-items: start;
   justify-content: start;
   gap: 8px;
   width: max-content;
-  min-width: 100%;
-  margin: 0 auto;
+  min-width: 0;
+  margin: 0;
 }
 
 .zvz-sheet-item-image-stack,
@@ -1109,8 +1116,8 @@
 .zvz-sheet-item-image-stack img,
 .zvz-sheet-item-fallback {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   place-items: center;
   border: 1px solid rgba(247, 250, 245, 0.18);
   border-radius: 6px;
