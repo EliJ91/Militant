@@ -69,6 +69,14 @@ function emptyCell() {
   return { itemId: '', itemName: '', items: [], notes: '', text: '' };
 }
 
+function cellHasContent(cell, columnKey) {
+  const normalized = normalizeCell(cell);
+  if (ITEM_COLUMNS.has(columnKey)) {
+    return buildSlotItems(normalized).length > 0 || Boolean(normalized.notes?.trim());
+  }
+  return Boolean(normalized.text?.trim());
+}
+
 function normalizeCell(cell) {
   if (cell && typeof cell === 'object') {
     const legacyItem = cell.itemId || cell.itemName
@@ -284,6 +292,10 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
   }, [forceT8, query]);
 
   useEffect(() => {
+    warmItemImageCache(visibleOptions.map((option) => option.imageUrl));
+  }, [visibleOptions]);
+
+  useEffect(() => {
     setQuery('');
   }, [cell.itemName, cell.items]);
 
@@ -456,9 +468,12 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
 
   useEffect(() => {
     warmItemImageCache(rows.flatMap((row) => (
-      row.flatMap((cell) => buildSlotItems(cell).map((item) => findOptionForItem(item)?.imageUrl)).filter(Boolean)
+      row.flatMap((cell, columnIndex) => (
+        buildSlotItems(cell)
+          .map((item) => findOptionForItem(item, Boolean(t8Columns[COLUMN_KEYS[columnIndex]]))?.imageUrl)
+      )).filter(Boolean)
     )));
-  }, [rows]);
+  }, [rows, t8Columns]);
 
   function updateCell(rowIndex, columnIndex, nextCell) {
     setRows((current) => current.map((row, index) => (
@@ -704,7 +719,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
                 {visibleRows.map(({ row, index: rowIndex }) => (
                   <tr key={`row-${rowIndex}`}>
                     {COLUMN_KEYS.map((key, columnIndex) => (
-                      <td key={`${rowIndex}-${key}`}>
+                      <td className={cellHasContent(row[columnIndex], key) ? undefined : 'zvz-sheet-empty-cell'} key={`${rowIndex}-${key}`}>
                         <SheetCell
                           canEdit={canEdit}
                           cell={row[columnIndex] || emptyCell()}

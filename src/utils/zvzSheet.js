@@ -199,6 +199,23 @@ export function zvzItemImageUrl(itemId) {
   return `https://images.weserv.nl/?url=${encodeURIComponent(`render.albiononline.com/v1/item/${imagePath}`)}`;
 }
 
+function enchantment(itemId) {
+  const match = String(itemId || '').match(/@(\d+)$/);
+  return match ? Number.parseInt(match[1], 10) : 0;
+}
+
+function itemSearchAliases(itemId) {
+  const itemTier = tier(itemId);
+  const itemEnchant = enchantment(itemId);
+  const aliases = [];
+  if (itemTier > 0) {
+    aliases.push(String(itemTier), `t${itemTier}`);
+    aliases.push(`${itemTier}.${itemEnchant}`);
+    if (itemEnchant > 0) aliases.push(String(itemEnchant), `e${itemEnchant}`, `enchant ${itemEnchant}`);
+  }
+  return aliases;
+}
+
 function titleCaseItemName(itemName) {
   return String(itemName || '')
     .toLowerCase()
@@ -219,6 +236,11 @@ export function t8ItemId(itemId) {
   return value.match(/^T\d+_/) ? value.replace(/^T\d+_/, 'T8_') : value;
 }
 
+function displayItemId(itemId) {
+  const value = String(itemId || '');
+  return value.includes('_MEAL_') ? `${value.replace(/@\d+$/, '')}@1` : value;
+}
+
 export function getZvZItemOptions({ t8Only = true } = {}) {
   const records = t8Only
     ? [...ITEM_RECORDS.reduce((grouped, record) => {
@@ -230,14 +252,20 @@ export function getZvZItemOptions({ t8Only = true } = {}) {
 
   return records
     .map((record) => {
-      const itemId = t8Only ? t8ItemId(record.itemId) : record.itemId;
+      const itemId = displayItemId(t8Only ? t8ItemId(record.itemId) : record.itemId);
       const name = stripAlbionRankPrefix(record.lookupName);
+      const searchText = [
+        name,
+        record.lookupName,
+        itemId,
+        ...itemSearchAliases(itemId),
+      ].join(' ');
       return {
         itemId,
         imageUrl: zvzItemImageUrl(itemId),
         label: name,
-        searchText: `${name} ${record.lookupName} ${itemId}`.toLowerCase(),
-        searchTokens: tokenizeZvZSearch(`${name} ${record.lookupName} ${itemId}`),
+        searchText: searchText.toLowerCase(),
+        searchTokens: tokenizeZvZSearch(searchText),
         value: name,
       };
     })

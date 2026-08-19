@@ -739,6 +739,11 @@
   vertical-align: middle;
 }
 
+.zvz-sheet-table td.zvz-sheet-empty-cell {
+  background: rgba(0, 0, 0, 0.32);
+  box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.16);
+}
+
 .zvz-sheet-table th:first-child,
 .zvz-sheet-table td:first-child {
   min-width: 68px;
@@ -838,6 +843,8 @@
   position: static;
   z-index: 1;
   display: grid;
+  width: max(100%, 340px);
+  max-width: min(520px, calc(100vw - 48px));
   max-height: 260px;
   overflow: auto;
   border: 1px solid rgba(87, 216, 120, 0.5);
@@ -879,7 +886,7 @@
 .zvz-sheet-item-menu span {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .zvz-sheet-item-menu p {
@@ -933,8 +940,8 @@
 
 .zvz-sheet-item-copy {
   min-width: 0;
-  justify-items: center;
-  text-align: center;
+  justify-items: start;
+  text-align: left;
 }
 
 .zvz-sheet-item-copy strong,
@@ -954,6 +961,11 @@
   font-weight: 900;
   line-height: 1.25;
   white-space: pre-wrap;
+}
+
+.zvz-sheet-text-cell {
+  width: 100%;
+  text-align: left;
 }
 
 .zvz-sheet-selected-items {
