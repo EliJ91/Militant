@@ -309,11 +309,14 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
   useEffect(() => {
     if (!open) return undefined;
     function close(event) {
-      if (!containerRef.current?.contains(event.target)) setOpen(false);
+      if (!containerRef.current?.contains(event.target)) {
+        setOpen(false);
+        if (!query.trim()) setAddAfterIndex(null);
+      }
     }
     document.addEventListener('pointerdown', close);
     return () => document.removeEventListener('pointerdown', close);
-  }, [open]);
+  }, [open, query]);
 
   if (disabled) {
     return (
@@ -346,6 +349,12 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && !query.trim()) {
+              setOpen(false);
+              setAddAfterIndex(null);
+            }
+          }}
         />
         {open ? (
           <div className="zvz-sheet-item-menu" role="listbox">

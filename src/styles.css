@@ -732,10 +732,10 @@
 
 .zvz-sheet-table th,
 .zvz-sheet-table td {
-  min-width: 152px;
+  min-width: max-content;
   border-right: 1px solid rgba(247, 250, 245, 0.1);
   border-bottom: 1px solid rgba(247, 250, 245, 0.1);
-  padding: 8px;
+  padding: 6px;
   vertical-align: middle;
   white-space: nowrap;
 }
@@ -747,21 +747,21 @@
 
 .zvz-sheet-table th:first-child,
 .zvz-sheet-table td:first-child {
-  min-width: 42px;
-  max-width: 48px;
+  min-width: 34px;
+  max-width: 38px;
   text-align: center;
 }
 
 .zvz-sheet-table th:last-child,
 .zvz-sheet-table td:last-child {
-  min-width: 38px;
-  max-width: 42px;
+  min-width: 32px;
+  max-width: 36px;
   text-align: center;
 }
 
 .zvz-sheet-table th:nth-child(2),
 .zvz-sheet-table td:nth-child(2) {
-  min-width: 150px;
+  min-width: 120px;
 }
 
 .zvz-sheet-table th {
@@ -770,7 +770,7 @@
   top: 0;
   background: #102112;
   color: var(--green-hot);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -779,7 +779,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .zvz-sheet-header-cell > span {
@@ -789,17 +789,17 @@
 .zvz-sheet-tier-toggle {
   display: inline-grid;
   flex: 0 0 auto;
-  min-width: 30px;
-  height: 24px;
+  min-width: 24px;
+  height: 19px;
   place-items: center;
-  padding: 0 6px;
+  padding: 0 5px;
   border: 1px solid rgba(87, 216, 120, 0.35);
   border-radius: 5px;
   background: rgba(87, 216, 120, 0.1);
   color: var(--green-hot);
   cursor: pointer;
   font: inherit;
-  font-size: 0.66rem;
+  font-size: 0.56rem;
   font-weight: 900;
 }
 
@@ -820,14 +820,14 @@
   background: #020805;
   color: var(--white);
   font: inherit;
-  font-size: 0.74rem;
+  font-size: 0.64rem;
   font-weight: 800;
 }
 
 .zvz-sheet-table th input,
 .zvz-sheet-item-editor input {
-  height: 34px;
-  padding: 0 9px;
+  height: 27px;
+  padding: 0 7px;
 }
 
 .zvz-sheet-header-cell input {
@@ -836,8 +836,8 @@
 
 .zvz-sheet-text-editor,
 .zvz-sheet-item-editor textarea {
-  min-height: 56px;
-  padding: 8px 9px;
+  min-height: 45px;
+  padding: 6px 7px;
   resize: vertical;
 }
 
@@ -845,20 +845,27 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 3px;
   align-items: flex-start;
   justify-content: flex-start;
   height: 100%;
-  min-height: 104px;
+  width: max-content;
+  min-width: 100%;
+  min-height: 84px;
+}
+
+.zvz-sheet-table td:has(.zvz-sheet-item-editor),
+.zvz-sheet-table td:has(.zvz-sheet-view-cell) {
+  width: max-content;
 }
 
 .zvz-sheet-item-menu {
   position: static;
   z-index: 1;
   display: grid;
-  width: max(100%, 340px);
+  width: max(100%, 320px);
   max-width: min(520px, calc(100vw - 48px));
-  max-height: 260px;
+  max-height: 208px;
   overflow: auto;
   border: 1px solid rgba(87, 216, 120, 0.5);
   border-radius: 6px;
@@ -868,18 +875,18 @@
 
 .zvz-sheet-item-menu button {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 27px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 5px 8px;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 7px;
   border: 0;
   border-bottom: 1px solid rgba(247, 250, 245, 0.08);
   background: transparent;
   color: var(--white);
   cursor: pointer;
   font: inherit;
-  font-size: 0.74rem;
+  font-size: 0.64rem;
   font-weight: 800;
   text-align: left;
 }
@@ -891,8 +898,8 @@
 }
 
 .zvz-sheet-item-menu img {
-  width: 34px;
-  height: 34px;
+  width: 27px;
+  height: 27px;
   object-fit: contain;
 }
 
@@ -904,36 +911,38 @@
 
 .zvz-sheet-item-menu p {
   margin: 0;
-  padding: 10px;
+  padding: 8px;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.64rem;
   font-weight: 800;
 }
 
 .zvz-sheet-edit-items {
   display: grid;
-  gap: 4px;
+  width: 100%;
+  gap: 2px;
   justify-items: start;
 }
 
 .zvz-sheet-edit-item-group {
   display: grid;
-  gap: 4px;
+  width: 100%;
+  gap: 2px;
 }
 
 .zvz-sheet-edit-item {
   display: grid;
-  grid-template-columns: 42px max-content 14px;
+  grid-template-columns: 34px max-content 12px;
   align-items: center;
   justify-content: start;
-  gap: 7px;
+  gap: 5px;
   min-width: 0;
   width: max-content;
 }
 
 .zvz-sheet-edit-item img {
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   border: 1px solid rgba(247, 250, 245, 0.18);
   border-radius: 6px;
   background: #101713;
@@ -943,7 +952,7 @@
 .zvz-sheet-edit-item strong {
   min-width: 0;
   color: var(--white);
-  font-size: 0.78rem;
+  font-size: 0.66rem;
   font-weight: 900;
   line-height: 1.18;
   text-align: left;
@@ -952,7 +961,8 @@
 
 .zvz-sheet-add-item {
   display: grid;
-  gap: 6px;
+  gap: 4px;
+  justify-self: center;
 }
 
 .zvz-sheet-mini-action {
@@ -960,16 +970,16 @@
   grid-auto-flow: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 24px;
-  padding: 4px 7px;
+  gap: 3px;
+  min-height: 19px;
+  padding: 3px 6px;
   border: 1px solid rgba(87, 216, 120, 0.42);
   border-radius: 5px;
   background: rgba(87, 216, 120, 0.1);
   color: var(--green-hot);
   cursor: pointer;
   font: inherit;
-  font-size: 0.64rem;
+  font-size: 0.54rem;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -981,8 +991,8 @@
 }
 
 .zvz-sheet-mini-danger {
-  width: 18px;
-  min-height: 18px;
+  width: 14px;
+  min-height: 14px;
   padding: 0;
   border-color: rgba(255, 82, 107, 0.45);
   background: rgba(255, 82, 107, 0.08);
@@ -998,53 +1008,54 @@
 
 .zvz-sheet-sign-button {
   display: grid;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   place-items: center;
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
   font: inherit;
-  font-size: 1rem;
+  font-size: 0.8rem;
   font-weight: 1000;
   line-height: 1;
 }
 
 .zvz-sheet-sign-minus {
   color: #ff526b;
-  font-size: 1.05rem;
+  font-size: 0.84rem;
 }
 
 .zvz-sheet-sign-plus {
   color: var(--green-hot);
-  font-size: 1.12rem;
+  font-size: 0.9rem;
 }
 
 .zvz-sheet-empty-item-editor {
   display: grid;
   width: 100%;
-  min-height: 42px;
+  min-height: 34px;
   place-items: center;
 }
 
 .zvz-sheet-list-plus {
   justify-self: center;
+  margin-top: 1px;
 }
 
 .zvz-sheet-empty-plus {
-  width: 22px;
-  height: 22px;
-  font-size: 1.35rem;
+  width: 18px;
+  height: 18px;
+  font-size: 1.08rem;
 }
 
 .zvz-sheet-notes-editor {
   display: grid;
-  grid-template-columns: max-content 18px;
+  grid-template-columns: max-content 14px;
   align-items: center;
   justify-content: center;
   align-self: center;
-  gap: 6px;
+  gap: 5px;
   margin-top: auto;
   min-width: 0;
 }
@@ -1052,7 +1063,7 @@
 .zvz-sheet-notes-editor small {
   min-width: 0;
   color: var(--green-hot);
-  font-size: 0.72rem;
+  font-size: 0.58rem;
   font-weight: 900;
   line-height: 1.25;
   text-align: left;
@@ -1067,18 +1078,18 @@
 .zvz-sheet-view-cell {
   display: grid;
   align-items: center;
-  gap: 6px;
-  min-height: 72px;
+  gap: 5px;
+  min-height: 58px;
 }
 
 .zvz-sheet-item-preview-list {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
   justify-items: center;
   justify-content: center;
-  gap: 10px;
-  width: min(100%, 170px);
+  gap: 8px;
+  width: min(100%, 136px);
   margin: 0 auto;
 }
 
@@ -1086,21 +1097,21 @@
 .zvz-sheet-item-copy {
   display: grid;
   align-content: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .zvz-sheet-item-image-stack img,
 .zvz-sheet-item-fallback {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border: 1px solid rgba(247, 250, 245, 0.18);
   border-radius: 6px;
   background: #101713;
   color: var(--muted);
   object-fit: contain;
-  font-size: 0.68rem;
+  font-size: 0.54rem;
   font-weight: 900;
   justify-self: center;
 }
@@ -1115,7 +1126,7 @@
 .zvz-sheet-text-cell {
   display: block;
   color: var(--white);
-  font-size: 0.78rem;
+  font-size: 0.62rem;
   font-weight: 900;
   line-height: 1.25;
   white-space: nowrap;
@@ -1125,7 +1136,7 @@
   display: block;
   width: 100%;
   color: var(--green-hot);
-  font-size: 0.72rem;
+  font-size: 0.58rem;
   font-weight: 900;
   line-height: 1.25;
   white-space: nowrap;
@@ -1140,27 +1151,27 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .zvz-sheet-selected-items span {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   max-width: 100%;
-  padding: 4px 6px;
+  padding: 3px 5px;
   border: 1px solid rgba(87, 216, 120, 0.34);
   border-radius: 999px;
   background: rgba(87, 216, 120, 0.1);
   color: var(--green-hot);
-  font-size: 0.68rem;
+  font-size: 0.54rem;
   font-weight: 900;
 }
 
 .zvz-sheet-selected-items button {
   display: grid;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   place-items: center;
   padding: 0;
   border: 0;
@@ -1171,8 +1182,8 @@
 
 .zvz-row-delete {
   display: inline-grid;
-  width: 24px;
-  height: 24px;
+  width: 19px;
+  height: 19px;
   place-items: center;
   padding: 0;
   border: 0;
