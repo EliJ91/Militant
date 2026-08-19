@@ -724,19 +724,20 @@
 }
 
 .zvz-sheet-table {
-  width: max(100%, 1640px);
+  width: max-content;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
 }
 
 .zvz-sheet-table th,
 .zvz-sheet-table td {
-  min-width: 168px;
-  max-width: 280px;
+  min-width: 152px;
   border-right: 1px solid rgba(247, 250, 245, 0.1);
   border-bottom: 1px solid rgba(247, 250, 245, 0.1);
   padding: 8px;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 .zvz-sheet-table td.zvz-sheet-empty-cell {
@@ -753,8 +754,8 @@
 
 .zvz-sheet-table th:last-child,
 .zvz-sheet-table td:last-child {
-  min-width: 42px;
-  max-width: 48px;
+  min-width: 38px;
+  max-width: 42px;
   text-align: center;
 }
 
@@ -842,10 +843,13 @@
 
 .zvz-sheet-item-editor {
   position: relative;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 7px;
-  align-content: center;
-  justify-items: stretch;
+  align-items: flex-start;
+  justify-content: flex-start;
+  height: 100%;
+  min-height: 104px;
 }
 
 .zvz-sheet-item-menu {
@@ -909,6 +913,7 @@
 .zvz-sheet-edit-items {
   display: grid;
   gap: 4px;
+  justify-items: start;
 }
 
 .zvz-sheet-edit-item-group {
@@ -920,9 +925,10 @@
   display: grid;
   grid-template-columns: 42px max-content 14px;
   align-items: center;
-  justify-content: center;
+  justify-content: start;
   gap: 7px;
   min-width: 0;
+  width: max-content;
 }
 
 .zvz-sheet-edit-item img {
@@ -1007,16 +1013,23 @@
 
 .zvz-sheet-sign-minus {
   color: #ff526b;
+  font-size: 1.05rem;
 }
 
 .zvz-sheet-sign-plus {
   color: var(--green-hot);
+  font-size: 1.12rem;
 }
 
 .zvz-sheet-empty-item-editor {
   display: grid;
+  width: 100%;
   min-height: 42px;
   place-items: center;
+}
+
+.zvz-sheet-list-plus {
+  justify-self: center;
 }
 
 .zvz-sheet-empty-plus {
@@ -1030,7 +1043,9 @@
   grid-template-columns: max-content 18px;
   align-items: center;
   justify-content: center;
+  align-self: center;
   gap: 6px;
+  margin-top: auto;
   min-width: 0;
 }
 
@@ -1046,6 +1061,7 @@
 
 .zvz-sheet-notes-editor textarea {
   grid-column: 1 / -1;
+  width: min(180px, 100%);
 }
 
 .zvz-sheet-view-cell {
@@ -1159,14 +1175,20 @@
   height: 24px;
   place-items: center;
   padding: 0;
-  border: 1px solid rgba(244, 63, 94, 0.45);
-  border-radius: 50%;
-  background: rgba(244, 63, 94, 0.08);
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
   color: #ff7d89;
+  cursor: pointer;
   font: inherit;
-  font-size: 1.2rem;
   font-weight: 1000;
   line-height: 1;
+}
+
+.zvz-row-delete:hover,
+.zvz-row-delete:focus-visible {
+  background: rgba(244, 63, 94, 0.12);
+  color: #ff526b;
 }
 
 @media (max-width: 720px) {

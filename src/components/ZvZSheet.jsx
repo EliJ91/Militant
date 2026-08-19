@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileImage, FileSpreadsheet, Pencil, Plus, Save, Upload, X } from 'lucide-react';
+import { FileImage, FileSpreadsheet, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import {
   createZvZBuildLayout,
   fetchZvZBuildLayouts,
@@ -396,36 +396,36 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
                     </span>
                   )}
                   <strong>{item.itemName || option?.label}</strong>
-                  <span className="zvz-sheet-item-actions">
-                    <button
-                      aria-label={`Remove ${item.itemName || option?.label || 'item'}`}
-                      className="zvz-sheet-sign-button zvz-sheet-sign-minus"
-                      type="button"
-                      onClick={() => {
-                        const nextItems = selectedItems.filter((_selected, selectedIndex) => selectedIndex !== index);
-                        changeItems(nextItems);
-                      }}
-                    >
-                      -
-                    </button>
-                    <button
-                      aria-label={`Add item after ${item.itemName || option?.label || 'item'}`}
-                      className="zvz-sheet-sign-button zvz-sheet-sign-plus"
-                      type="button"
-                      onClick={() => {
-                        setAddAfterIndex(index);
-                        setQuery('');
-                        setOpen(true);
-                      }}
-                    >
-                      +
-                    </button>
-                  </span>
+                  <button
+                    aria-label={`Remove ${item.itemName || option?.label || 'item'}`}
+                    className="zvz-sheet-sign-button zvz-sheet-sign-minus"
+                    type="button"
+                    onClick={() => {
+                      const nextItems = selectedItems.filter((_selected, selectedIndex) => selectedIndex !== index);
+                      changeItems(nextItems);
+                    }}
+                  >
+                    -
+                  </button>
                 </div>
                 {addAfterIndex === index ? renderSearchRow(index) : null}
               </div>
             );
           })}
+          {addAfterIndex === selectedItems.length ? renderSearchRow(selectedItems.length - 1) : (
+            <button
+              aria-label="Add item"
+              className="zvz-sheet-sign-button zvz-sheet-sign-plus zvz-sheet-list-plus"
+              type="button"
+              onClick={() => {
+                setAddAfterIndex(selectedItems.length);
+                setQuery('');
+                setOpen(true);
+              }}
+            >
+              +
+            </button>
+          )}
         </div>
       ) : (
         <div className="zvz-sheet-empty-item-editor">
@@ -811,7 +811,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
                     {canEdit ? (
                       <td>
                 <button className="zvz-row-delete" type="button" aria-label={`Delete row ${rowIndex + 1}`} onClick={() => removeRow(rowIndex)}>
-                          -
+                          <Trash2 size={15} aria-hidden="true" />
                         </button>
                       </td>
                     ) : null}
