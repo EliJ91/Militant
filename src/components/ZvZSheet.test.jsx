@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import ZvZInfographic from './ZvZInfographic';
+import ZvZSheet from './ZvZSheet';
 import { fetchZvZBuildLayouts } from '../services/zvzBuildsApi';
 
 vi.mock('../services/zvzBuildsApi', () => ({
@@ -33,7 +33,7 @@ const savedLayout = {
   uploadedBy: 'Dyathix',
 };
 
-describe('ZvZInfographic saved layouts', () => {
+describe('ZvZSheet saved layouts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchZvZBuildLayouts.mockResolvedValue({ layouts: [savedLayout] });
@@ -45,7 +45,7 @@ describe('ZvZInfographic saved layouts', () => {
   });
 
   it('lets viewers open saved builds without exposing editing controls', async () => {
-    render(<ZvZInfographic />);
+    render(<ZvZSheet />);
 
     expect(await screen.findByText('Tank')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'ZVZ Sheet' })).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('ZvZInfographic saved layouts', () => {
   });
 
   it('places search directly before the editor update control', async () => {
-    render(<ZvZInfographic canEdit uploadedBy="Officer" />);
+    render(<ZvZSheet canEdit uploadedBy="Officer" />);
 
     const search = await screen.findByRole('searchbox', { name: /search builds/i });
     const update = screen.getByRole('button', { name: /^update$/i });
@@ -67,7 +67,7 @@ describe('ZvZInfographic saved layouts', () => {
   });
 
   it('opens the build-sheet uploader in a modal for a new layout', async () => {
-    render(<ZvZInfographic canEdit uploadedBy="Officer" />);
+    render(<ZvZSheet canEdit uploadedBy="Officer" />);
 
     await screen.findByRole('searchbox', { name: /search builds/i });
     expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
@@ -90,10 +90,11 @@ describe('ZvZInfographic saved layouts', () => {
       }],
     }] });
 
-    const { container } = render(<ZvZInfographic />);
+    const { container } = render(<ZvZSheet />);
 
     await screen.findByText('Chariot');
     const image = container.querySelector('.zvz-sheet-item-preview img');
     expect(image).toHaveAttribute('src', expect.stringContaining('UNIQUE_MOUNT_TOWER_CHARIOT_CRYSTAL'));
   });
 });
+

@@ -13,7 +13,7 @@ import {
   stripAlbionRankPrefix,
   tokenizeZvZSearch,
   zvzItemImageUrl,
-} from '../utils/zvzInfographic';
+} from '../utils/zvzSheet';
 
 const ACCEPTED_FILE_TYPES = '.xlsx,.csv,.tsv,.txt,.png,.jpg,.jpeg,.webp,.bmp';
 const DEFAULT_HEADERS = ['#', 'Role', 'Main Hand', 'Off Hand', 'Helm', 'Armor', 'Boots', 'Cape', 'Food/Pots', 'Notes'];
@@ -350,7 +350,7 @@ function SheetCell({ cell, columnKey, canEdit, onChange }) {
   );
 }
 
-export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown Server Member' }) {
+export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server Member' }) {
   const fileInputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState('');
@@ -668,3 +668,4 @@ export default function ZvZInfographic({ canEdit = false, uploadedBy = 'Unknown 
     </main>
   );
 }
+

@@ -7,7 +7,7 @@ import RatCatcherTool from './components/RatCatcherTool';
 import PermissionsTool from './components/PermissionsTool';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
 import ActionLogsTool from './components/ActionLogsTool';
-import ZvZInfographic from './components/ZvZInfographic';
+import ZvZSheet from './components/ZvZSheet';
 import { setActionLogActorName, setActionLogAuthSession } from './services/actionLogsApi';
 import {
   clearPendingAuthRoute,
@@ -47,7 +47,7 @@ function getRoute() {
   if (route === 'rat-catcher') return 'rat-catcher';
   if (route === 'permissions') return 'permissions';
   if (route === 'action-logs') return 'action-logs';
-  if (route === 'zvz-infographic') return 'zvz-infographic';
+  if (route === 'zvz-sheet') return 'zvz-sheet';
   return route === 'dashboard' ? 'dashboard' : 'landing';
 }
 
@@ -542,7 +542,7 @@ function DashboardPage({
       icon: Swords,
       permissions: ['viewZvZBuilds', 'editZvZBuilds'],
       title: 'ZVZ Sheet',
-      to: '#zvz-infographic',
+      to: '#zvz-sheet',
     },
   ].filter((tool) => (
     tool.superUserOnly
@@ -934,7 +934,7 @@ function ActionLogsPage({
   );
 }
 
-function ZvZInfographicPage({
+function ZvZSheetPage({
   canEdit = false,
   currentUser = null,
   isSuperUserProfile = false,
@@ -954,7 +954,7 @@ function ZvZInfographicPage({
       viewAsRoleIds={viewAsRoleIds}
       viewAsRoles={viewAsRoles}
     >
-      <ZvZInfographic canEdit={canEdit} uploadedBy={getUploadUsername(currentUser)} />
+      <ZvZSheet canEdit={canEdit} uploadedBy={getUploadUsername(currentUser)} />
     </ToolPage>
   );
 }
@@ -1155,7 +1155,7 @@ export default function App() {
       : route === 'rat-catcher' ? 'Rat Catcher'
       : route === 'permissions' ? 'Permissions'
       : route === 'action-logs' ? 'Action Logs'
-      : route === 'zvz-infographic' ? 'ZVZ Sheet'
+      : route === 'zvz-sheet' ? 'ZVZ Sheet'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);
@@ -1282,9 +1282,9 @@ export default function App() {
     ) : (
       <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
     );
-  } else if (route === 'zvz-infographic') {
+  } else if (route === 'zvz-sheet') {
     page = effectivePermissions.viewZvZBuilds || effectivePermissions.editZvZBuilds ? (
-      <ZvZInfographicPage
+      <ZvZSheetPage
         canEdit={Boolean(effectivePermissions.editZvZBuilds)}
         currentUser={currentUser}
         onSignOut={handleSignOut}

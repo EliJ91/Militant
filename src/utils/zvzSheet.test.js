@@ -6,9 +6,9 @@ import {
   resolveZvZItem,
   rowsToZvZBuilds,
   sortIncompleteZvZBuildsLast,
-} from './zvzInfographic';
+} from './zvzSheet';
 
-describe('ZvZ infographic parsing', () => {
+describe('ZvZ sheet parsing', () => {
   it('turns spreadsheet rows into builds and ignores N/A cells', () => {
     const builds = rowsToZvZBuilds([
       ['', 'ROLE', 'MAIN HAND', 'OFF HAND', 'HELM', 'ARMOR', 'BOOTS', 'CAPE', 'FOOD/POTS', 'NOTES'],
@@ -110,3 +110,4 @@ describe('ZvZ infographic parsing', () => {
     expect(sortIncompleteZvZBuildsLast(builds).map((build) => build.number)).toEqual(['22', '23', '21']);
   });
 });
+
