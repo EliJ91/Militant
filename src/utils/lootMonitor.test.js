@@ -237,7 +237,7 @@ describe('loot monitor report', () => {
       kept: 2,
       status: 'kept',
     });
-    expect(cape.custodyChains).toContain('Looted by Windyyyzz');
+    expect(cape.custodyChains).toContain("2026-06-17T00:08:30.420Z;CHAIR;Militant;Windyyyzz;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;2;;;@MOB_T5");
     expect(report.totals.lootedQuantity).toBe(2);
     expect(report.totals.depositedQuantity).toBe(0);
   });
@@ -467,9 +467,9 @@ describe('loot monitor report', () => {
 
     expect(looter).toMatchObject({ accounted: 1, kept: 0 });
     expect(courier).toMatchObject({ kept: 1, status: 'kept' });
-    expect(courier.custodyChains).toContain('Looted by Looter');
-    expect(courier.custodyChains).toContain('Deposited by Looter');
-    expect(courier.custodyChains).toContain('Withdrawn by Courier');
+    expect(courier.custodyChains).toContain("2026-06-17T00:01:00.000Z;CHAIR;Militant;Looter;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;2;;;@MOB_T5");
+    expect(courier.custodyChains).toContain('"06/17/2026 00:12:00"\t"Looter"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"');
+    expect(courier.custodyChains).toContain('"06/17/2026 00:13:00"\t"Courier"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"-1"');
     expect(report.totals.depositedQuantity).toBe(1);
   });
 

@@ -5038,6 +5038,8 @@ button:focus-visible {
 
 .loot-item-custody-tooltip span {
   color: #dfe8dc;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .loot-item-custody-tooltip a {

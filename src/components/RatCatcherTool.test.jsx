@@ -90,7 +90,7 @@ describe('RatCatcherTool', () => {
     fireEvent.click(itemTile);
 
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      "12:34 Looted by RatPlayer: Adept's Broadsword x1 from DeadPlayer ([ENEMY] EnemyGuild) at Skysand Ridge",
+      "2026-08-19T12:34:00Z;CHAIR;Militant;RatPlayer;T4_MAIN_SWORD;Adept's Broadsword;1;ENEMY;EnemyGuild;DeadPlayer;Skysand Ridge",
     );
     expect(screen.getByRole('link', { name: /Raw Rat Test/i })).toHaveAttribute(
       'href',

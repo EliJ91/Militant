@@ -49,6 +49,13 @@ function parseDelimited(text, delimiter) {
   return rows;
 }
 
+function rawDelimitedLines(text) {
+  return String(text || '')
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\r$/, ''))
+    .filter((line) => line.trim() !== '');
+}
+
 function rowsToObjects(rows) {
   if (rows.length === 0) return [];
   const headers = rows[0].map((header) => header.replace(/^\uFEFF/, '').trim());
@@ -190,6 +197,7 @@ function resolveChestItemId(item, enchantment) {
 }
 
 export function parseLootEvents(text) {
+  const rawLines = rawDelimitedLines(text);
   const records = rowsToObjects(parseDelimited(text, ';'));
   const lostRows = [];
   const skippedRows = [];
@@ -208,6 +216,7 @@ export function parseLootEvents(text) {
       item,
       itemId: record.item_id || '',
       quantity,
+      sourceText: rawLines[index + 1] || '',
       timestamp: record.timestamp_utc || '',
       enchantment: extractEnchantment(record.item_id),
       lootedFromAlliance: record.looted_from__alliance || '',
@@ -252,6 +261,7 @@ export function parseLootEvents(text) {
 }
 
 export function parseChestLog(text) {
+  const rawLines = rawDelimitedLines(text);
   const tableRows = parseDelimited(text, '\t');
   const skippedRows = [];
   const withdrawals = [];
@@ -298,6 +308,7 @@ export function parseChestLog(text) {
       itemId: resolveChestItemId(item, enchantment),
       player,
       quality,
+      sourceText: rawLines[index] || cells.join('\t'),
       sourceIndex: Math.max(sourceIndex, 0),
       timestamp: parseTimestamp(record.Date),
     };
@@ -534,6 +545,9 @@ function formatAffiliation(alliance, guild) {
 }
 
 function custodyStepDetails(action, row, player = row.player) {
+  const sourceText = String(row.sourceText || row.rawText || '').trim();
+  if (sourceText) return sourceText;
+
   const time = formatCustodyTime(row);
   const item = row.item ? ` ${row.item}` : '';
   const quantity = row.quantity || row.amount ? ` x${Math.abs(Number(row.quantity || row.amount) || 0)}` : '';
@@ -569,6 +583,7 @@ function makeLot(row, quantity, { tracked = true } = {}) {
     emvPricedAt: row.emvPricedAt || '',
     emvSourceCity: row.emvSourceCity || '',
     emvTotal: Number.isFinite(Number(row.emvEach)) ? Number(row.emvEach) * quantity : null,
+    sourceText: row.sourceText || '',
     sourceLooter: row.sourceLooter || row.player || '',
     tracked,
     custodyChain: tracked ? [custodyStep('Looted', row)] : [],
@@ -966,6 +981,7 @@ export function buildLootMonitorReportFromEvents(events, chestText) {
       lootedFromName: event.lootedFromName || '',
       player: event.player || '',
       quantity: event.quantity || 0,
+      sourceText: event.sourceText || event.rawText || '',
       timestamp: event.timestamp || '',
       emvEach: event.emvEach ?? null,
       emvPricedAt: event.emvPricedAt || '',

@@ -38,6 +38,33 @@ const RETENTION_DAYS = 90;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 const LOOT_TOOLTIP_OPEN_EVENT = 'militant:loot-tooltip-open';
 
+function eventSourceKey(event) {
+  return [
+    String(event?.eventType || 'looted'),
+    String(event?.timestamp || ''),
+    String(event?.itemId || event?.item || '').trim().toLowerCase(),
+    String(event?.player || '').trim().toLowerCase(),
+    String(event?.quantity || 0),
+    String(event?.lostTo || '').trim().toLowerCase(),
+  ].join('|');
+}
+
+function buildRawLootSourceLookup(rawText) {
+  if (!String(rawText || '').trim()) return new Map();
+  const parsed = parseLootEvents(rawText);
+  const lookup = new Map();
+  [
+    ...parsed.rows.map((row) => ({ ...row, eventType: 'looted', lostTo: '' })),
+    ...parsed.lostRows.map((row) => ({ ...row, eventType: 'lost' })),
+  ].forEach((row) => {
+    const key = eventSourceKey(row);
+    const current = lookup.get(key) || [];
+    current.push(row.sourceText || '');
+    lookup.set(key, current);
+  });
+  return lookup;
+}
+
 export const TYPE_OPTIONS = [
   { label: 'Bag', value: 'bag' },
   { label: 'Cape', value: 'cape' },
@@ -3130,28 +3157,18 @@ export default function LootMonitor({
     }
   }, [filters]);
 
-  const report = useMemo(() => {
-    if (!selectedBundle) return null;
-    const baseReport = buildLootMonitorReportFromEvents(
-      selectedBundle.events || [],
-      selectedBundle.chestLogReportText || selectedBundle.chestLogText || '',
-    );
-    return applyLootDeathChecks(baseReport, selectedBundle.deathChecks || []);
-  }, [selectedBundle]);
-
   const hasChestLog = Boolean(selectedBundle?.hasChestLog && selectedBundle?.chestLogText);
-  const rawLootLogText = useMemo(() => {
+  const sourceLootLogText = useMemo(() => {
     if (selectedBundle?.lootLogText) return selectedBundle.lootLogText;
-
-    if (selectedBundle?.events?.length) {
-      return buildLootLogExport(selectedBundle.events);
-    }
 
     const rawSubmissions = (selectedBundle?.submissions || [])
       .map((submission) => submission.rawLogText || '')
       .filter(Boolean);
     return rawSubmissions.join('\n\n--- NEXT LOOT LOG ---\n\n');
   }, [selectedBundle]);
+  const rawLootLogText = useMemo(() => (
+    sourceLootLogText || (selectedBundle?.events?.length ? buildLootLogExport(selectedBundle.events) : '')
+  ), [selectedBundle, sourceLootLogText]);
   const rawChestLogText = useMemo(() => {
     const rawSubmissions = (selectedBundle?.chestSubmissions || [])
       .map((submission) => submission.rawLogText || '')
@@ -3162,6 +3179,24 @@ export default function LootMonitor({
       .filter(Boolean);
     return combineChestLogTexts(chestSubmissions);
   }, [selectedBundle]);
+  const report = useMemo(() => {
+    if (!selectedBundle) return null;
+    const chestText = selectedBundle.chestLogReportText || rawChestLogText || selectedBundle.chestLogText || '';
+    const sourceLookup = buildRawLootSourceLookup(sourceLootLogText);
+    const sourceCursor = new Map();
+    const events = (selectedBundle.events || []).map((event) => {
+      const key = eventSourceKey(event);
+      const index = sourceCursor.get(key) || 0;
+      const sourceTexts = sourceLookup.get(key) || [];
+      sourceCursor.set(key, index + 1);
+      return {
+        ...event,
+        sourceText: event.sourceText || sourceTexts[index] || '',
+      };
+    });
+    const baseReport = buildLootMonitorReportFromEvents(events, chestText);
+    return applyLootDeathChecks(baseReport, selectedBundle.deathChecks || []);
+  }, [rawChestLogText, sourceLootLogText, selectedBundle]);
   const selectedTotals = selectedBundle?.summary?.totals || report?.totals || {};
   const activeFilters = filters;
   const ignoredItemKeys = useMemo(() => new Set(
