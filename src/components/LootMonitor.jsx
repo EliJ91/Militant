@@ -712,7 +712,7 @@ async function renderElementScreenshotBlob(element, screenshotPermissions = {}) 
   return blob;
 }
 
-async function copyElementScreenshot(element, screenshotPermissions = {}) {
+export async function copyElementScreenshot(element, screenshotPermissions = {}) {
   if (!navigator.clipboard?.write || typeof window.ClipboardItem === 'undefined') {
     throw new Error('Clipboard image copy is not available in this browser.');
   }

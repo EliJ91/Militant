@@ -19,6 +19,7 @@ import {
   TYPE_OPTIONS,
   allianceValuesForRow,
   buildVisiblePlayerGroups,
+  copyElementScreenshot,
   displayAlliance,
   displayGuild,
   formatAllianceList,
@@ -131,7 +132,7 @@ function getBundleLabel(bundle) {
   return `${number}${bundle.lootFileName || bundle.displayLootFileName || 'Loot Log'}`;
 }
 
-function BundlePicker({ bundles, loading, onChange, selectedIds }) {
+function BundlePicker({ bundles, combinedIds, loading, onChange, selectedIds }) {
   const pickerRef = useRef(null);
   const [open, setOpen] = useState(false);
 
@@ -161,10 +162,12 @@ function BundlePicker({ bundles, loading, onChange, selectedIds }) {
         <div className="rat-bundle-menu">
           {bundles.length === 0 ? <p>No loot logs available.</p> : bundles.map((bundle) => {
             const selected = selectedIds.includes(bundle.id);
+            const combined = combinedIds.includes(bundle.id);
             return (
               <button
                 aria-pressed={selected}
-                className={selected ? 'selected' : ''}
+                className={[selected ? 'selected' : '', combined ? 'combined' : ''].filter(Boolean).join(' ')}
+                disabled={combined}
                 key={bundle.id}
                 type="button"
                 onClick={() => onChange(selected
@@ -172,7 +175,7 @@ function BundlePicker({ bundles, loading, onChange, selectedIds }) {
                   : [...selectedIds, bundle.id])}
               >
                 <span>{getBundleLabel(bundle)}</span>
-                {selected ? <Check aria-hidden="true" size={15} /> : null}
+                {combined ? <small>Combined</small> : selected ? <Check aria-hidden="true" size={15} /> : null}
               </button>
             );
           })}
@@ -234,16 +237,19 @@ function StatsModal({ onClose, players }) {
 }
 
 export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
+  const boardRef = useRef(null);
   const [bundles, setBundles] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectedBundles, setSelectedBundles] = useState([]);
   const [filters, setFilters] = useState(loadFilters);
   const [ignoredItems, setIgnoredItems] = useState([]);
   const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
+  const [combineProgress, setCombineProgress] = useState({ completed: 0, total: 0 });
   const [emvStatus, setEmvStatus] = useState({ message: '', state: 'idle' });
   const [marketPrices, setMarketPrices] = useState({});
   const [pricedSignature, setPricedSignature] = useState('');
   const [statsOpen, setStatsOpen] = useState(false);
+  const [screenshotStatus, setScreenshotStatus] = useState({ message: '', state: 'idle' });
 
   useEffect(() => {
     let cancelled = false;
@@ -263,29 +269,6 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
   useEffect(() => {
     window.localStorage.setItem(RAT_FILTER_STORAGE_KEY, JSON.stringify(filters));
   }, [filters]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setPricedSignature('');
-    setMarketPrices({});
-    setStatsOpen(false);
-    if (selectedIds.length === 0) {
-      setSelectedBundles([]);
-      return () => { cancelled = true; };
-    }
-
-    setLoadStatus({ message: '', state: 'loading-selection' });
-    Promise.all(selectedIds.map((bundleId) => fetchLootLogBundle(bundleId)))
-      .then((results) => {
-        if (cancelled) return;
-        setSelectedBundles(results.map((result) => result.bundle).filter(Boolean));
-        setLoadStatus({ message: '', state: 'loaded' });
-      })
-      .catch((error) => {
-        if (!cancelled) setLoadStatus({ message: error.message || 'Could not combine the selected logs.', state: 'error' });
-      });
-    return () => { cancelled = true; };
-  }, [selectedIds.join('|')]);
 
   const reports = useMemo(() => selectedBundles.map((bundle) => {
     const report = buildLootMonitorReportFromEvents(
@@ -330,6 +313,7 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
     hasCurrentEmv,
     pricedPlayers,
   ]);
+  const combinedIds = useMemo(() => selectedBundles.map((bundle) => bundle.id), [selectedBundles]);
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -355,6 +339,68 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
     }
   }
 
+  async function fetchBundleWithRetry(bundleId) {
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        return await fetchLootLogBundle(bundleId);
+      } catch (error) {
+        lastError = error;
+        if (attempt < 3) await new Promise((resolve) => window.setTimeout(resolve, attempt * 600));
+      }
+    }
+    throw lastError;
+  }
+
+  async function combineSelectedBundles() {
+    if (selectedIds.length === 0 || loadStatus.state === 'loading-selection') return;
+    const idsToLoad = selectedIds.filter((bundleId) => !combinedIds.includes(bundleId));
+    if (idsToLoad.length === 0) {
+      setSelectedIds([]);
+      return;
+    }
+
+    setLoadStatus({ message: '', state: 'loading-selection' });
+    setCombineProgress({ completed: 0, total: idsToLoad.length });
+    const loadedBundles = [];
+    const failures = [];
+
+    for (const bundleId of idsToLoad) {
+      try {
+        const result = await fetchBundleWithRetry(bundleId);
+        if (result.bundle) loadedBundles.push(result.bundle);
+        else failures.push(bundleId);
+      } catch {
+        failures.push(bundleId);
+      } finally {
+        setCombineProgress((current) => ({ ...current, completed: current.completed + 1 }));
+      }
+    }
+
+    if (loadedBundles.length > 0) {
+      setSelectedBundles((current) => [...current, ...loadedBundles]);
+      setSelectedIds([]);
+      setPricedSignature('');
+      setMarketPrices({});
+      setStatsOpen(false);
+    }
+    setLoadStatus(failures.length > 0
+      ? { message: `${failures.length} selected ${failures.length === 1 ? 'bundle' : 'bundles'} could not be loaded after 3 attempts.`, state: 'error' }
+      : { message: '', state: 'loaded' });
+    setCombineProgress({ completed: 0, total: 0 });
+  }
+
+  async function copyScreenshot() {
+    if (!boardRef.current || displayedPlayers.length === 0 || screenshotStatus.state === 'copying') return;
+    setScreenshotStatus({ message: '', state: 'copying' });
+    try {
+      await copyElementScreenshot(boardRef.current);
+      setScreenshotStatus({ message: 'Screenshot copied.', state: 'copied' });
+    } catch (error) {
+      setScreenshotStatus({ message: error.message || 'Could not copy screenshot.', state: 'error' });
+    }
+  }
+
   return (
     <main className="dashboard-shell rat-catcher-shell">
       <section className="dashboard-heading" aria-labelledby="rat-catcher-title">
@@ -365,18 +411,36 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
       <section className="rat-source-panel" aria-label="Loot log bundle selection">
         <BundlePicker
           bundles={bundles}
+          combinedIds={combinedIds}
           loading={loadStatus.state === 'loading'}
           selectedIds={selectedIds}
           onChange={setSelectedIds}
         />
+        <button
+          className="rat-combine-button"
+          disabled={selectedIds.length === 0 || loadStatus.state === 'loading-selection'}
+          type="button"
+          onClick={combineSelectedBundles}
+        >
+          {loadStatus.state === 'loading-selection' ? 'Combining...' : 'Combine'}
+        </button>
         <div className="rat-source-summary">
-          <strong>{formatNumber(selectedIds.length)}</strong>
-          <span>{selectedIds.length === 1 ? 'bundle combined' : 'bundles combined'}</span>
+          <strong>{formatNumber(selectedBundles.length)}</strong>
+          <span>{selectedBundles.length === 1 ? 'bundle combined' : 'bundles combined'}</span>
         </div>
       </section>
 
+      {loadStatus.state === 'loading-selection' ? (
+        <section className="rat-combine-progress" aria-live="polite">
+          <div><strong>Combining loot logs</strong><span>{combineProgress.completed} / {combineProgress.total}</span></div>
+          <progress max={Math.max(1, combineProgress.total)} value={combineProgress.completed} />
+          <small>Each bundle is retried automatically if loading is interrupted.</small>
+        </section>
+      ) : null}
+
       {loadStatus.state === 'error' ? <p className="loot-message error">{loadStatus.message}</p> : null}
       {emvStatus.state === 'error' ? <p className="loot-message error">{emvStatus.message}</p> : null}
+      {screenshotStatus.state === 'error' ? <p className="loot-message error">{screenshotStatus.message}</p> : null}
 
       <section className="loot-controls" aria-label="Rat Catcher filters">
         <label>
@@ -450,12 +514,20 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
         >
           {emvStatus.state === 'loading' ? 'Checking...' : 'Check EMV'}
         </button>
+        <button
+          className="board-copy-button"
+          disabled={displayedPlayers.length === 0 || screenshotStatus.state === 'copying'}
+          type="button"
+          onClick={copyScreenshot}
+        >
+          {screenshotStatus.state === 'copying' ? 'Copying...' : 'Copy Screenshot'}
+        </button>
       </div>
 
-      <section className="loot-board-section" aria-label="Rat Catcher player loot board">
+      <section className="loot-board-section" aria-label="Rat Catcher player loot board" data-loot-board-screenshot="true" ref={boardRef}>
         <header className="loot-board-header"><span>Name</span><span>Items</span></header>
-        {selectedIds.length === 0 ? (
-          <p className="loot-message">Select two or more loot log bundles to begin.</p>
+        {selectedBundles.length === 0 ? (
+          <p className="loot-message">Select loot log bundles, then choose Combine.</p>
         ) : loadStatus.state === 'loading-selection' ? (
           <p className="loot-message">Combining selected loot logs...</p>
         ) : displayedPlayers.length === 0 ? (

@@ -45,6 +45,8 @@ describe('RatCatcherTool', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /0 selected/i }));
     fireEvent.click(screen.getByRole('button', { name: /#1 Rat Test/i }));
+    expect(screen.queryByText('RatPlayer')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Combine' }));
 
     expect(await screen.findByText('RatPlayer')).toBeInTheDocument();
     expect(fetchWestAveragePrices).not.toHaveBeenCalled();

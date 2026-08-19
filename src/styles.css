@@ -4387,7 +4387,7 @@ button:focus-visible {
   border-radius: 8px;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(280px, 1fr) auto;
+  grid-template-columns: minmax(280px, 1fr) auto auto;
   margin-bottom: 18px;
   padding: 16px;
 }
@@ -4440,7 +4440,17 @@ button:focus-visible {
 
 .rat-bundle-menu button:hover { background: #0d2116; }
 .rat-bundle-menu button.selected { color: #42e77c; }
+.rat-bundle-menu button.combined { color: #8ca096; cursor: default; }
+.rat-bundle-menu button.combined small { color: #42e77c; text-transform: uppercase; }
 .rat-bundle-menu p { color: #adbbb2; margin: 8px; }
+
+.rat-combine-button {
+  background: #0d2a1a;
+  border: 1px solid #278849;
+  color: #fff;
+  height: 42px;
+  min-width: 132px;
+}
 
 .rat-source-summary {
   align-items: flex-end;
@@ -4451,6 +4461,19 @@ button:focus-visible {
 
 .rat-source-summary strong { color: #42e77c; font-size: 24px; }
 .rat-source-summary span { color: #adbbb2; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+
+.rat-combine-progress {
+  background: #06140d;
+  border: 1px solid #1c5032;
+  border-radius: 6px;
+  margin: -6px 0 18px;
+  padding: 12px 14px;
+}
+
+.rat-combine-progress > div { display: flex; justify-content: space-between; }
+.rat-combine-progress span,
+.rat-combine-progress small { color: #a9b8af; }
+.rat-combine-progress progress { accent-color: #42e77c; display: block; height: 10px; margin: 8px 0 5px; width: 100%; }
 .rat-toolbar { gap: 8px; }
 
 .rat-toolbar .rat-stats-button,
