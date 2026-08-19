@@ -37,7 +37,20 @@ describe('ZvZ sheet parsing', () => {
 
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({ name: 'Jacket of Tenacity', annotation: 'R2/P1' });
-    expect(items[1]).toMatchObject({ name: 'Royal Armor', annotation: 'R3/P1' });
+    expect(items[1]).toMatchObject({ name: 'Royal Armor', annotation: 'R3/P1 / Royal If No Chariot' });
+  });
+
+  it('keeps unresolved item text and marks it unresolved', () => {
+    const items = parseZvZCell('Realm (Q2/W2/P3)', 'mainHand');
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      annotation: 'Q2/W2/P3',
+      itemId: '',
+      name: 'Realm',
+      resolved: false,
+      unresolved: true,
+    });
   });
 
   it('attaches alternative annotations to the preceding item instead of creating an or item', () => {

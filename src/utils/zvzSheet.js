@@ -298,6 +298,7 @@ export function parseZvZCell(value, slot) {
     );
     const parentheticals = [...annotationCleanedLine.matchAll(/\(([^()]*)\)/g)].map((match) => match[1].trim());
     const annotations = parentheticals.filter((annotation) => ANNOTATION_PATTERN.test(annotation));
+    const cellNotes = parentheticals.filter((annotation) => annotation && !ANNOTATION_PATTERN.test(annotation));
     annotations.unshift(...tolerantAnnotations);
     const withoutParentheticals = annotationCleanedLine.replace(/\([^()]*\)/g, ' ');
     let name = cleanItemLine(withoutParentheticals);
@@ -325,8 +326,14 @@ export function parseZvZCell(value, slot) {
     }
 
     const normalizedName = normalizeText(name);
-    if (!normalizedName || /^(?:n ?a|none)$/.test(normalizedName) || ITEM_NOTE_PATTERN.test(normalizedName)) return;
-
+    if ((!normalizedName && cellNotes.length > 0) || ITEM_NOTE_PATTERN.test(normalizedName)) {
+      if (items.length > 0) {
+        const previous = items[items.length - 1];
+        previous.annotation = [previous.annotation, cellNotes.join(' / ') || name].filter(Boolean).join(' / ');
+      }
+      return;
+    }
+    if (!normalizedName || /^(?:n ?a|none)$/.test(normalizedName)) return;
     const match = resolveZvZItem(name, slot);
     const isFood = match.itemId.includes('_MEAL_');
     const isGigantifyPotion = match.itemId.includes('_POTION_REVIVE')
@@ -335,13 +342,14 @@ export function parseZvZCell(value, slot) {
       ? `${match.itemId.replace(/@\d+$/, '')}@1`
       : match.itemId;
     items.push({
-      annotation: annotations.join(alternativesOnSameLine ? ' or ' : ' / '),
+      annotation: [...annotations, ...cellNotes].join(alternativesOnSameLine ? ' or ' : ' / '),
       imageUrl: zvzItemImageUrl(itemId),
       itemId,
       lookupName: match.lookupName,
       name,
       quantity: isFood ? 2 : isGigantifyPotion ? 10 : 1,
       resolved: match.resolved,
+      unresolved: !match.resolved,
     });
     if (!/\s+or\s*$/i.test(rawLine)) pendingAlternative = false;
   });

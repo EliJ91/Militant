@@ -104,5 +104,40 @@ describe('ZvZSheet saved layouts', () => {
     const image = container.querySelector('.zvz-sheet-view-item img');
     expect(image).toHaveAttribute('src', expect.stringContaining('UNIQUE_MOUNT_TOWER_CHARIOT_CRYSTAL'));
   });
+
+  it('marks unresolved sheet items as text-only until they are selected', async () => {
+    fetchZvZBuildLayouts.mockResolvedValue({ layouts: [{
+      ...savedLayout,
+      builds: [{
+        ...savedLayout.builds[0],
+        role: 'DPS',
+        sheetHeaders: ['#', 'Role', 'Main Hand', 'Off Hand', 'Helm', 'Armor', 'Boots', 'Cape', 'Food/Pots'],
+        sheetRow: [
+          { text: '1' },
+          { text: 'DPS' },
+          { items: [{ itemId: '', itemName: 'Realm', unresolved: true }], notes: 'Q2/W2/P3' },
+          {},
+          {},
+          {},
+          {},
+          {},
+          {},
+        ],
+        slots: {
+          ...savedLayout.builds[0].slots,
+          mainHand: [{ itemId: '', name: 'Realm', resolved: false, unresolved: true }],
+        },
+      }],
+    }] });
+
+    const { container } = render(<ZvZSheet />);
+
+    await screen.findByText('Realm');
+    const unresolvedCell = screen.getByText('Realm').closest('td');
+    expect(unresolvedCell).toHaveClass('zvz-sheet-unresolved-cell');
+    expect(unresolvedCell.querySelector('img')).toBeNull();
+    expect(screen.getByText('Q2/W2/P3')).toBeInTheDocument();
+    expect(container.querySelector('.zvz-sheet-item-fallback')).toBeNull();
+  });
 });
 

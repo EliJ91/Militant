@@ -746,6 +746,13 @@
   box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.16);
 }
 
+.zvz-sheet-table td.zvz-sheet-unresolved-cell {
+  background: rgba(255, 204, 0, 0.16);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 204, 0, 0.7),
+    inset 0 0 0 999px rgba(255, 204, 0, 0.05);
+}
+
 .zvz-sheet-table th:first-child,
 .zvz-sheet-table td:first-child {
   width: 44px;
@@ -980,6 +987,10 @@
   width: max-content;
 }
 
+.zvz-sheet-edit-item.text-only {
+  grid-template-columns: max-content 15px;
+}
+
 .zvz-sheet-edit-item img {
   width: 44px;
   height: 44px;
@@ -997,6 +1008,11 @@
   line-height: 1.18;
   text-align: left;
   white-space: nowrap;
+}
+
+.zvz-sheet-edit-item.text-only strong,
+.zvz-sheet-view-item.text-only strong {
+  color: #ffcf68;
 }
 
 .zvz-sheet-add-item {
@@ -1160,6 +1176,11 @@
   align-items: center;
   gap: 9px;
   width: max-content;
+}
+
+.zvz-sheet-view-item.text-only {
+  grid-template-columns: max-content;
+  gap: 0;
 }
 
 .zvz-sheet-view-item img,
