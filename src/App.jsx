@@ -537,11 +537,11 @@ function DashboardPage({
       to: '#action-logs',
     },
     {
-      description: 'View saved ZvZ build layouts and item-based build boards.',
+      description: 'View and maintain the current ZvZ equipment sheet.',
       group: 'tools',
       icon: Swords,
       permissions: ['viewZvZBuilds', 'editZvZBuilds'],
-      title: 'ZVZ Build Layouts',
+      title: 'ZVZ Sheet',
       to: '#zvz-infographic',
     },
   ].filter((tool) => (
@@ -1155,7 +1155,7 @@ export default function App() {
       : route === 'rat-catcher' ? 'Rat Catcher'
       : route === 'permissions' ? 'Permissions'
       : route === 'action-logs' ? 'Action Logs'
-      : route === 'zvz-infographic' ? 'ZVZ Build Layouts'
+      : route === 'zvz-infographic' ? 'ZVZ Sheet'
       : route === 'dashboard' ? 'Militant Dashboard'
         : 'Militant';
   }, [route]);

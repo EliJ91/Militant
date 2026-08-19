@@ -15,7 +15,15 @@ const savedLayout = {
     notes: '',
     number: 1,
     role: 'Tank',
-    slots: { armor: [], boots: [], cape: [], foodPots: [], helm: [], mainHand: [], offHand: [] },
+    slots: {
+      armor: [],
+      boots: [],
+      cape: [],
+      foodPots: [],
+      helm: [],
+      mainHand: [{ itemId: 'T8_MAIN_SWORD', name: 'Broadsword', resolved: true }],
+      offHand: [],
+    },
   }],
   createdAt: '2026-08-08T12:00:00.000Z',
   id: 'layout-1',
@@ -40,10 +48,11 @@ describe('ZvZInfographic saved layouts', () => {
     render(<ZvZInfographic />);
 
     expect(await screen.findByText('Tank')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ZVZ Sheet' })).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: /search builds/i })).toBeInTheDocument();
     expect(screen.queryByText('Uploaded By')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /save layout/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
   });
 
@@ -54,7 +63,7 @@ describe('ZvZInfographic saved layouts', () => {
     const update = screen.getByRole('button', { name: /^update$/i });
     expect(search.compareDocumentPosition(update) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByLabelText(/build title/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /save layout/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
   });
 
   it('opens the build-sheet uploader in a modal for a new layout', async () => {
@@ -64,7 +73,7 @@ describe('ZvZInfographic saved layouts', () => {
     expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^update$/i }));
 
-    expect(screen.getByRole('dialog', { name: /update zvz layout/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /update zvz sheet/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
 
@@ -81,9 +90,10 @@ describe('ZvZInfographic saved layouts', () => {
       }],
     }] });
 
-    render(<ZvZInfographic />);
+    const { container } = render(<ZvZInfographic />);
 
-    const image = await screen.findByRole('img', { name: 'Chariot' });
+    await screen.findByText('Chariot');
+    const image = container.querySelector('.zvz-sheet-item-preview img');
     expect(image).toHaveAttribute('src', expect.stringContaining('UNIQUE_MOUNT_TOWER_CHARIOT_CRYSTAL'));
   });
 });

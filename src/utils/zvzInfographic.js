@@ -195,6 +195,40 @@ export function zvzItemImageUrl(itemId) {
   return `https://images.weserv.nl/?url=${encodeURIComponent(`render.albiononline.com/v1/item/${imagePath}`)}`;
 }
 
+export function stripAlbionRankPrefix(itemName) {
+  return String(itemName || '')
+    .replace(/^(?:Beginner'?s|Novice'?s|Journeyman'?s|Adept'?s|Expert'?s|Master'?s|Grandmaster'?s|Elder'?s)\s+/i, '')
+    .trim();
+}
+
+function t8ItemId(itemId) {
+  const value = String(itemId || '');
+  return value.match(/^T\d+_/) ? value.replace(/^T\d+_/, 'T8_') : value;
+}
+
+export function getZvZItemOptions() {
+  const grouped = new Map();
+  ITEM_RECORDS.forEach((record) => {
+    const key = record.baseName || normalizeText(record.lookupName);
+    const current = grouped.get(key);
+    if (!current || Math.abs(record.tier - 8) < Math.abs(current.tier - 8)) grouped.set(key, record);
+  });
+
+  return [...grouped.values()]
+    .map((record) => {
+      const itemId = t8ItemId(record.itemId);
+      const name = stripAlbionRankPrefix(record.lookupName);
+      return {
+        itemId,
+        imageUrl: zvzItemImageUrl(itemId),
+        label: name,
+        searchText: `${name} ${record.lookupName} ${itemId}`.toLowerCase(),
+        value: name,
+      };
+    })
+    .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+}
+
 function cleanItemLine(value) {
   return String(value || '')
     .replace(/^\s*[\u2022*]+\s*/, '')

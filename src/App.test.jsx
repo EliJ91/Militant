@@ -106,12 +106,12 @@ describe('App', () => {
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Loot Log Viewer' })).toBeInTheDocument();
     expect(screen.getByText('Open loot logs locally without saving or changing any data.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'ZVZ Build Layouts' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ZVZ Sheet' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.9');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.10');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -148,20 +148,20 @@ describe('App', () => {
     expect(fetchLootLogBundle).not.toHaveBeenCalled();
   });
 
-  it('opens ZVZ Build Layouts for users with view access and shows editing to editors', async () => {
+  it('opens ZVZ Sheet for users with view access and shows editing to editors', async () => {
     getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006' } });
     window.location.hash = '#dashboard';
     render(<App />);
 
-    fireEvent.click(await screen.findByRole('link', { name: /zvz build layouts/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /zvz sheet/i }));
 
     expect(window.location.hash).toBe('#zvz-infographic');
-    expect(screen.getByRole('heading', { level: 1, name: 'ZVZ Build Layouts' })).toBeInTheDocument();
-    const addLayoutButton = screen.getByRole('button', { name: /add layout/i });
-    expect(addLayoutButton).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'ZVZ Sheet' })).toBeInTheDocument();
+    const updateButton = screen.getByRole('button', { name: /^update$/i });
+    expect(updateButton).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
-    fireEvent.click(addLayoutButton);
-    expect(screen.getByRole('dialog', { name: /add zvz layout/i })).toBeInTheDocument();
+    fireEvent.click(updateButton);
+    expect(screen.getByRole('dialog', { name: /update zvz sheet/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
 
@@ -185,9 +185,9 @@ describe('App', () => {
     window.location.hash = '#dashboard';
     render(<App />);
 
-    fireEvent.click(await screen.findByRole('link', { name: /zvz build layouts/i }));
+    fireEvent.click(await screen.findByRole('link', { name: /zvz sheet/i }));
 
-    expect(screen.getByRole('heading', { level: 1, name: 'ZVZ Build Layouts' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'ZVZ Sheet' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /new layout/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
   });
