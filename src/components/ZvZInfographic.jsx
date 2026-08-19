@@ -11,6 +11,7 @@ import {
   getZvZItemOptions,
   parseZvZSpreadsheet,
   rowsToZvZBuilds,
+  stripAlbionRankPrefix,
 } from '../utils/zvzInfographic';
 
 const ACCEPTED_FILE_TYPES = '.xlsx,.csv,.tsv,.txt,.png,.jpg,.jpeg,.webp,.bmp';
@@ -24,7 +25,9 @@ function emptyCell() {
 }
 
 function normalizeCell(cell) {
-  if (cell && typeof cell === 'object') return { ...emptyCell(), ...cell };
+  if (cell && typeof cell === 'object') {
+    return { ...emptyCell(), ...cell, itemName: stripAlbionRankPrefix(cell.itemName || '') };
+  }
   return { ...emptyCell(), text: String(cell || '') };
 }
 
@@ -39,7 +42,7 @@ function buildItemCell(item) {
   return {
     ...emptyCell(),
     itemId: item?.itemId || '',
-    itemName: item?.name || '',
+    itemName: stripAlbionRankPrefix(item?.name || ''),
     notes: item?.annotation || '',
   };
 }
