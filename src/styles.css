@@ -761,7 +761,8 @@
 
 .zvz-sheet-table th:nth-child(2),
 .zvz-sheet-table td:nth-child(2) {
-  min-width: 120px;
+  min-width: 84px;
+  width: 84px;
 }
 
 .zvz-sheet-table th {
@@ -932,7 +933,7 @@
 
 .zvz-sheet-edit-item {
   display: grid;
-  grid-template-columns: 34px max-content 12px;
+  grid-template-columns: 34px max-content 15px;
   align-items: center;
   justify-content: start;
   gap: 5px;
@@ -1008,27 +1009,29 @@
 
 .zvz-sheet-sign-button {
   display: grid;
-  width: 12px;
-  height: 12px;
+  width: 15px;
+  height: 15px;
   place-items: center;
   padding: 0;
-  border: 0;
-  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: rgba(247, 250, 245, 0.03);
   cursor: pointer;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 1000;
   line-height: 1;
 }
 
 .zvz-sheet-sign-minus {
+  align-self: center;
   color: #ff526b;
-  font-size: 0.84rem;
+  font-size: 0.76rem;
 }
 
 .zvz-sheet-sign-plus {
   color: var(--green-hot);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .zvz-sheet-empty-item-editor {
