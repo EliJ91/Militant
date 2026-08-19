@@ -15,6 +15,7 @@ import {
   tokenizeZvZSearch,
   zvzItemImageUrl,
 } from '../utils/zvzSheet';
+import { copyElementScreenshot } from './LootMonitor';
 
 const ACCEPTED_FILE_TYPES = '.xlsx,.csv,.tsv,.txt,.png,.jpg,.jpeg,.webp,.bmp';
 const DEFAULT_HEADERS = ['#', 'Role', 'Main Hand', 'Off Hand', 'Helm', 'Armor', 'Boots', 'Cape', 'Food/Pots', 'Notes'];
@@ -254,19 +255,6 @@ function sheetToBuilds(headers, rows, t8Columns = DEFAULT_T8_COLUMNS) {
     build.role
     && Object.values(build.slots).some((items) => items.length > 0)
   ));
-}
-
-function cellClipboardText(cell, columnKey, forceT8 = false) {
-  const normalized = normalizeCell(cell);
-  if (!ITEM_COLUMNS.has(columnKey)) return normalized.text || '';
-  const itemNames = buildSlotItems(normalized)
-    .map((item) => {
-      const option = findOptionForItem(item, forceT8);
-      return item.itemName || option?.label || '';
-    })
-    .filter(Boolean)
-    .join(' / ');
-  return [itemNames, normalized.notes].filter(Boolean).join(' - ');
 }
 
 function ItemPreview({ cell, forceT8 = false }) {
@@ -510,6 +498,7 @@ function SheetCell({ cell, columnKey, canEdit, forceT8 = false, onChange }) {
 }
 
 export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server Member' }) {
+  const captureRef = useRef(null);
   const fileInputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState('');
@@ -519,6 +508,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
   const [pendingFileName, setPendingFileName] = useState('');
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState({ label: '', progress: 0 });
+  const [copyingSheet, setCopyingSheet] = useState(false);
   const [rows, setRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFileName, setSourceFileName] = useState('');
@@ -671,29 +661,18 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
     setStatus('');
   }
 
-  async function copyVisibleSheet() {
-    const headerText = headers.join('\t');
-    const rowText = visibleRows.map(({ row }) => (
-      COLUMN_KEYS.map((key, columnIndex) => (
-        cellClipboardText(row[columnIndex] || emptyCell(), key, Boolean(t8Columns[key]))
-      )).join('\t')
-    )).join('\n');
-    const text = [headerText, rowText].filter(Boolean).join('\n');
-    if (!text.trim()) return;
+  async function copyVisibleSheetScreenshot() {
+    if (visibleRows.length === 0 || copyingSheet) return;
+    setCopyingSheet(true);
     try {
-      await navigator.clipboard.writeText(text);
-      setStatus('Copied sheet to clipboard.');
-    } catch {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.setAttribute('readonly', '');
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      textarea.remove();
-      setStatus('Copied sheet to clipboard.');
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      if (!captureRef.current) throw new Error('Could not prepare screenshot.');
+      await copyElementScreenshot(captureRef.current);
+      setStatus('Screenshot copied.');
+    } catch (caughtError) {
+      setError(caughtError.message || 'Could not copy screenshot.');
+    } finally {
+      setCopyingSheet(false);
     }
   }
 
@@ -730,9 +709,9 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
             </>
           ) : null}
           {rows.length > 0 ? (
-            <button className="secondary-button" type="button" onClick={copyVisibleSheet}>
+            <button className="secondary-button" type="button" onClick={copyVisibleSheetScreenshot}>
               <Clipboard size={17} aria-hidden="true" />
-              Copy
+              Copy Screenshot
             </button>
           ) : null}
         </div>
@@ -875,6 +854,42 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
               </tbody>
             </table>
           </div>
+          {copyingSheet ? (
+            <div className="zvz-sheet-copy-capture" ref={captureRef} aria-hidden="true">
+              <table className="zvz-sheet-table">
+                <thead>
+                  <tr>
+                    {headers.map((header, index) => (
+                      <th key={`copy-${COLUMN_KEYS[index]}-${index}`}>
+                        <span className="zvz-sheet-header-cell">
+                          <span>{header}</span>
+                          {ITEM_COLUMNS.has(COLUMN_KEYS[index]) ? (
+                            <span className="zvz-sheet-tier-toggle" aria-hidden="true">T8</span>
+                          ) : null}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map(({ row, index: rowIndex }) => (
+                    <tr key={`copy-row-${rowIndex}`}>
+                      {COLUMN_KEYS.map((key, columnIndex) => (
+                        <td className={cellHasContent(row[columnIndex], key) ? undefined : 'zvz-sheet-empty-cell'} key={`copy-${rowIndex}-${key}`}>
+                          <SheetCell
+                            canEdit={false}
+                            cell={row[columnIndex] || emptyCell()}
+                            columnKey={key}
+                            forceT8={Boolean(t8Columns[key])}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </section>
       ) : null}
     </main>

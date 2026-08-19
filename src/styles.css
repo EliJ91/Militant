@@ -748,8 +748,9 @@
 
 .zvz-sheet-table th:first-child,
 .zvz-sheet-table td:first-child {
-  min-width: 42px;
-  max-width: 46px;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
   text-align: center;
 }
 
@@ -767,9 +768,12 @@
   text-align: center;
 }
 
-.zvz-sheet-table th:nth-child(n+3):not(:last-child),
-.zvz-sheet-table td:nth-child(n+3):not(:last-child) {
-  width: 1%;
+.zvz-sheet-table th:nth-child(10),
+.zvz-sheet-table td:nth-child(10) {
+  min-width: 220px;
+  width: max-content;
+  max-width: none;
+  text-align: left;
 }
 
 .zvz-sheet-table th {
@@ -788,6 +792,19 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
+}
+
+.zvz-sheet-table th:first-child .zvz-sheet-header-cell {
+  width: 30px;
+  margin: 0 auto;
+}
+
+.zvz-sheet-table th:first-child .zvz-sheet-header-cell input {
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  padding: 0;
+  text-align: center;
 }
 
 .zvz-sheet-header-cell > span {
@@ -843,9 +860,21 @@
 }
 
 .zvz-sheet-table th:first-child input,
-.zvz-sheet-table td:first-child .zvz-sheet-text-editor,
+.zvz-sheet-table td:first-child .zvz-sheet-text-editor {
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  justify-self: center;
+  padding: 0;
+  text-align: center;
+}
+
 .zvz-sheet-table th:nth-child(2) input,
-.zvz-sheet-table td:nth-child(2) .zvz-sheet-text-editor,
+.zvz-sheet-table td:nth-child(2) .zvz-sheet-text-editor {
+  text-align: center;
+}
+
+.zvz-sheet-table td:first-child .zvz-sheet-text-cell,
 .zvz-sheet-table td:nth-child(2) .zvz-sheet-text-cell {
   text-align: center;
 }
@@ -1025,7 +1054,8 @@
 }
 
 .zvz-sheet-sign-button {
-  display: grid;
+  position: relative;
+  display: inline-grid;
   width: 15px;
   height: 15px;
   place-items: center;
@@ -1042,11 +1072,14 @@
 
 .zvz-sheet-sign-button::before,
 .zvz-sheet-sign-button::after {
-  grid-area: 1 / 1;
+  position: absolute;
+  top: calc(50% - 1px);
+  left: calc(50% - 1px);
   content: "";
   display: block;
   border-radius: 999px;
   background: currentColor;
+  transform: translate(-50%, -50%);
 }
 
 .zvz-sheet-sign-button::before {
@@ -1189,6 +1222,18 @@
 .zvz-sheet-text-cell {
   width: 100%;
   text-align: inherit;
+}
+
+.zvz-sheet-copy-capture {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  width: max-content;
+  padding: 0;
+  background: #050907;
+  color: var(--white);
+  pointer-events: none;
 }
 
 .zvz-sheet-selected-items {
