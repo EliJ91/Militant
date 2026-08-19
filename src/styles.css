@@ -1079,17 +1079,20 @@
   display: grid;
   align-items: center;
   gap: 5px;
+  width: max-content;
+  min-width: 100%;
   min-height: 58px;
 }
 
 .zvz-sheet-item-preview-list {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 34px max-content;
   align-items: center;
-  justify-items: center;
-  justify-content: center;
+  justify-items: start;
+  justify-content: start;
   gap: 8px;
-  width: min(100%, 136px);
+  width: max-content;
+  min-width: 100%;
   margin: 0 auto;
 }
 
@@ -1117,7 +1120,7 @@
 }
 
 .zvz-sheet-item-copy {
-  min-width: 0;
+  min-width: max-content;
   justify-items: start;
   text-align: left;
 }
