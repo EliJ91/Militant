@@ -490,6 +490,7 @@ function SheetCell({ cell, columnKey, canEdit, forceT8 = false, onChange }) {
       aria-label={`${columnKey} cell`}
       className="zvz-sheet-text-editor"
       value={normalized.text}
+      wrap="off"
       onChange={(event) => onChange({ ...normalized, text: event.target.value })}
     />
   );

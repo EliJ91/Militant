@@ -762,8 +762,8 @@
 
 .zvz-sheet-table th:nth-child(2),
 .zvz-sheet-table td:nth-child(2) {
-  min-width: 84px;
-  width: 84px;
+  min-width: 118px;
+  width: 118px;
 }
 
 .zvz-sheet-table th {
@@ -841,6 +841,7 @@
   min-height: 45px;
   padding: 6px 7px;
   resize: vertical;
+  white-space: pre;
 }
 
 .zvz-sheet-item-editor {
@@ -848,8 +849,8 @@
   display: grid;
   grid-template-rows: 1fr auto;
   gap: 3px;
-  align-items: flex-start;
-  justify-content: flex-start;
+  align-items: stretch;
+  justify-content: stretch;
   height: 100%;
   width: max-content;
   min-width: 100%;
@@ -923,6 +924,7 @@
   display: grid;
   width: 100%;
   gap: 2px;
+  align-self: center;
   justify-items: start;
 }
 
@@ -1058,6 +1060,7 @@
   display: grid;
   width: 100%;
   min-height: 34px;
+  align-self: center;
   place-items: center;
 }
 
@@ -1069,7 +1072,7 @@
 .zvz-sheet-empty-plus {
   width: 18px;
   height: 18px;
-  font-size: 1.08rem;
+  font-size: 0;
 }
 
 .zvz-sheet-notes-editor {
@@ -1077,7 +1080,8 @@
   grid-template-columns: max-content 14px;
   align-items: center;
   justify-content: center;
-  align-self: center;
+  align-self: end;
+  justify-self: center;
   gap: 5px;
   margin-top: 0;
   min-width: 0;
