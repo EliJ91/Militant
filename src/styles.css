@@ -21,7 +21,7 @@
 }
 
 .zvz-shell {
-  width: min(1480px, 100%);
+  width: calc(100% - 48px);
   min-height: calc(100vh - 76px);
   margin: 0 auto;
   padding: 30px 20px 56px;
@@ -724,15 +724,15 @@
 }
 
 .zvz-sheet-table {
-  width: max(100%, 1420px);
+  width: max(100%, 1580px);
   border-collapse: separate;
   border-spacing: 0;
 }
 
 .zvz-sheet-table th,
 .zvz-sheet-table td {
-  min-width: 150px;
-  max-width: 220px;
+  min-width: 168px;
+  max-width: 280px;
   border-right: 1px solid rgba(247, 250, 245, 0.1);
   border-bottom: 1px solid rgba(247, 250, 245, 0.1);
   padding: 8px;
@@ -869,11 +869,11 @@
 
 .zvz-sheet-item-preview {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: 42px minmax(88px, 1fr);
   align-items: center;
   justify-content: stretch;
-  gap: 8px;
-  width: min(100%, 136px);
+  gap: 10px;
+  width: min(100%, 170px);
   max-width: 100%;
   margin: 0 auto;
 }
@@ -905,6 +905,7 @@
 
 .zvz-sheet-item-preview strong,
 .zvz-sheet-text-cell {
+  display: block;
   color: var(--white);
   font-size: 0.78rem;
   font-weight: 900;
@@ -914,12 +915,10 @@
 .zvz-sheet-cell-notes {
   display: block;
   width: 100%;
-}
-
-.zvz-sheet-cell-notes small {
   color: var(--green-hot);
   font-size: 0.72rem;
   font-weight: 900;
+  line-height: 1.25;
   white-space: pre-wrap;
 }
 
