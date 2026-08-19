@@ -79,6 +79,37 @@ function parseInteger(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function firstRecordValue(record, patterns) {
+  const entries = Object.entries(record || {});
+  const found = entries.find(([key, value]) => (
+    String(value || '').trim()
+    && patterns.some((pattern) => pattern.test(String(key || '')))
+  ));
+  return found ? String(found[1] || '').trim() : '';
+}
+
+function inferLootLocation(record) {
+  const explicit = firstRecordValue(record, [/location/i, /cluster/i, /zone/i, /region/i, /map/i]);
+  if (explicit) return explicit;
+
+  const values = Object.entries(record || {})
+    .filter(([key, value]) => String(value || '').trim() && ![
+      'timestamp_utc',
+      'looted_by__alliance',
+      'looted_by__guild',
+      'looted_by__name',
+      'item_id',
+      'item_name',
+      'quantity',
+      'looted_from__alliance',
+      'looted_from__guild',
+      'looted_from__name',
+    ].includes(key))
+    .map(([, value]) => String(value || '').trim());
+
+  return values.reverse().find((value) => /[a-z]/i.test(value) && !/^\d+$/.test(value)) || '';
+}
+
 export function extractEnchantment(itemId) {
   const match = String(itemId || '').match(/@(\d+)$/);
   return match ? Number.parseInt(match[1], 10) : 0;
@@ -179,6 +210,10 @@ export function parseLootEvents(text) {
       quantity,
       timestamp: record.timestamp_utc || '',
       enchantment: extractEnchantment(record.item_id),
+      lootedFromAlliance: record.looted_from__alliance || '',
+      lootedFromGuild: record.looted_from__guild || '',
+      lootedFromName: record.looted_from__name || '',
+      location: inferLootLocation(record),
     };
 
     const lostBy = record.looted_from__name;
@@ -484,12 +519,36 @@ function addReportQuantity(rowMap, source, field, quantity, extra = {}) {
 }
 
 function formatCustodyTime(row) {
-  return row.date || row.timestamp || '';
+  const date = new Date(row.timestamp || row.date || '');
+  if (!Number.isNaN(date.getTime())) {
+    return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+  }
+  return String(row.date || row.timestamp || '').trim();
+}
+
+function formatAffiliation(alliance, guild) {
+  const cleanAlliance = String(alliance || '').trim();
+  const cleanGuild = String(guild || '').trim();
+  if (cleanAlliance && cleanGuild) return `[${cleanAlliance}] ${cleanGuild}`;
+  return cleanAlliance || cleanGuild || 'No guild/alliance';
+}
+
+function custodyStepDetails(action, row, player = row.player) {
+  const time = formatCustodyTime(row);
+  const item = row.item ? ` ${row.item}` : '';
+  const quantity = row.quantity || row.amount ? ` x${Math.abs(Number(row.quantity || row.amount) || 0)}` : '';
+
+  if (action === 'Looted') {
+    const victim = row.lootedFromName || 'Unknown';
+    const location = row.location ? ` at ${row.location}` : '';
+    return `${time} Looted by ${player || 'Unknown'}:${item}${quantity} from ${victim} (${formatAffiliation(row.lootedFromAlliance, row.lootedFromGuild)})${location}`;
+  }
+
+  return `${time} ${action} by ${player || 'Unknown'}:${item}${quantity} (${formatAffiliation(row.alliance, row.guild)})`;
 }
 
 function custodyStep(action, row, player = row.player) {
-  const time = formatCustodyTime(row);
-  return `${action} by ${player || 'Unknown'}${time ? ` at ${time}` : ''}`;
+  return custodyStepDetails(action, row, player);
 }
 
 function makeLot(row, quantity, { tracked = true } = {}) {
@@ -499,6 +558,10 @@ function makeLot(row, quantity, { tracked = true } = {}) {
     guild: row.guild || '',
     item: row.item || '',
     itemId: row.itemId || '',
+    location: row.location || '',
+    lootedFromAlliance: row.lootedFromAlliance || '',
+    lootedFromGuild: row.lootedFromGuild || '',
+    lootedFromName: row.lootedFromName || '',
     player: row.player || '',
     quality: row.quality || 0,
     quantity,
@@ -623,7 +686,7 @@ function consumePoolLots(pool, itemKey, quantity) {
   return { consumed, missing };
 }
 
-function buildLootMonitorReportFromParsedLoot(loot, chestText) {
+export function buildLootMonitorReportFromParsedLoot(loot, chestText) {
   const chest = parseChestLog(chestText);
   const itemIdLookup = buildItemIdLookup([...loot.rows, ...loot.lostRows]);
   const playerIdentity = buildPlayerIdentity([...loot.rows, ...loot.lostRows]);
@@ -668,7 +731,10 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
 
     if (event.type === 'lost') {
       const { consumed, missing } = consumeLots(holderLots, row.player, itemKey, row.quantity);
-      consumed.forEach((lot) => addReportQuantity(rowMap, lot, 'lost', lot.quantity, { lostTo: row.lostTo }));
+      consumed.forEach((lot) => addReportQuantity(rowMap, lot, 'lost', lot.quantity, {
+        custodyChain: [...(lot.custodyChain || []), custodyStep('Lost', row, row.player)].join(' -> '),
+        lostTo: row.lostTo,
+      }));
       if (missing > 0) addReportQuantity(rowMap, itemRow, 'lost', missing, { lostTo: row.lostTo });
       return;
     }
@@ -704,7 +770,10 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
     })));
     if (tradedDeposit.missing > 0) {
       if (row.isFinalChest) {
-        addReportQuantity(rowMap, itemRow, 'donated', tradedDeposit.missing, { quality: row.quality });
+        addReportQuantity(rowMap, itemRow, 'donated', tradedDeposit.missing, {
+          custodyChain: custodyStep('Deposited', row),
+          quality: row.quality,
+        });
       } else {
         addLotsToPool(chestLots, itemKey, [makeLot(itemRow, tradedDeposit.missing, { tracked: false })]);
       }
@@ -717,7 +786,7 @@ function buildLootMonitorReportFromParsedLoot(loot, chestText) {
       lot,
       isTrackedLot(lot) ? 'accounted' : 'donated',
       lot.quantity,
-      { quality: lot.quality },
+      { custodyChain: (lot.custodyChain || []).join(' -> '), quality: lot.quality },
     ));
   });
 
@@ -891,6 +960,10 @@ export function buildLootMonitorReportFromEvents(events, chestText) {
       guild: event.guild || '',
       item: event.item || '',
       itemId: event.itemId || '',
+      location: event.location || '',
+      lootedFromAlliance: event.lootedFromAlliance || '',
+      lootedFromGuild: event.lootedFromGuild || '',
+      lootedFromName: event.lootedFromName || '',
       player: event.player || '',
       quantity: event.quantity || 0,
       timestamp: event.timestamp || '',

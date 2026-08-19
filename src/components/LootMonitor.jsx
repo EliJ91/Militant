@@ -756,6 +756,7 @@ function buildItemTiles(row, filters) {
     item: row.item,
     itemId: row.itemId,
     custodyChains: row.custodyChains,
+    historyEntries: row.historyEntries || row.ratHistoryEntries || [],
     deathAt: row.deathAt,
     deathEvents: row.deathEvents,
     deathEventId: row.deathEventId,
@@ -1209,6 +1210,7 @@ export function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChang
 
 export function LootItemTile({
   canViewDeaths = false,
+  historyClickMode = false,
   ignoreMode = false,
   onDeathLinkCopy = () => {},
   onIgnore = () => {},
@@ -1239,8 +1241,12 @@ export function LootItemTile({
   const deathLinks = [...new Set(deathEvents.map((death) => (
     death.deathUrl || (death.deathEventId ? buildDeathLinkUrl(death.deathEventId) : '')
   )).filter(Boolean))];
-  const hasCustodyTooltip = (tile.status === 'kept' && tile.custodyChains) || deathEvents.length > 0;
-  const custodySteps = deathEvents.length > 0
+  const historyEntries = Array.isArray(tile.historyEntries) ? tile.historyEntries : [];
+  const hasHistoryTooltip = historyEntries.length > 0;
+  const hasCustodyTooltip = hasHistoryTooltip || (tile.status === 'kept' && tile.custodyChains) || deathEvents.length > 0;
+  const custodySteps = hasHistoryTooltip
+    ? historyEntries.map((entry) => entry.label || '')
+    : deathEvents.length > 0
     ? deathEvents.map((death, index) => (
       `${deathEvents.length > 1 ? `Death ${index + 1}` : 'Death'} ID: ${death.deathEventId}`
     ))
@@ -1330,6 +1336,7 @@ export function LootItemTile({
 
     function handleAwayPress(event) {
       if (tileRef.current?.contains(event.target)) return;
+      if (tooltipRef.current?.contains(event.target)) return;
       closePinnedTooltip();
     }
 
@@ -1340,16 +1347,16 @@ export function LootItemTile({
 
     document.addEventListener('click', handleAwayPress, true);
     document.addEventListener('pointerdown', handleAwayPress, true);
-    window.addEventListener('scroll', closePinnedTooltip, true);
+    if (!historyClickMode) window.addEventListener('scroll', closePinnedTooltip, true);
     window.addEventListener(LOOT_TOOLTIP_OPEN_EVENT, handleTooltipOpen);
 
     return () => {
       document.removeEventListener('click', handleAwayPress, true);
       document.removeEventListener('pointerdown', handleAwayPress, true);
-      window.removeEventListener('scroll', closePinnedTooltip, true);
+      if (!historyClickMode) window.removeEventListener('scroll', closePinnedTooltip, true);
       window.removeEventListener(LOOT_TOOLTIP_OPEN_EVENT, handleTooltipOpen);
     };
-  }, [hasCustodyTooltip, tooltipId]);
+  }, [hasCustodyTooltip, historyClickMode, tooltipId]);
 
   function hideCustodyTooltip() {
     setCustodyTooltip((current) => (
@@ -1358,7 +1365,7 @@ export function LootItemTile({
   }
 
   function toggleCustodyTooltip() {
-    if (!hasCustodyTooltip || (tile.status !== 'accounted' && !usesMobileTooltipClick())) return;
+    if (!hasCustodyTooltip || (!historyClickMode && tile.status !== 'accounted' && !usesMobileTooltipClick())) return;
 
     if (custodyTooltip.visible && custodyTooltip.pinned) {
       setCustodyTooltip((current) => ({ ...current, pinned: false, visible: false }));
@@ -1401,7 +1408,7 @@ export function LootItemTile({
       onIgnore(tile);
       return;
     }
-    if (!hasCustodyTooltip || (tile.status !== 'accounted' && !usesMobileTooltipClick())) return;
+    if (!hasCustodyTooltip || (!historyClickMode && tile.status !== 'accounted' && !usesMobileTooltipClick())) return;
 
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -1425,10 +1432,10 @@ export function LootItemTile({
         onClick={handleTileClick}
         onKeyDown={handleTileKeyDown}
         onMouseEnter={() => {
-          if (!ignoreMode) showCustodyTooltip(false);
+          if (!ignoreMode && !historyClickMode) showCustodyTooltip(false);
         }}
         onMouseLeave={() => {
-          if (!ignoreMode) hideCustodyTooltip();
+          if (!ignoreMode && !historyClickMode) hideCustodyTooltip();
         }}
       >
         {tile.imageUrl && !imageFailed ? (
@@ -1458,7 +1465,19 @@ export function LootItemTile({
           }}
         >
           <strong>{tile.item}</strong>
-          {custodySteps.map((entry, index) => (
+          {hasHistoryTooltip ? historyEntries.map((entry, index) => (
+            entry.bundleId ? (
+              <a
+                href={`#loot-monitor/${encodeURIComponent(entry.bundleId)}`}
+                key={`${entry.bundleId}-${entry.label}-${index}`}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <span>{entry.label}</span>
+                <small>{entry.bundleLabel}</small>
+              </a>
+            ) : <span key={`${entry.label}-${index}`}>{entry.label}</span>
+          )) : custodySteps.map((entry, index) => (
             <span key={`${entry}-${index}`}>{entry}</span>
           ))}
         </div>,

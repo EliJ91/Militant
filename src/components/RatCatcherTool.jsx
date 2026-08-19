@@ -6,7 +6,12 @@ import {
   fetchLootLogBundle,
   fetchLootLogBundles,
 } from '../services/lootLogApi';
-import { applyLootDeathChecks, buildLootMonitorReportFromEvents } from '../utils/lootMonitor';
+import {
+  applyLootDeathChecks,
+  buildLootMonitorReportFromEvents,
+  buildLootMonitorReportFromParsedLoot,
+  parseLootEvents,
+} from '../utils/lootMonitor';
 import {
   DEFAULT_FILTERS,
   LootItemTile,
@@ -58,24 +63,58 @@ function optionLabel(options, value) {
   return options.find((option) => option.value === value)?.label || value;
 }
 
+function incrementCount(counts, player, value) {
+  const cleanPlayer = String(player || '').trim().toLowerCase();
+  const cleanValue = String(value || '').trim();
+  if (!cleanPlayer || !cleanValue) return;
+  const playerCounts = counts.get(cleanPlayer) || new Map();
+  playerCounts.set(cleanValue, (playerCounts.get(cleanValue) || 0) + 1);
+  counts.set(cleanPlayer, playerCounts);
+}
+
+function mostCommonValue(counts, player) {
+  const cleanPlayer = String(player || '').trim().toLowerCase();
+  const playerCounts = counts.get(cleanPlayer);
+  if (!playerCounts) return '';
+  return [...playerCounts.entries()]
+    .sort((left, right) => right[1] - left[1] || compareText(left[0], right[0]))[0]?.[0] || '';
+}
+
+function historySortValue(entry) {
+  const label = String(entry?.label || '');
+  const match = label.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return Number.POSITIVE_INFINITY;
+  return (Number(match[1]) * 60) + Number(match[2]);
+}
+
 function combineReportRows(reports) {
   const rowsByKey = new Map();
+  const guildCounts = new Map();
+  const allianceCounts = new Map();
+
+  reports.flatMap((report) => report?.rows || []).forEach((row) => {
+    incrementCount(guildCounts, row.player, row.guild);
+    incrementCount(allianceCounts, row.player, row.alliance);
+  });
 
   reports.flatMap((report) => report?.rows || []).forEach((row) => {
     const key = [
       String(row.player || '').trim().toLowerCase(),
       String(row.itemId || row.item || '').trim().toLowerCase(),
       Number(row.enchantment) || 0,
-      String(row.guild || '').trim().toLowerCase(),
-      String(row.alliance || '').trim().toLowerCase(),
     ].join('|');
     const current = rowsByKey.get(key);
+    const playerGuild = mostCommonValue(guildCounts, row.player) || row.guild || '';
+    const playerAlliance = mostCommonValue(allianceCounts, row.player) || row.alliance || '';
 
     if (!current) {
       rowsByKey.set(key, {
         ...row,
+        alliance: playerAlliance,
         custodyChains: row.custodyChains || '',
         deathEvents: [...(row.deathEvents || [])],
+        guild: playerGuild,
+        ratHistoryEntries: [...(row.ratHistoryEntries || [])],
       });
       return;
     }
@@ -83,11 +122,19 @@ function combineReportRows(reports) {
     ['accounted', 'deathAccounted', 'donated', 'kept', 'lost', 'quantity'].forEach((field) => {
       current[field] = (Number(current[field]) || 0) + (Number(row[field]) || 0);
     });
+    current.alliance = playerAlliance || current.alliance;
     current.custodyChains = [current.custodyChains, row.custodyChains].filter(Boolean).join('\n');
     current.deathEvents = [...(current.deathEvents || []), ...(row.deathEvents || [])];
+    current.guild = playerGuild || current.guild;
+    current.ratHistoryEntries = [...(current.ratHistoryEntries || []), ...(row.ratHistoryEntries || [])]
+      .sort((left, right) => historySortValue(left) - historySortValue(right));
   });
 
-  return [...rowsByKey.values()];
+  return [...rowsByKey.values()].map((row) => ({
+    ...row,
+    ratHistoryEntries: [...(row.ratHistoryEntries || [])]
+      .sort((left, right) => historySortValue(left) - historySortValue(right)),
+  }));
 }
 
 function calculateDisplayedEmv(player, prices) {
@@ -130,6 +177,49 @@ function sortPlayers(players, filters, hasCurrentEmv) {
 function getBundleLabel(bundle) {
   const number = bundle.logNumber ? `#${bundle.logNumber} ` : '';
   return `${number}${bundle.lootFileName || bundle.displayLootFileName || 'Loot Log'}`;
+}
+
+function bundleLootText(bundle) {
+  return (bundle.submissions || [])
+    .map((submission) => submission.rawLogText || submission.raw_log_text || '')
+    .filter((text) => String(text || '').trim())
+    .join('\n');
+}
+
+function bundleChestText(bundle) {
+  const rawChestText = (bundle.chestSubmissions || [])
+    .map((submission) => submission.rawLogText || submission.raw_log_text || '')
+    .filter((text) => String(text || '').trim())
+    .join('\n');
+
+  return rawChestText || bundle.chestLogReportText || bundle.chestLogText || '';
+}
+
+function buildRatHistoryEntries(row, bundle) {
+  const bundleId = bundle?.id || '';
+  const bundleLabel = getBundleLabel(bundle || {});
+  return String(row.custodyChains || '')
+    .split('\n')
+    .filter(Boolean)
+    .flatMap((chain) => chain.split(' -> ').filter(Boolean))
+    .map((label) => ({ bundleId, bundleLabel, label }));
+}
+
+function buildRatBundleReport(bundle) {
+  const rawLootText = bundleLootText(bundle);
+  const chestText = bundleChestText(bundle);
+  const report = rawLootText.trim()
+    ? buildLootMonitorReportFromParsedLoot(parseLootEvents(rawLootText), chestText)
+    : buildLootMonitorReportFromEvents(bundle.events || [], chestText);
+  const checkedReport = applyLootDeathChecks(report, bundle.deathChecks || []);
+
+  return {
+    ...checkedReport,
+    rows: (checkedReport.rows || []).map((row) => ({
+      ...row,
+      ratHistoryEntries: buildRatHistoryEntries(row, bundle),
+    })),
+  };
 }
 
 function BundlePicker({ bundles, combinedIds, loading, onChange, selectedIds }) {
@@ -270,13 +360,7 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
     window.localStorage.setItem(RAT_FILTER_STORAGE_KEY, JSON.stringify(filters));
   }, [filters]);
 
-  const reports = useMemo(() => selectedBundles.map((bundle) => {
-    const report = buildLootMonitorReportFromEvents(
-      bundle.events || [],
-      bundle.chestLogReportText || bundle.chestLogText || '',
-    );
-    return applyLootDeathChecks(report, bundle.deathChecks || []);
-  }), [selectedBundles]);
+  const reports = useMemo(() => selectedBundles.map(buildRatBundleReport), [selectedBundles]);
   const combinedRows = useMemo(() => combineReportRows(reports), [reports]);
   const ignoredKeys = useMemo(() => new Set(ignoredItems.map((item) => (
     item.itemKey || getLootLogIgnoredItemKey(item)
@@ -542,7 +626,11 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
                 </aside>
                 <div className="loot-item-grid" aria-label={`${player.player} item icons`}>
                   {player.tiles.map((tile, index) => (
-                    <LootItemTile key={`${tile.status}:${tile.itemId}:${index}`} tile={tile} />
+                    <LootItemTile
+                      historyClickMode
+                      key={`${tile.status}:${tile.itemId}:${index}`}
+                      tile={tile}
+                    />
                   ))}
                 </div>
                 <div className="loot-player-actions"><PlayerEmv emv={player.emv} /></div>

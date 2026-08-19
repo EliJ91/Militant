@@ -5062,7 +5062,7 @@ button:focus-visible {
   color: var(--white);
   font-size: 0.76rem;
   line-height: 1.35;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .loot-item-custody-tooltip strong {
@@ -5072,6 +5072,24 @@ button:focus-visible {
 
 .loot-item-custody-tooltip span {
   color: #dfe8dc;
+}
+
+.loot-item-custody-tooltip a {
+  display: grid;
+  gap: 2px;
+  padding: 5px 0;
+  color: #dfe8dc;
+  text-decoration: none;
+}
+
+.loot-item-custody-tooltip a:hover span {
+  color: var(--green);
+}
+
+.loot-item-custody-tooltip small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
 }
 
 @media (hover: none), (pointer: coarse) {
