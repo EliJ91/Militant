@@ -109,6 +109,10 @@ const ITEM_RECORDS = Object.entries(albionItemLookup).map(([lookupName, itemId])
   tier: tier(itemId),
 }));
 
+export function tokenizeZvZSearch(value) {
+  return normalizeText(value).split(' ').filter(Boolean);
+}
+
 const ITEMS_BY_BASE_NAME = ITEM_RECORDS.reduce((index, record) => {
   const records = index.get(record.baseName) || [];
   records.push(record);
@@ -232,6 +236,7 @@ export function getZvZItemOptions() {
         imageUrl: zvzItemImageUrl(itemId),
         label: name,
         searchText: `${name} ${record.lookupName} ${itemId}`.toLowerCase(),
+        searchTokens: tokenizeZvZSearch(`${name} ${record.lookupName} ${itemId}`),
         value: name,
       };
     })

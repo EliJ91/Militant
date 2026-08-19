@@ -797,11 +797,8 @@
 }
 
 .zvz-sheet-item-menu {
-  position: absolute;
-  z-index: 30;
-  top: 36px;
-  left: 0;
-  right: 0;
+  position: static;
+  z-index: 1;
   display: grid;
   max-height: 260px;
   overflow: auto;
@@ -866,7 +863,7 @@
   display: grid;
   align-items: center;
   justify-items: center;
-  gap: 7px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -874,15 +871,15 @@
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
+  justify-content: stretch;
   gap: 8px;
-  width: fit-content;
+  width: min(100%, 136px);
   max-width: 100%;
   margin: 0 auto;
 }
 
 .zvz-sheet-item-preview img,
-.zvz-sheet-item-preview > span {
+.zvz-sheet-item-fallback {
   display: grid;
   width: 42px;
   height: 42px;
@@ -900,8 +897,9 @@
 .zvz-sheet-item-copy {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
   align-content: center;
+  justify-items: center;
   text-align: center;
 }
 
@@ -916,7 +914,6 @@
 .zvz-sheet-cell-notes {
   display: block;
   width: 100%;
-  text-align: center;
 }
 
 .zvz-sheet-cell-notes small {

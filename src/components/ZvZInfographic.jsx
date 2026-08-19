@@ -11,6 +11,7 @@ import {
   getZvZItemOptions,
   parseZvZSpreadsheet,
   stripAlbionRankPrefix,
+  tokenizeZvZSearch,
   zvzItemImageUrl,
 } from '../utils/zvzInfographic';
 
@@ -201,18 +202,22 @@ function ItemPreview({ cell }) {
         const option = findOptionForItem(item);
         return (
           <span className="zvz-sheet-item-preview" key={`${item.itemId}-${item.itemName}-${index}`}>
-            {option?.imageUrl ? <img src={option.imageUrl} alt="" loading="lazy" /> : <span>{String(item.itemName || '?').slice(0, 2).toUpperCase()}</span>}
+            {option?.imageUrl ? (
+              <img src={option.imageUrl} alt="" loading="lazy" />
+            ) : (
+              <span className="zvz-sheet-item-fallback">
+                {String(item.itemName || '?').slice(0, 2).toUpperCase()}
+              </span>
+            )}
             <span className="zvz-sheet-item-copy">
               <strong>{item.itemName || option?.label}</strong>
+              {index === 0 && cell.notes ? (
+                <small className="zvz-sheet-cell-notes">{cell.notes}</small>
+              ) : null}
             </span>
           </span>
         );
       })}
-      {cell.notes ? (
-        <span className="zvz-sheet-cell-notes">
-          <small>{cell.notes}</small>
-        </span>
-      ) : null}
     </span>
   );
 }
@@ -224,8 +229,11 @@ function ItemCellEditor({ cell, disabled, onChange }) {
   const selectedItems = buildSlotItems(cell);
   const visibleOptions = useMemo(() => {
     const search = query.trim().toLowerCase();
+    const searchTokens = tokenizeZvZSearch(search);
     return ITEM_OPTIONS
-      .filter((option) => !search || option.searchText.includes(search))
+      .filter((option) => !search || option.searchText.includes(search) || searchTokens.every((token) => (
+        option.searchTokens?.some((optionToken) => optionToken.includes(token) || token.includes(optionToken))
+      )))
       .slice(0, 45);
   }, [query]);
 
