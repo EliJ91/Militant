@@ -45,8 +45,11 @@ const rawBundle = {
 
 describe('RatCatcherTool', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     window.localStorage.clear();
-    fetchLootLogBundles.mockResolvedValue({ bundles: [{ id: bundle.id, logNumber: 1, lootFileName: bundle.lootFileName }] });
+    fetchLootLogBundles.mockResolvedValue({
+      bundles: [{ createdAt: '2026-08-19T13:00:00Z', id: bundle.id, logNumber: 1, lootFileName: bundle.lootFileName }],
+    });
     fetchIgnoredLootItems.mockResolvedValue({ items: [] });
     fetchLootLogBundle.mockResolvedValue({ bundle });
     fetchWestAveragePrices.mockResolvedValue({ T4_MAIN_SWORD: { averagePrice: 1000 } });
@@ -56,9 +59,18 @@ describe('RatCatcherTool', () => {
     cleanup();
   });
 
+  async function searchBundleDateRange() {
+    expect(fetchLootLogBundles).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText(/Uploaded From/i), { target: { value: '2026-08-19' } });
+    fireEvent.change(screen.getByLabelText(/Uploaded To/i), { target: { value: '2026-08-19' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await waitFor(() => expect(fetchLootLogBundles).toHaveBeenCalled());
+  }
+
   it('prices only after the user checks the currently displayed players', async () => {
     render(<RatCatcherTool />);
 
+    await searchBundleDateRange();
     fireEvent.click(await screen.findByRole('button', { name: /0 selected/i }));
     fireEvent.click(screen.getByRole('button', { name: /#1 Rat Test/i }));
     expect(screen.queryByText('RatPlayer')).not.toBeInTheDocument();
@@ -76,12 +88,13 @@ describe('RatCatcherTool', () => {
 
   it('opens Rat Catcher item history as links to the source loot log', async () => {
     fetchLootLogBundles.mockResolvedValue({
-      bundles: [{ id: rawBundle.id, logNumber: 2, lootFileName: rawBundle.lootFileName }],
+      bundles: [{ createdAt: '2026-08-19T13:00:00Z', id: rawBundle.id, logNumber: 2, lootFileName: rawBundle.lootFileName }],
     });
     fetchLootLogBundle.mockResolvedValue({ bundle: rawBundle });
 
     render(<RatCatcherTool />);
 
+    await searchBundleDateRange();
     fireEvent.click(await screen.findByRole('button', { name: /0 selected/i }));
     fireEvent.click(await screen.findByRole('button', { name: /#2 Raw Rat Test/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Combine' }));

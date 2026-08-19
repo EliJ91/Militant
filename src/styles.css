@@ -4353,9 +4353,33 @@ button:focus-visible {
   border-radius: 8px;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(280px, 1fr) auto auto;
+  grid-template-columns: minmax(145px, 0.7fr) minmax(145px, 0.7fr) auto minmax(260px, 1.6fr) auto auto;
   margin-bottom: 18px;
   padding: 16px;
+}
+
+.rat-date-filter {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rat-date-filter span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rat-date-filter input {
+  background: #020705;
+  border: 1px solid #283a31;
+  border-radius: 4px;
+  color: #fff;
+  font: inherit;
+  height: 42px;
+  padding: 0 11px;
 }
 
 .rat-bundle-picker { min-width: 0; position: relative; }
@@ -4416,6 +4440,19 @@ button:focus-visible {
   color: #fff;
   height: 42px;
   min-width: 132px;
+}
+
+.rat-search-button {
+  background: #0d2a1a;
+  border: 1px solid #278849;
+  color: #fff;
+  height: 42px;
+  min-width: 110px;
+}
+
+.rat-search-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .rat-source-summary {
@@ -4530,22 +4567,29 @@ button:focus-visible {
   .rat-source-panel {
     align-items: stretch;
     gap: 10px;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 12px;
   }
 
   .rat-bundle-picker,
   .rat-bundle-picker-button,
   .rat-combine-button,
+  .rat-search-button,
   .rat-source-summary {
     min-width: 0;
     width: 100%;
+  }
+
+  .rat-bundle-picker,
+  .rat-source-summary {
+    grid-column: 1 / -1;
   }
 
   .rat-bundle-picker-button {
     margin-top: 5px;
   }
 
+  .rat-search-button,
   .rat-combine-button {
     height: 40px;
   }

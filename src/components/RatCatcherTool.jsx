@@ -179,6 +179,34 @@ function getBundleLabel(bundle) {
   return `${number}${bundle.lootFileName || bundle.displayLootFileName || 'Loot Log'}`;
 }
 
+function getBundleUploadedAt(bundle) {
+  return bundle?.createdAt
+    || bundle?.created_at
+    || bundle?.submissions?.[0]?.createdAt
+    || bundle?.chestSubmissions?.[0]?.createdAt
+    || bundle?.updatedAt
+    || '';
+}
+
+function dateInputBoundary(value, endOfDay = false) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  if (endOfDay) date.setHours(23, 59, 59, 999);
+  return date;
+}
+
+function bundleMatchesUploadDateRange(bundle, startDate, endDate) {
+  const uploadedAt = new Date(getBundleUploadedAt(bundle)).getTime();
+  if (!Number.isFinite(uploadedAt)) return false;
+  const start = dateInputBoundary(startDate)?.getTime();
+  const end = dateInputBoundary(endDate, true)?.getTime();
+  if (Number.isFinite(start) && uploadedAt < start) return false;
+  if (Number.isFinite(end) && uploadedAt > end) return false;
+  return true;
+}
+
 function bundleLootText(bundle) {
   return (bundle.submissions || [])
     .map((submission) => submission.rawLogText || submission.raw_log_text || '')
@@ -229,7 +257,7 @@ function buildRatBundleReport(bundle) {
   };
 }
 
-function BundlePicker({ bundles, combinedIds, loading, onChange, selectedIds }) {
+function BundlePicker({ bundles, combinedIds, emptyMessage, loading, onChange, selectedIds }) {
   const pickerRef = useRef(null);
   const [open, setOpen] = useState(false);
 
@@ -257,7 +285,7 @@ function BundlePicker({ bundles, combinedIds, loading, onChange, selectedIds }) 
       </button>
       {open ? (
         <div className="rat-bundle-menu">
-          {bundles.length === 0 ? <p>No loot logs available.</p> : bundles.map((bundle) => {
+          {bundles.length === 0 ? <p>{emptyMessage || 'No loot logs available.'}</p> : bundles.map((bundle) => {
             const selected = selectedIds.includes(bundle.id);
             const combined = combinedIds.includes(bundle.id);
             return (
@@ -334,11 +362,13 @@ function StatsModal({ onClose, players }) {
 export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
   const boardRef = useRef(null);
   const [bundles, setBundles] = useState([]);
+  const [dateRange, setDateRange] = useState({ end: '', start: '' });
+  const [hasSearched, setHasSearched] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectedBundles, setSelectedBundles] = useState([]);
   const [filters, setFilters] = useState(loadFilters);
   const [ignoredItems, setIgnoredItems] = useState([]);
-  const [loadStatus, setLoadStatus] = useState({ message: '', state: 'loading' });
+  const [loadStatus, setLoadStatus] = useState({ message: '', state: 'idle' });
   const [combineProgress, setCombineProgress] = useState({ completed: 0, total: 0 });
   const [emvStatus, setEmvStatus] = useState({ message: '', state: 'idle' });
   const [marketPrices, setMarketPrices] = useState({});
@@ -348,15 +378,14 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([fetchLootLogBundles(), fetchIgnoredLootItems().catch(() => ({ items: [] }))])
-      .then(([bundleResult, ignoredResult]) => {
+    fetchIgnoredLootItems()
+      .catch(() => ({ items: [] }))
+      .then((ignoredResult) => {
         if (cancelled) return;
-        setBundles(bundleResult.bundles || []);
         setIgnoredItems(ignoredResult.items || []);
-        setLoadStatus({ message: '', state: 'loaded' });
       })
       .catch((error) => {
-        if (!cancelled) setLoadStatus({ message: error.message || 'Could not load loot logs.', state: 'error' });
+        if (!cancelled) setLoadStatus({ message: error.message || 'Could not load ignored items.', state: 'error' });
       });
     return () => { cancelled = true; };
   }, []);
@@ -409,6 +438,31 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
     if (!['hideUnder500kEmv', 'sortBy', 'sortDirection'].includes(key)) {
       setPricedSignature('');
       setStatsOpen(false);
+    }
+  }
+
+  async function searchBundles() {
+    if (!dateRange.start || !dateRange.end || loadStatus.state === 'searching') return;
+    setLoadStatus({ message: '', state: 'searching' });
+    setHasSearched(true);
+    setBundles([]);
+    setSelectedIds([]);
+    setSelectedBundles([]);
+    setPricedSignature('');
+    setMarketPrices({});
+    setStatsOpen(false);
+
+    try {
+      const result = await fetchLootLogBundles();
+      const matchingBundles = (result.bundles || [])
+        .filter((bundle) => bundleMatchesUploadDateRange(bundle, dateRange.start, dateRange.end));
+      setBundles(matchingBundles);
+      setLoadStatus({
+        message: matchingBundles.length === 0 ? 'No loot logs found in that upload date range.' : '',
+        state: 'loaded',
+      });
+    } catch (error) {
+      setLoadStatus({ message: error.message || 'Could not search loot logs.', state: 'error' });
     }
   }
 
@@ -498,10 +552,35 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
       </section>
 
       <section className="rat-source-panel" aria-label="Loot log bundle selection">
+        <label className="rat-date-filter">
+          <span>Uploaded From</span>
+          <input
+            type="date"
+            value={dateRange.start}
+            onChange={(event) => setDateRange((current) => ({ ...current, start: event.target.value }))}
+          />
+        </label>
+        <label className="rat-date-filter">
+          <span>Uploaded To</span>
+          <input
+            type="date"
+            value={dateRange.end}
+            onChange={(event) => setDateRange((current) => ({ ...current, end: event.target.value }))}
+          />
+        </label>
+        <button
+          className="rat-search-button"
+          disabled={!dateRange.start || !dateRange.end || loadStatus.state === 'searching'}
+          type="button"
+          onClick={searchBundles}
+        >
+          {loadStatus.state === 'searching' ? 'Searching...' : 'Search'}
+        </button>
         <BundlePicker
           bundles={bundles}
           combinedIds={combinedIds}
-          loading={loadStatus.state === 'loading'}
+          emptyMessage={hasSearched ? 'No loot logs found.' : 'Select an upload date range, then search.'}
+          loading={loadStatus.state === 'searching'}
           selectedIds={selectedIds}
           onChange={setSelectedIds}
         />
