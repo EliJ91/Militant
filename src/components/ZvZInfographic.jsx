@@ -113,7 +113,10 @@ function ItemPreview({ cell }) {
   return (
     <span className="zvz-sheet-item-preview">
       {option?.imageUrl ? <img src={option.imageUrl} alt="" loading="lazy" /> : <span>{String(cell.itemName || '?').slice(0, 2).toUpperCase()}</span>}
-      <strong>{cell.itemName || option?.label}</strong>
+      <span className="zvz-sheet-item-copy">
+        <strong>{cell.itemName || option?.label}</strong>
+        {cell.notes ? <small>{cell.notes}</small> : null}
+      </span>
     </span>
   );
 }
@@ -146,7 +149,6 @@ function ItemCellEditor({ cell, disabled, onChange }) {
     return (
       <div className="zvz-sheet-view-cell">
         <ItemPreview cell={cell} />
-        {cell.notes ? <small>{cell.notes}</small> : null}
       </div>
     );
   }

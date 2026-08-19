@@ -736,7 +736,7 @@
   border-right: 1px solid rgba(247, 250, 245, 0.1);
   border-bottom: 1px solid rgba(247, 250, 245, 0.1);
   padding: 8px;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .zvz-sheet-table th:first-child,
@@ -857,22 +857,27 @@
 
 .zvz-sheet-view-cell {
   display: grid;
+  align-items: center;
   gap: 6px;
-  min-height: 52px;
+  min-height: 72px;
 }
 
 .zvz-sheet-item-preview {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .zvz-sheet-item-preview img,
 .zvz-sheet-item-preview > span {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   place-items: center;
   border: 1px solid rgba(247, 250, 245, 0.18);
   border-radius: 6px;
@@ -881,6 +886,15 @@
   object-fit: contain;
   font-size: 0.68rem;
   font-weight: 900;
+  justify-self: center;
+}
+
+.zvz-sheet-item-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  align-content: center;
+  text-align: center;
 }
 
 .zvz-sheet-item-preview strong,
@@ -891,7 +905,7 @@
   line-height: 1.25;
 }
 
-.zvz-sheet-view-cell small {
+.zvz-sheet-item-copy small {
   color: var(--green-hot);
   font-size: 0.72rem;
   font-weight: 900;
