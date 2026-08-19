@@ -748,8 +748,8 @@
 
 .zvz-sheet-table th:first-child,
 .zvz-sheet-table td:first-child {
-  min-width: 34px;
-  max-width: 38px;
+  min-width: 42px;
+  max-width: 46px;
   text-align: center;
 }
 
@@ -762,8 +762,14 @@
 
 .zvz-sheet-table th:nth-child(2),
 .zvz-sheet-table td:nth-child(2) {
-  min-width: 118px;
-  width: 118px;
+  min-width: 140px;
+  width: 140px;
+  text-align: center;
+}
+
+.zvz-sheet-table th:nth-child(n+3):not(:last-child),
+.zvz-sheet-table td:nth-child(n+3):not(:last-child) {
+  width: 1%;
 }
 
 .zvz-sheet-table th {
@@ -834,6 +840,14 @@
 
 .zvz-sheet-header-cell input {
   flex: 1 1 auto;
+}
+
+.zvz-sheet-table th:first-child input,
+.zvz-sheet-table td:first-child .zvz-sheet-text-editor,
+.zvz-sheet-table th:nth-child(2) input,
+.zvz-sheet-table td:nth-child(2) .zvz-sheet-text-editor,
+.zvz-sheet-table td:nth-child(2) .zvz-sheet-text-cell {
+  text-align: center;
 }
 
 .zvz-sheet-text-editor,
@@ -936,7 +950,7 @@
 
 .zvz-sheet-edit-item {
   display: grid;
-  grid-template-columns: 38px max-content 15px;
+  grid-template-columns: 44px max-content 15px;
   align-items: center;
   justify-content: start;
   gap: 5px;
@@ -945,8 +959,8 @@
 }
 
 .zvz-sheet-edit-item img {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border: 1px solid rgba(247, 250, 245, 0.18);
   border-radius: 6px;
   background: #101713;
@@ -956,7 +970,7 @@
 .zvz-sheet-edit-item strong {
   min-width: 0;
   color: var(--white);
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   font-weight: 900;
   line-height: 1.18;
   text-align: left;
@@ -1108,19 +1122,19 @@
   gap: 5px;
   width: max-content;
   min-width: 100%;
-  min-height: 58px;
+  min-height: 66px;
 }
 
 .zvz-sheet-item-preview-list {
   display: grid;
-  grid-template-columns: 38px max-content;
+  grid-template-columns: 44px max-content;
   align-items: center;
   justify-items: start;
   justify-content: start;
-  gap: 8px;
+  gap: 9px;
   width: max-content;
   min-width: 100%;
-  margin: 0 auto;
+  margin: 0;
 }
 
 .zvz-sheet-item-image-stack,
@@ -1133,8 +1147,8 @@
 .zvz-sheet-item-image-stack img,
 .zvz-sheet-item-fallback {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   border: 1px solid rgba(247, 250, 245, 0.18);
   border-radius: 6px;
@@ -1156,7 +1170,7 @@
 .zvz-sheet-text-cell {
   display: block;
   color: var(--white);
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   font-weight: 900;
   line-height: 1.25;
   white-space: nowrap;
@@ -1166,7 +1180,7 @@
   display: block;
   width: 100%;
   color: var(--green-hot);
-  font-size: 0.58rem;
+  font-size: 0.64rem;
   font-weight: 900;
   line-height: 1.25;
   white-space: nowrap;
@@ -1174,7 +1188,7 @@
 
 .zvz-sheet-text-cell {
   width: 100%;
-  text-align: left;
+  text-align: inherit;
 }
 
 .zvz-sheet-selected-items {

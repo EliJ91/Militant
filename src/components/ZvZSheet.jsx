@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileImage, FileSpreadsheet, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
+import { Clipboard, FileImage, FileSpreadsheet, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import {
   createZvZBuildLayout,
   fetchZvZBuildLayouts,
@@ -254,6 +254,19 @@ function sheetToBuilds(headers, rows, t8Columns = DEFAULT_T8_COLUMNS) {
     build.role
     && Object.values(build.slots).some((items) => items.length > 0)
   ));
+}
+
+function cellClipboardText(cell, columnKey, forceT8 = false) {
+  const normalized = normalizeCell(cell);
+  if (!ITEM_COLUMNS.has(columnKey)) return normalized.text || '';
+  const itemNames = buildSlotItems(normalized)
+    .map((item) => {
+      const option = findOptionForItem(item, forceT8);
+      return item.itemName || option?.label || '';
+    })
+    .filter(Boolean)
+    .join(' / ');
+  return [itemNames, normalized.notes].filter(Boolean).join(' - ');
 }
 
 function ItemPreview({ cell, forceT8 = false }) {
@@ -658,6 +671,32 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
     setStatus('');
   }
 
+  async function copyVisibleSheet() {
+    const headerText = headers.join('\t');
+    const rowText = visibleRows.map(({ row }) => (
+      COLUMN_KEYS.map((key, columnIndex) => (
+        cellClipboardText(row[columnIndex] || emptyCell(), key, Boolean(t8Columns[key]))
+      )).join('\t')
+    )).join('\n');
+    const text = [headerText, rowText].filter(Boolean).join('\n');
+    if (!text.trim()) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus('Copied sheet to clipboard.');
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      textarea.remove();
+      setStatus('Copied sheet to clipboard.');
+    }
+  }
+
   return (
     <main className="zvz-shell">
       <section className="zvz-heading">
@@ -689,6 +728,12 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
                 Save
               </button>
             </>
+          ) : null}
+          {rows.length > 0 ? (
+            <button className="secondary-button" type="button" onClick={copyVisibleSheet}>
+              <Clipboard size={17} aria-hidden="true" />
+              Copy
+            </button>
           ) : null}
         </div>
       </section>
