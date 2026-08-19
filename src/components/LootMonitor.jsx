@@ -38,7 +38,7 @@ const RETENTION_DAYS = 90;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 const LOOT_TOOLTIP_OPEN_EVENT = 'militant:loot-tooltip-open';
 
-const TYPE_OPTIONS = [
+export const TYPE_OPTIONS = [
   { label: 'Bag', value: 'bag' },
   { label: 'Cape', value: 'cape' },
   { label: 'Food', value: 'food' },
@@ -49,17 +49,17 @@ const TYPE_OPTIONS = [
   { label: 'Other', value: 'other' },
 ];
 
-const SORT_OPTIONS = [
+export const SORT_OPTIONS = [
   { label: 'Most to least', value: 'desc' },
   { label: 'Least to most', value: 'asc' },
 ];
 
-const SORT_BY_OPTIONS = [
+export const SORT_BY_OPTIONS = [
   { label: 'EMV', value: 'emv' },
   { label: 'Total Items', value: 'items' },
 ];
 
-const STATUS_OPTIONS = [
+export const STATUS_OPTIONS = [
   { label: 'All', value: 'all' },
   { label: 'Kept', value: 'kept' },
   { label: 'Accounted', value: 'accounted' },
@@ -85,7 +85,7 @@ const TILE_STATUS_LABELS = {
   resolved: 'Resolved',
 };
 
-const DEFAULT_FILTERS = {
+export const DEFAULT_FILTERS = {
   alliances: [],
   guilds: [],
   hideUnder500kEmv: false,
@@ -95,11 +95,11 @@ const DEFAULT_FILTERS = {
   typeFilters: [],
 };
 
-function formatNumber(value) {
+export function formatNumber(value) {
   return new Intl.NumberFormat('en-US').format(value || 0);
 }
 
-function formatSilver(value) {
+export function formatSilver(value) {
   return `$${formatNumber(Math.round(value || 0))}`;
 }
 
@@ -493,35 +493,35 @@ function splitAffiliations(value) {
     .filter(Boolean);
 }
 
-function guildValuesForRow(row) {
+export function guildValuesForRow(row) {
   const guilds = splitAffiliations(row.guild);
   return guilds.length ? guilds : [GUILDLESS_VALUE];
 }
 
-function allianceValuesForRow(row) {
+export function allianceValuesForRow(row) {
   const alliances = splitAffiliations(row.alliance);
   return alliances.length ? alliances : [NO_ALLIANCE_VALUE];
 }
 
-function displayGuild(value) {
+export function displayGuild(value) {
   return value === GUILDLESS_VALUE ? 'Guildless' : value;
 }
 
-function displayAlliance(value) {
+export function displayAlliance(value) {
   return value === NO_ALLIANCE_VALUE ? 'No Alliance' : value;
 }
 
-function formatGuildList(value) {
+export function formatGuildList(value) {
   const guilds = splitAffiliations(value);
   return guilds.length ? guilds.join(', ') : 'Guildless';
 }
 
-function formatAllianceList(value) {
+export function formatAllianceList(value) {
   const alliances = splitAffiliations(value);
   return alliances.length ? alliances.join(', ') : 'No Alliance';
 }
 
-function valuesToOptions(values, getLabel = (value) => value) {
+export function valuesToOptions(values, getLabel = (value) => value) {
   return uniqueStrings(values)
     .sort((left, right) => getLabel(left).localeCompare(getLabel(right)))
     .map((value) => ({ label: getLabel(value), value }));
@@ -598,7 +598,7 @@ function allowsItemFilters(row, filters) {
   return true;
 }
 
-function getVisibleRows(rows, filters) {
+export function getVisibleRows(rows, filters) {
   return rows.filter((row) => {
     if (filters.status.length > 0 && !filters.status.some((status) => (
       (status === 'kept' && row.kept > 0)
@@ -833,7 +833,7 @@ function sortVisiblePlayers(players, filters) {
   });
 }
 
-function buildVisiblePlayerGroups(rows, filters) {
+export function buildVisiblePlayerGroups(rows, filters) {
   const byPlayer = new Map();
 
   rows.forEach((row) => {
@@ -1003,7 +1003,7 @@ function RawLogViewerSection({ label, placeholder, text }) {
   );
 }
 
-function MultiSelectDropdown({ allLabel, getLabel, label, onChange, options, selectedValues }) {
+export function MultiSelectDropdown({ allLabel, getLabel, label, onChange, options, selectedValues }) {
   const controlRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const mergedOptions = mergeSavedOptions(options, selectedValues, getLabel);
@@ -1108,7 +1108,7 @@ function MultiSelectDropdown({ allLabel, getLabel, label, onChange, options, sel
   );
 }
 
-function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, options, selectedValues }) {
+export function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, options, selectedValues }) {
   const controlRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const statusOptions = options.filter((option) => option.value !== 'all');
@@ -1207,7 +1207,7 @@ function StatusMultiSelectDropdown({ disabledOptions = {}, label, onChange, opti
   );
 }
 
-function LootItemTile({
+export function LootItemTile({
   canViewDeaths = false,
   ignoreMode = false,
   onDeathLinkCopy = () => {},
@@ -1468,7 +1468,7 @@ function LootItemTile({
   );
 }
 
-function PlayerEmv({ emv }) {
+export function PlayerEmv({ emv }) {
   if (!emv) return null;
 
   const hasMissingPrices = emv.missingItems.length > 0;

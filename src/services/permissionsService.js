@@ -27,6 +27,7 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'viewMembers', label: 'View Members', area: 'Members' },
   { key: 'updateMembersList', label: 'Update Members List', area: 'Members' },
   { key: 'viewPlayerHistory', label: 'View Player Loot History', area: 'Player Loot History' },
+  { key: 'viewRatCatcher', label: 'View Rat Catcher', area: 'Rat Catcher' },
   { key: 'viewZvZBuilds', label: 'View ZVZ Build Layouts', area: 'ZVZ Build Layouts' },
   { key: 'editZvZBuilds', label: 'Edit ZVZ Build Layouts', area: 'ZVZ Build Layouts' },
   { key: 'viewSiphonedEnergy', label: 'View Siphoned Energy Tracker', area: 'Siphoned Energy' },

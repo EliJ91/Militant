@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BatteryCharging, ChartBar, Eye, History, ScrollText, ShieldCheck, Swords, Users } from 'lucide-react';
+import { BatteryCharging, ChartBar, Crosshair, Eye, History, ScrollText, ShieldCheck, Swords, Users } from 'lucide-react';
 import LootMonitor, { LootLogArchive } from './components/LootMonitor';
 import MembersTool from './components/MembersTool';
 import PlayerHistoryTool from './components/PlayerHistoryTool';
+import RatCatcherTool from './components/RatCatcherTool';
 import PermissionsTool from './components/PermissionsTool';
 import SiphonedEnergyTracker from './components/SiphonedEnergyTracker';
 import ActionLogsTool from './components/ActionLogsTool';
@@ -43,6 +44,7 @@ function getRoute() {
   if (route === 'siphoned-energy') return 'siphoned-energy';
   if (route === 'members') return 'members';
   if (route === 'player-history' || route === 'player-loot-history') return 'player-loot-history';
+  if (route === 'rat-catcher') return 'rat-catcher';
   if (route === 'permissions') return 'permissions';
   if (route === 'action-logs') return 'action-logs';
   if (route === 'zvz-infographic') return 'zvz-infographic';
@@ -511,6 +513,14 @@ function DashboardPage({
       to: '#loot-viewer',
     },
     {
+      description: 'Combine CTA bundles and compare currently displayed player and guild EMV.',
+      group: 'tools',
+      icon: Crosshair,
+      permission: 'viewRatCatcher',
+      title: 'Rat Catcher',
+      to: '#rat-catcher',
+    },
+    {
       description: 'Map Discord roles to webapp access controls.',
       group: 'admin',
       icon: ShieldCheck,
@@ -851,6 +861,31 @@ function PlayerHistoryPage({
   );
 }
 
+function RatCatcherPage({
+  canViewHiddenPlayers = false,
+  currentUser = null,
+  isSuperUserProfile = false,
+  onResetViewAsRole = () => {},
+  onSignOut = () => {},
+  onToggleViewAsRole = () => {},
+  viewAsRoleIds = [],
+  viewAsRoles = [],
+}) {
+  return (
+    <ToolPage
+      currentUser={currentUser}
+      isSuperUserProfile={isSuperUserProfile}
+      onResetViewAsRole={onResetViewAsRole}
+      onSignOut={onSignOut}
+      onToggleViewAsRole={onToggleViewAsRole}
+      viewAsRoleIds={viewAsRoleIds}
+      viewAsRoles={viewAsRoles}
+    >
+      <RatCatcherTool canViewHiddenPlayers={canViewHiddenPlayers} />
+    </ToolPage>
+  );
+}
+
 function PermissionsPage({
   currentUser = null,
   isSuperUserProfile = false,
@@ -1117,6 +1152,7 @@ export default function App() {
       : route === 'siphoned-energy' ? 'Siphoned Energy Tracker'
       : route === 'members' ? 'Members'
       : route === 'player-loot-history' ? 'Player Loot History'
+      : route === 'rat-catcher' ? 'Rat Catcher'
       : route === 'permissions' ? 'Permissions'
       : route === 'action-logs' ? 'Action Logs'
       : route === 'zvz-infographic' ? 'ZVZ Build Layouts'
@@ -1208,6 +1244,17 @@ export default function App() {
   } else if (route === 'player-loot-history') {
     page = effectivePermissions.viewPlayerHistory ? (
       <PlayerHistoryPage currentUser={currentUser} onSignOut={handleSignOut} {...topbarContext} />
+    ) : (
+      <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
+    );
+  } else if (route === 'rat-catcher') {
+    page = effectivePermissions.viewRatCatcher ? (
+      <RatCatcherPage
+        canViewHiddenPlayers={Boolean(effectivePermissions.viewHiddenLootLogPlayers)}
+        currentUser={currentUser}
+        onSignOut={handleSignOut}
+        {...topbarContext}
+      />
     ) : (
       <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
     );

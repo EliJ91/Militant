@@ -694,6 +694,11 @@
 }
 
 @media (max-width: 720px) {
+  .rat-source-panel { align-items: stretch; grid-template-columns: 1fr; }
+  .rat-source-summary { align-items: flex-start; }
+  .rat-stats-groups { grid-template-columns: 1fr; }
+  .rat-toolbar { flex-wrap: nowrap; overflow-x: auto; }
+  .rat-toolbar > * { flex: 0 0 auto; }
   .zvz-shell {
     padding: 22px 14px 40px;
   }
@@ -4372,6 +4377,159 @@ button:focus-visible {
 .loot-board-toolbar + .loot-board-section {
   margin-top: 8px;
 }
+
+.rat-catcher-shell { padding-bottom: 56px; }
+
+.rat-source-panel {
+  align-items: end;
+  background: #06140d;
+  border: 1px solid #1c5032;
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  margin-bottom: 18px;
+  padding: 16px;
+}
+
+.rat-bundle-picker { min-width: 0; position: relative; }
+
+.rat-bundle-picker-button {
+  align-items: center;
+  background: #020705;
+  border: 1px solid #283a31;
+  color: #fff;
+  display: flex;
+  height: 42px;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding: 0 13px;
+  width: 100%;
+}
+
+.rat-bundle-picker-button:hover,
+.rat-bundle-picker-button[aria-expanded='true'] { border-color: #3fe57c; }
+
+.rat-bundle-menu {
+  background: #020705;
+  border: 1px solid #28643f;
+  box-shadow: 0 16px 36px rgb(0 0 0 / 55%);
+  display: grid;
+  left: 0;
+  max-height: min(420px, 58vh);
+  overflow-y: auto;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+}
+
+.rat-bundle-menu button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #17271e;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  min-height: 38px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.rat-bundle-menu button:hover { background: #0d2116; }
+.rat-bundle-menu button.selected { color: #42e77c; }
+.rat-bundle-menu p { color: #adbbb2; margin: 8px; }
+
+.rat-source-summary {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  min-width: 145px;
+}
+
+.rat-source-summary strong { color: #42e77c; font-size: 24px; }
+.rat-source-summary span { color: #adbbb2; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+.rat-toolbar { gap: 8px; }
+
+.rat-toolbar .rat-stats-button,
+.rat-toolbar .rat-check-emv-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+  justify-content: center;
+}
+
+.rat-toolbar .rat-check-emv-button { background: #0d2a1a; border-color: #278849; }
+.rat-player-row .loot-player-actions { min-width: 165px; }
+
+.rat-stats-backdrop {
+  align-items: center;
+  background: rgb(0 0 0 / 76%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 120;
+}
+
+.rat-stats-modal {
+  background: #030906;
+  border: 1px solid #2b7647;
+  border-radius: 8px;
+  box-shadow: 0 22px 70px rgb(0 0 0 / 65%);
+  max-height: calc(100vh - 40px);
+  max-width: 920px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.rat-stats-modal > header {
+  align-items: center;
+  background: #07170e;
+  border-bottom: 1px solid #203d2c;
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 18px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.rat-stats-modal h2,
+.rat-stats-modal h3,
+.rat-stats-modal p { margin: 0; }
+
+.rat-stats-modal > header button {
+  align-items: center;
+  background: #030906;
+  border: 1px solid #31533f;
+  color: #fff;
+  display: inline-flex;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+  width: 36px;
+}
+
+.rat-stats-groups {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 16px;
+}
+
+.rat-stats-group { background: #08120c; border: 1px solid #203d2c; border-radius: 6px; overflow: hidden; }
+
+.rat-stats-group-heading,
+.rat-stats-player-list > div { align-items: center; display: flex; justify-content: space-between; }
+
+.rat-stats-group-heading { background: #0c1b12; border-bottom: 1px solid #203d2c; padding: 12px; }
+.rat-stats-group-heading strong { color: #42e77c; }
+.rat-stats-player-list > div { border-bottom: 1px solid #17271e; gap: 16px; padding: 9px 12px; }
+.rat-stats-player-list > div:last-child { border-bottom: 0; }
 
 .ignore-items-control {
   position: relative;
