@@ -20,6 +20,13 @@ const COLUMN_KEYS = ['number', 'role', 'mainHand', 'offHand', 'helm', 'armor', '
 const ITEM_COLUMNS = new Set(['mainHand', 'offHand', 'helm', 'armor', 'boots', 'cape', 'foodPots']);
 const ITEM_OPTIONS = getZvZItemOptions();
 
+function canonicalItemName(item) {
+  const option = item?.itemId
+    ? ITEM_OPTIONS.find((candidate) => candidate.itemId === item.itemId)
+    : null;
+  return option?.label || stripAlbionRankPrefix(item?.itemName || item?.name || '');
+}
+
 function emptyCell() {
   return { itemId: '', itemName: '', items: [], notes: '', text: '' };
 }
@@ -32,7 +39,7 @@ function normalizeCell(cell) {
     const items = (Array.isArray(cell.items) && cell.items.length > 0 ? cell.items : legacyItem)
       .map((item) => ({
         itemId: item.itemId || '',
-        itemName: stripAlbionRankPrefix(item.itemName || item.name || ''),
+        itemName: canonicalItemName(item),
       }))
       .filter((item) => item.itemId || item.itemName);
     return {
@@ -56,7 +63,7 @@ function makeEmptyRow(index = 0) {
 function buildItemCell(item) {
   const items = [item].filter(Boolean).map((entry) => ({
     itemId: entry.itemId || '',
-    itemName: stripAlbionRankPrefix(entry.name || ''),
+    itemName: canonicalItemName(entry),
   }));
   return {
     ...emptyCell(),
@@ -85,7 +92,7 @@ function buildToSheetRow(build, index = 0) {
 function buildSlotCell(slotItems = []) {
   const items = (slotItems || []).map((item) => ({
     itemId: item?.itemId || '',
-    itemName: stripAlbionRankPrefix(item?.name || ''),
+    itemName: canonicalItemName(item),
   })).filter((item) => item.itemId || item.itemName);
   return {
     ...emptyCell(),
@@ -290,7 +297,7 @@ function ItemCellEditor({ cell, disabled, onChange }) {
                 const exists = selectedItems.some((item) => item.itemId === option.itemId);
                 const nextItems = exists
                   ? selectedItems
-                  : [...selectedItems, { itemId: option.itemId, itemName: option.value }];
+                  : [...selectedItems, { itemId: option.itemId, itemName: option.label }];
                 onChange({
                   ...cell,
                   itemId: nextItems[0]?.itemId || '',

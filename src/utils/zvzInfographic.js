@@ -195,10 +195,19 @@ export function zvzItemImageUrl(itemId) {
   return `https://images.weserv.nl/?url=${encodeURIComponent(`render.albiononline.com/v1/item/${imagePath}`)}`;
 }
 
-export function stripAlbionRankPrefix(itemName) {
+function titleCaseItemName(itemName) {
   return String(itemName || '')
-    .replace(/^(?:Beginner'?s|Novice'?s|Journeyman'?s|Adept'?s|Expert'?s|Master'?s|Grandmaster'?s|Elder'?s)\s+/i, '')
-    .trim();
+    .toLowerCase()
+    .replace(/\b[a-z0-9]/g, (match) => match.toUpperCase())
+    .replace(/\bOf\b/g, 'of')
+    .replace(/\bAnd\b/g, 'and')
+    .replace(/\bThe\b/g, 'the');
+}
+
+export function stripAlbionRankPrefix(itemName) {
+  return titleCaseItemName(String(itemName || '')
+    .replace(/^(?:Beginner|Novice|Journeyman|Adept|Expert|Master|Grandmaster|Elder)\s+(?:'?s\s+)?/i, '')
+    .trim());
 }
 
 function t8ItemId(itemId) {
