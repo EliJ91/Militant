@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileImage, FileSpreadsheet, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
+import { FileImage, FileSpreadsheet, Pencil, Plus, Save, Upload, X } from 'lucide-react';
 import {
   createZvZBuildLayout,
   fetchZvZBuildLayouts,
@@ -159,12 +159,16 @@ function buildSheetFromBuilds(builds = []) {
           ? build.sheetRow.map(normalizeCell)
           : buildToSheetRow(build, index)
       )),
+      t8Columns: first.sheetT8Columns && typeof first.sheetT8Columns === 'object'
+        ? { ...DEFAULT_T8_COLUMNS, ...first.sheetT8Columns }
+        : DEFAULT_T8_COLUMNS,
     };
   }
 
   return {
     headers: DEFAULT_HEADERS,
     rows: builds.map(buildToSheetRow),
+    t8Columns: DEFAULT_T8_COLUMNS,
   };
 }
 
@@ -224,7 +228,7 @@ function buildItemsFromCell(cell) {
   }).filter((item) => item.name || item.itemId);
 }
 
-function sheetToBuilds(headers, rows) {
+function sheetToBuilds(headers, rows, t8Columns = DEFAULT_T8_COLUMNS) {
   return rows.map((row, index) => {
     const normalizedRow = COLUMN_KEYS.map((_key, columnIndex) => normalizeCell(row[columnIndex]));
     const slots = {
@@ -243,6 +247,7 @@ function sheetToBuilds(headers, rows) {
       role: normalizedRow[1].text || '',
       sheetHeaders: headers,
       sheetRow: normalizedRow,
+      sheetT8Columns: t8Columns,
       slots,
     };
   }).filter((build) => (
@@ -283,7 +288,7 @@ function ItemPreview({ cell, forceT8 = false }) {
 
 function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
   const containerRef = useRef(null);
-  const [addingItem, setAddingItem] = useState(false);
+  const [addAfterIndex, setAddAfterIndex] = useState(null);
   const [editingNotes, setEditingNotes] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -318,6 +323,62 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
     );
   }
 
+  function changeItems(nextItems) {
+    onChange({
+      ...cell,
+      itemId: nextItems[0]?.itemId || '',
+      itemName: nextItems[0]?.itemName || '',
+      items: nextItems,
+    });
+  }
+
+  function renderSearchRow(insertAfterIndex = -1) {
+    return (
+      <div className="zvz-sheet-add-item">
+        <input
+          aria-label="Add item"
+          autoFocus
+          placeholder="Search item"
+          value={query}
+          onChange={(event) => {
+            const value = event.target.value;
+            setQuery(value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+        />
+        {open ? (
+          <div className="zvz-sheet-item-menu" role="listbox">
+            {visibleOptions.map((option) => (
+              <button
+                key={`${option.itemId}-${option.label}`}
+                type="button"
+                onClick={() => {
+                  const exists = selectedItems.some((item) => item.itemId === option.itemId);
+                  const nextItems = exists
+                    ? selectedItems
+                    : [
+                      ...selectedItems.slice(0, insertAfterIndex + 1),
+                      { itemId: option.itemId, itemName: option.label },
+                      ...selectedItems.slice(insertAfterIndex + 1),
+                    ];
+                  changeItems(nextItems);
+                  setQuery('');
+                  setOpen(false);
+                  setAddAfterIndex(null);
+                }}
+              >
+                <img src={option.imageUrl} alt="" loading="lazy" />
+                <span>{option.label}</span>
+              </button>
+            ))}
+            {visibleOptions.length === 0 ? <p>No items found.</p> : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="zvz-sheet-item-editor" ref={containerRef}>
       {selectedItems.length > 0 ? (
@@ -325,85 +386,64 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
           {selectedItems.map((item, index) => {
             const option = findOptionForItem(item, forceT8);
             return (
-              <div className="zvz-sheet-edit-item" key={`${item.itemId}-${item.itemName}-${index}`}>
-                {option?.imageUrl ? (
-                  <img src={option.imageUrl} alt="" loading="lazy" />
-                ) : (
-                  <span className="zvz-sheet-item-fallback">
-                    {String(item.itemName || '?').slice(0, 2).toUpperCase()}
+              <div className="zvz-sheet-edit-item-group" key={`${item.itemId}-${item.itemName}-${index}`}>
+                <div className="zvz-sheet-edit-item">
+                  {option?.imageUrl ? (
+                    <img src={option.imageUrl} alt="" loading="lazy" />
+                  ) : (
+                    <span className="zvz-sheet-item-fallback">
+                      {String(item.itemName || '?').slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                  <strong>{item.itemName || option?.label}</strong>
+                  <span className="zvz-sheet-item-actions">
+                    <button
+                      aria-label={`Remove ${item.itemName || option?.label || 'item'}`}
+                      className="zvz-sheet-sign-button zvz-sheet-sign-minus"
+                      type="button"
+                      onClick={() => {
+                        const nextItems = selectedItems.filter((_selected, selectedIndex) => selectedIndex !== index);
+                        changeItems(nextItems);
+                      }}
+                    >
+                      -
+                    </button>
+                    <button
+                      aria-label={`Add item after ${item.itemName || option?.label || 'item'}`}
+                      className="zvz-sheet-sign-button zvz-sheet-sign-plus"
+                      type="button"
+                      onClick={() => {
+                        setAddAfterIndex(index);
+                        setQuery('');
+                        setOpen(true);
+                      }}
+                    >
+                      +
+                    </button>
                   </span>
-                )}
-                <strong>{item.itemName || option?.label}</strong>
-                <button
-                  aria-label={`Remove ${item.itemName || option?.label || 'item'}`}
-                  className="zvz-sheet-mini-action zvz-sheet-mini-danger"
-                  type="button"
-                  onClick={() => {
-                    const nextItems = selectedItems.filter((_selected, selectedIndex) => selectedIndex !== index);
-                    onChange({
-                      ...cell,
-                      itemId: nextItems[0]?.itemId || '',
-                      itemName: nextItems[0]?.itemName || '',
-                      items: nextItems,
-                    });
-                  }}
-                >
-                  <Trash2 size={12} aria-hidden="true" />
-                </button>
+                </div>
+                {addAfterIndex === index ? renderSearchRow(index) : null}
               </div>
             );
           })}
         </div>
-      ) : null}
-
-      {addingItem ? (
-        <div className="zvz-sheet-add-item">
-          <input
-            aria-label="Add item"
-            placeholder={selectedItems.length > 0 ? 'Search item' : 'Select item'}
-            value={query}
-            onChange={(event) => {
-              const value = event.target.value;
-              setQuery(value);
-              setOpen(true);
-            }}
-            onFocus={() => setOpen(true)}
-          />
-          {open ? (
-            <div className="zvz-sheet-item-menu" role="listbox">
-              {visibleOptions.map((option) => (
-                <button
-                  key={`${option.itemId}-${option.label}`}
-                  type="button"
-                  onClick={() => {
-                    const exists = selectedItems.some((item) => item.itemId === option.itemId);
-                    const nextItems = exists
-                      ? selectedItems
-                      : [...selectedItems, { itemId: option.itemId, itemName: option.label }];
-                    onChange({
-                      ...cell,
-                      itemId: nextItems[0]?.itemId || '',
-                      itemName: nextItems[0]?.itemName || '',
-                      items: nextItems,
-                    });
-                    setQuery('');
-                    setOpen(false);
-                    setAddingItem(false);
-                  }}
-                >
-                  <img src={option.imageUrl} alt="" loading="lazy" />
-                  <span>{option.label}</span>
-                </button>
-              ))}
-              {visibleOptions.length === 0 ? <p>No items found.</p> : null}
-            </div>
-          ) : null}
-        </div>
       ) : (
-        <button className="zvz-sheet-mini-action zvz-sheet-add-button" type="button" onClick={() => setAddingItem(true)}>
-          <Plus size={12} aria-hidden="true" />
-          Add item
-        </button>
+        <div className="zvz-sheet-empty-item-editor">
+          {addAfterIndex === -1 ? renderSearchRow(-1) : (
+            <button
+              aria-label="Add item"
+              className="zvz-sheet-sign-button zvz-sheet-sign-plus zvz-sheet-empty-plus"
+              type="button"
+              onClick={() => {
+                setAddAfterIndex(-1);
+                setQuery('');
+                setOpen(true);
+              }}
+            >
+              +
+            </button>
+          )}
+        </div>
       )}
 
       <div className="zvz-sheet-notes-editor">
@@ -480,6 +520,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
     const sheet = buildSheetFromBuilds(layout.builds || []);
     setHeaders(sheet.headers);
     setRows(sheet.rows.length ? sheet.rows : [makeEmptyRow(0)]);
+    setT8Columns(sheet.t8Columns || DEFAULT_T8_COLUMNS);
     setError('');
     setLayoutId(layout.id || '');
     setSearchQuery('');
@@ -529,7 +570,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
 
   async function saveSheet(nextRows = rows, nextSourceFileName = sourceFileName, allowDuringProcessing = false, nextHeaders = headers) {
     if (!canEdit || (processing && !allowDuringProcessing)) return;
-    const nextBuilds = sheetToBuilds(nextHeaders, nextRows);
+    const nextBuilds = sheetToBuilds(nextHeaders, nextRows, t8Columns);
     if (nextBuilds.length === 0) {
       setError('Add at least one row with a role and item before saving.');
       return;
@@ -769,8 +810,8 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
                     ))}
                     {canEdit ? (
                       <td>
-                        <button className="zvz-row-delete" type="button" onClick={() => removeRow(rowIndex)}>
-                          Delete
+                <button className="zvz-row-delete" type="button" aria-label={`Delete row ${rowIndex + 1}`} onClick={() => removeRow(rowIndex)}>
+                          -
                         </button>
                       </td>
                     ) : null}

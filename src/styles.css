@@ -724,7 +724,7 @@
 }
 
 .zvz-sheet-table {
-  width: max(100%, 1580px);
+  width: max(100%, 1640px);
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -746,8 +746,15 @@
 
 .zvz-sheet-table th:first-child,
 .zvz-sheet-table td:first-child {
-  min-width: 68px;
-  max-width: 76px;
+  min-width: 42px;
+  max-width: 48px;
+  text-align: center;
+}
+
+.zvz-sheet-table th:last-child,
+.zvz-sheet-table td:last-child {
+  min-width: 42px;
+  max-width: 48px;
   text-align: center;
 }
 
@@ -888,7 +895,7 @@
 .zvz-sheet-item-menu span {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: normal;
+  white-space: nowrap;
 }
 
 .zvz-sheet-item-menu p {
@@ -901,14 +908,20 @@
 
 .zvz-sheet-edit-items {
   display: grid;
-  gap: 6px;
+  gap: 4px;
+}
+
+.zvz-sheet-edit-item-group {
+  display: grid;
+  gap: 4px;
 }
 
 .zvz-sheet-edit-item {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 24px;
+  grid-template-columns: 42px max-content 14px;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 7px;
   min-width: 0;
 }
 
@@ -928,6 +941,7 @@
   font-weight: 900;
   line-height: 1.18;
   text-align: left;
+  white-space: nowrap;
 }
 
 .zvz-sheet-add-item {
@@ -961,22 +975,61 @@
 }
 
 .zvz-sheet-mini-danger {
-  width: 24px;
-  min-height: 24px;
+  width: 18px;
+  min-height: 18px;
   padding: 0;
   border-color: rgba(255, 82, 107, 0.45);
   background: rgba(255, 82, 107, 0.08);
   color: #ff526b;
 }
 
-.zvz-sheet-add-button {
-  justify-self: start;
+.zvz-sheet-item-actions {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1px;
+}
+
+.zvz-sheet-sign-button {
+  display: grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.zvz-sheet-sign-minus {
+  color: #ff526b;
+}
+
+.zvz-sheet-sign-plus {
+  color: var(--green-hot);
+}
+
+.zvz-sheet-empty-item-editor {
+  display: grid;
+  min-height: 42px;
+  place-items: center;
+}
+
+.zvz-sheet-empty-plus {
+  width: 22px;
+  height: 22px;
+  font-size: 1.35rem;
 }
 
 .zvz-sheet-notes-editor {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: max-content 18px;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   min-width: 0;
 }
@@ -988,7 +1041,7 @@
   font-weight: 900;
   line-height: 1.25;
   text-align: left;
-  white-space: pre-wrap;
+  white-space: nowrap;
 }
 
 .zvz-sheet-notes-editor textarea {
@@ -1049,6 +1102,7 @@
   font-size: 0.78rem;
   font-weight: 900;
   line-height: 1.25;
+  white-space: nowrap;
 }
 
 .zvz-sheet-cell-notes {
@@ -1058,7 +1112,7 @@
   font-size: 0.72rem;
   font-weight: 900;
   line-height: 1.25;
-  white-space: pre-wrap;
+  white-space: nowrap;
 }
 
 .zvz-sheet-text-cell {
@@ -1100,16 +1154,19 @@
 }
 
 .zvz-row-delete {
-  width: 100%;
-  min-height: 34px;
-  border: 1px solid rgba(244, 63, 94, 0.5);
-  border-radius: 5px;
-  background: rgba(244, 63, 94, 0.1);
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(244, 63, 94, 0.45);
+  border-radius: 50%;
+  background: rgba(244, 63, 94, 0.08);
   color: #ff7d89;
   font: inherit;
-  font-size: 0.68rem;
-  font-weight: 900;
-  text-transform: uppercase;
+  font-size: 1.2rem;
+  font-weight: 1000;
+  line-height: 1;
 }
 
 @media (max-width: 720px) {
