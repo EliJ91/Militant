@@ -11,6 +11,7 @@ import {
   getZvZItemOptions,
   parseZvZSpreadsheet,
   stripAlbionRankPrefix,
+  t8ItemId,
   tokenizeZvZSearch,
   zvzItemImageUrl,
 } from '../utils/zvzSheet';
@@ -19,7 +20,43 @@ const ACCEPTED_FILE_TYPES = '.xlsx,.csv,.tsv,.txt,.png,.jpg,.jpeg,.webp,.bmp';
 const DEFAULT_HEADERS = ['#', 'Role', 'Main Hand', 'Off Hand', 'Helm', 'Armor', 'Boots', 'Cape', 'Food/Pots', 'Notes'];
 const COLUMN_KEYS = ['number', 'role', 'mainHand', 'offHand', 'helm', 'armor', 'boots', 'cape', 'foodPots', 'notes'];
 const ITEM_COLUMNS = new Set(['mainHand', 'offHand', 'helm', 'armor', 'boots', 'cape', 'foodPots']);
-const ITEM_OPTIONS = getZvZItemOptions();
+const T8_ITEM_OPTIONS = getZvZItemOptions({ t8Only: true });
+const ALL_ITEM_OPTIONS = getZvZItemOptions({ t8Only: false });
+const ITEM_OPTIONS = T8_ITEM_OPTIONS;
+const DEFAULT_T8_COLUMNS = COLUMN_KEYS.reduce((state, key) => ({
+  ...state,
+  [key]: ITEM_COLUMNS.has(key),
+}), {});
+
+function searchOptionScore(option, query) {
+  const search = query.trim();
+  if (!search) return 1;
+  const searchText = search.toLowerCase();
+  const queryTokens = tokenizeZvZSearch(searchText);
+  if (option.label.toLowerCase() === searchText) return 1000;
+  if (option.label.toLowerCase().startsWith(searchText)) return 900;
+  if (option.searchText.includes(searchText)) return 760;
+  if (queryTokens.length === 0) return 0;
+  const matchedTokens = queryTokens.filter((token) => (
+    option.searchTokens?.some((optionToken) => (
+      optionToken === token || optionToken.startsWith(token) || optionToken.includes(token)
+    ))
+  ));
+  if (matchedTokens.length !== queryTokens.length) return 0;
+  return 620 + matchedTokens.length * 28;
+}
+
+function rankedOptions(options, query) {
+  return options
+    .map((option) => ({ option, score: searchOptionScore(option, query) }))
+    .filter(({ score }) => score > 0)
+    .sort((left, right) => (
+      right.score - left.score
+      || left.option.label.localeCompare(right.option.label, undefined, { sensitivity: 'base' })
+      || left.option.itemId.localeCompare(right.option.itemId)
+    ))
+    .map(({ option }) => option);
+}
 
 function canonicalItemName(item) {
   const option = item?.itemId
@@ -126,13 +163,26 @@ function buildSheetFromBuilds(builds = []) {
 function findOption(cell) {
   const name = String(cell.itemName || '').toLowerCase();
   return ITEM_OPTIONS.find((item) => item.itemId === cell.itemId)
+    || ALL_ITEM_OPTIONS.find((item) => item.itemId === cell.itemId)
     || ITEM_OPTIONS.find((item) => item.value.toLowerCase() === name)
+    || ALL_ITEM_OPTIONS.find((item) => item.value.toLowerCase() === name)
+    || rankedOptions(ITEM_OPTIONS, cell.itemName || '')[0]
+    || rankedOptions(ALL_ITEM_OPTIONS, cell.itemName || '')[0]
     || ITEM_OPTIONS.find((item) => name && (
+      item.value.toLowerCase().includes(name) || name.includes(item.value.toLowerCase())
+    ))
+    || ALL_ITEM_OPTIONS.find((item) => name && (
       item.value.toLowerCase().includes(name) || name.includes(item.value.toLowerCase())
     ));
 }
 
-function findOptionForItem(item) {
+function findOptionForItem(item, forceT8 = false) {
+  if (forceT8) {
+    const itemId = t8ItemId(item.itemId);
+    return T8_ITEM_OPTIONS.find((option) => option.itemId === itemId)
+      || T8_ITEM_OPTIONS.find((option) => option.label.toLowerCase() === String(item.itemName || '').toLowerCase())
+      || rankedOptions(T8_ITEM_OPTIONS, item.itemName || '')[0];
+  }
   return findOption({ itemId: item.itemId, itemName: item.itemName });
 }
 
@@ -193,49 +243,45 @@ function sheetToBuilds(headers, rows) {
   ));
 }
 
-function ItemPreview({ cell }) {
+function ItemPreview({ cell, forceT8 = false }) {
   const items = buildSlotItems(cell);
   if (items.length === 0) return null;
   return (
     <span className="zvz-sheet-item-preview-list">
-      {items.map((item, index) => {
-        const option = findOptionForItem(item);
-        return (
-          <span className="zvz-sheet-item-preview" key={`${item.itemId}-${item.itemName}-${index}`}>
-            {option?.imageUrl ? (
-              <img src={option.imageUrl} alt="" loading="lazy" />
-            ) : (
-              <span className="zvz-sheet-item-fallback">
-                {String(item.itemName || '?').slice(0, 2).toUpperCase()}
-              </span>
-            )}
-            <span className="zvz-sheet-item-copy">
-              <strong>{item.itemName || option?.label}</strong>
-              {index === 0 && cell.notes ? (
-                <small className="zvz-sheet-cell-notes">{cell.notes}</small>
-              ) : null}
+      <span className="zvz-sheet-item-image-stack">
+        {items.map((item, index) => {
+          const option = findOptionForItem(item, forceT8);
+          return option?.imageUrl ? (
+            <img key={`${item.itemId}-${item.itemName}-${index}`} src={option.imageUrl} alt="" loading="lazy" />
+          ) : (
+            <span className="zvz-sheet-item-fallback" key={`${item.itemId}-${item.itemName}-${index}`}>
+              {String(item.itemName || '?').slice(0, 2).toUpperCase()}
             </span>
-          </span>
-        );
-      })}
+          );
+        })}
+      </span>
+      <span className="zvz-sheet-item-copy">
+        {items.map((item, index) => {
+          const option = findOptionForItem(item, forceT8);
+          return (
+            <strong key={`${item.itemId}-${item.itemName}-${index}`}>{item.itemName || option?.label}</strong>
+          );
+        })}
+        {cell.notes ? <small className="zvz-sheet-cell-notes">{cell.notes}</small> : null}
+      </span>
     </span>
   );
 }
 
-function ItemCellEditor({ cell, disabled, onChange }) {
+function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
   const containerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const selectedItems = buildSlotItems(cell);
   const visibleOptions = useMemo(() => {
-    const search = query.trim().toLowerCase();
-    const searchTokens = tokenizeZvZSearch(search);
-    return ITEM_OPTIONS
-      .filter((option) => !search || option.searchText.includes(search) || searchTokens.every((token) => (
-        option.searchTokens?.some((optionToken) => optionToken.includes(token) || token.includes(optionToken))
-      )))
-      .slice(0, 45);
-  }, [query]);
+    const sourceOptions = forceT8 ? T8_ITEM_OPTIONS : ALL_ITEM_OPTIONS;
+    return rankedOptions(sourceOptions, query).slice(0, 45);
+  }, [forceT8, query]);
 
   useEffect(() => {
     setQuery('');
@@ -253,7 +299,7 @@ function ItemCellEditor({ cell, disabled, onChange }) {
   if (disabled) {
     return (
       <div className="zvz-sheet-view-cell">
-        <ItemPreview cell={cell} />
+        <ItemPreview cell={cell} forceT8={forceT8} />
       </div>
     );
   }
@@ -333,10 +379,10 @@ function ItemCellEditor({ cell, disabled, onChange }) {
   );
 }
 
-function SheetCell({ cell, columnKey, canEdit, onChange }) {
+function SheetCell({ cell, columnKey, canEdit, forceT8 = false, onChange }) {
   const normalized = normalizeCell(cell);
   if (ITEM_COLUMNS.has(columnKey)) {
-    return <ItemCellEditor cell={normalized} disabled={!canEdit} onChange={onChange} />;
+    return <ItemCellEditor cell={normalized} disabled={!canEdit} forceT8={forceT8} onChange={onChange} />;
   }
 
   if (!canEdit) return <span className="zvz-sheet-text-cell">{normalized.text}</span>;
@@ -364,6 +410,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFileName, setSourceFileName] = useState('');
   const [status, setStatus] = useState('');
+  const [t8Columns, setT8Columns] = useState(DEFAULT_T8_COLUMNS);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   const visibleRows = useMemo(() => {
@@ -626,13 +673,28 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
                 <tr>
                   {headers.map((header, index) => (
                     <th key={`${COLUMN_KEYS[index]}-${index}`}>
-                      {canEdit ? (
-                        <input
-                          aria-label={`${header || COLUMN_KEYS[index]} header`}
-                          value={header}
-                          onChange={(event) => updateHeader(index, event.target.value)}
-                        />
-                      ) : header}
+                      <span className="zvz-sheet-header-cell">
+                        {canEdit ? (
+                          <input
+                            aria-label={`${header || COLUMN_KEYS[index]} header`}
+                            value={header}
+                            onChange={(event) => updateHeader(index, event.target.value)}
+                          />
+                        ) : <span>{header}</span>}
+                        {ITEM_COLUMNS.has(COLUMN_KEYS[index]) ? (
+                          <button
+                            aria-pressed={Boolean(t8Columns[COLUMN_KEYS[index]])}
+                            className="zvz-sheet-tier-toggle"
+                            type="button"
+                            onClick={() => setT8Columns((current) => ({
+                              ...current,
+                              [COLUMN_KEYS[index]]: !current[COLUMN_KEYS[index]],
+                            }))}
+                          >
+                            T8
+                          </button>
+                        ) : null}
+                      </span>
                     </th>
                   ))}
                   {canEdit ? <th aria-label="Row actions" /> : null}
@@ -647,6 +709,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
                           canEdit={canEdit}
                           cell={row[columnIndex] || emptyCell()}
                           columnKey={key}
+                          forceT8={Boolean(t8Columns[key])}
                           onChange={(nextCell) => updateCell(rowIndex, columnIndex, nextCell)}
                         />
                       </td>

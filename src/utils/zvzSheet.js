@@ -214,22 +214,23 @@ export function stripAlbionRankPrefix(itemName) {
     .trim());
 }
 
-function t8ItemId(itemId) {
+export function t8ItemId(itemId) {
   const value = String(itemId || '');
   return value.match(/^T\d+_/) ? value.replace(/^T\d+_/, 'T8_') : value;
 }
 
-export function getZvZItemOptions() {
-  const grouped = new Map();
-  ITEM_RECORDS.forEach((record) => {
-    const key = record.baseName || normalizeText(record.lookupName);
-    const current = grouped.get(key);
-    if (!current || Math.abs(record.tier - 8) < Math.abs(current.tier - 8)) grouped.set(key, record);
-  });
+export function getZvZItemOptions({ t8Only = true } = {}) {
+  const records = t8Only
+    ? [...ITEM_RECORDS.reduce((grouped, record) => {
+      const key = record.baseName || normalizeText(record.lookupName);
+      if (record.tier === 8 || record.tier === 0) grouped.set(key, record);
+      return grouped;
+    }, new Map()).values()]
+    : ITEM_RECORDS;
 
-  return [...grouped.values()]
+  return records
     .map((record) => {
-      const itemId = t8ItemId(record.itemId);
+      const itemId = t8Only ? t8ItemId(record.itemId) : record.itemId;
       const name = stripAlbionRankPrefix(record.lookupName);
       return {
         itemId,
