@@ -251,12 +251,6 @@ function buildItemsFromCell(cell) {
   }).filter((item) => item.name || item.itemId);
 }
 
-function csvEscape(value) {
-  const text = String(value ?? '');
-  const escaped = text.replace(/"/g, '""');
-  return /[",\r\n]/.test(escaped) ? `"${escaped}"` : escaped;
-}
-
 function sheetCellExportValue(cell, columnKey) {
   const normalized = normalizeCell(cell);
   if (!ITEM_COLUMNS.has(columnKey)) return normalized.text || '';
@@ -266,6 +260,150 @@ function sheetCellExportValue(cell, columnKey) {
     .join('\n');
   const notes = normalized.notes?.trim() ? `(${normalized.notes.trim()})` : '';
   return [itemText, notes].filter(Boolean).join(itemText && notes ? '\n' : '');
+}
+
+function xmlEscape(value) {
+  return String(value ?? '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function columnName(index) {
+  let value = index + 1;
+  let name = '';
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    value = Math.floor((value - remainder - 1) / 26);
+  }
+  return name;
+}
+
+function exportedRowHeight(row) {
+  const maxLines = Math.max(1, ...COLUMN_KEYS.map((key, columnIndex) => (
+    String(sheetCellExportValue(row[columnIndex], key)).split(/\r?\n/).length
+  )));
+  if (maxLines <= 2) return 31.5;
+  if (maxLines === 3) return 41.25;
+  return Math.min(70.5, 21.75 + maxLines * 6.5);
+}
+
+async function buildFormattedZvZWorkbookBlob(headers, visibleRows) {
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  const exportRows = [
+    headers,
+    ...visibleRows.map(({ row }) => COLUMN_KEYS.map((key, columnIndex) => sheetCellExportValue(row[columnIndex], key))),
+  ];
+  const columnWidths = [2.63, 12.63, 20.75, 10.13, 16.25, 20.13, 22.63, 20.13, 13.75];
+  const colsXml = columnWidths.map((width, index) => (
+    `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`
+  )).join('');
+  const rowsXml = exportRows.map((row, rowIndex) => {
+    const rowNumber = rowIndex + 1;
+    const styleId = rowIndex === 0 ? 1 : (rowIndex % 2 === 1 ? 2 : 3);
+    const height = rowIndex === 0 ? 12.75 : exportedRowHeight(visibleRows[rowIndex - 1]?.row || []);
+    const cellsXml = COLUMN_KEYS.map((_key, columnIndex) => {
+      const value = row[columnIndex] ?? '';
+      const ref = `${columnName(columnIndex)}${rowNumber}`;
+      const cellStyleId = rowIndex > 0 && columnIndex === 0 ? (rowIndex % 2 === 1 ? 4 : 5) : styleId;
+      return `<c r="${ref}" s="${cellStyleId}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(value)}</t></is></c>`;
+    }).join('');
+    return `<row r="${rowNumber}" ht="${height}" customHeight="1">${cellsXml}</row>`;
+  }).join('');
+  const worksheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheetFormatPr defaultRowHeight="15"/>
+  <cols>${colsXml}</cols>
+  <sheetData>${rowsXml}</sheetData>
+  <pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>
+</worksheet>`;
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="8"/><name val="Arial"/></font>
+    <font><b/><sz val="8"/><name val="Arial"/></font>
+  </fonts>
+  <fills count="4">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF8BC34A"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFEEF7E3"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FF000000"/></left>
+      <right style="thin"><color rgb="FF000000"/></right>
+      <top style="thin"><color rgb="FF000000"/></top>
+      <bottom style="thin"><color rgb="FF000000"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="6">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center" wrapText="1"/></xf>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+  const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`;
+  const workbookRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+  const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>`;
+  const created = new Date().toISOString();
+  const coreXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:creator>Militant</dc:creator>
+  <cp:lastModifiedBy>Militant</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${created}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${created}</dcterms:modified>
+</cp:coreProperties>`;
+  const appXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>Militant WebApp</Application>
+</Properties>`;
+  zip.file('[Content_Types].xml', contentTypesXml);
+  zip.file('_rels/.rels', rootRelsXml);
+  zip.file('xl/workbook.xml', workbookXml);
+  zip.file('xl/_rels/workbook.xml.rels', workbookRelsXml);
+  zip.file('xl/worksheets/sheet1.xml', worksheetXml);
+  zip.file('xl/styles.xml', stylesXml);
+  zip.file('docProps/core.xml', coreXml);
+  zip.file('docProps/app.xml', appXml);
+  return zip.generateAsync({
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    type: 'blob',
+  });
 }
 
 function sheetToBuilds(headers, rows, t8Columns = DEFAULT_T8_COLUMNS) {
@@ -552,6 +690,7 @@ export default function ZvZSheet({
   const [copyingSheet, setCopyingSheet] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [currentLayout, setCurrentLayout] = useState(null);
   const [rows, setRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFileName, setSourceFileName] = useState('');
@@ -584,6 +723,7 @@ export default function ZvZSheet({
     setStatus('');
     setHasUnsavedChanges(false);
     setIsEditing(false);
+    setCurrentLayout(layout);
   }
 
   useEffect(() => {
@@ -704,6 +844,20 @@ export default function ZvZSheet({
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  function cancelEditing() {
+    if (currentLayout) {
+      openLayout(currentLayout);
+      return;
+    }
+    setHeaders(DEFAULT_HEADERS);
+    setRows([]);
+    setT8Columns(DEFAULT_T8_COLUMNS);
+    setSourceFileName('');
+    setStatus('');
+    setHasUnsavedChanges(false);
+    setIsEditing(false);
+  }
+
   function handleDrop(event) {
     event.preventDefault();
     setDragging(false);
@@ -737,24 +891,24 @@ export default function ZvZSheet({
     }
   }
 
-  function extractVisibleSheet() {
+  async function extractVisibleSheet() {
     if (visibleRows.length === 0) return;
-    const csvRows = [
-      headers,
-      ...visibleRows.map(({ row }) => COLUMN_KEYS.map((key, columnIndex) => sheetCellExportValue(row[columnIndex], key))),
-    ];
-    const csv = csvRows.map((row) => row.map(csvEscape).join(',')).join('\r\n');
-    const fileName = `zvz-sheet-${new Date().toISOString().slice(0, 10)}.csv`;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const link = document.createElement('a');
-    const objectUrl = URL.createObjectURL(blob);
-    link.href = objectUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(objectUrl);
-    setStatus('Sheet extracted.');
+    setError('');
+    try {
+      const fileName = `zvz-sheet-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const blob = await buildFormattedZvZWorkbookBlob(headers, visibleRows);
+      const link = document.createElement('a');
+      const objectUrl = URL.createObjectURL(blob);
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      setStatus('Sheet extracted.');
+    } catch (caughtError) {
+      setError(caughtError.message || 'Could not extract the sheet.');
+    }
   }
 
   return (
@@ -776,17 +930,6 @@ export default function ZvZSheet({
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
             </label>
-          ) : null}
-          {canEdit ? (
-            <button
-              className={hasUnsavedChanges ? 'primary-button' : 'secondary-button'}
-              disabled={processing}
-              type="button"
-              onClick={hasUnsavedChanges ? () => saveSheet() : startUpload}
-            >
-              {hasUnsavedChanges ? <Save size={17} aria-hidden="true" /> : <Upload size={17} aria-hidden="true" />}
-              {hasUnsavedChanges ? 'Save' : 'Update'}
-            </button>
           ) : null}
           {rows.length > 0 && canExtract ? (
             <button className="secondary-button" type="button" onClick={extractVisibleSheet}>
@@ -870,15 +1013,32 @@ export default function ZvZSheet({
         document.body,
       ) : null}
 
-      {rows.length > 0 ? (
+      {rows.length > 0 || canEdit ? (
         <section className="zvz-sheet-panel" aria-label="ZVZ sheet">
           <div className="zvz-sheet-toolbar">
             <strong>{visibleRows.length} rows</strong>
             <div className="zvz-sheet-toolbar-actions">
-              {canEdit ? (
-                <button className={isEditing ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setIsEditing((current) => !current)}>
+              {canEdit && !isEditing ? (
+                <button className="secondary-button" type="button" onClick={() => setIsEditing(true)}>
                   <Pencil size={16} aria-hidden="true" />
-                  {isEditing ? 'View' : 'Edit'}
+                  Edit
+                </button>
+              ) : null}
+              {canEdit && isEditing ? (
+                <button className="secondary-button" type="button" onClick={cancelEditing}>
+                  <X size={16} aria-hidden="true" />
+                  Cancel
+                </button>
+              ) : null}
+              {canEdit && isEditing ? (
+                <button
+                  className={hasUnsavedChanges ? 'primary-button' : 'secondary-button'}
+                  disabled={processing}
+                  type="button"
+                  onClick={hasUnsavedChanges ? () => saveSheet() : startUpload}
+                >
+                  {hasUnsavedChanges ? <Save size={16} aria-hidden="true" /> : <Upload size={16} aria-hidden="true" />}
+                  {hasUnsavedChanges ? 'Save' : 'Update'}
                 </button>
               ) : null}
               {canEdit && isEditing ? (
