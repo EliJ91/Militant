@@ -93,7 +93,7 @@ describe('ZvZSheet saved layouts', () => {
     const { container } = render(<ZvZSheet />);
 
     await screen.findByText('Chariot');
-    const image = container.querySelector('.zvz-sheet-item-image-stack img');
+    const image = container.querySelector('.zvz-sheet-view-item img');
     expect(image).toHaveAttribute('src', expect.stringContaining('UNIQUE_MOUNT_TOWER_CHARIOT_CRYSTAL'));
   });
 });

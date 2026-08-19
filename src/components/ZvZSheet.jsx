@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Clipboard, FileImage, FileSpreadsheet, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
+import { Clipboard, FileImage, FileSpreadsheet, Minus, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import {
   createZvZBuildLayout,
   fetchZvZBuildLayouts,
@@ -18,8 +18,8 @@ import {
 import { copyElementScreenshot } from './LootMonitor';
 
 const ACCEPTED_FILE_TYPES = '.xlsx,.csv,.tsv,.txt,.png,.jpg,.jpeg,.webp,.bmp';
-const DEFAULT_HEADERS = ['#', 'Role', 'Main Hand', 'Off Hand', 'Helm', 'Armor', 'Boots', 'Cape', 'Food/Pots', 'Notes'];
-const COLUMN_KEYS = ['number', 'role', 'mainHand', 'offHand', 'helm', 'armor', 'boots', 'cape', 'foodPots', 'notes'];
+const DEFAULT_HEADERS = ['#', 'Role', 'Main Hand', 'Off Hand', 'Helm', 'Armor', 'Boots', 'Cape', 'Food/Pots'];
+const COLUMN_KEYS = ['number', 'role', 'mainHand', 'offHand', 'helm', 'armor', 'boots', 'cape', 'foodPots'];
 const ITEM_COLUMNS = new Set(['mainHand', 'offHand', 'helm', 'armor', 'boots', 'cape', 'foodPots']);
 const T8_ITEM_OPTIONS = getZvZItemOptions({ t8Only: true });
 const ALL_ITEM_OPTIONS = getZvZItemOptions({ t8Only: false });
@@ -100,6 +100,10 @@ function normalizeCell(cell) {
   return { ...emptyCell(), text: String(cell || '') };
 }
 
+function normalizeHeaders(headers = DEFAULT_HEADERS) {
+  return COLUMN_KEYS.map((_key, index) => String(headers[index] || DEFAULT_HEADERS[index] || ''));
+}
+
 function makeEmptyRow(index = 0) {
   return COLUMN_KEYS.map((key) => ({
     ...emptyCell(),
@@ -132,7 +136,6 @@ function buildToSheetRow(build, index = 0) {
   row[6] = buildSlotCell(build?.slots?.boots);
   row[7] = buildSlotCell(build?.slots?.cape);
   row[8] = buildSlotCell(build?.slots?.foodPots);
-  row[9].text = build?.notes || '';
   return row;
 }
 
@@ -154,10 +157,10 @@ function buildSheetFromBuilds(builds = []) {
   const first = builds.find((build) => Array.isArray(build.sheetHeaders));
   if (first) {
     return {
-      headers: first.sheetHeaders.length ? first.sheetHeaders : DEFAULT_HEADERS,
+      headers: normalizeHeaders(first.sheetHeaders.length ? first.sheetHeaders : DEFAULT_HEADERS),
       rows: builds.map((build, index) => (
         Array.isArray(build.sheetRow)
-          ? build.sheetRow.map(normalizeCell)
+          ? COLUMN_KEYS.map((_key, columnIndex) => normalizeCell(build.sheetRow[columnIndex]))
           : buildToSheetRow(build, index)
       )),
       t8Columns: first.sheetT8Columns && typeof first.sheetT8Columns === 'object'
@@ -167,7 +170,7 @@ function buildSheetFromBuilds(builds = []) {
   }
 
   return {
-    headers: DEFAULT_HEADERS,
+    headers: normalizeHeaders(DEFAULT_HEADERS),
     rows: builds.map(buildToSheetRow),
     t8Columns: DEFAULT_T8_COLUMNS,
   };
@@ -230,6 +233,7 @@ function buildItemsFromCell(cell) {
 }
 
 function sheetToBuilds(headers, rows, t8Columns = DEFAULT_T8_COLUMNS) {
+  const normalizedHeaders = normalizeHeaders(headers);
   return rows.map((row, index) => {
     const normalizedRow = COLUMN_KEYS.map((_key, columnIndex) => normalizeCell(row[columnIndex]));
     const slots = {
@@ -243,10 +247,10 @@ function sheetToBuilds(headers, rows, t8Columns = DEFAULT_T8_COLUMNS) {
     };
     return {
       id: `${index}-${normalizedRow[0].text || normalizedRow[1].text || 'build'}`,
-      notes: normalizedRow[9].text || '',
+      notes: '',
       number: normalizedRow[0].text || String(index + 1),
       role: normalizedRow[1].text || '',
-      sheetHeaders: headers,
+      sheetHeaders: normalizedHeaders,
       sheetRow: normalizedRow,
       sheetT8Columns: t8Columns,
       slots,
@@ -261,28 +265,25 @@ function ItemPreview({ cell, forceT8 = false }) {
   const items = buildSlotItems(cell);
   if (items.length === 0) return null;
   return (
-    <span className="zvz-sheet-item-preview-list">
-      <span className="zvz-sheet-item-image-stack">
+    <span className="zvz-sheet-preview-shell">
+      <span className="zvz-sheet-view-items">
         {items.map((item, index) => {
           const option = findOptionForItem(item, forceT8);
-          return option?.imageUrl ? (
-            <img key={`${item.itemId}-${item.itemName}-${index}`} src={option.imageUrl} alt="" loading="lazy" />
-          ) : (
-            <span className="zvz-sheet-item-fallback" key={`${item.itemId}-${item.itemName}-${index}`}>
-              {String(item.itemName || '?').slice(0, 2).toUpperCase()}
+          return (
+            <span className="zvz-sheet-view-item" key={`${item.itemId}-${item.itemName}-${index}`}>
+              {option?.imageUrl ? (
+                <img src={option.imageUrl} alt="" loading="lazy" />
+              ) : (
+                <span className="zvz-sheet-item-fallback">
+                  {String(item.itemName || '?').slice(0, 2).toUpperCase()}
+                </span>
+              )}
+              <strong>{item.itemName || option?.label}</strong>
             </span>
           );
         })}
       </span>
-      <span className="zvz-sheet-item-copy">
-        {items.map((item, index) => {
-          const option = findOptionForItem(item, forceT8);
-          return (
-            <strong key={`${item.itemId}-${item.itemName}-${index}`}>{item.itemName || option?.label}</strong>
-          );
-        })}
-        {cell.notes ? <small className="zvz-sheet-cell-notes">{cell.notes}</small> : null}
-      </span>
+      {cell.notes ? <small className="zvz-sheet-cell-notes">{cell.notes}</small> : null}
     </span>
   );
 }
@@ -415,7 +416,7 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
                       changeItems(nextItems);
                     }}
                   >
-                    -
+                    <Minus size={11} aria-hidden="true" />
                   </button>
                 </div>
                 {addAfterIndex === index ? renderSearchRow(index) : null}
@@ -433,7 +434,7 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
                 setOpen(true);
               }}
             >
-              +
+              <Plus size={11} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -450,7 +451,7 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
                 setOpen(true);
               }}
             >
-              +
+              <Plus size={12} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -531,7 +532,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
 
   function openLayout(layout) {
     const sheet = buildSheetFromBuilds(layout.builds || []);
-    setHeaders(sheet.headers);
+    setHeaders(normalizeHeaders(sheet.headers));
     setRows(sheet.rows.length ? sheet.rows : [makeEmptyRow(0)]);
     setT8Columns(sheet.t8Columns || DEFAULT_T8_COLUMNS);
     setError('');
@@ -619,7 +620,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
     try {
       const parsedBuilds = await parseZvZSpreadsheet(file, setProgress);
       const sheet = buildSheetFromBuilds(parsedBuilds);
-      setHeaders(sheet.headers);
+      setHeaders(normalizeHeaders(sheet.headers));
       setRows(sheet.rows);
       setSourceFileName(file.name);
       setPendingFileName('');
@@ -825,7 +826,7 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
                       </span>
                     </th>
                   ))}
-                  {canEdit ? <th aria-label="Row actions" /> : null}
+                  {canEdit ? <th className="zvz-sheet-row-action-cell" aria-label="Row actions" /> : null}
                 </tr>
               </thead>
               <tbody>
@@ -843,8 +844,8 @@ export default function ZvZSheet({ canEdit = false, uploadedBy = 'Unknown Server
                       </td>
                     ))}
                     {canEdit ? (
-                      <td>
-                <button className="zvz-row-delete" type="button" aria-label={`Delete row ${rowIndex + 1}`} onClick={() => removeRow(rowIndex)}>
+                      <td className="zvz-sheet-row-action-cell">
+                        <button className="zvz-row-delete" type="button" aria-label={`Delete row ${rowIndex + 1}`} onClick={() => removeRow(rowIndex)}>
                           <Trash2 size={15} aria-hidden="true" />
                         </button>
                       </td>
