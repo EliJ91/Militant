@@ -2079,17 +2079,6 @@ function IgnoreItemsControl({
   );
 }
 
-function formatSubmitterList(submitters, fallback = 'Manual') {
-  const names = [...new Set((submitters || [])
-    .map((submitter) => String(submitter || '').normalize('NFKC').trim())
-    .filter(Boolean))];
-  return names.length ? names.join(', ') : fallback;
-}
-
-function submitterNamesFromSubmissions(submissions = []) {
-  return submissions.map((submission) => submission.submittedBy);
-}
-
 function UploadInstructionsModal({ onClose }) {
   const guideSections = [
     {
@@ -2272,25 +2261,12 @@ function LootLogBundleList({
         <div className="saved-log-list">
           {bundles.map((bundle) => {
             const totals = bundle.summary?.totals || {};
-            const lootSubmitters = bundle.submitters?.length
-              ? bundle.submitters
-              : submitterNamesFromSubmissions(bundle.submissions);
-            const chestSubmitters = bundle.chestSubmitters?.length
-              ? bundle.chestSubmitters
-              : submitterNamesFromSubmissions(bundle.chestSubmissions);
-            const lootSubmittersText = formatSubmitterList(lootSubmitters);
-            const chestSubmittersText = bundle.hasChestLog
-              ? formatSubmitterList(chestSubmitters)
-              : 'No chest log';
             const retention = getRetentionStatus(bundle.startAt);
             const isEditing = editingBundleId === bundle.id;
-            const canEditSubmitters = canEditLogs;
             const canEditBundle = canEditLogs || canChangeLootLogTitle;
             const isSelected = selectedBundleIds.includes(bundle.id);
             const editSaveDisabled = !editValues.dateUtc
               || !editValues.lootFileName.trim()
-              || (canEditSubmitters && !editValues.lootSubmitter.trim())
-              || (canEditSubmitters && bundle.hasChestLog && !editValues.chestSubmitter.trim())
               || updatingBundleId === bundle.id;
 
             return (
@@ -2385,40 +2361,6 @@ function LootLogBundleList({
                         {formatDeletionCountdown(retention.daysUntilDeletion)}
                       </small>
                     ) : null}
-                  </div>
-                  <div className="saved-log-submitters">
-                    <div className="saved-log-uploader-block">
-                      <span>Loot Log Uploaded by</span>
-                      {isEditing ? (
-                        <input
-                          aria-label="Loot Log Uploaded By"
-                          className="saved-log-name-input"
-                          disabled={!canEditSubmitters}
-                          maxLength={80}
-                          type="text"
-                          value={editValues.lootSubmitter}
-                          onChange={(event) => onEditValue('lootSubmitter', event.target.value)}
-                        />
-                      ) : (
-                        <strong>{lootSubmittersText}</strong>
-                      )}
-                    </div>
-                    <div className="saved-log-uploader-block">
-                      <span>Chest Log Uploaded by</span>
-                      {isEditing ? (
-                        <input
-                          aria-label="Chest Log Uploaded By"
-                          className="saved-log-name-input"
-                          disabled={!canEditSubmitters || !bundle.hasChestLog}
-                          maxLength={80}
-                          type="text"
-                          value={editValues.chestSubmitter}
-                          onChange={(event) => onEditValue('chestSubmitter', event.target.value)}
-                        />
-                      ) : (
-                        <strong>{chestSubmittersText}</strong>
-                      )}
-                    </div>
                   </div>
                   <div className="saved-log-totals">
                     <span><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
@@ -2520,13 +2462,9 @@ export function LootLogArchive({
   const [downloadingBundleId, setDownloadingBundleId] = useState('');
   const [editingBundleId, setEditingBundleId] = useState('');
   const [editValues, setEditValues] = useState({
-    chestSubmitter: '',
     ctaHour: 0,
     dateUtc: '',
     lootFileName: '',
-    lootSubmitter: '',
-    originalChestSubmitter: '',
-    originalLootSubmitter: '',
   });
   const [savedLogBundles, setSavedLogBundles] = useState([]);
   const [savedLogStatus, setSavedLogStatus] = useState({ message: '', state: 'loading' });
@@ -2804,35 +2742,20 @@ export function LootLogArchive({
   }
 
   function editBundle(bundle) {
-    const lootSubmitters = bundle.submitters?.length
-      ? bundle.submitters
-      : submitterNamesFromSubmissions(bundle.submissions);
-    const chestSubmitters = bundle.chestSubmitters?.length
-      ? bundle.chestSubmitters
-      : submitterNamesFromSubmissions(bundle.chestSubmissions);
-
     setEditingBundleId(bundle.id);
     setEditValues({
-      chestSubmitter: bundle.hasChestLog ? formatSubmitterList(chestSubmitters) : '',
       ctaHour: Number.parseInt(bundle.ctaTimer, 10) || 0,
       dateUtc: formatUtcDateInput(bundle.startAt),
       lootFileName: stripLogSuffix(bundle.lootFileName, 'Loot Log'),
-      lootSubmitter: formatSubmitterList(lootSubmitters),
-      originalChestSubmitter: bundle.hasChestLog ? formatSubmitterList(chestSubmitters) : '',
-      originalLootSubmitter: formatSubmitterList(lootSubmitters),
     });
   }
 
   function cancelEditBundle() {
     setEditingBundleId('');
     setEditValues({
-      chestSubmitter: '',
       ctaHour: 0,
       dateUtc: '',
       lootFileName: '',
-      lootSubmitter: '',
-      originalChestSubmitter: '',
-      originalLootSubmitter: '',
     });
   }
 
@@ -2854,13 +2777,6 @@ export function LootLogArchive({
     setActionStatus({ message: `Updating ${bundle.lootFileName || 'loot log'}...`, state: 'loading' });
 
     try {
-      const submitterUpdates = {};
-      const lootSubmitter = editValues.lootSubmitter.trim();
-      const chestSubmitter = editValues.chestSubmitter.trim();
-      if (canEditLogs && lootSubmitter !== editValues.originalLootSubmitter) submitterUpdates.loot = lootSubmitter;
-      if (canEditLogs && bundle.hasChestLog && chestSubmitter !== editValues.originalChestSubmitter) {
-        submitterUpdates.chest = chestSubmitter;
-      }
       const editedBaseName = editValues.lootFileName.trim();
       const editedFileNames = {
         baseName: editedBaseName,
@@ -2874,7 +2790,6 @@ export function LootLogArchive({
         ctaHour: editValues.ctaHour,
         dateUtc: editValues.dateUtc,
         fileNames: editedFileNames,
-        submitters: Object.keys(submitterUpdates).length ? submitterUpdates : undefined,
       });
       setSavedLogBundles((current) => current.map((savedBundle) => {
         if (savedBundle.id !== bundle.id) return savedBundle;
@@ -2882,18 +2797,10 @@ export function LootLogArchive({
         return {
           ...savedBundle,
           chestFileName: result.fileNames?.chest || editedFileNames.chest,
-          chestSubmissions: submitterUpdates.chest
-            ? (savedBundle.chestSubmissions || []).map((submission) => ({ ...submission, submittedBy: chestSubmitter }))
-            : savedBundle.chestSubmissions,
-          chestSubmitters: submitterUpdates.chest ? [chestSubmitter] : savedBundle.chestSubmitters,
           ctaTimer: result.ctaTimer || savedBundle.ctaTimer,
           endAt: result.bundle?.end_at || savedBundle.endAt,
           lootFileName: result.displayLootFileName || result.fileNames?.baseName || editedBaseName,
           startAt: result.bundle?.start_at || savedBundle.startAt,
-          submissions: submitterUpdates.loot
-            ? (savedBundle.submissions || []).map((submission) => ({ ...submission, submittedBy: lootSubmitter }))
-            : savedBundle.submissions,
-          submitters: submitterUpdates.loot ? [lootSubmitter] : savedBundle.submitters,
           summary: {
             ...(savedBundle.summary || {}),
             displayLootFileName: result.displayLootFileName || result.fileNames?.baseName || editedBaseName,
@@ -3221,14 +3128,6 @@ export default function LootMonitor({
   }, [selectedBundle]);
 
   const hasChestLog = Boolean(selectedBundle?.hasChestLog && selectedBundle?.chestLogText);
-  const lootLoggers = useMemo(() => uniqueStrings((
-    selectedBundle?.submitters?.length
-      ? selectedBundle.submitters
-      : (selectedBundle?.submissions || []).map((submission) => submission.submittedBy)
-  ).map((submitter) => String(submitter || '').normalize('NFKC'))), [
-    selectedBundle?.submissions,
-    selectedBundle?.submitters,
-  ]);
   const rawLootLogText = useMemo(() => {
     if (selectedBundle?.lootLogText) return selectedBundle.lootLogText;
 
@@ -3725,10 +3624,6 @@ export default function LootMonitor({
           <div className={`selected-log-file ${selectedBundle.hasChestLog ? 'linked' : 'missing'}`}>
             <small>Chest Log</small>
             <strong>{selectedBundle.hasChestLog ? selectedBundle.chestFileName || 'Chest linked' : 'No chest log'}</strong>
-          </div>
-          <div className="selected-log-file selected-log-loggers">
-            <small>Loot Loggers</small>
-            <strong>{lootLoggers.length > 0 ? lootLoggers.join(', ') : 'Unknown'}</strong>
           </div>
           <div className="selected-log-totals">
             <span><strong>{formatNumber(selectedTotals.players)}</strong><small>{selectedTotals.players === 1 ? 'player' : 'players'}</small></span>

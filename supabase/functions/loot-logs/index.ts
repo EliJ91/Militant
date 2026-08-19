@@ -135,17 +135,6 @@ function normalize(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
 
-function normalizeSubmitterName(name: unknown) {
-  const clean = String(name || '').trim();
-  return clean === 'manual-web-upload' ? 'Manual' : clean;
-}
-
-function cleanEditedSubmitterName(name: unknown) {
-  const clean = String(name || '').trim();
-  if (!clean || clean.length > 80 || /[\r\n]/.test(clean)) return '';
-  return clean;
-}
-
 function formatCtaTimer(hour: number) {
   return `${String(hour).padStart(2, '0')} UTC`;
 }
@@ -1663,7 +1652,6 @@ async function mergeLootLogBundles(supabase: any, body: any) {
   const startAt = new Date(Math.min(...sourceBundles.map((bundle: any) => new Date(bundle.start_at).getTime()))).toISOString();
   const endAt = new Date(Math.max(...sourceBundles.map((bundle: any) => new Date(bundle.end_at).getTime()))).toISOString();
   const mergedAt = new Date().toISOString();
-  const mergedBy = String(body.username || '').trim() || 'manual-web-upload';
   const deathCheckRanges = normalizeDeathCheckRanges(sourceBundles.flatMap((bundle: any) => (
     bundle.combined_loot_summary?.deathCheckRanges || [{ endAt: bundle.end_at, startAt: bundle.start_at }]
   )));
@@ -1678,7 +1666,6 @@ async function mergeLootLogBundles(supabase: any, body: any) {
     hiddenPlayers,
     isMerged: true,
     mergedAt,
-    mergedBy: normalizeSubmitterName(mergedBy),
     mergedFromBundleIds: sourceBundles.map((bundle: any) => bundle.id),
   };
 
@@ -1697,12 +1684,12 @@ async function mergeLootLogBundles(supabase: any, body: any) {
     for (const sourceBundle of sourceBundles) {
       const [submissionsResult, chestResult, deathChecksResult, sourceEvents] = await Promise.all([
         supabase.from('loot_log_submissions')
-          .select('id,submitted_by,event_start_at,event_end_at,raw_log_text,skipped_rows')
+          .select('id,event_start_at,event_end_at,raw_log_text,skipped_rows')
           .eq('bundle_id', sourceBundle.id)
           .order('event_start_at')
           .order('created_at'),
         supabase.from('chest_log_submissions')
-          .select('submitted_by,raw_log_text,parsed_chest_summary')
+          .select('raw_log_text,parsed_chest_summary')
           .eq('bundle_id', sourceBundle.id)
           .order('created_at'),
         supabase.from('loot_log_death_checks')
@@ -1725,7 +1712,7 @@ async function mergeLootLogBundles(supabase: any, body: any) {
             event_start_at: submission.event_start_at,
             raw_log_text: submission.raw_log_text,
             skipped_rows: submission.skipped_rows || [],
-            submitted_by: submission.submitted_by,
+            submitted_by: '',
           })
           .select('id')
           .single();
@@ -1763,7 +1750,7 @@ async function mergeLootLogBundles(supabase: any, body: any) {
         bundle_id: targetBundle.id,
         parsed_chest_summary: submission.parsed_chest_summary || {},
         raw_log_text: submission.raw_log_text,
-        submitted_by: submission.submitted_by,
+        submitted_by: '',
       }));
       deathCheckRows.push(...(deathChecksResult.data || []));
     }
@@ -2121,17 +2108,10 @@ Deno.serve(async (request) => {
 
       const range = buildEditedBundleRange(bundle, body.dateUtc, body.ctaHour);
       const fileNames = getEditedFileNames(body.fileNames, range.startAt);
-      const lootSubmitter = cleanEditedSubmitterName(body.submitters?.loot);
-      const chestSubmitter = cleanEditedSubmitterName(body.submitters?.chest);
-      const displaySubmitters = {
-        ...(bundle.combined_loot_summary?.displaySubmitters || {}),
-        ...(lootSubmitter ? { loot: lootSubmitter } : {}),
-        ...(chestSubmitter ? { chest: chestSubmitter } : {}),
-      };
+      const { displaySubmitters: _displaySubmitters, ...summaryWithoutSubmitters } = bundle.combined_loot_summary || {};
       const combinedSummary = {
-        ...(bundle.combined_loot_summary || {}),
+        ...summaryWithoutSubmitters,
         displayLootFileName: fileNames.baseName,
-        displaySubmitters,
         fileNames,
       };
       const { data: updatedBundle, error: updateError } = await supabase
@@ -2167,24 +2147,6 @@ Deno.serve(async (request) => {
 
           if (error) throw error;
         }));
-
-      if (lootSubmitter) {
-        const { error } = await supabase
-          .from('loot_log_submissions')
-          .update({ submitted_by: lootSubmitter })
-          .eq('bundle_id', bundleId);
-
-        if (error) throw error;
-      }
-
-      if (chestSubmitter) {
-        const { error } = await supabase
-          .from('chest_log_submissions')
-          .update({ submitted_by: chestSubmitter })
-          .eq('bundle_id', bundleId);
-
-        if (error) throw error;
-      }
 
       await clearLootLogDeathChecks(supabase, bundleId);
       await refreshPlayerHistorySnapshot(supabase, bundleId);
@@ -2224,15 +2186,11 @@ Deno.serve(async (request) => {
 
         if (deleteError) throw deleteError;
 
-        const displaySubmitters = { ...(bundle.combined_loot_summary?.displaySubmitters || {}) };
-        delete displaySubmitters.chest;
+        const { displaySubmitters: _displaySubmitters, ...summaryWithoutSubmitters } = bundle.combined_loot_summary || {};
         const { error: updateError } = await supabase
           .from('loot_log_bundles')
           .update({
-            combined_loot_summary: {
-              ...(bundle.combined_loot_summary || {}),
-              displaySubmitters,
-            },
+            combined_loot_summary: summaryWithoutSubmitters,
             updated_at: new Date().toISOString(),
           })
           .eq('id', bundleId);
@@ -2287,12 +2245,12 @@ Deno.serve(async (request) => {
         const [eventsResult, submissionsResult, chestResult, deathChecksResult, hiddenPlayers] = await Promise.all([
           fetchAllBundleEvents(supabase, bundleId),
           supabase.from('loot_log_submissions')
-            .select('id,submitted_by,raw_log_text,event_start_at,created_at')
+            .select('id,raw_log_text,event_start_at,created_at')
             .eq('bundle_id', bundleId)
             .order('event_start_at')
             .order('created_at'),
           supabase.from('chest_log_submissions')
-            .select('id,submitted_by,raw_log_text,parsed_chest_summary,created_at')
+            .select('id,raw_log_text,parsed_chest_summary,created_at')
             .eq('bundle_id', bundleId)
             .order('created_at', { ascending: true }),
           supabase.from('loot_log_death_checks')
@@ -2313,15 +2271,6 @@ Deno.serve(async (request) => {
         const chestLogs = chestResult.data || [];
         const chestLog = chestLogs[chestLogs.length - 1] || null;
         const canonicalLootLogText = buildLootLogExport(eventsResult.map(dbEventToMergeEvent));
-        const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
-        const submitters = displaySubmitters.loot
-          ? [displaySubmitters.loot]
-          : [...new Set((submissionsResult.data || [])
-            .map((submission: any) => normalizeSubmitterName(submission.submitted_by))
-            .filter(Boolean))];
-        const chestSubmitters = displaySubmitters.chest
-          ? [displaySubmitters.chest]
-          : [...new Set(chestLogs.map((submission: any) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
         const fileNames = getBundleFileNames(bundle);
 
         return jsonResponse(200, {
@@ -2342,16 +2291,12 @@ Deno.serve(async (request) => {
               createdAt: submission.created_at,
               id: submission.id,
               rawLogText: submission.raw_log_text || '',
-              submittedBy: normalizeSubmitterName(submission.submitted_by),
             })),
-            submitters,
             chestSubmissions: chestLogs.map((submission: any) => ({
               createdAt: submission.created_at,
               id: submission.id,
               rawLogText: submission.raw_log_text || '',
-              submittedBy: normalizeSubmitterName(submission.submitted_by),
             })),
-            chestSubmitters,
             summary,
             updatedAt: bundle.updated_at,
           },
@@ -2371,12 +2316,10 @@ Deno.serve(async (request) => {
           updated_at,
           loot_log_submissions (
             id,
-            submitted_by,
             created_at
           ),
           chest_log_submissions (
             id,
-            submitted_by,
             created_at
           )
         `)
@@ -2390,13 +2333,6 @@ Deno.serve(async (request) => {
         bundles: bundles.map((bundle: any, index: number) => {
           const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
           const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
-          const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
-          const submitters = displaySubmitters.loot
-            ? [displaySubmitters.loot]
-            : [...new Set(submissions.map((submission: any) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
-          const chestSubmitters = displaySubmitters.chest
-            ? [displaySubmitters.chest]
-            : [...new Set(chestLogs.map((submission: any) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
           const fileNames = getBundleFileNames(bundle);
           const { playerHistoryRows: _playerHistoryRows, ...publicSummary } = bundle.combined_loot_summary || {};
 
@@ -2414,15 +2350,11 @@ Deno.serve(async (request) => {
             submissions: submissions.map((submission: any) => ({
               createdAt: submission.created_at,
               id: submission.id,
-              submittedBy: normalizeSubmitterName(submission.submitted_by),
             })),
             chestSubmissions: chestLogs.map((submission: any) => ({
               createdAt: submission.created_at,
               id: submission.id,
-              submittedBy: normalizeSubmitterName(submission.submitted_by),
             })),
-            chestSubmitters,
-            submitters,
             summary: {
               ...publicSummary,
               hiddenPlayers,
@@ -2435,7 +2367,6 @@ Deno.serve(async (request) => {
     }
 
     const body = await request.json();
-    const submittedBy = String(body.username || '').trim() || 'manual-web-upload';
 
     if (body.action === 'merge') {
       return jsonResponse(200, await mergeLootLogBundles(supabase, body));
@@ -2491,11 +2422,9 @@ Deno.serve(async (request) => {
           .eq('bundle_id', bundleId);
         if (deleteError) throw deleteError;
 
-        const displaySubmitters = { ...(chestBundle.combined_loot_summary?.displaySubmitters || {}) };
-        delete displaySubmitters.chest;
+        const { displaySubmitters: _displaySubmitters, ...summaryWithoutSubmitters } = chestBundle.combined_loot_summary || {};
         chestBundle.combined_loot_summary = {
-          ...(chestBundle.combined_loot_summary || {}),
-          displaySubmitters,
+          ...summaryWithoutSubmitters,
         };
       }
 
@@ -2505,7 +2434,7 @@ Deno.serve(async (request) => {
           bundle_id: bundleId,
           parsed_chest_summary: parsedSummary,
           raw_log_text: chestLogText,
-          submitted_by: submittedBy,
+          submitted_by: '',
         })
         .select('id,created_at')
         .single();
@@ -2620,11 +2549,9 @@ Deno.serve(async (request) => {
         .eq('bundle_id', bundle.id);
       if (submissionsDeleteError) throw submissionsDeleteError;
 
-      const displaySubmitters = { ...(bundle.combined_loot_summary?.displaySubmitters || {}) };
-      delete displaySubmitters.loot;
+      const { displaySubmitters: _displaySubmitters, ...summaryWithoutSubmitters } = bundle.combined_loot_summary || {};
       bundle.combined_loot_summary = {
-        ...(bundle.combined_loot_summary || {}),
-        displaySubmitters,
+        ...summaryWithoutSubmitters,
       };
     }
 
@@ -2637,7 +2564,7 @@ Deno.serve(async (request) => {
         event_start_at: range.startAt,
         raw_log_text: lootLogText,
         skipped_rows: parsed.skippedRows,
-        submitted_by: submittedBy,
+        submitted_by: '',
       })
       .select('id')
       .single();
@@ -2728,7 +2655,6 @@ Deno.serve(async (request) => {
         deathCheckRanges: bundle.combined_loot_summary.deathCheckRanges,
         isMerged: true,
         mergedAt: bundle.combined_loot_summary.mergedAt,
-        mergedBy: bundle.combined_loot_summary.mergedBy,
         mergedFromBundleIds: bundle.combined_loot_summary.mergedFromBundleIds,
       } : {}),
       displayLootFileName: getBundleDisplayLootFileName(

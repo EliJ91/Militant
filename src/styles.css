@@ -3570,7 +3570,6 @@ button:focus-visible {
 
 .saved-log-index,
 .saved-log-users,
-.saved-log-submitters,
 .saved-log-chest,
 .saved-log-time,
 .saved-log-totals,
@@ -3612,7 +3611,6 @@ button:focus-visible {
 
 .saved-log-time,
 .saved-log-users,
-.saved-log-submitters,
 .saved-log-chest {
   display: grid;
   align-content: center;
@@ -3620,8 +3618,7 @@ button:focus-visible {
 }
 
 .saved-log-time strong,
-.saved-log-users strong,
-.saved-log-submitters strong {
+.saved-log-users strong {
   overflow: hidden;
   color: var(--white);
   text-overflow: ellipsis;
@@ -3645,37 +3642,6 @@ button:focus-visible {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.saved-log-submitters span {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.saved-log-submitters strong {
-  overflow: hidden;
-  color: var(--green-hot);
-  font-size: 0.86rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.saved-log-uploader-block {
-  display: grid;
-  min-width: 0;
-  align-content: center;
-  gap: 6px;
-  padding: 10px 0;
-}
-
-.saved-log-uploader-block + .saved-log-uploader-block {
-  border-top: 1px solid rgba(247, 250, 245, 0.12);
 }
 
 .saved-log-time small,
@@ -6568,7 +6534,6 @@ button:focus-visible {
 
   .saved-log-index,
   .saved-log-users,
-  .saved-log-submitters,
   .saved-log-chest,
   .saved-log-time,
   .saved-log-totals,
@@ -6603,7 +6568,6 @@ button:focus-visible {
 
   .saved-log-users strong,
   .saved-log-users > span,
-  .saved-log-submitters span,
   .saved-log-chest small {
     text-overflow: initial;
     white-space: normal;

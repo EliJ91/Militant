@@ -338,7 +338,7 @@ async function markAttachmentProcessed(supabase, thread, job, { bundleId, logTyp
       file_name: job.fileName,
       log_type: logType,
       message_id: job.messageId,
-      submitted_by: submittedBy,
+      submitted_by: '',
       thread_id: thread.id,
     }, { onConflict: 'attachment_id' });
 

@@ -353,39 +353,6 @@ describe('LootMonitor', () => {
     expect(submitChestLog).not.toHaveBeenCalled();
   });
 
-  it('shows unique loot-log uploaders without using chest-log submitters', async () => {
-    fetchLootLogBundle.mockResolvedValue({
-      bundle: createBundle({
-        submissions: [
-          { id: 'submission-1', submittedBy: 'Onslawt' },
-          { id: 'submission-2', submittedBy: 'Manual' },
-          { id: 'submission-3', submittedBy: 'Onslawt' },
-        ],
-        submitters: ['Onslawt', 'Manual'],
-      }),
-    });
-
-    render(<LootMonitor bundleId="bundle-18" />);
-
-    const summary = await screen.findByRole('region', { name: 'Selected CTA log' });
-    expect(within(summary).getByText('Loot Loggers')).toBeInTheDocument();
-    expect(within(summary).getByText('Onslawt, Manual')).toBeInTheDocument();
-  });
-
-  it('normalizes decorative Discord uploader names', async () => {
-    fetchLootLogBundle.mockResolvedValue({
-      bundle: createBundle({
-        submissions: [{ id: 'submission-1', submittedBy: '\u{1D440}\u{1D44E}\u{1D45F}\u{1D458}' }],
-        submitters: ['\u{1D440}\u{1D44E}\u{1D45F}\u{1D458}'],
-      }),
-    });
-
-    render(<LootMonitor bundleId="bundle-18" />);
-
-    const summary = await screen.findByRole('region', { name: 'Selected CTA log' });
-    expect(within(summary).getByText('Mark')).toBeInTheDocument();
-  });
-
   it('states when the selected loot log has no chest log', async () => {
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({ chestFileName: '', chestLogText: '', hasChestLog: false }),
@@ -1031,8 +998,8 @@ describe('LootMonitor', () => {
     expect(screen.queryByRole('button', { name: 'Loot Monitor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh logs' })).toHaveAttribute('title', 'Refresh logs');
     expect(screen.getByRole('button', { name: 'Open upload instructions' })).toHaveAttribute('title', 'Upload instructions');
-    expect(screen.getByText('Loot Log Uploaded by')).toBeInTheDocument();
-    expect(screen.getByText('Chest Log Uploaded by')).toBeInTheDocument();
+    expect(screen.queryByText('Loot Log Uploaded by')).not.toBeInTheDocument();
+    expect(screen.queryByText('Chest Log Uploaded by')).not.toBeInTheDocument();
     const stats = container.querySelector('.saved-log-totals');
     expect(within(stats).getByText('1')).toBeInTheDocument();
     expect(within(stats).getByText('player')).toBeInTheDocument();
@@ -1425,14 +1392,14 @@ describe('LootMonitor', () => {
     }));
   });
 
-  it('allows title-only editors to open edit mode without changing uploader names', async () => {
+  it('allows title-only editors to open edit mode', async () => {
     render(<LootLogArchive canChangeLootLogTitle canEditLogs={false} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
 
     expect(screen.getByLabelText('Loot Log Name')).toBeEnabled();
-    expect(screen.getByLabelText('Loot Log Uploaded By')).toBeDisabled();
-    expect(screen.getByLabelText('Chest Log Uploaded By')).toBeDisabled();
+    expect(screen.queryByLabelText('Loot Log Uploaded By')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Chest Log Uploaded By')).not.toBeInTheDocument();
   });
 
   it('previews, customizes, cancels, and saves log metadata edits', async () => {
@@ -1440,8 +1407,8 @@ describe('LootMonitor', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
     expect(screen.getByLabelText('Loot Log Name')).toHaveValue('18UTC-JUN-18');
-    expect(screen.getByLabelText('Loot Log Uploaded By')).toHaveValue('Manual');
-    expect(screen.getByLabelText('Chest Log Uploaded By')).toHaveValue('Manual');
+    expect(screen.queryByLabelText('Loot Log Uploaded By')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Chest Log Uploaded By')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('UTC Date')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('CTA Time')).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Chest Log Name' })).not.toBeInTheDocument();
@@ -1453,9 +1420,7 @@ describe('LootMonitor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByLabelText('Loot Log Name'), { target: { value: 'Custom' } });
-    fireEvent.change(screen.getByLabelText('Loot Log Uploaded By'), { target: { value: 'Onslawt' } });
-    fireEvent.change(screen.getByLabelText('Chest Log Uploaded By'), { target: { value: 'Banker' } });
-    fireEvent.keyDown(screen.getByLabelText('Chest Log Uploaded By'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(updateLootLogBundle).toHaveBeenCalledWith({
       actorName: 'manual-web-upload',
@@ -1467,14 +1432,8 @@ describe('LootMonitor', () => {
         chest: 'Custom Chest Log',
         loot: 'Custom Loot Log',
       },
-      submitters: {
-        chest: 'Banker',
-        loot: 'Onslawt',
-      },
     }));
     expect(await screen.findByText('Custom updated.')).toBeInTheDocument();
-    expect(screen.getByText('Onslawt')).toBeInTheDocument();
-    expect(screen.getByText('Banker')).toBeInTheDocument();
   });
 
   it('shows retention countdowns and downloads older logs as a zip archive', async () => {

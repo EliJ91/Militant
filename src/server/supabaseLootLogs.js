@@ -282,17 +282,6 @@ function buildEditedBundleRange(bundle, dateUtc, ctaHour) {
   };
 }
 
-function normalizeSubmitterName(name) {
-  const clean = String(name || '').trim();
-  return clean === 'manual-web-upload' ? 'Manual' : clean;
-}
-
-function cleanEditedSubmitterName(name) {
-  const clean = String(name || '').trim();
-  if (!clean || clean.length > 80 || /[\r\n]/.test(clean)) return '';
-  return clean;
-}
-
 export function collectGlobalHiddenPlayers(bundles = []) {
   return [...new Set((Array.isArray(bundles) ? bundles : []).flatMap((bundle) => (
     Array.isArray(bundle?.combined_loot_summary?.hiddenPlayers)
@@ -304,13 +293,6 @@ export function collectGlobalHiddenPlayers(bundles = []) {
 function mapBundleListRow(bundle, logNumber = null, hiddenPlayers = []) {
   const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
   const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
-  const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
-  const submitters = displaySubmitters.loot
-    ? [displaySubmitters.loot]
-    : [...new Set(submissions.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
-  const chestSubmitters = displaySubmitters.chest
-    ? [displaySubmitters.chest]
-    : [...new Set(chestLogs.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
   const startAt = bundle.start_at;
   const endAt = bundle.end_at;
   const { playerHistoryRows: _playerHistoryRows, ...publicSummary } = bundle.combined_loot_summary || {};
@@ -328,15 +310,11 @@ function mapBundleListRow(bundle, logNumber = null, hiddenPlayers = []) {
     submissions: submissions.map((submission) => ({
       createdAt: submission.created_at,
       id: submission.id,
-      submittedBy: normalizeSubmitterName(submission.submitted_by),
     })),
     chestSubmissions: chestLogs.map((submission) => ({
       createdAt: submission.created_at,
       id: submission.id,
-      submittedBy: normalizeSubmitterName(submission.submitted_by),
     })),
-    chestSubmitters,
-    submitters,
     summary: {
       ...publicSummary,
       hiddenPlayers,
@@ -1144,7 +1122,6 @@ async function refreshBundleSummary(supabase, bundle, originalFileName) {
       deathCheckRanges: bundle.combined_loot_summary.deathCheckRanges,
       isMerged: true,
       mergedAt: bundle.combined_loot_summary.mergedAt,
-      mergedBy: bundle.combined_loot_summary.mergedBy,
       mergedFromBundleIds: bundle.combined_loot_summary.mergedFromBundleIds,
     } : {}),
     displayLootFileName: getBundleDisplayLootFileName(bundle, originalFileName, range?.startAt),
@@ -1260,7 +1237,6 @@ export async function submitLootLog({
   overrideCurrent = false,
   username,
 }) {
-  const cleanUsername = String(username || '').trim() || 'manual-web-upload';
   if (!lootLogText || typeof lootLogText !== 'string') throw new Error('lootLogText is required.');
 
   const { events, parsed } = buildLootLogEvents(lootLogText);
@@ -1284,11 +1260,8 @@ export async function submitLootLog({
       .eq('bundle_id', bundle.id);
     if (submissionsDeleteError) throw submissionsDeleteError;
 
-    const displaySubmitters = { ...(bundle.combined_loot_summary?.displaySubmitters || {}) };
-    delete displaySubmitters.loot;
     bundle.combined_loot_summary = {
       ...(bundle.combined_loot_summary || {}),
-      displaySubmitters,
     };
   }
 
@@ -1300,7 +1273,7 @@ export async function submitLootLog({
       event_start_at: range.startAt,
       raw_log_text: lootLogText,
       skipped_rows: parsed.skippedRows,
-      submitted_by: cleanUsername,
+      submitted_by: '',
     })
     .select('id')
     .single();
@@ -1334,7 +1307,6 @@ export async function submitLootLog({
 }
 
 export async function submitChestLog({ bundleId, chestLogText, overrideCurrent = false, username }) {
-  const cleanUsername = String(username || '').trim() || 'manual-web-upload';
   if (!bundleId) throw new Error('bundleId is required.');
   if (!chestLogText || typeof chestLogText !== 'string') throw new Error('chestLogText is required.');
 
@@ -1370,11 +1342,8 @@ export async function submitChestLog({ bundleId, chestLogText, overrideCurrent =
       .eq('bundle_id', bundleId);
     if (deleteError) throw deleteError;
 
-    const displaySubmitters = { ...(bundle.combined_loot_summary?.displaySubmitters || {}) };
-    delete displaySubmitters.chest;
     bundle.combined_loot_summary = {
       ...(bundle.combined_loot_summary || {}),
-      displaySubmitters,
     };
   }
 
@@ -1384,7 +1353,7 @@ export async function submitChestLog({ bundleId, chestLogText, overrideCurrent =
       bundle_id: bundleId,
       parsed_chest_summary: parsedSummary,
       raw_log_text: chestLogText,
-      submitted_by: cleanUsername,
+      submitted_by: '',
     })
     .select('id,created_at')
     .single();
@@ -1497,7 +1466,6 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
   const startAt = new Date(Math.min(...sourceBundles.map((bundle) => new Date(bundle.start_at).getTime()))).toISOString();
   const endAt = new Date(Math.max(...sourceBundles.map((bundle) => new Date(bundle.end_at).getTime()))).toISOString();
   const mergedAt = new Date().toISOString();
-  const mergedBy = String(username || '').trim() || 'manual-web-upload';
   const deathCheckRanges = normalizeDeathCheckRanges(sourceBundles.flatMap((bundle) => (
     bundle.combined_loot_summary?.deathCheckRanges || [{ endAt: bundle.end_at, startAt: bundle.start_at }]
   )));
@@ -1512,7 +1480,6 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
     hiddenPlayers,
     isMerged: true,
     mergedAt,
-    mergedBy: normalizeSubmitterName(mergedBy),
     mergedFromBundleIds: sourceBundles.map((bundle) => bundle.id),
   };
 
@@ -1535,12 +1502,12 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
     for (const sourceBundle of sourceBundles) {
       const [submissionsResult, chestResult, deathChecksResult, sourceEvents] = await Promise.all([
         supabase.from('loot_log_submissions')
-          .select('id,submitted_by,event_start_at,event_end_at,raw_log_text,skipped_rows')
+          .select('id,event_start_at,event_end_at,raw_log_text,skipped_rows')
           .eq('bundle_id', sourceBundle.id)
           .order('event_start_at')
           .order('created_at'),
         supabase.from('chest_log_submissions')
-          .select('submitted_by,raw_log_text,parsed_chest_summary')
+          .select('raw_log_text,parsed_chest_summary')
           .eq('bundle_id', sourceBundle.id)
           .order('created_at'),
         supabase.from('loot_log_death_checks')
@@ -1563,7 +1530,7 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
             event_start_at: submission.event_start_at,
             raw_log_text: submission.raw_log_text,
             skipped_rows: submission.skipped_rows || [],
-            submitted_by: submission.submitted_by,
+            submitted_by: '',
           })
           .select('id')
           .single();
@@ -1601,7 +1568,7 @@ export async function mergeLootLogBundles({ bundleIds, username }) {
         bundle_id: targetBundle.id,
         parsed_chest_summary: submission.parsed_chest_summary || {},
         raw_log_text: submission.raw_log_text,
-        submitted_by: submission.submitted_by,
+        submitted_by: '',
       }));
       deathCheckRows.push(...(deathChecksResult.data || []));
     }
@@ -1734,14 +1701,12 @@ export async function deleteChestLogs(bundleId) {
 
   if (deleteError) throw deleteError;
 
-  const displaySubmitters = { ...(bundle.combined_loot_summary?.displaySubmitters || {}) };
-  delete displaySubmitters.chest;
+  const { displaySubmitters: _displaySubmitters, ...summaryWithoutSubmitters } = bundle.combined_loot_summary || {};
   const { error: updateError } = await supabase
     .from('loot_log_bundles')
     .update({
       combined_loot_summary: {
-        ...(bundle.combined_loot_summary || {}),
-        displaySubmitters,
+        ...summaryWithoutSubmitters,
       },
       updated_at: new Date().toISOString(),
     })
@@ -1777,7 +1742,7 @@ export async function deleteExpiredLootLogBundles() {
   };
 }
 
-export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileNames: editedFileNames, submitters = {} }) {
+export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileNames: editedFileNames }) {
   if (!bundleId) throw new Error('bundleId is required.');
 
   const supabase = createSupabaseAdmin();
@@ -1791,17 +1756,10 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
 
   const range = buildEditedBundleRange(bundle, dateUtc, ctaHour);
   const fileNames = getEditedFileNames(editedFileNames, range.startAt);
-  const lootSubmitter = cleanEditedSubmitterName(submitters.loot);
-  const chestSubmitter = cleanEditedSubmitterName(submitters.chest);
-  const displaySubmitters = {
-    ...(bundle.combined_loot_summary?.displaySubmitters || {}),
-    ...(lootSubmitter ? { loot: lootSubmitter } : {}),
-    ...(chestSubmitter ? { chest: chestSubmitter } : {}),
-  };
+  const { displaySubmitters: _displaySubmitters, ...summaryWithoutSubmitters } = bundle.combined_loot_summary || {};
   const combinedSummary = {
-    ...(bundle.combined_loot_summary || {}),
+    ...summaryWithoutSubmitters,
     displayLootFileName: fileNames.baseName,
-    displaySubmitters,
     fileNames,
   };
   const { data: updatedBundle, error: updateError } = await supabase
@@ -1837,24 +1795,6 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
 
     if (error) throw error;
   }));
-
-  if (lootSubmitter) {
-    const { error } = await supabase
-      .from('loot_log_submissions')
-      .update({ submitted_by: lootSubmitter })
-      .eq('bundle_id', bundleId);
-
-    if (error) throw error;
-  }
-
-  if (chestSubmitter) {
-    const { error } = await supabase
-      .from('chest_log_submissions')
-      .update({ submitted_by: chestSubmitter })
-      .eq('bundle_id', bundleId);
-
-    if (error) throw error;
-  }
 
   await clearLootLogDeathChecks(supabase, bundleId);
 
@@ -1914,12 +1854,12 @@ export async function getLootLogBundle(bundleId) {
   const [eventsResult, lootSubmissionsResult, chestResult, deathChecksResult, hiddenPlayers] = await Promise.all([
     fetchAllBundleEvents(supabase, bundleId),
     supabase.from('loot_log_submissions')
-      .select('id,submitted_by,raw_log_text,event_start_at,created_at')
+      .select('id,raw_log_text,event_start_at,created_at')
       .eq('bundle_id', bundleId)
       .order('event_start_at')
       .order('created_at'),
     supabase.from('chest_log_submissions')
-      .select('id,submitted_by,raw_log_text,parsed_chest_summary,created_at')
+      .select('id,raw_log_text,parsed_chest_summary,created_at')
       .eq('bundle_id', bundleId)
       .order('created_at', { ascending: true }),
     supabase.from('loot_log_death_checks')
@@ -1940,15 +1880,6 @@ export async function getLootLogBundle(bundleId) {
   const chestLogs = chestResult.data || [];
   const rawChestLogTexts = chestLogs.map((log) => log.raw_log_text || '').filter(Boolean);
   const canonicalLootLogText = buildLootLogExport(eventsResult.map(dbEventToMergeEvent));
-  const displaySubmitters = bundle.combined_loot_summary?.displaySubmitters || {};
-  const submitters = displaySubmitters.loot
-    ? [displaySubmitters.loot]
-    : [...new Set((lootSubmissionsResult.data || [])
-      .map((submission) => normalizeSubmitterName(submission.submitted_by))
-      .filter(Boolean))];
-  const chestSubmitters = displaySubmitters.chest
-    ? [displaySubmitters.chest]
-    : [...new Set(chestLogs.map((submission) => normalizeSubmitterName(submission.submitted_by)).filter(Boolean))];
   return {
     bundle: {
       chestFileName: getBundleDisplayChestFileName(bundle),
@@ -1968,16 +1899,12 @@ export async function getLootLogBundle(bundleId) {
         createdAt: submission.created_at,
         id: submission.id,
         rawLogText: submission.raw_log_text || '',
-        submittedBy: normalizeSubmitterName(submission.submitted_by),
       })),
-      submitters,
       chestSubmissions: chestLogs.map((submission) => ({
         createdAt: submission.created_at,
         id: submission.id,
         rawLogText: submission.raw_log_text || '',
-        submittedBy: normalizeSubmitterName(submission.submitted_by),
       })),
-      chestSubmitters,
       summary,
       updatedAt: bundle.updated_at,
     },
@@ -1998,12 +1925,10 @@ export async function listLootLogBundles() {
       updated_at,
       loot_log_submissions (
         id,
-        submitted_by,
         created_at
       ),
       chest_log_submissions (
         id,
-        submitted_by,
         created_at
       )
     `)

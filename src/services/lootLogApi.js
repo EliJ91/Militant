@@ -256,10 +256,9 @@ export async function updateLootLogBundle({
   ctaHour,
   dateUtc,
   fileNames,
-  submitters,
 }) {
   const response = await fetch(getLootLogApiUrl(), {
-    body: JSON.stringify({ bundleId, ctaHour, dateUtc, fileNames, submitters }),
+    body: JSON.stringify({ bundleId, ctaHour, dateUtc, fileNames }),
     headers: { 'Content-Type': 'application/json' },
     method: 'PATCH',
   });

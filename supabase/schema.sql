@@ -12,7 +12,7 @@ create table if not exists public.loot_log_bundles (
 create table if not exists public.loot_log_submissions (
   id uuid primary key default gen_random_uuid(),
   bundle_id uuid not null references public.loot_log_bundles(id) on delete cascade,
-  submitted_by text not null,
+  submitted_by text not null default '',
   event_start_at timestamptz not null,
   event_end_at timestamptz not null,
   raw_log_text text not null,
@@ -47,7 +47,7 @@ create table if not exists public.loot_log_events (
 create table if not exists public.chest_log_submissions (
   id uuid primary key default gen_random_uuid(),
   bundle_id uuid not null references public.loot_log_bundles(id) on delete cascade,
-  submitted_by text not null,
+  submitted_by text not null default '',
   raw_log_text text not null,
   parsed_chest_summary jsonb not null default '{"rows":[],"totals":{}}'::jsonb,
   created_at timestamptz not null default now()
@@ -84,7 +84,7 @@ create table if not exists public.discord_loot_attachments (
   bundle_id uuid references public.loot_log_bundles(id) on delete set null,
   file_name text not null,
   log_type text not null check (log_type in ('loot', 'chest')),
-  submitted_by text not null,
+  submitted_by text not null default '',
   created_at timestamptz not null default now()
 );
 
