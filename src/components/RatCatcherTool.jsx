@@ -38,6 +38,7 @@ import {
 } from './LootMonitor';
 
 const RAT_FILTER_STORAGE_KEY = 'militant.ratCatcher.filters.v1';
+const RAT_BUNDLE_LOAD_ATTEMPTS = 5;
 
 function loadFilters() {
   try {
@@ -233,6 +234,7 @@ function buildRatHistoryEntries(row, bundle) {
     .map((label) => ({
       bundleId,
       bundleLabel,
+      hideBundleLabel: true,
       item: row.item || row.itemName || '',
       itemId: row.itemId || '',
       label,
@@ -484,12 +486,14 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
 
   async function fetchBundleWithRetry(bundleId) {
     let lastError;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
+    for (let attempt = 1; attempt <= RAT_BUNDLE_LOAD_ATTEMPTS; attempt += 1) {
       try {
         return await fetchLootLogBundle(bundleId);
       } catch (error) {
         lastError = error;
-        if (attempt < 3) await new Promise((resolve) => window.setTimeout(resolve, attempt * 600));
+        if (attempt < RAT_BUNDLE_LOAD_ATTEMPTS) {
+          await new Promise((resolve) => window.setTimeout(resolve, attempt * 600));
+        }
       }
     }
     throw lastError;
@@ -528,7 +532,13 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
       setStatsOpen(false);
     }
     setLoadStatus(failures.length > 0
-      ? { message: `${failures.length} selected ${failures.length === 1 ? 'bundle' : 'bundles'} could not be loaded after 3 attempts.`, state: 'error' }
+      ? {
+        message: `${failures.length} selected ${failures.length === 1 ? 'bundle' : 'bundles'} could not be loaded after ${RAT_BUNDLE_LOAD_ATTEMPTS} attempts: ${failures.map((bundleId) => {
+          const bundle = bundles.find((candidate) => candidate.id === bundleId);
+          return bundle ? getBundleLabel(bundle) : bundleId;
+        }).join(', ')}.`,
+        state: 'error',
+      }
       : { message: '', state: 'loaded' });
     setCombineProgress({ completed: 0, total: 0 });
   }
@@ -602,7 +612,7 @@ export default function RatCatcherTool({ canViewHiddenPlayers = false }) {
         <section className="rat-combine-progress" aria-live="polite">
           <div><strong>Combining loot logs</strong><span>{combineProgress.completed} / {combineProgress.total}</span></div>
           <progress max={Math.max(1, combineProgress.total)} value={combineProgress.completed} />
-          <small>Each bundle is retried automatically if loading is interrupted.</small>
+          <small>Each bundle is retried up to 5 times if loading is interrupted.</small>
         </section>
       ) : null}
 

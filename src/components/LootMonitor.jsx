@@ -1513,7 +1513,7 @@ export function LootItemTile({
                 target="_blank"
               >
                 <span>{entry.label}</span>
-                <small>{entry.bundleLabel}</small>
+                {entry.bundleLabel && !entry.hideBundleLabel ? <small>{entry.bundleLabel}</small> : null}
               </a>
             ) : <span key={`${entry.label}-${index}`}>{entry.label}</span>
           )) : custodySteps.map((entry, index) => (

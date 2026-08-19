@@ -105,7 +105,8 @@ describe('RatCatcherTool', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
       "2026-08-19T12:34:00Z;CHAIR;Militant;RatPlayer;T4_MAIN_SWORD;Adept's Broadsword;1;ENEMY;EnemyGuild;DeadPlayer;Skysand Ridge",
     );
-    expect(screen.getByRole('link', { name: /Raw Rat Test/i })).toHaveAttribute(
+    expect(screen.queryByText('Raw Rat Test')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /2026-08-19T12:34:00Z/i })).toHaveAttribute(
       'href',
       "#loot-monitor/bundle-raw?player=RatPlayer&itemId=T4_MAIN_SWORD&item=Adept%27s+Broadsword",
     );
