@@ -72,6 +72,131 @@ function handleInternalLinkClick(event, hash, onNavigate = null) {
   else navigateTo(hash);
 }
 
+function tooltipTextFromClassName(element) {
+  const className = typeof element.className === 'string' ? element.className.toLowerCase() : '';
+  const classHints = [
+    ['refresh', 'Refresh'],
+    ['guide', 'Guide'],
+    ['help', 'Help'],
+    ['close', 'Close'],
+    ['edit', 'Edit'],
+    ['delete', 'Delete'],
+    ['download', 'Download'],
+    ['copy', 'Copy'],
+    ['save', 'Save'],
+    ['cancel', 'Cancel'],
+    ['upload', 'Upload'],
+    ['merge', 'Merge'],
+    ['view', 'View'],
+    ['add', 'Add'],
+    ['remove', 'Remove'],
+    ['extract', 'Extract'],
+    ['share', 'Share'],
+    ['update', 'Update'],
+    ['reset', 'Reset'],
+  ];
+  return classHints.find(([hint]) => className.includes(hint))?.[1] || '';
+}
+
+function tooltipTextFromElement(element) {
+  if (!element) return '';
+  const raw = [
+    element.dataset?.tooltip,
+    element.getAttribute('aria-label'),
+    element.getAttribute('title'),
+    element.textContent,
+    tooltipTextFromClassName(element),
+  ].find((value) => value && value.replace(/\s+/g, ' ').trim()) || '';
+  const cleaned = raw.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return '';
+  if (cleaned === '?') return 'Guide';
+  if (cleaned === '×' || cleaned.toLowerCase() === 'x') return 'Close';
+  return cleaned.split(' ').slice(0, 4).join(' ');
+}
+
+function GlobalHoverTooltip() {
+  const [tooltip, setTooltip] = useState(null);
+
+  useEffect(() => {
+    let activeElement = null;
+    const selector = 'button, a[href], [role="button"]';
+
+    function showForElement(element) {
+      if (!element || element.disabled || element.getAttribute('aria-disabled') === 'true') {
+        setTooltip(null);
+        activeElement = null;
+        return;
+      }
+      const text = tooltipTextFromElement(element);
+      if (!text) {
+        setTooltip(null);
+        activeElement = null;
+        return;
+      }
+      const rect = element.getBoundingClientRect();
+      const below = rect.top < 44;
+      activeElement = element;
+      setTooltip({
+        below,
+        text,
+        x: Math.min(Math.max(rect.left + rect.width / 2, 56), window.innerWidth - 56),
+        y: below ? rect.bottom + 8 : rect.top - 8,
+      });
+    }
+
+    function handlePointerOver(event) {
+      const element = event.target.closest?.(selector);
+      if (!element || activeElement === element) return;
+      showForElement(element);
+    }
+
+    function handlePointerOut(event) {
+      if (!activeElement) return;
+      if (event.relatedTarget && activeElement.contains(event.relatedTarget)) return;
+      setTooltip(null);
+      activeElement = null;
+    }
+
+    function handleFocusIn(event) {
+      const element = event.target.closest?.(selector);
+      if (element) showForElement(element);
+    }
+
+    function hideTooltip() {
+      setTooltip(null);
+      activeElement = null;
+    }
+
+    document.addEventListener('pointerover', handlePointerOver, true);
+    document.addEventListener('pointerout', handlePointerOut, true);
+    document.addEventListener('focusin', handleFocusIn, true);
+    document.addEventListener('focusout', hideTooltip, true);
+    document.addEventListener('click', hideTooltip, true);
+    window.addEventListener('scroll', hideTooltip, true);
+    window.addEventListener('resize', hideTooltip);
+    return () => {
+      document.removeEventListener('pointerover', handlePointerOver, true);
+      document.removeEventListener('pointerout', handlePointerOut, true);
+      document.removeEventListener('focusin', handleFocusIn, true);
+      document.removeEventListener('focusout', hideTooltip, true);
+      document.removeEventListener('click', hideTooltip, true);
+      window.removeEventListener('scroll', hideTooltip, true);
+      window.removeEventListener('resize', hideTooltip);
+    };
+  }, []);
+
+  if (!tooltip) return null;
+  return (
+    <div
+      className={`global-hover-tooltip${tooltip.below ? ' below' : ''}`}
+      role="tooltip"
+      style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}
+    >
+      {tooltip.text}
+    </div>
+  );
+}
+
 function BrandLockup({ compact = false }) {
   return (
     <div className={compact ? 'brand-lockup brand-lockup-compact' : 'brand-lockup'}>
@@ -1345,6 +1470,7 @@ export default function App() {
       ) : null}
       {page}
       <VersionFooter />
+      <GlobalHoverTooltip />
     </>
   );
 }

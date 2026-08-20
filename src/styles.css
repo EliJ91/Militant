@@ -1938,6 +1938,23 @@ button {
   font: inherit;
 }
 
+button:not(:disabled),
+a[href],
+[role="button"]:not([aria-disabled="true"]),
+summary,
+select,
+input[type="checkbox"],
+input[type="radio"],
+input[type="file"],
+label[for] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 input,
 select,
 textarea {
@@ -1948,6 +1965,30 @@ textarea {
 button:focus-visible {
   outline: 2px solid var(--green-hot);
   outline-offset: 3px;
+}
+
+.global-hover-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: min(220px, calc(100vw - 24px));
+  padding: 5px 8px;
+  border: 1px solid rgba(87, 216, 120, 0.55);
+  border-radius: 6px;
+  background: rgba(2, 8, 5, 0.94);
+  color: var(--white);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.42);
+  font-size: 0.65rem;
+  font-weight: 900;
+  line-height: 1.15;
+  pointer-events: none;
+  text-align: center;
+  text-transform: uppercase;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+}
+
+.global-hover-tooltip.below {
+  transform: translate(-50%, 0);
 }
 
 .eyebrow {
