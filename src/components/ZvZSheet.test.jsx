@@ -1,7 +1,7 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ZvZSheet from './ZvZSheet';
-import { fetchZvZBuildLayouts } from '../services/zvzBuildsApi';
+import { fetchZvZBuildLayouts, updateZvZBuildLayout } from '../services/zvzBuildsApi';
 
 vi.mock('../services/zvzBuildsApi', () => ({
   createZvZBuildLayout: vi.fn(),
@@ -37,6 +37,7 @@ describe('ZvZSheet saved layouts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchZvZBuildLayouts.mockResolvedValue({ layouts: [savedLayout] });
+    updateZvZBuildLayout.mockResolvedValue({ layout: savedLayout });
   });
 
   afterEach(() => {
@@ -83,6 +84,56 @@ describe('ZvZSheet saved layouts', () => {
     fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
     expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^upload$/i })).not.toBeInTheDocument();
+  });
+
+  it('lets editors drag rows into a new saved order while keeping row numbers positional', async () => {
+    fetchZvZBuildLayouts.mockResolvedValue({ layouts: [{
+      ...savedLayout,
+      builds: [
+        {
+          ...savedLayout.builds[0],
+          number: 1,
+          role: 'Alpha',
+        },
+        {
+          ...savedLayout.builds[0],
+          id: 'build-2',
+          number: 2,
+          role: 'Bravo',
+        },
+      ],
+    }] });
+    updateZvZBuildLayout.mockResolvedValue({ layout: savedLayout });
+    const { container } = render(<ZvZSheet canEdit uploadedBy="Officer" />);
+
+    await screen.findByText('Alpha');
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+
+    const tableBody = container.querySelector('.zvz-sheet-table tbody');
+    const [firstRow, secondRow] = tableBody.querySelectorAll('tr');
+    const dataTransfer = {
+      data: {},
+      effectAllowed: '',
+      getData(type) {
+        return this.data[type] || '';
+      },
+      setData(type, value) {
+        this.data[type] = value;
+      },
+    };
+    fireEvent.dragStart(firstRow, { dataTransfer });
+    fireEvent.dragOver(secondRow, { dataTransfer });
+    fireEvent.drop(secondRow, { dataTransfer });
+
+    const [newFirstRow] = tableBody.querySelectorAll('tr');
+    expect(within(newFirstRow).getByText('1')).toBeInTheDocument();
+    expect(within(newFirstRow).getByDisplayValue('Bravo')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    await waitFor(() => expect(updateZvZBuildLayout).toHaveBeenCalled());
+    const savedBuilds = updateZvZBuildLayout.mock.calls[0][0].builds;
+    expect(savedBuilds[0]).toEqual(expect.objectContaining({ number: '1', role: 'Bravo' }));
+    expect(savedBuilds[1]).toEqual(expect.objectContaining({ number: '2', role: 'Alpha' }));
   });
 
   it('opens the build-sheet uploader in a modal for a new layout', async () => {

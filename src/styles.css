@@ -803,6 +803,24 @@
   text-transform: uppercase;
 }
 
+.zvz-sheet-draggable-row {
+  cursor: grab;
+  transition: background 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+
+.zvz-sheet-draggable-row:active {
+  cursor: grabbing;
+}
+
+.zvz-sheet-draggable-row.dragging {
+  opacity: 0.55;
+}
+
+.zvz-sheet-draggable-row.drag-over td {
+  background: rgba(255, 191, 0, 0.08);
+  box-shadow: inset 0 2px 0 rgba(255, 191, 0, 0.9);
+}
+
 .zvz-sheet-header-cell {
   display: flex;
   align-items: center;

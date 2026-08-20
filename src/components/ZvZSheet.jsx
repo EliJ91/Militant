@@ -134,6 +134,18 @@ function makeEmptyRow(index = 0) {
   }));
 }
 
+function withDisplayNumber(row, index) {
+  return COLUMN_KEYS.map((_key, columnIndex) => (
+    columnIndex === 0
+      ? { ...normalizeCell(row?.[0]), text: String(index + 1) }
+      : normalizeCell(row?.[columnIndex])
+  ));
+}
+
+function renumberRows(sourceRows) {
+  return sourceRows.map(withDisplayNumber);
+}
+
 function buildItemCell(item) {
   const items = [item].filter(Boolean).map(normalizeItem);
   return {
@@ -691,6 +703,8 @@ export default function ZvZSheet({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentLayout, setCurrentLayout] = useState(null);
+  const [dragOverRowIndex, setDragOverRowIndex] = useState(null);
+  const [dragRowIndex, setDragRowIndex] = useState(null);
   const [rows, setRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFileName, setSourceFileName] = useState('');
@@ -779,7 +793,8 @@ export default function ZvZSheet({
 
   async function saveSheet(nextRows = rows, nextSourceFileName = sourceFileName, allowDuringProcessing = false, nextHeaders = headers) {
     if (!canEdit || (processing && !allowDuringProcessing)) return;
-    const nextBuilds = sheetToBuilds(nextHeaders, nextRows, t8Columns);
+    const numberedRows = renumberRows(nextRows);
+    const nextBuilds = sheetToBuilds(nextHeaders, numberedRows, t8Columns);
     if (nextBuilds.length === 0) {
       setError('Add at least one row with a role and item before saving.');
       return;
@@ -876,6 +891,19 @@ export default function ZvZSheet({
     setHasUnsavedChanges(true);
   }
 
+  function moveRow(fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    setRows((current) => {
+      if (!current[fromIndex] || !current[toIndex]) return current;
+      const nextRows = [...current];
+      const [movedRow] = nextRows.splice(fromIndex, 1);
+      nextRows.splice(toIndex, 0, movedRow);
+      return nextRows;
+    });
+    setStatus('');
+    setHasUnsavedChanges(true);
+  }
+
   async function copyVisibleSheetScreenshot() {
     if (visibleRows.length === 0 || copyingSheet) return;
     setCopyingSheet(true);
@@ -896,7 +924,8 @@ export default function ZvZSheet({
     setError('');
     try {
       const fileName = `zvz-sheet-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      const blob = await buildFormattedZvZWorkbookBlob(headers, visibleRows);
+      const exportRows = visibleRows.map(({ row, index }) => ({ index, row: withDisplayNumber(row, index) }));
+      const blob = await buildFormattedZvZWorkbookBlob(headers, exportRows);
       const link = document.createElement('a');
       const objectUrl = URL.createObjectURL(blob);
       link.href = objectUrl;
@@ -1086,13 +1115,46 @@ export default function ZvZSheet({
                 </tr>
               </thead>
               <tbody>
-                {visibleRows.map(({ row, index: rowIndex }) => (
-                  <tr key={`row-${rowIndex}`}>
+                {visibleRows.map(({ row, index: rowIndex }) => {
+                  const displayRow = withDisplayNumber(row, rowIndex);
+                  return (
+                  <tr
+                    className={[
+                      canEdit && isEditing ? 'zvz-sheet-draggable-row' : '',
+                      dragRowIndex === rowIndex ? 'dragging' : '',
+                      dragOverRowIndex === rowIndex && dragRowIndex !== rowIndex ? 'drag-over' : '',
+                    ].filter(Boolean).join(' ')}
+                    draggable={canEdit && isEditing}
+                    key={`row-${rowIndex}`}
+                    onDragEnd={() => {
+                      setDragRowIndex(null);
+                      setDragOverRowIndex(null);
+                    }}
+                    onDragOver={(event) => {
+                      if (!canEdit || !isEditing || dragRowIndex === null) return;
+                      event.preventDefault();
+                      setDragOverRowIndex(rowIndex);
+                    }}
+                    onDragStart={(event) => {
+                      if (!canEdit || !isEditing) return;
+                      setDragRowIndex(rowIndex);
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', String(rowIndex));
+                    }}
+                    onDrop={(event) => {
+                      if (!canEdit || !isEditing) return;
+                      event.preventDefault();
+                      const sourceIndex = Number.parseInt(event.dataTransfer.getData('text/plain'), 10);
+                      moveRow(Number.isNaN(sourceIndex) ? dragRowIndex : sourceIndex, rowIndex);
+                      setDragRowIndex(null);
+                      setDragOverRowIndex(null);
+                    }}
+                  >
                     {COLUMN_KEYS.map((key, columnIndex) => (
-                      <td className={sheetCellClass(row[columnIndex], key)} key={`${rowIndex}-${key}`}>
+                      <td className={sheetCellClass(displayRow[columnIndex], key)} key={`${rowIndex}-${key}`}>
                         <SheetCell
-                          canEdit={canEdit && isEditing}
-                          cell={row[columnIndex] || emptyCell()}
+                          canEdit={canEdit && isEditing && key !== 'number'}
+                          cell={displayRow[columnIndex] || emptyCell()}
                           columnKey={key}
                           forceT8={Boolean(t8Columns[key])}
                           onChange={(nextCell) => updateCell(rowIndex, columnIndex, nextCell)}
@@ -1107,7 +1169,8 @@ export default function ZvZSheet({
                       </td>
                     ) : null}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1126,20 +1189,23 @@ export default function ZvZSheet({
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleRows.map(({ row, index: rowIndex }) => (
+                  {visibleRows.map(({ row, index: rowIndex }) => {
+                    const displayRow = withDisplayNumber(row, rowIndex);
+                    return (
                     <tr key={`copy-row-${rowIndex}`}>
                       {COLUMN_KEYS.map((key, columnIndex) => (
-                        <td className={sheetCellClass(row[columnIndex], key)} key={`copy-${rowIndex}-${key}`}>
+                        <td className={sheetCellClass(displayRow[columnIndex], key)} key={`copy-${rowIndex}-${key}`}>
                           <SheetCell
                             canEdit={false}
-                            cell={row[columnIndex] || emptyCell()}
+                            cell={displayRow[columnIndex] || emptyCell()}
                             columnKey={key}
                             forceT8={Boolean(t8Columns[key])}
                           />
                         </td>
                       ))}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
