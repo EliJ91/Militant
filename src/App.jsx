@@ -72,129 +72,237 @@ function handleInternalLinkClick(event, hash, onNavigate = null) {
   else navigateTo(hash);
 }
 
-function tooltipTextFromClassName(element) {
+const NATIVE_TOOLTIP_MAP = new Map([
+  ['?', 'Open guide'],
+  ['×', 'Close panel'],
+  ['x', 'Close panel'],
+  ['add', 'Add entry'],
+  ['add chest log', 'Attach chest log'],
+  ['add death id', 'Account death'],
+  ['add item', 'Add item'],
+  ['add loot log', 'Attach loot log'],
+  ['add role', 'Create role'],
+  ['cancel', 'Discard changes'],
+  ['check emv', 'Calculate EMV'],
+  ['choose file', 'Select file'],
+  ['choose files', 'Select files'],
+  ['close', 'Close panel'],
+  ['copy', 'Copy data'],
+  ['copy screenshot', 'Copy report image'],
+  ['dashboard', 'Open dashboard'],
+  ['delete', 'Delete entry'],
+  ['delete role', 'Remove role'],
+  ['download', 'Download files'],
+  ['edit', 'Modify entry'],
+  ['edit name', 'Rename role'],
+  ['extract', 'Export sheet'],
+  ['hide', 'Hide player'],
+  ['hide under 500k emv', 'Filter low EMV'],
+  ['ignore items', 'Edit ignore list'],
+  ['loot logs', 'View loot logs'],
+  ['merge', 'Combine selected'],
+  ['move left', 'Move role left'],
+  ['move right', 'Move role right'],
+  ['next', 'Next match'],
+  ['open upload instructions', 'Open guide'],
+  ['paste clipboard', 'Paste log'],
+  ['previous', 'Previous match'],
+  ['purge data', 'Delete old data'],
+  ['refresh', 'Reload data'],
+  ['remove', 'Remove item'],
+  ['reset view', 'Exit role view'],
+  ['save', 'Save changes'],
+  ['save layout', 'Save sheet'],
+  ['share', 'Copy share link'],
+  ['show images', 'Show item icons'],
+  ['hide images', 'Hide item icons'],
+  ['sign out', 'Log out'],
+  ['stats', 'Show totals'],
+  ['unhide', 'Show player'],
+  ['update', 'Update data'],
+  ['upload', 'Upload files'],
+  ['upload log', 'Upload loot logs'],
+  ['view', 'Open report'],
+  ['view loot logs', 'Open loot logs'],
+  ['view raw', 'Show raw logs'],
+]);
+
+const DISABLED_TOOLTIP_MAP = new Map([
+  ['add', 'Action unavailable'],
+  ['add id', 'Enter death ID'],
+  ['add item', 'Action unavailable'],
+  ['cancel', 'Nothing to cancel'],
+  ['check emv', 'Combine logs first'],
+  ['copy screenshot', 'Nothing to copy'],
+  ['delete', 'Permission required'],
+  ['download', 'Nothing to download'],
+  ['edit', 'Permission required'],
+  ['extract', 'Nothing to export'],
+  ['merge', 'Select logs first'],
+  ['move left', 'Already first'],
+  ['move right', 'Already last'],
+  ['refresh', 'Action unavailable'],
+  ['save', 'No changes'],
+  ['stats', 'Combine logs first'],
+  ['update', 'Updated too recently'],
+  ['upload', 'Select files first'],
+  ['view', 'Permission required'],
+]);
+
+const NATIVE_TOOLTIP_CLASS_HINTS = [
+  ['topbar-profile-button', 'Account menu'],
+  ['tool-card-button', 'Open tool'],
+  ['navigation-button', 'Navigate'],
+  ['raw-log-modal-close', 'Close panel'],
+  ['zvz-row-delete', 'Delete row'],
+  ['zvz-sheet-sign-minus', 'Remove item'],
+  ['zvz-sheet-add-item-button', 'Add item'],
+  ['zvz-sheet-mini-action', 'Edit notes'],
+  ['members-name-button', 'Copy player ID'],
+  ['members-sort-button', 'Sort column'],
+  ['permissions-role-name-button', 'Role options'],
+  ['saved-log-edit-button', 'Edit log'],
+  ['saved-log-download-button', 'Download logs'],
+  ['saved-log-view-button', 'View log'],
+  ['saved-log-inline-button', 'Attach log'],
+  ['death-id-button', 'Account death'],
+  ['loot-player-visibility-button', 'Toggle visibility'],
+  ['ignore-items-button', 'Edit ignore list'],
+  ['filter-all-button', 'Toggle all'],
+  ['view-logs-icon-button', 'Quick action'],
+];
+
+function normalizeTooltipText(value = '') {
+  return String(value).replace(/\s+/g, ' ').trim();
+}
+
+function sentenceCaseTooltip(value) {
+  const words = normalizeTooltipText(value).split(' ').filter(Boolean).slice(0, 4);
+  const text = words.join(' ');
+  return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : '';
+}
+
+function getTooltipFromClassName(element) {
   const className = typeof element.className === 'string' ? element.className.toLowerCase() : '';
-  const classHints = [
-    ['refresh', 'Refresh'],
-    ['guide', 'Guide'],
-    ['help', 'Help'],
-    ['close', 'Close'],
-    ['edit', 'Edit'],
-    ['delete', 'Delete'],
-    ['download', 'Download'],
-    ['copy', 'Copy'],
-    ['save', 'Save'],
-    ['cancel', 'Cancel'],
-    ['upload', 'Upload'],
-    ['merge', 'Merge'],
-    ['view', 'View'],
-    ['add', 'Add'],
-    ['remove', 'Remove'],
-    ['extract', 'Extract'],
-    ['share', 'Share'],
-    ['update', 'Update'],
-    ['reset', 'Reset'],
-  ];
-  return classHints.find(([hint]) => className.includes(hint))?.[1] || '';
+  return NATIVE_TOOLTIP_CLASS_HINTS.find(([hint]) => className.includes(hint))?.[1] || '';
 }
 
-function tooltipTextFromElement(element) {
+function isDisabledTooltipTarget(element) {
+  return Boolean(element?.disabled || element?.getAttribute('aria-disabled') === 'true');
+}
+
+function shortenDisabledReason(reason) {
+  const normalizedReason = normalizeTooltipText(reason);
+  const lowerReason = normalizedReason.toLowerCase();
+  if (!normalizedReason) return '';
+  if (lowerReason.includes('updated within')) return 'Updated too recently';
+  if (lowerReason.includes('chest log')) return 'Chest log required';
+  if (lowerReason.includes('permission')) return 'Permission required';
+  if (lowerReason.includes('select')) return sentenceCaseTooltip(normalizedReason);
+  return sentenceCaseTooltip(normalizedReason);
+}
+
+function getControlLabel(element) {
+  return normalizeTooltipText(
+    element.getAttribute('aria-label')
+      || element.textContent
+      || element.getAttribute('title')
+  );
+}
+
+function resolveDisabledTooltip(element) {
+  const inheritedReason = shortenDisabledReason(element.closest('[data-tooltip]')?.getAttribute('data-tooltip'));
+  if (inheritedReason) return inheritedReason;
+
+  const label = getControlLabel(element);
+  const normalizedLabel = label.toLowerCase();
+  if (DISABLED_TOOLTIP_MAP.has(normalizedLabel)) return DISABLED_TOOLTIP_MAP.get(normalizedLabel);
+
+  if (normalizedLabel.startsWith('move left')) return 'Already first';
+  if (normalizedLabel.startsWith('move right')) return 'Already last';
+  if (normalizedLabel.includes('merge')) return 'Select logs first';
+  if (normalizedLabel.includes('save')) return 'No changes';
+  if (normalizedLabel.includes('upload')) return 'Select files first';
+  if (normalizedLabel.includes('download')) return 'Nothing to download';
+  if (normalizedLabel.includes('copy')) return 'Nothing to copy';
+  if (normalizedLabel.includes('view')) return 'Permission required';
+  if (normalizedLabel.includes('edit') || normalizedLabel.includes('delete')) return 'Permission required';
+  return 'Action unavailable';
+}
+
+function resolveNativeTooltip(element) {
   if (!element) return '';
-  const raw = [
-    element.dataset?.tooltip,
-    element.getAttribute('aria-label'),
-    element.getAttribute('title'),
-    element.textContent,
-    tooltipTextFromClassName(element),
-  ].find((value) => value && value.replace(/\s+/g, ' ').trim()) || '';
-  const cleaned = raw.replace(/\s+/g, ' ').trim();
-  if (!cleaned) return '';
-  if (cleaned === '?') return 'Guide';
-  if (cleaned === '×' || cleaned.toLowerCase() === 'x') return 'Close';
-  return cleaned.split(' ').slice(0, 4).join(' ');
+  if (isDisabledTooltipTarget(element)) return resolveDisabledTooltip(element);
+  const directTooltip = normalizeTooltipText(element.dataset?.tooltip);
+  if (directTooltip) return shortenDisabledReason(directTooltip) || sentenceCaseTooltip(directTooltip);
+  if (element.closest('[data-tooltip]')) return '';
+  const explicit = normalizeTooltipText(element.dataset?.tooltipText);
+  if (explicit) return sentenceCaseTooltip(explicit);
+
+  const classTooltip = getTooltipFromClassName(element);
+  if (classTooltip) return classTooltip;
+
+  const label = getControlLabel(element);
+  if (!label) return '';
+
+  const normalizedLabel = label.toLowerCase();
+  if (NATIVE_TOOLTIP_MAP.has(normalizedLabel)) return NATIVE_TOOLTIP_MAP.get(normalizedLabel);
+
+  if (normalizedLabel.startsWith('close ')) return 'Close panel';
+  if (normalizedLabel.startsWith('remove ')) return 'Remove item';
+  if (normalizedLabel.startsWith('delete ')) return 'Delete entry';
+  if (normalizedLabel.startsWith('sort by ')) return 'Sort column';
+  if (normalizedLabel.startsWith('copy ')) return 'Copy data';
+  if (normalizedLabel.startsWith('open ')) return sentenceCaseTooltip(label);
+  if (normalizedLabel.includes('upload')) return 'Upload files';
+  if (normalizedLabel.includes('download')) return 'Download files';
+  if (normalizedLabel.includes('delete')) return 'Delete entry';
+  if (normalizedLabel.includes('save')) return 'Save changes';
+  if (normalizedLabel.includes('edit')) return 'Edit entry';
+  if (normalizedLabel.includes('view')) return 'Open details';
+  if (element.tagName?.toLowerCase() === 'a') return 'Open page';
+  return 'Use action';
 }
 
-function GlobalHoverTooltip() {
-  const [tooltip, setTooltip] = useState(null);
-
+function NativeTooltipTitles() {
   useEffect(() => {
-    let activeElement = null;
-    const selector = 'button, a[href], [role="button"]';
+    const selector = 'button, a[href], [role="button"], [data-tooltip]';
+    let frameId = 0;
 
-    function showForElement(element) {
-      if (!element || element.disabled || element.getAttribute('aria-disabled') === 'true') {
-        setTooltip(null);
-        activeElement = null;
-        return;
-      }
-      const text = tooltipTextFromElement(element);
-      if (!text) {
-        setTooltip(null);
-        activeElement = null;
-        return;
-      }
-      const rect = element.getBoundingClientRect();
-      const below = rect.top < 44;
-      activeElement = element;
-      setTooltip({
-        below,
-        text,
-        x: Math.min(Math.max(rect.left + rect.width / 2, 56), window.innerWidth - 56),
-        y: below ? rect.bottom + 8 : rect.top - 8,
+    function applyTooltips() {
+      frameId = 0;
+      document.querySelectorAll(selector).forEach((element) => {
+        const tooltip = resolveNativeTooltip(element);
+        if (tooltip) {
+          if (element.getAttribute('title') !== tooltip) element.setAttribute('title', tooltip);
+          if (element.dataset.autoTooltip !== 'true') element.dataset.autoTooltip = 'true';
+        } else if (element.dataset?.autoTooltip === 'true') {
+          element.removeAttribute('title');
+          delete element.dataset.autoTooltip;
+        }
       });
     }
 
-    function handlePointerOver(event) {
-      const element = event.target.closest?.(selector);
-      if (!element || activeElement === element) return;
-      showForElement(element);
+    function scheduleTooltips() {
+      if (!frameId) frameId = window.requestAnimationFrame(applyTooltips);
     }
 
-    function handlePointerOut(event) {
-      if (!activeElement) return;
-      if (event.relatedTarget && activeElement.contains(event.relatedTarget)) return;
-      setTooltip(null);
-      activeElement = null;
-    }
+    scheduleTooltips();
+    const observer = new MutationObserver(scheduleTooltips);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['aria-label', 'class', 'title', 'disabled', 'aria-disabled'],
+      childList: true,
+      subtree: true,
+    });
 
-    function handleFocusIn(event) {
-      const element = event.target.closest?.(selector);
-      if (element) showForElement(element);
-    }
-
-    function hideTooltip() {
-      setTooltip(null);
-      activeElement = null;
-    }
-
-    document.addEventListener('pointerover', handlePointerOver, true);
-    document.addEventListener('pointerout', handlePointerOut, true);
-    document.addEventListener('focusin', handleFocusIn, true);
-    document.addEventListener('focusout', hideTooltip, true);
-    document.addEventListener('click', hideTooltip, true);
-    window.addEventListener('scroll', hideTooltip, true);
-    window.addEventListener('resize', hideTooltip);
     return () => {
-      document.removeEventListener('pointerover', handlePointerOver, true);
-      document.removeEventListener('pointerout', handlePointerOut, true);
-      document.removeEventListener('focusin', handleFocusIn, true);
-      document.removeEventListener('focusout', hideTooltip, true);
-      document.removeEventListener('click', hideTooltip, true);
-      window.removeEventListener('scroll', hideTooltip, true);
-      window.removeEventListener('resize', hideTooltip);
+      if (frameId) window.cancelAnimationFrame(frameId);
+      observer.disconnect();
     };
   }, []);
 
-  if (!tooltip) return null;
-  return (
-    <div
-      className={`global-hover-tooltip${tooltip.below ? ' below' : ''}`}
-      role="tooltip"
-      style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}
-    >
-      {tooltip.text}
-    </div>
-  );
+  return null;
 }
 
 function BrandLockup({ compact = false }) {
@@ -1470,7 +1578,7 @@ export default function App() {
       ) : null}
       {page}
       <VersionFooter />
-      <GlobalHoverTooltip />
+      <NativeTooltipTitles />
     </>
   );
 }
