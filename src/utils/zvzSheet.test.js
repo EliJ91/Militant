@@ -29,6 +29,10 @@ describe('ZvZ sheet parsing', () => {
       'T7_MEAL_OMELETTE_AVALON@1',
       'T7_POTION_REVIVE',
     ]);
+    expect(builds[0].slots.foodPots.map((item) => item.name)).toEqual([
+      'Avalonian Pork Omelette',
+      'Major Gigantify Potion',
+    ]);
     expect(builds[0].slots.foodPots.map((item) => item.quantity)).toEqual([2, 10]);
   });
 

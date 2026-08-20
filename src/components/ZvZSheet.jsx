@@ -8,6 +8,7 @@ import {
 } from '../services/zvzBuildsApi';
 import { warmItemImageCache } from '../utils/itemImageCache';
 import {
+  displayZvZItemId,
   getZvZItemOptions,
   parseZvZSpreadsheet,
   stripAlbionRankPrefix,
@@ -224,7 +225,9 @@ function findOption(cell) {
 function findOptionForItem(item, forceT8 = false) {
   if (item?.unresolved && !item?.itemId) return null;
   if (forceT8) {
-    const itemId = t8ItemId(item.itemId);
+    const isFoodOrPotion = String(item.itemId || '').includes('_MEAL_')
+      || String(item.itemId || '').includes('_POTION_');
+    const itemId = displayZvZItemId(isFoodOrPotion ? item.itemId : t8ItemId(item.itemId));
     return T8_ITEM_OPTIONS.find((option) => option.itemId === itemId)
       || T8_ITEM_OPTIONS.find((option) => option.label.toLowerCase() === String(item.itemName || '').toLowerCase())
       || rankedOptions(T8_ITEM_OPTIONS, item.itemName || '')[0];
@@ -249,13 +252,14 @@ function buildItemsFromCell(cell) {
   const normalized = normalizeCell(cell);
   return buildSlotItems(normalized).map((item) => {
     const option = findOptionForItem(item);
-    const itemId = item.itemId || option?.itemId || '';
+    const itemId = displayZvZItemId(item.itemId || option?.itemId || '');
+    const displayName = option?.label || item.itemName || '';
     return {
       annotation: normalized.notes || '',
       imageUrl: itemId ? option?.imageUrl || zvzItemImageUrl(itemId) : '',
       itemId,
-      lookupName: option?.label || item.itemName,
-      name: item.itemName || option?.label || '',
+      lookupName: displayName,
+      name: displayName,
       quantity: quantityForItem(itemId),
       resolved: Boolean(itemId) && !item.unresolved,
       unresolved: Boolean(item.unresolved),

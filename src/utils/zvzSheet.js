@@ -236,7 +236,7 @@ export function t8ItemId(itemId) {
   return value.match(/^T\d+_/) ? value.replace(/^T\d+_/, 'T8_') : value;
 }
 
-function displayItemId(itemId) {
+export function displayZvZItemId(itemId) {
   const value = String(itemId || '');
   return value.includes('_MEAL_') ? `${value.replace(/@\d+$/, '')}@1` : value;
 }
@@ -245,14 +245,16 @@ export function getZvZItemOptions({ t8Only = true } = {}) {
   const records = t8Only
     ? [...ITEM_RECORDS.reduce((grouped, record) => {
       const key = record.baseName || normalizeText(record.lookupName);
-      if (record.tier === 8 || record.tier === 0) grouped.set(key, record);
+      const isFoodOrPotion = record.itemId.includes('_MEAL_') || record.itemId.includes('_POTION_');
+      if (record.tier === 8 || record.tier === 0 || isFoodOrPotion) grouped.set(key, record);
       return grouped;
     }, new Map()).values()]
     : ITEM_RECORDS;
 
   return records
     .map((record) => {
-      const itemId = displayItemId(t8Only ? t8ItemId(record.itemId) : record.itemId);
+      const isFoodOrPotion = record.itemId.includes('_MEAL_') || record.itemId.includes('_POTION_');
+      const itemId = displayZvZItemId(t8Only && !isFoodOrPotion ? t8ItemId(record.itemId) : record.itemId);
       const name = stripAlbionRankPrefix(record.lookupName);
       const searchText = [
         name,
@@ -338,15 +340,14 @@ export function parseZvZCell(value, slot) {
     const isFood = match.itemId.includes('_MEAL_');
     const isGigantifyPotion = match.itemId.includes('_POTION_REVIVE')
       || normalizeText(name).includes('gigantify');
-    const itemId = isFood
-      ? `${match.itemId.replace(/@\d+$/, '')}@1`
-      : match.itemId;
+    const itemId = displayZvZItemId(match.itemId);
+    const displayName = match.resolved ? stripAlbionRankPrefix(match.lookupName) : name;
     items.push({
       annotation: [...annotations, ...cellNotes].join(alternativesOnSameLine ? ' or ' : ' / '),
       imageUrl: zvzItemImageUrl(itemId),
       itemId,
       lookupName: match.lookupName,
-      name,
+      name: displayName,
       quantity: isFood ? 2 : isGigantifyPotion ? 10 : 1,
       resolved: match.resolved,
       unresolved: !match.resolved,
