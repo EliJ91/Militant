@@ -732,7 +732,7 @@
 
 .zvz-sheet-table {
   width: max-content;
-  min-width: 100%;
+  min-width: max-content;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -781,6 +781,11 @@
   min-width: 34px;
   max-width: 36px;
   text-align: center;
+}
+
+.zvz-sheet-table th:nth-child(n+3),
+.zvz-sheet-table td:nth-child(n+3) {
+  width: 1%;
 }
 
 .zvz-sheet-table th {
