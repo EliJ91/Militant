@@ -3137,9 +3137,9 @@ button:focus-visible {
   text-align: left;
 }
 
-.player-history-cta-list {
+.player-history-log-list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   max-height: min(68vh, 720px);
   padding: 14px;
   border-left: 2px solid rgba(87, 216, 120, 0.42);
@@ -3147,93 +3147,46 @@ button:focus-visible {
   overscroll-behavior-y: auto;
 }
 
-.player-history-cta {
-  overflow: hidden;
+.player-history-log-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.45fr) repeat(5, minmax(110px, 0.7fr)) minmax(140px, 0.85fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
   border: 1px solid rgba(87, 216, 120, 0.22);
   border-radius: 8px;
   background: rgba(247, 250, 245, 0.025);
+  color: var(--white);
+  text-decoration: none;
+  transition: border-color 140ms ease, background-color 140ms ease;
 }
 
-.player-history-cta > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(247, 250, 245, 0.08);
+.player-history-log-row:hover,
+.player-history-log-row:focus-visible {
+  border-color: rgba(87, 216, 120, 0.58);
+  background: rgba(87, 216, 120, 0.07);
 }
 
-.player-history-cta > header > div {
-  text-align: left;
+.player-history-log-row span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
 }
 
-.player-history-cta > header span,
-.player-history-cta > header time {
+.player-history-log-row small {
   color: var(--muted);
-  font-size: 0.62rem;
-  font-weight: 800;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.player-history-cta h3 {
-  margin: 3px 0 0;
-  font-size: 0.9rem;
-}
-
-.player-history-cta h3 a {
+.player-history-log-row strong {
+  overflow: hidden;
   color: var(--white);
-  text-decoration: none;
-}
-
-.player-history-cta h3 a:hover,
-.player-history-cta h3 a:focus-visible {
-  color: var(--green-hot);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.player-history-kept-items {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 76px);
-  gap: 8px;
-  padding: 10px;
-}
-
-.player-history-kept-item {
-  position: relative;
-  display: grid;
-  width: 76px;
-  height: 76px;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: #151915;
-}
-
-.player-history-kept-item img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: 8px;
-  object-fit: cover;
-}
-
-.player-history-kept-item strong {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  min-width: 18px;
-  padding: 1px 4px 2px;
-  border: 1px solid rgba(247, 250, 245, 0.72);
-  border-radius: 7px;
-  background: rgba(2, 4, 3, 0.86);
-  color: var(--white);
-  font-size: 0.72rem;
-  font-weight: 900;
-  line-height: 1.05;
-  text-align: center;
-  text-shadow: 0 1px 2px #000;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .loot-monitor-shell {

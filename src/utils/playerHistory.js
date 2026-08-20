@@ -54,14 +54,26 @@ export function buildPlayerHistory(members = [], bundles = []) {
 
   bundles.forEach((bundle) => {
     const participatingPlayers = new Set();
+    const ctaStatsByPlayer = new Map();
     const rows = Array.isArray(bundle?.summary?.rows) ? bundle.summary.rows : [];
 
     rows.forEach((row) => {
       const playerKey = normalizePlayerName(row?.player);
       const player = historyByPlayer.get(playerKey);
       if (!player) return;
-      player.itemsLooted += numericValue(row.looted);
-      player.itemsLost += numericValue(row.lost);
+      const looted = numericValue(row.looted);
+      const lost = numericValue(row.lost);
+      player.itemsLooted += looted;
+      player.itemsLost += lost;
+      const ctaStats = ctaStatsByPlayer.get(playerKey) || {
+        itemsKept: 0,
+        itemsKeptList: [],
+        itemsLooted: 0,
+        itemsLost: 0,
+      };
+      ctaStats.itemsLooted += looted;
+      ctaStats.itemsLost += lost;
+      ctaStatsByPlayer.set(playerKey, ctaStats);
       participatingPlayers.add(playerKey);
     });
 
@@ -74,33 +86,46 @@ export function buildPlayerHistory(members = [], bundles = []) {
       }
     });
 
-    if (!bundle.hasChestLog) return;
-    const keptItemsByPlayer = new Map();
-    const finalizedRows = Array.isArray(bundle.finalizedRows) ? bundle.finalizedRows : [];
-    finalizedRows.forEach((row) => {
-      const playerKey = normalizePlayerName(row?.player);
-      const player = historyByPlayer.get(playerKey);
-      const keptQuantity = numericValue(row?.kept);
-      if (!player || keptQuantity <= 0) return;
-      player.itemsKept += keptQuantity;
-      const itemsKept = keptItemsByPlayer.get(playerKey) || [];
-      itemsKept.push({
-        enchantment: numericValue(row.enchantment),
-        item: String(row.item || row.itemId || 'Unknown Item').trim(),
-        itemId: String(row.itemId || '').trim(),
-        quantity: keptQuantity,
+    if (bundle.hasChestLog) {
+      const finalizedRows = Array.isArray(bundle.finalizedRows) ? bundle.finalizedRows : [];
+      finalizedRows.forEach((row) => {
+        const playerKey = normalizePlayerName(row?.player);
+        const player = historyByPlayer.get(playerKey);
+        const keptQuantity = numericValue(row?.kept);
+        if (!player || keptQuantity <= 0) return;
+        player.itemsKept += keptQuantity;
+        const ctaStats = ctaStatsByPlayer.get(playerKey) || {
+          itemsKept: 0,
+          itemsKeptList: [],
+          itemsLooted: 0,
+          itemsLost: 0,
+        };
+        ctaStats.itemsKept += keptQuantity;
+        ctaStats.itemsKeptList.push({
+          enchantment: numericValue(row.enchantment),
+          item: String(row.item || row.itemId || 'Unknown Item').trim(),
+          itemId: String(row.itemId || '').trim(),
+          quantity: keptQuantity,
+        });
+        ctaStatsByPlayer.set(playerKey, ctaStats);
       });
-      keptItemsByPlayer.set(playerKey, itemsKept);
-    });
+    }
 
-    keptItemsByPlayer.forEach((itemsKept, playerKey) => {
+    ctaStatsByPlayer.forEach((ctaStats, playerKey) => {
       const player = historyByPlayer.get(playerKey);
+      if (!player || !participatingPlayers.has(playerKey)) return;
       player.ctas.push({
+        averageItemsLootedPerCta: ctaStats.itemsLooted,
         bundleId: String(bundle.id || ''),
         date: String(bundle.startAt || bundle.createdAt || ''),
-        itemsKept: itemsKept.sort((left, right) => (
+        ctaCount: 1,
+        itemsKept: ctaStats.itemsKept,
+        itemsKeptList: ctaStats.itemsKeptList.sort((left, right) => (
           right.quantity - left.quantity || left.item.localeCompare(right.item)
         )),
+        itemsLooted: ctaStats.itemsLooted,
+        itemsLost: ctaStats.itemsLost,
+        lastCtaAt: String(bundle.startAt || bundle.createdAt || ''),
         lootLogTitle: String(bundle.lootFileName || bundle.summary?.displayLootFileName || 'Loot Log').trim(),
       });
     });

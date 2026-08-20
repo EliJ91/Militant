@@ -63,16 +63,33 @@ describe('player history service', () => {
     });
     expect(players.find((player) => player.playerName === 'MilitantOne').ctas).toEqual([
       expect.objectContaining({
+        bundleId: 'cta-without-chest',
+        ctaCount: 1,
+        itemsKept: 0,
+        itemsKeptList: [],
+        itemsLooted: 10,
+        itemsLost: 0,
+        lootLogTitle: '20UTC-JUL-05',
+      }),
+      expect.objectContaining({
         bundleId: 'cta-two',
+        ctaCount: 1,
+        itemsKept: 2,
+        itemsLooted: 3,
+        itemsLost: 0,
         lootLogTitle: '20UTC-JUL-03',
-        itemsKept: [
+        itemsKeptList: [
           expect.objectContaining({ itemId: 'T8_BAG', quantity: 2 }),
         ],
       }),
       expect.objectContaining({
         bundleId: 'cta-one',
+        ctaCount: 1,
+        itemsKept: 1,
+        itemsLooted: 5,
+        itemsLost: 2,
         lootLogTitle: '20UTC-JUL-01',
-        itemsKept: [expect.objectContaining({ itemId: 'T6_SWORD', quantity: 1 })],
+        itemsKeptList: [expect.objectContaining({ itemId: 'T6_SWORD', quantity: 1 })],
       }),
     ]);
     expect(players.find((player) => player.playerName === 'FormerMember')).toMatchObject({
@@ -88,7 +105,7 @@ describe('player history service', () => {
       players: [{
         averageItemsLootedPerCta: 2,
         ctaCount: 1,
-        ctas: [{ itemsKept: [{ itemId: 'T4_CAPE', quantity: 1 }] }],
+        ctas: [{ itemsKept: 1, itemsKeptList: [{ itemId: 'T4_CAPE', quantity: 1 }] }],
         itemsKept: 1,
         itemsLooted: 2,
         itemsLost: 0,
@@ -108,7 +125,7 @@ describe('player history service', () => {
       itemsLooted: 2,
       itemsLost: 0,
     });
-    expect(result.players[0].ctas[0].itemsKept).toEqual([
+    expect(result.players[0].ctas[0].itemsKeptList).toEqual([
       expect.objectContaining({ itemId: 'T4_CAPE', quantity: 1 }),
     ]);
   });

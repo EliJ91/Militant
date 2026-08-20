@@ -1467,12 +1467,24 @@ function buildCachedPlayerHistory(members: any[], bundles: any[]) {
   }));
   bundles.forEach((bundle) => {
     const participating = new Set<string>();
+    const ctaStatsByPlayer = new Map<string, any>();
     (bundle.combined_loot_summary?.rows || []).forEach((row: any) => {
       const playerKey = normalize(row.player);
       const player = byPlayer.get(playerKey);
       if (!player) return;
-      player.itemsLooted += Number(row.looted) || 0;
-      player.itemsLost += Number(row.lost) || 0;
+      const looted = Number(row.looted) || 0;
+      const lost = Number(row.lost) || 0;
+      player.itemsLooted += looted;
+      player.itemsLost += lost;
+      const ctaStats = ctaStatsByPlayer.get(playerKey) || {
+        itemsKept: 0,
+        itemsKeptList: [],
+        itemsLooted: 0,
+        itemsLost: 0,
+      };
+      ctaStats.itemsLooted += looted;
+      ctaStats.itemsLost += lost;
+      ctaStatsByPlayer.set(playerKey, ctaStats);
       participating.add(playerKey);
     });
     participating.forEach((playerKey) => {
@@ -1481,29 +1493,45 @@ function buildCachedPlayerHistory(members: any[], bundles: any[]) {
       const ctaAt = bundle.start_at || bundle.created_at || '';
       if (ctaAt && (!player.lastCtaAt || new Date(ctaAt) > new Date(player.lastCtaAt))) player.lastCtaAt = ctaAt;
     });
-    if (!Array.isArray(bundle.chest_log_submissions) || bundle.chest_log_submissions.length === 0) return;
-    const keptByPlayer = new Map<string, any[]>();
-    (bundle.combined_loot_summary?.playerHistoryRows || []).forEach((row: any) => {
-      const playerKey = normalize(row.player);
-      const player = byPlayer.get(playerKey);
-      const quantity = Number(row.kept) || 0;
-      if (!player || quantity <= 0) return;
-      player.itemsKept += quantity;
-      const items = keptByPlayer.get(playerKey) || [];
-      items.push({
-        enchantment: Number(row.enchantment) || 0,
-        item: String(row.item || row.itemId || 'Unknown Item'),
-        itemId: String(row.itemId || ''),
-        quantity,
+    if (Array.isArray(bundle.chest_log_submissions) && bundle.chest_log_submissions.length > 0) {
+      (bundle.combined_loot_summary?.playerHistoryRows || []).forEach((row: any) => {
+        const playerKey = normalize(row.player);
+        const player = byPlayer.get(playerKey);
+        const quantity = Number(row.kept) || 0;
+        if (!player || quantity <= 0) return;
+        player.itemsKept += quantity;
+        const ctaStats = ctaStatsByPlayer.get(playerKey) || {
+          itemsKept: 0,
+          itemsKeptList: [],
+          itemsLooted: 0,
+          itemsLost: 0,
+        };
+        ctaStats.itemsKept += quantity;
+        ctaStats.itemsKeptList.push({
+          enchantment: Number(row.enchantment) || 0,
+          item: String(row.item || row.itemId || 'Unknown Item'),
+          itemId: String(row.itemId || ''),
+          quantity,
+        });
+        ctaStatsByPlayer.set(playerKey, ctaStats);
       });
-      keptByPlayer.set(playerKey, items);
+    }
+    ctaStatsByPlayer.forEach((ctaStats, playerKey) => {
+      const player = byPlayer.get(playerKey);
+      if (!player || !participating.has(playerKey)) return;
+      player.ctas.push({
+        averageItemsLootedPerCta: ctaStats.itemsLooted,
+        bundleId: bundle.id,
+        ctaCount: 1,
+        date: bundle.start_at || bundle.created_at || '',
+        itemsKept: ctaStats.itemsKept,
+        itemsKeptList: ctaStats.itemsKeptList.sort((left: any, right: any) => right.quantity - left.quantity || left.item.localeCompare(right.item)),
+        itemsLooted: ctaStats.itemsLooted,
+        itemsLost: ctaStats.itemsLost,
+        lastCtaAt: bundle.start_at || bundle.created_at || '',
+        lootLogTitle: getBundleDisplayLootFileName(bundle),
+      });
     });
-    keptByPlayer.forEach((itemsKept, playerKey) => byPlayer.get(playerKey).ctas.push({
-      bundleId: bundle.id,
-      date: bundle.start_at || bundle.created_at || '',
-      itemsKept: itemsKept.sort((left, right) => right.quantity - left.quantity || left.item.localeCompare(right.item)),
-      lootLogTitle: getBundleDisplayLootFileName(bundle),
-    }));
   });
   return [...byPlayer.values()].map((player) => ({
     ...player,
@@ -2270,7 +2298,13 @@ Deno.serve(async (request) => {
           .eq('cache_key', 'global')
           .single();
         if (error) throw error;
-        return jsonResponse(200, { players: data.players || [], updatedAt: data.updated_at });
+        const players = data.players || [];
+        const needsPerLogStats = players.some((player: any) => (
+          Array.isArray(player?.ctas)
+          && player.ctas.some((cta: any) => typeof cta?.itemsLooted === 'undefined')
+        ));
+        if (needsPerLogStats) return jsonResponse(200, await rebuildPlayerHistoryCache(supabase));
+        return jsonResponse(200, { players, updatedAt: data.updated_at });
       }
       const bundleId = requestUrl.searchParams.get('bundleId');
 

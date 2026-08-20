@@ -161,15 +161,6 @@ function numericSortValue(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
-function itemImageUrl(itemId) {
-  if (!itemId) return '';
-  const imagePath = `${itemId}.png?count=1&quality=1&size=96`;
-  if (typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) {
-    return `/item-image/${imagePath}`;
-  }
-  return `https://images.weserv.nl/?url=${encodeURIComponent(`render.albiononline.com/v1/item/${imagePath}`)}`;
-}
-
 function getItemTier(item) {
   const itemIdMatch = String(item.itemId || '').match(/^T([4-8])_/i);
   if (itemIdMatch) return `tier${itemIdMatch[1]}`;
@@ -210,6 +201,23 @@ function itemMatchesFilters(item, filters) {
   if (type === 'gear') return true;
   if (filters.typeFilters.includes(NONE_SELECTED_VALUE)) return false;
   return filters.typeFilters.length === 0 || filters.typeFilters.includes(type);
+}
+
+function hasActiveItemFilters(filters) {
+  return filters.tierFilters.length > 0 || filters.typeFilters.length > 0;
+}
+
+function getCtaKeptItems(cta) {
+  if (Array.isArray(cta.itemsKeptList)) return cta.itemsKeptList;
+  if (Array.isArray(cta.itemsKept)) return cta.itemsKept;
+  return [];
+}
+
+function getCtaKeptTotal(cta, keptItems = getCtaKeptItems(cta)) {
+  if (Number.isFinite(Number(cta.itemsKept)) && !Array.isArray(cta.itemsKept)) {
+    return Number(cta.itemsKept) || 0;
+  }
+  return keptItems.reduce((total, item) => total + (Number(item.quantity) || 0), 0);
 }
 
 export default function PlayerHistoryTool() {
@@ -351,10 +359,23 @@ export default function PlayerHistoryTool() {
               <tbody>
                 {visiblePlayers.map((player) => {
                   const isExpanded = selectedPlayerKey === player.playerKey;
-                  const filteredCtas = player.ctas.map((cta) => ({
-                    ...cta,
-                    itemsKept: cta.itemsKept.filter((item) => itemMatchesFilters(item, itemFilters)),
-                  })).filter((cta) => cta.itemsKept.length > 0);
+                  const itemFilterActive = hasActiveItemFilters(itemFilters);
+                  const filteredCtas = player.ctas.map((cta) => {
+                    const keptItems = getCtaKeptItems(cta);
+                    const filteredKeptItems = keptItems.filter((item) => itemMatchesFilters(item, itemFilters));
+                    return {
+                      ...cta,
+                      visibleItemsKept: itemFilterActive
+                        ? filteredKeptItems.reduce((total, item) => total + (Number(item.quantity) || 0), 0)
+                        : getCtaKeptTotal(cta, keptItems),
+                      visibleKeptItems: filteredKeptItems,
+                    };
+                  }).filter((cta) => (
+                    itemFilters.tierFilters.includes(NONE_SELECTED_VALUE)
+                    || itemFilters.typeFilters.includes(NONE_SELECTED_VALUE)
+                      ? false
+                      : itemFilterActive ? cta.visibleKeptItems.length > 0 : true
+                  ));
                   return (
                     <Fragment key={player.playerId || player.playerKey}>
                       <tr
@@ -392,47 +413,45 @@ export default function PlayerHistoryTool() {
                       {isExpanded ? (
                         <tr className="player-history-detail-row">
                           <td colSpan={SORT_COLUMNS.length}>
-                            <div className="player-history-cta-list">
+                            <div className="player-history-log-list">
                               {filteredCtas.length > 0 ? filteredCtas.map((cta, index) => (
-                                <section className="player-history-cta" key={cta.bundleId || `${cta.date}-${index}`}>
-                                  <header>
-                                    <div>
-                                      <span>Loot Log</span>
-                                      <h3>
-                                        <a
-                                          href={`#loot-monitor/${encodeURIComponent(cta.bundleId)}`}
-                                          rel="noreferrer"
-                                          target="_blank"
-                                        >
-                                          {cta.lootLogTitle}
-                                        </a>
-                                      </h3>
-                                    </div>
-                                    <time dateTime={cta.date}>{formatDate(cta.date)}</time>
-                                  </header>
-                                  <div className="player-history-kept-items">
-                                    {cta.itemsKept.map((item) => (
-                                      <div
-                                        aria-label={`${item.item}, ${formatNumber(item.quantity)} kept`}
-                                        className="player-history-kept-item"
-                                        key={`${item.itemId || item.item}-${item.enchantment}`}
-                                        role="img"
-                                        title={`${item.item} — ${formatNumber(item.quantity)} kept`}
-                                      >
-                                        {itemImageUrl(item.itemId) ? (
-                                          <img
-                                            alt=""
-                                            decoding="async"
-                                            loading="lazy"
-                                            src={itemImageUrl(item.itemId)}
-                                          />
-                                        ) : null}
-                                        <strong>{formatNumber(item.quantity)}</strong>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </section>
-                              )) : <p className="members-empty">No kept items match the selected filters.</p>}
+                                <a
+                                  className="player-history-log-row"
+                                  href={`#loot-monitor/${encodeURIComponent(cta.bundleId)}`}
+                                  key={cta.bundleId || `${cta.date}-${index}`}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                >
+                                  <span>
+                                    <small>Loot Log</small>
+                                    <strong>{cta.lootLogTitle}</strong>
+                                  </span>
+                                  <span>
+                                    <small>CTAs</small>
+                                    <strong>{formatNumber(cta.ctaCount || 1)}</strong>
+                                  </span>
+                                  <span>
+                                    <small>Items Looted</small>
+                                    <strong>{formatNumber(cta.itemsLooted)}</strong>
+                                  </span>
+                                  <span>
+                                    <small>Items Kept</small>
+                                    <strong>{formatNumber(cta.visibleItemsKept)}</strong>
+                                  </span>
+                                  <span>
+                                    <small>Items Lost</small>
+                                    <strong>{formatNumber(cta.itemsLost)}</strong>
+                                  </span>
+                                  <span>
+                                    <small>Avg. Looted / CTA</small>
+                                    <strong>{formatNumber(cta.averageItemsLootedPerCta ?? cta.itemsLooted, 1)}</strong>
+                                  </span>
+                                  <span>
+                                    <small>Last CTA</small>
+                                    <strong>{formatDate(cta.lastCtaAt || cta.date)}</strong>
+                                  </span>
+                                </a>
+                              )) : <p className="members-empty">No loot logs match the selected filters.</p>}
                             </div>
                           </td>
                         </tr>

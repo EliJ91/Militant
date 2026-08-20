@@ -13,12 +13,18 @@ describe('PlayerHistoryTool', () => {
         {
           averageItemsLootedPerCta: 6,
           ctas: [{
+            averageItemsLootedPerCta: 12,
             bundleId: 'cta-one',
+            ctaCount: 1,
             date: '2026-07-20T20:00:00.000Z',
-            itemsKept: [
+            itemsKept: 8,
+            itemsKeptList: [
               { enchantment: 0, item: 'Elder Sword', itemId: 'T8_MAIN_SWORD', quantity: 5 },
               { enchantment: 1, item: 'Elder Armor', itemId: 'T8_ARMOR', quantity: 3 },
             ],
+            itemsLooted: 12,
+            itemsLost: 4,
+            lastCtaAt: '2026-07-20T20:00:00.000Z',
             lootLogTitle: '20UTC-JUL-20',
           }],
           ctaCount: 2,
@@ -70,21 +76,23 @@ describe('PlayerHistoryTool', () => {
     expect(screen.getByRole('columnheader', { name: /Items Kept/ })).toHaveAttribute('aria-sort', 'descending');
   });
 
-  it('expands a player row to show items kept under each loot log title', async () => {
+  it('expands a player row to show per-log statistics', async () => {
     render(<PlayerHistoryTool />);
     await screen.findByText('MilitantOne');
 
     fireEvent.click(screen.getByRole('button', { name: 'View loot history for MilitantOne' }));
-    expect(screen.getByRole('heading', { level: 3, name: '20UTC-JUL-20' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '20UTC-JUL-20' })).toHaveAttribute('href', '#loot-monitor/cta-one');
-    expect(screen.getByRole('link', { name: '20UTC-JUL-20' })).toHaveAttribute('target', '_blank');
-    const swordItem = screen.getByRole('img', { name: 'Elder Sword, 5 kept' });
-    expect(swordItem).toBeInTheDocument();
-    expect(swordItem.querySelector('img').getAttribute('src')).toContain('/item-image/T8_MAIN_SWORD.png');
-    expect(screen.getByRole('img', { name: 'Elder Armor, 3 kept' })).toBeInTheDocument();
+    const logTitle = screen.getByText('20UTC-JUL-20');
+    const logRow = logTitle.closest('a');
+    expect(logRow).toHaveAttribute('href', '#loot-monitor/cta-one');
+    expect(logRow).toHaveAttribute('target', '_blank');
+    expect(within(logRow).getByText('Items Looted')).toBeInTheDocument();
+    expect(within(logRow).getByText('Items Kept')).toBeInTheDocument();
+    expect(within(logRow).getByText('Items Lost')).toBeInTheDocument();
+    expect(within(logRow).getByText('8')).toBeInTheDocument();
+    expect(within(logRow).getByText('4')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide loot history for MilitantOne' }));
-    expect(screen.queryByRole('heading', { level: 3, name: '20UTC-JUL-20' })).not.toBeInTheDocument();
+    expect(screen.queryByText('20UTC-JUL-20')).not.toBeInTheDocument();
   });
 
   it('filters kept items by tier and type and remembers the filters', async () => {
@@ -99,7 +107,7 @@ describe('PlayerHistoryTool', () => {
     fireEvent.click(within(typeControl).getByRole('button', { name: 'Disable All' }));
     fireEvent.click(within(typeControl).getByRole('button', { name: 'Other' }));
     fireEvent.click(screen.getByRole('button', { name: 'View loot history for MilitantOne' }));
-    expect(screen.getByRole('img', { name: 'Elder Sword, 5 kept' })).toBeInTheDocument();
+    expect(screen.getByText('20UTC-JUL-20')).toBeInTheDocument();
 
     firstRender.unmount();
     render(<PlayerHistoryTool />);
