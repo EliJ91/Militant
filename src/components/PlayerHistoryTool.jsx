@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchPlayerHistory } from '../services/playerHistoryService';
+import { ITEM_TYPE_OPTIONS, getItemType } from '../utils/itemTypes';
 
 const SORT_COLUMNS = [
   { key: 'playerName', label: 'Player', text: true },
@@ -20,16 +21,7 @@ const TIER_OPTIONS = [
   { label: 'T7', value: 'tier7' },
   { label: 'T8', value: 'tier8' },
 ];
-const TYPE_OPTIONS = [
-  { label: 'Bag', value: 'bag' },
-  { label: 'Cape', value: 'cape' },
-  { label: 'Food', value: 'food' },
-  { label: 'Memento', value: 'memento' },
-  { label: 'Mount', value: 'mount' },
-  { label: 'Potions', value: 'potion' },
-  { label: 'Trash', value: 'trash' },
-  { label: 'Other', value: 'other' },
-];
+const TYPE_OPTIONS = ITEM_TYPE_OPTIONS;
 
 function loadItemFilters() {
   try {
@@ -173,32 +165,11 @@ function getItemTier(item) {
   return 'unknown';
 }
 
-function isWeaponOrArmor(item) {
-  const itemId = String(item.itemId || '').toUpperCase();
-  return /^T\d+_(2H|MAIN|OFF|HEAD|ARMOR|SHOES)_/.test(itemId);
-}
-
-function getItemType(item) {
-  const text = `${item.itemId || ''} ${item.item || ''}`.toLowerCase();
-  const itemName = String(item.item || '').toLowerCase();
-  if (/\bskin\b|\bsiege hammer\b/.test(itemName)) return 'other';
-  if (text.includes('trash')) return 'trash';
-  if (text.includes('memento')) return 'memento';
-  if (text.includes('cape')) return 'cape';
-  if (text.includes('bag')) return 'bag';
-  if (text.includes('potion') || text.includes('poison')) return 'potion';
-  if (/mount|horse|ox|stag|swiftclaw|wolf|boar|bear|mare|panther|lizard|moose|mammoth|ram|cougar|basilisk|salamander|terrorbird/.test(text)) return 'mount';
-  if (/meal|food|omelette|stew|sandwich|pie|salad|soup|fish|roast|goose|pork|beef|mutton|chicken/.test(text)) return 'food';
-  if (isWeaponOrArmor(item)) return 'gear';
-  return 'other';
-}
-
 function itemMatchesFilters(item, filters) {
   const tier = getItemTier(item);
   const type = getItemType(item);
   if (filters.tierFilters.includes(NONE_SELECTED_VALUE)) return false;
   if (filters.tierFilters.length > 0 && !filters.tierFilters.includes(tier)) return false;
-  if (type === 'gear') return true;
   if (filters.typeFilters.includes(NONE_SELECTED_VALUE)) return false;
   return filters.typeFilters.length === 0 || filters.typeFilters.includes(type);
 }

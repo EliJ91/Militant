@@ -27,6 +27,7 @@ import {
   parseLootEvents,
 } from '../utils/lootMonitor';
 import { warmItemImageCache } from '../utils/itemImageCache';
+import { ITEM_TYPE_OPTIONS, getItemType } from '../utils/itemTypes';
 
 const FILTER_STORAGE_KEY = 'militant.lootMonitor.filters.v3';
 const LEGACY_FILTER_STORAGE_KEY = 'militant.lootMonitor.filters.v2';
@@ -66,16 +67,7 @@ function buildRawLootSourceLookup(rawText) {
   return lookup;
 }
 
-export const TYPE_OPTIONS = [
-  { label: 'Bag', value: 'bag' },
-  { label: 'Cape', value: 'cape' },
-  { label: 'Food', value: 'food' },
-  { label: 'Memento', value: 'memento' },
-  { label: 'Mount', value: 'mount' },
-  { label: 'Potions', value: 'potion' },
-  { label: 'Trash', value: 'trash' },
-  { label: 'Other', value: 'other' },
-];
+export const TYPE_OPTIONS = ITEM_TYPE_OPTIONS;
 
 export const SORT_OPTIONS = [
   { label: 'Most to least', value: 'desc' },
@@ -620,40 +612,13 @@ function getItemTierLabel(row) {
   return tier ? tier.replace('tier', 'T') : 'Unknown tier';
 }
 
-function isWeaponOrArmor(row) {
-  const itemId = String(row.itemId || '').toUpperCase();
-  return /^T\d+_(2H|MAIN|OFF|HEAD|ARMOR|SHOES)_/.test(itemId);
-}
-
-function getItemKind(row) {
-  const text = `${row.itemId || ''} ${row.item || ''}`.toLowerCase();
-  const itemName = String(row.item || '').toLowerCase();
-
-  if (/\bskin\b|\bsiege hammer\b/.test(itemName)) return 'other';
-  if (text.includes('trash')) return 'trash';
-  if (text.includes('memento')) return 'memento';
-  if (text.includes('potion') || text.includes('poison')) return 'potion';
-  if (text.includes('cape')) return 'cape';
-  if (text.includes('bag')) return 'bag';
-  if (/mount|horse|ox|stag|swiftclaw|wolf|boar|bear|mare|panther|lizard|moose|mammoth|ram|cougar|basilisk|salamander|terrorbird/.test(text)) {
-    return 'mount';
-  }
-  if (/meal|food|omelette|stew|sandwich|pie|salad|soup|fish|roast|goose|pork|beef|mutton|chicken/.test(text)) {
-    return 'food';
-  }
-  if (isWeaponOrArmor(row)) return 'gear';
-
-  return 'other';
-}
-
 function allowsTileStatus(tileStatus, selectedStatuses) {
   return selectedStatuses.length === 0 || selectedStatuses.includes(tileStatus);
 }
 
 function allowsItemFilters(row, filters) {
-  const kind = getItemKind(row);
+  const kind = getItemType(row);
 
-  if (kind === 'gear') return true;
   if (filters.typeFilters.includes(NONE_SELECTED_VALUE)) return false;
   if (filters.typeFilters.length > 0 && !filters.typeFilters.includes(kind)) return false;
   return true;

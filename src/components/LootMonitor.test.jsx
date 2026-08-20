@@ -890,7 +890,7 @@ describe('LootMonitor', () => {
     expect(screen.getByText(/GuildlessPlayer/).closest('.loot-player-row')).toHaveTextContent('EMV $230');
   });
 
-  it('keeps weapons visible when item type filters exclude ordinary item types', async () => {
+  it('filters weapons separately from ordinary item types', async () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ typeFilters: ['__none__'] }));
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
@@ -919,12 +919,18 @@ describe('LootMonitor', () => {
 
     render(<LootMonitor bundleId="bundle-18" />);
 
+    expect(await screen.findByText('No item icons match the current filters.')).toBeInTheDocument();
+    expect(screen.queryByLabelText("WeaponUser Kept 1 Adept's Broadsword")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("WeaponUser Kept 1 Expert's Bag")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Item Type').closest('.filter-dropdown-control').querySelector('summary'));
+    fireEvent.click(screen.getByRole('button', { name: 'Weapons' }));
     expect(await screen.findByText(/WeaponUser/)).toBeInTheDocument();
     expect(screen.getByLabelText("WeaponUser Kept 1 Adept's Broadsword")).toBeInTheDocument();
     expect(screen.queryByLabelText("WeaponUser Kept 1 Expert's Bag")).not.toBeInTheDocument();
   });
 
-  it('shows uncategorized items in Other while gear remains visible', async () => {
+  it('shows uncategorized items in Other without including gear or bags', async () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ typeFilters: ['other'] }));
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
@@ -980,7 +986,7 @@ describe('LootMonitor', () => {
     expect(await screen.findByLabelText("TokenHolder Kept 3 Smuggler's Coin")).toBeInTheDocument();
     expect(screen.getByLabelText('TokenHolder Kept 1 Direwolf Skin')).toBeInTheDocument();
     expect(screen.getByLabelText("TokenHolder Kept 1 Master's Siege Hammer")).toBeInTheDocument();
-    expect(screen.getByLabelText("TokenHolder Kept 1 Adept's Broadsword")).toBeInTheDocument();
+    expect(screen.queryByLabelText("TokenHolder Kept 1 Adept's Broadsword")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("TokenHolder Kept 1 Expert's Bag")).not.toBeInTheDocument();
   });
 
