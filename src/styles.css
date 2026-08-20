@@ -895,7 +895,7 @@
 }
 
 .zvz-sheet-item-editor {
-  position: relative;
+  position: static;
   display: grid;
   grid-template-rows: 1fr auto;
   gap: 3px;
@@ -910,6 +910,11 @@
 .zvz-sheet-table td:has(.zvz-sheet-item-editor),
 .zvz-sheet-table td:has(.zvz-sheet-view-cell) {
   width: max-content;
+}
+
+.zvz-sheet-table td:has(.zvz-sheet-item-editor) {
+  position: relative;
+  padding-bottom: 28px;
 }
 
 .zvz-sheet-item-menu {
@@ -1119,6 +1124,10 @@
 }
 
 .zvz-sheet-notes-editor {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  left: 6px;
   display: grid;
   grid-template-columns: max-content 14px;
   align-items: center;
