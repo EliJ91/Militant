@@ -280,6 +280,40 @@ export async function updateLootLogBundle({
   return result;
 }
 
+export async function reorderLootLogBundles({
+  actorName,
+  bundleIds,
+  bundles = [],
+} = {}) {
+  const response = await fetch(getLootLogApiUrl(), {
+    body: JSON.stringify({ action: 'reorder-bundles', bundleIds }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'PATCH',
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not reorder loot logs.');
+  }
+
+  void recordActionLog({
+    action: 'Loot logs rearranged',
+    actorName,
+    details: {
+      order: bundles.map((bundle) => ({
+        lootLogName: bundle.lootFileName || bundle.displayLootFileName || '',
+        lootLogNumber: bundle.logNumber || null,
+      })),
+      total: Array.isArray(bundleIds) ? bundleIds.length : 0,
+    },
+    targetId: '',
+    targetName: 'Loot Logs',
+    targetType: 'loot-log-order',
+  });
+
+  return result;
+}
+
 export async function setLootLogPlayerHidden({
   actorName,
   bundleId,

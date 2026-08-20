@@ -8,6 +8,7 @@ import {
   fetchLootLogBundle,
   fetchLootLogBundles,
   mergeLootLogBundles,
+  reorderLootLogBundles,
   setLootLogItemIgnored,
   setLootLogPlayerHidden,
   submitChestLog,
@@ -35,6 +36,7 @@ vi.mock('../services/lootLogApi', () => ({
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
   mergeLootLogBundles: vi.fn(),
+  reorderLootLogBundles: vi.fn(),
   setLootLogItemIgnored: vi.fn(),
   setLootLogPlayerHidden: vi.fn(),
   submitChestLog: vi.fn(),
@@ -165,6 +167,7 @@ describe('LootMonitor', () => {
     fetchLootLogBundles.mockResolvedValue({ bundles: [createBundle()] });
     fetchIgnoredLootItems.mockResolvedValue({ items: [] });
     mergeLootLogBundles.mockResolvedValue({ bundleId: 'merged-bundle', lootFileName: 'Merged - 18UTC-JUN-18' });
+    reorderLootLogBundles.mockResolvedValue({ bundleIds: ['bundle-18'], updated: 1 });
     setLootLogItemIgnored.mockImplementation(({ ignored, item }) => Promise.resolve({
       ignored,
       item: {
@@ -1350,6 +1353,62 @@ describe('LootMonitor', () => {
     expect(rows[0]).toHaveTextContent('Newer CTA');
     expect(rows[0]).not.toHaveTextContent('Jul 10, 2026 00:08:00 EDT');
     expect(rows[1]).toHaveTextContent('Older CTA');
+  });
+
+  it('lets edit-log users drag to rearrange saved logs without changing their log numbers', async () => {
+    const dataTransfer = {
+      data: {},
+      dropEffect: '',
+      effectAllowed: '',
+      getData(type) {
+        return this.data[type] || '';
+      },
+      setData(type, value) {
+        this.data[type] = value;
+      },
+    };
+    fetchLootLogBundles.mockResolvedValue({
+      bundles: [
+        createBundle({
+          createdAt: '2026-07-09T01:50:00.000Z',
+          id: 'older-bundle',
+          lootFileName: 'Older CTA',
+        }),
+        createBundle({
+          createdAt: '2026-07-10T04:08:00.000Z',
+          id: 'newer-bundle',
+          lootFileName: 'Newer CTA',
+        }),
+      ],
+    });
+    reorderLootLogBundles.mockResolvedValue({ bundleIds: ['older-bundle', 'newer-bundle'], updated: 2 });
+
+    const { container } = render(<LootLogArchive canEditLogs />);
+
+    expect(await screen.findByText('Newer CTA')).toBeInTheDocument();
+    let rows = [...container.querySelectorAll('.saved-log-row')];
+    expect(rows[0]).toHaveTextContent('Loot Log#2');
+    expect(rows[0]).toHaveTextContent('Newer CTA');
+    expect(rows[1]).toHaveTextContent('Loot Log#1');
+    expect(rows[1]).toHaveTextContent('Older CTA');
+
+    fireEvent.dragStart(rows[0], { dataTransfer });
+    fireEvent.dragOver(rows[1], { dataTransfer });
+    fireEvent.drop(rows[1], { dataTransfer });
+
+    await waitFor(() => expect(reorderLootLogBundles).toHaveBeenCalledWith({
+      actorName: 'manual-web-upload',
+      bundleIds: ['older-bundle', 'newer-bundle'],
+      bundles: expect.arrayContaining([
+        expect.objectContaining({ id: 'older-bundle', logNumber: 1 }),
+        expect.objectContaining({ id: 'newer-bundle', logNumber: 2 }),
+      ]),
+    }));
+    rows = [...container.querySelectorAll('.saved-log-row')];
+    expect(rows[0]).toHaveTextContent('Loot Log#1');
+    expect(rows[0]).toHaveTextContent('Older CTA');
+    expect(rows[1]).toHaveTextContent('Loot Log#2');
+    expect(rows[1]).toHaveTextContent('Newer CTA');
   });
 
   it('allows adding chest logs after one is already linked', async () => {

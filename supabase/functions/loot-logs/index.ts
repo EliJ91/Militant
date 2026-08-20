@@ -331,6 +331,26 @@ function collectGlobalHiddenPlayers(bundles: any[] = []) {
   )).map((player: unknown) => String(player || '').trim().toLowerCase()).filter(Boolean))].sort();
 }
 
+function getBundleOrderTimestamp(bundle: any) {
+  const time = new Date(bundle?.created_at || bundle?.updated_at || bundle?.start_at || 0).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function compareBundleArchiveOrder(left: any, right: any) {
+  const leftOrder = Number.isFinite(Number(left?.display_order)) ? Number(left.display_order) : null;
+  const rightOrder = Number.isFinite(Number(right?.display_order)) ? Number(right.display_order) : null;
+  if (leftOrder !== null && rightOrder !== null && leftOrder !== rightOrder) return rightOrder - leftOrder;
+  if (leftOrder !== null && rightOrder === null) return 1;
+  if (leftOrder === null && rightOrder !== null) return -1;
+  return getBundleOrderTimestamp(right) - getBundleOrderTimestamp(left);
+}
+
+function buildStableLogNumberLookup(bundles: any[] = []) {
+  return new Map([...bundles]
+    .sort((left, right) => getBundleOrderTimestamp(left) - getBundleOrderTimestamp(right))
+    .map((bundle, index) => [bundle.id, index + 1]));
+}
+
 async function fetchLootLogBundleVisibility(supabase: any) {
   const bundles: any[] = [];
   for (let from = 0; ; from += DATABASE_PAGE_SIZE) {
@@ -2060,6 +2080,33 @@ Deno.serve(async (request) => {
       if (body.action === 'set-item-ignored') {
         return jsonResponse(200, await setLootLogItemIgnored(supabase, body));
       }
+      if (body.action === 'reorder-bundles') {
+        const ids = [...new Set((Array.isArray(body.bundleIds) ? body.bundleIds : [])
+          .map((id: unknown) => String(id || '').trim())
+          .filter(Boolean))];
+        if (ids.length === 0) throw new Error('bundleIds are required.');
+
+        const { data: existingRows, error: fetchError } = await supabase
+          .from('loot_log_bundles')
+          .select('id')
+          .in('id', ids);
+        if (fetchError) throw fetchError;
+        const existingIds = new Set((existingRows || []).map((row: any) => row.id));
+        if (ids.some((id) => !existingIds.has(id))) throw new Error('One or more loot logs could not be found.');
+
+        for (const [index, id] of ids.entries()) {
+          const { error } = await supabase
+            .from('loot_log_bundles')
+            .update({
+              display_order: ids.length - index,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', id);
+          if (error) throw error;
+        }
+
+        return jsonResponse(200, { bundleIds: ids, updated: ids.length });
+      }
       const bundleId = String(body.bundleId || '').trim();
       if (!bundleId) throw new Error('bundleId is required.');
 
@@ -2313,6 +2360,7 @@ Deno.serve(async (request) => {
           end_at,
           combined_loot_summary,
           created_at,
+          display_order,
           updated_at,
           loot_log_submissions (
             id,
@@ -2327,10 +2375,12 @@ Deno.serve(async (request) => {
 
       if (error) throw error;
 
-      const bundles = data || [];
+      const sourceBundles = data || [];
+      const bundles = [...sourceBundles].sort(compareBundleArchiveOrder);
+      const logNumberLookup = buildStableLogNumberLookup(sourceBundles);
       const hiddenPlayers = collectGlobalHiddenPlayers(bundles);
       return jsonResponse(200, {
-        bundles: bundles.map((bundle: any, index: number) => {
+        bundles: bundles.map((bundle: any) => {
           const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
           const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
           const fileNames = getBundleFileNames(bundle);
@@ -2341,10 +2391,11 @@ Deno.serve(async (request) => {
             chestFileName: getBundleDisplayChestFileName(bundle),
             ctaTimer: getCtaTimer(bundle.start_at),
             createdAt: bundle.created_at,
+            displayOrder: Number.isFinite(Number(bundle.display_order)) ? Number(bundle.display_order) : null,
             endAt: bundle.end_at,
             hasChestLog: chestLogs.length > 0,
             id: bundle.id,
-            logNumber: bundles.length - index,
+            logNumber: logNumberLookup.get(bundle.id) || null,
             lootFileName: getBundleDisplayLootFileName(bundle),
             startAt: bundle.start_at,
             submissions: submissions.map((submission: any) => ({

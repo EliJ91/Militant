@@ -301,6 +301,7 @@ function mapBundleListRow(bundle, logNumber = null, hiddenPlayers = []) {
     chestFileName: getBundleDisplayChestFileName(bundle, startAt),
     ctaTimer: getCtaTimer(startAt),
     createdAt: bundle.created_at,
+    displayOrder: Number.isFinite(Number(bundle.display_order)) ? Number(bundle.display_order) : null,
     endAt,
     hasChestLog: chestLogs.length > 0,
     id: bundle.id,
@@ -321,6 +322,25 @@ function mapBundleListRow(bundle, logNumber = null, hiddenPlayers = []) {
     },
     updatedAt: bundle.updated_at,
   };
+}
+
+function getBundleOrderTimestamp(bundle) {
+  return new Date(bundle.created_at || bundle.updated_at || bundle.start_at || 0).getTime();
+}
+
+function compareBundleArchiveOrder(left, right) {
+  const leftOrder = Number.isFinite(Number(left.display_order)) ? Number(left.display_order) : null;
+  const rightOrder = Number.isFinite(Number(right.display_order)) ? Number(right.display_order) : null;
+  if (leftOrder !== null && rightOrder !== null && leftOrder !== rightOrder) return rightOrder - leftOrder;
+  if (leftOrder !== null && rightOrder === null) return 1;
+  if (leftOrder === null && rightOrder !== null) return -1;
+  return getBundleOrderTimestamp(right) - getBundleOrderTimestamp(left);
+}
+
+function buildStableLogNumberLookup(bundles) {
+  return new Map([...bundles]
+    .sort((left, right) => getBundleOrderTimestamp(left) - getBundleOrderTimestamp(right))
+    .map((bundle, index) => [bundle.id, index + 1]));
 }
 
 async function fetchLootLogBundleVisibility(supabase) {
@@ -1807,6 +1827,40 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
   };
 }
 
+export async function reorderLootLogBundles({ bundleIds } = {}) {
+  const ids = [...new Set((Array.isArray(bundleIds) ? bundleIds : [])
+    .map((id) => String(id || '').trim())
+    .filter(Boolean))];
+  if (ids.length === 0) throw new Error('bundleIds are required.');
+
+  const supabase = createSupabaseAdmin();
+  const { data: existingRows, error: fetchError } = await supabase
+    .from('loot_log_bundles')
+    .select('id')
+    .in('id', ids);
+  if (fetchError) throw fetchError;
+
+  const existingIds = new Set((existingRows || []).map((row) => row.id));
+  if (ids.some((id) => !existingIds.has(id))) throw new Error('One or more loot logs could not be found.');
+
+  for (const [index, id] of ids.entries()) {
+    const { error } = await supabase
+      .from('loot_log_bundles')
+      .update({
+        display_order: ids.length - index,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+    if (error) throw error;
+  }
+
+  return {
+    bundleIds: ids,
+    bundles: (await listLootLogBundles()).bundles,
+    updated: ids.length,
+  };
+}
+
 export async function setLootLogPlayerHidden({ bundleId, hidden, player }) {
   const cleanBundleId = String(bundleId || '').trim();
   const playerKey = String(player || '').trim().toLowerCase();
@@ -1922,6 +1976,7 @@ export async function listLootLogBundles() {
       end_at,
       combined_loot_summary,
       created_at,
+      display_order,
       updated_at,
       loot_log_submissions (
         id,
@@ -1936,10 +1991,11 @@ export async function listLootLogBundles() {
 
   if (error) throw error;
 
-  const bundles = data || [];
+  const bundles = [...(data || [])].sort(compareBundleArchiveOrder);
+  const logNumberLookup = buildStableLogNumberLookup(data || []);
   const hiddenPlayers = collectGlobalHiddenPlayers(bundles);
   return {
-    bundles: bundles.map((bundle, index) => mapBundleListRow(bundle, bundles.length - index, hiddenPlayers)),
+    bundles: bundles.map((bundle) => mapBundleListRow(bundle, logNumberLookup.get(bundle.id), hiddenPlayers)),
     ctaTimers: CTA_UTC_HOURS.map(formatCtaTimer),
   };
 }

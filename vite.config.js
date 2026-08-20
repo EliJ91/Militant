@@ -120,10 +120,17 @@ function lootLogApi() {
 
     if (req.method === 'PATCH') {
       try {
-        const { setLootLogItemIgnored, setLootLogPlayerHidden, updateLootLogBundle } = await import('./src/server/supabaseLootLogs.js');
+        const {
+          reorderLootLogBundles,
+          setLootLogItemIgnored,
+          setLootLogPlayerHidden,
+          updateLootLogBundle,
+        } = await import('./src/server/supabaseLootLogs.js');
         const body = await readJsonBody(req);
         const result = body.action === 'set-item-ignored'
           ? await setLootLogItemIgnored({ ignored: body.ignored, item: body.item })
+          : body.action === 'reorder-bundles'
+          ? await reorderLootLogBundles({ bundleIds: body.bundleIds })
           : body.action === 'set-player-hidden'
           ? await setLootLogPlayerHidden({
             bundleId: body.bundleId,

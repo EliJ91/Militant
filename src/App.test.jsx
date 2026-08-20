@@ -32,6 +32,7 @@ vi.mock('./services/lootLogApi', () => ({
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn().mockResolvedValue({ bundles: [] }),
   mergeLootLogBundles: vi.fn(),
+  reorderLootLogBundles: vi.fn(),
   setLootLogItemIgnored: vi.fn(),
   setLootLogPlayerHidden: vi.fn(),
   submitChestLog: vi.fn(),
@@ -111,7 +112,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.56');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.57');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',

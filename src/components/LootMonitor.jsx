@@ -12,6 +12,7 @@ import {
   fetchLootLogBundle,
   fetchLootLogBundles,
   mergeLootLogBundles,
+  reorderLootLogBundles,
   setLootLogItemIgnored,
   submitChestLog,
   submitLootLog,
@@ -167,6 +168,31 @@ function getBundleUploadedAt(bundle) {
     || bundle.chestSubmissions?.[0]?.createdAt
     || bundle.updatedAt
     || bundle.startAt;
+}
+
+function getDisplayOrderValue(bundle) {
+  const value = Number(bundle?.displayOrder);
+  return Number.isFinite(value) ? value : null;
+}
+
+function compareSavedLogOrder(left, right) {
+  const leftOrder = getDisplayOrderValue(left);
+  const rightOrder = getDisplayOrderValue(right);
+  if (leftOrder !== null && rightOrder !== null && leftOrder !== rightOrder) return rightOrder - leftOrder;
+  if (leftOrder !== null && rightOrder === null) return 1;
+  if (leftOrder === null && rightOrder !== null) return -1;
+  return new Date(getBundleUploadedAt(right)).getTime() - new Date(getBundleUploadedAt(left)).getTime();
+}
+
+function assignStableLogNumbers(bundles) {
+  const numberLookup = new Map([...bundles]
+    .sort((left, right) => new Date(getBundleUploadedAt(left)).getTime() - new Date(getBundleUploadedAt(right)).getTime())
+    .map((bundle, index) => [bundle.id, index + 1]));
+
+  return bundles.map((bundle) => ({
+    ...bundle,
+    logNumber: numberLookup.get(bundle.id) || bundle.logNumber || null,
+  }));
 }
 
 function formatUtcDateInput(value) {
@@ -2222,6 +2248,7 @@ function LootLogBundleList({
   onEditValue,
   onDelete,
   onDeleteChest,
+  onDragReorder = () => {},
   onDownload,
   onSelectBundle,
   onUploadLoot,
@@ -2235,6 +2262,8 @@ function LootLogBundleList({
 }) {
   const longPressRef = useRef(null);
   const recentLongPressRef = useRef({ bundleId: '', completedAt: 0 });
+  const [dragBundleId, setDragBundleId] = useState('');
+  const [dragOverBundleId, setDragOverBundleId] = useState('');
 
   useEffect(() => () => {
     if (longPressRef.current?.timer) window.clearTimeout(longPressRef.current.timer);
@@ -2282,6 +2311,38 @@ function LootLogBundleList({
     onSelectBundle(bundleId);
   }
 
+  function startDragReorder(event, bundleId, isEditing) {
+    if (!canEditLogs || isEditing || isInteractiveTarget(event.target)) {
+      event.preventDefault();
+      return;
+    }
+    setDragBundleId(bundleId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', bundleId);
+  }
+
+  function overDragReorder(event, bundleId, isEditing) {
+    if (!canEditLogs || isEditing || !dragBundleId || dragBundleId === bundleId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setDragOverBundleId(bundleId);
+  }
+
+  function dropDragReorder(event, bundleId, isEditing) {
+    if (!canEditLogs || isEditing) return;
+    event.preventDefault();
+    const sourceId = event.dataTransfer.getData('text/plain') || dragBundleId;
+    setDragBundleId('');
+    setDragOverBundleId('');
+    if (!sourceId || sourceId === bundleId) return;
+    onDragReorder(sourceId, bundleId);
+  }
+
+  function endDragReorder() {
+    setDragBundleId('');
+    setDragOverBundleId('');
+  }
+
   if (status.state === 'idle') return null;
 
   return (
@@ -2304,6 +2365,7 @@ function LootLogBundleList({
             const isEditing = editingBundleId === bundle.id;
             const canEditBundle = canEditLogs || canChangeLootLogTitle;
             const isSelected = selectedBundleIds.includes(bundle.id);
+            const canReorder = canEditLogs && !isEditing;
             const editSaveDisabled = !editValues.dateUtc
               || !editValues.lootFileName.trim()
               || updatingBundleId === bundle.id;
@@ -2311,10 +2373,23 @@ function LootLogBundleList({
             return (
               <article
                 aria-selected={canMergeLogs ? isSelected : undefined}
-                className={`saved-log-row${isEditing ? ' editing' : ''}${canMergeLogs ? ' merge-selectable' : ''}`}
+                className={[
+                  'saved-log-row',
+                  isEditing ? 'editing' : '',
+                  canMergeLogs ? 'merge-selectable' : '',
+                  canReorder ? 'reorderable' : '',
+                  dragBundleId === bundle.id ? 'dragging' : '',
+                  dragOverBundleId === bundle.id ? 'drag-over' : '',
+                ].filter(Boolean).join(' ')}
+                draggable={canReorder}
                 key={bundle.id}
-                title={canMergeLogs ? 'Right-click or tap and hold to select for merging' : undefined}
+                title={canReorder ? 'Drag to rearrange' : canMergeLogs ? 'Right-click or tap and hold to select for merging' : undefined}
                 onContextMenu={(event) => selectFromContextMenu(event, bundle.id, isEditing)}
+                onDragEnd={endDragReorder}
+                onDragEnter={(event) => overDragReorder(event, bundle.id, isEditing)}
+                onDragOver={(event) => overDragReorder(event, bundle.id, isEditing)}
+                onDragStart={(event) => startDragReorder(event, bundle.id, isEditing)}
+                onDrop={(event) => dropDragReorder(event, bundle.id, isEditing)}
                 onKeyDown={(event) => {
                   if (!isEditing || event.key !== 'Enter' || editSaveDisabled) return;
                   event.preventDefault();
@@ -2332,74 +2407,76 @@ function LootLogBundleList({
                       {bundle.logNumber ? <strong>#{bundle.logNumber}</strong> : null}
                     </div>
                     <div className="saved-log-users">
-                      <div className="saved-log-title-line">
-                      {isSelected ? <span className="saved-log-selected-badge">Selected</span> : null}
-                      <small>Loot Log</small>
-                      {bundle.summary?.isMerged ? <span className="saved-log-merged-badge">Merged</span> : null}
-                      {!isEditing && canUploadLootLogs ? (
-                        <button
-                          aria-label="Add Loot Log"
-                          className="saved-log-title-upload"
-                          disabled={uploadingBundleId === bundle.id}
-                          title="Add loot log"
-                          type="button"
-                          onClick={() => onUploadLoot(bundle)}
-                        >
-                          +
-                        </button>
-                      ) : null}
-                    </div>
-                    {isEditing ? (
-                      <div className="saved-log-name-editor">
-                        <input
-                          aria-label="Loot Log Name"
-                          className="saved-log-name-input"
-                          maxLength={151}
-                          type="text"
-                          value={editValues.lootFileName}
-                          onChange={(event) => onEditValue('lootFileName', event.target.value)}
-                        />
-                      </div>
-                    ) : (
-                      <strong>{bundle.lootFileName || 'Loot Log'}</strong>
-                    )}
-                    {!isEditing ? (
-                      <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
-                        <div className="saved-log-chest-status">
-                          <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
-                          {canUploadChestLogs ? (
+                      <div className="saved-log-loot">
+                        <div className="saved-log-title-line">
+                          {isSelected ? <span className="saved-log-selected-badge">Selected</span> : null}
+                          <small>Loot Log</small>
+                          {bundle.summary?.isMerged ? <span className="saved-log-merged-badge">Merged</span> : null}
+                          {!isEditing && canUploadLootLogs ? (
                             <button
-                              aria-label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
+                              aria-label="Add Loot Log"
                               className="saved-log-title-upload"
                               disabled={uploadingBundleId === bundle.id}
-                              title="Add chest log"
+                              title="Add loot log"
                               type="button"
-                              onClick={() => onUploadChest(bundle)}
+                              onClick={() => onUploadLoot(bundle)}
                             >
                               +
                             </button>
                           ) : null}
-                          {bundle.hasChestLog && canDeleteLogs ? (
-                            <button
-                              aria-label="Delete Chest Log"
-                              className="saved-log-title-delete"
-                              disabled={deletingChestBundleId === bundle.id}
-                              title="Delete chest logs"
-                              type="button"
-                              onClick={() => onDeleteChest(bundle)}
-                            >
-                              <Trash2 aria-hidden="true" size={12} strokeWidth={2.2} />
-                            </button>
-                          ) : null}
                         </div>
-                        <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
+                        {isEditing ? (
+                          <div className="saved-log-name-editor">
+                            <input
+                              aria-label="Loot Log Name"
+                              className="saved-log-name-input"
+                              maxLength={151}
+                              type="text"
+                              value={editValues.lootFileName}
+                              onChange={(event) => onEditValue('lootFileName', event.target.value)}
+                            />
+                          </div>
+                        ) : (
+                          <strong>{bundle.lootFileName || 'Loot Log'}</strong>
+                        )}
+                        {!isEditing && retention ? (
+                          <small className="saved-log-countdown" title={`Scheduled deletion: ${formatUtcDate(retention.expiresAt)}`}>
+                            {formatDeletionCountdown(retention.daysUntilDeletion)}
+                          </small>
+                        ) : null}
                       </div>
-                    ) : null}
-                    {!isEditing && retention ? (
-                      <small className="saved-log-countdown" title={`Scheduled deletion: ${formatUtcDate(retention.expiresAt)}`}>
-                        {formatDeletionCountdown(retention.daysUntilDeletion)}
-                      </small>
-                    ) : null}
+                      {!isEditing ? (
+                        <div className={bundle.hasChestLog ? 'saved-log-chest linked' : 'saved-log-chest'}>
+                          <div className="saved-log-chest-status">
+                            <span>{bundle.hasChestLog ? 'Chest linked' : 'No chest log'}</span>
+                            {canUploadChestLogs ? (
+                              <button
+                                aria-label={bundle.hasChestLog ? 'Add Chest Log' : 'Upload Chest Log'}
+                                className="saved-log-title-upload"
+                                disabled={uploadingBundleId === bundle.id}
+                                title="Add chest log"
+                                type="button"
+                                onClick={() => onUploadChest(bundle)}
+                              >
+                                +
+                              </button>
+                            ) : null}
+                            {bundle.hasChestLog && canDeleteLogs ? (
+                              <button
+                                aria-label="Delete Chest Log"
+                                className="saved-log-title-delete"
+                                disabled={deletingChestBundleId === bundle.id}
+                                title="Delete chest logs"
+                                type="button"
+                                onClick={() => onDeleteChest(bundle)}
+                              >
+                                <Trash2 aria-hidden="true" size={12} strokeWidth={2.2} />
+                              </button>
+                            ) : null}
+                          </div>
+                          <small>{bundle.hasChestLog ? bundle.chestFileName : 'Awaiting chest log'}</small>
+                        </div>
+                      ) : null}
                   </div>
                   <div className="saved-log-totals">
                     <span><strong>{formatNumber(totals.players)}</strong><small>{totals.players === 1 ? 'player' : 'players'}</small></span>
@@ -2526,13 +2603,8 @@ export function LootLogArchive({
 
     try {
       const result = await fetchLootLogBundles();
-      const sortedBundles = [...(result.bundles || [])].sort((left, right) => (
-        new Date(getBundleUploadedAt(right)).getTime() - new Date(getBundleUploadedAt(left)).getTime()
-      ));
-      setSavedLogBundles(sortedBundles.map((bundle, index) => ({
-        ...bundle,
-        logNumber: bundle.logNumber || sortedBundles.length - index,
-      })));
+      const sortedBundles = assignStableLogNumbers([...(result.bundles || [])]).sort(compareSavedLogOrder);
+      setSavedLogBundles(sortedBundles);
       const availableIds = new Set((result.bundles || []).map((bundle) => bundle.id));
       setSelectedBundleIds((current) => current.filter((bundleId) => availableIds.has(bundleId)));
       setSavedLogStatus({ message: '', state: 'loaded' });
@@ -2671,6 +2743,33 @@ export function LootLogArchive({
       });
     } finally {
       setMergingLogs(false);
+    }
+  }
+
+  async function reorderSavedBundles(sourceBundleId, targetBundleId) {
+    if (!canEditLogs || sourceBundleId === targetBundleId) return;
+    const previousBundles = savedLogBundles;
+    const sourceIndex = previousBundles.findIndex((bundle) => bundle.id === sourceBundleId);
+    const targetIndex = previousBundles.findIndex((bundle) => bundle.id === targetBundleId);
+    if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return;
+
+    const nextBundles = [...previousBundles];
+    const [movedBundle] = nextBundles.splice(sourceIndex, 1);
+    nextBundles.splice(targetIndex, 0, movedBundle);
+    setSavedLogBundles(nextBundles);
+
+    try {
+      await reorderLootLogBundles({
+        actorName: uploadUsername,
+        bundleIds: nextBundles.map((bundle) => bundle.id),
+        bundles: nextBundles,
+      });
+    } catch (reorderError) {
+      setSavedLogBundles(previousBundles);
+      setActionStatus({
+        message: reorderError.message || 'Could not rearrange loot logs.',
+        state: 'error',
+      });
     }
   }
 
@@ -3016,6 +3115,7 @@ export function LootLogArchive({
         onEditValue={updateEditValue}
         onDelete={deleteBundle}
         onDeleteChest={deleteBundleChestLogs}
+        onDragReorder={reorderSavedBundles}
         onDownload={downloadBundle}
         onSelectBundle={toggleSelectedBundle}
         onUploadLoot={openLootUpload}

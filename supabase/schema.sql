@@ -5,6 +5,7 @@ create table if not exists public.loot_log_bundles (
   start_at timestamptz not null,
   end_at timestamptz not null,
   combined_loot_summary jsonb not null default '{"rows":[],"totals":{}}'::jsonb,
+  display_order integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -55,6 +56,9 @@ create table if not exists public.chest_log_submissions (
 
 create index if not exists loot_log_bundles_time_idx
   on public.loot_log_bundles (start_at, end_at);
+
+create index if not exists loot_log_bundles_display_order_idx
+  on public.loot_log_bundles (display_order desc, created_at desc);
 
 create index if not exists loot_log_submissions_bundle_idx
   on public.loot_log_submissions (bundle_id, created_at);

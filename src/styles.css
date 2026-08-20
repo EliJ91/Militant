@@ -4276,7 +4276,7 @@ button:focus-visible {
 }
 
 .saved-log-row {
-  min-width: 1220px;
+  min-width: 1180px;
   padding: 20px 18px;
 }
 
@@ -4286,6 +4286,27 @@ button:focus-visible {
 
 .saved-log-row.editing {
   background: transparent;
+}
+
+.saved-log-row.reorderable {
+  cursor: grab;
+}
+
+.saved-log-row.reorderable:active,
+.saved-log-row.dragging {
+  cursor: grabbing;
+}
+
+.saved-log-row.dragging .saved-log-card {
+  opacity: 0.58;
+}
+
+.saved-log-row.drag-over .saved-log-card {
+  border-color: rgba(255, 176, 0, 0.9);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 176, 0, 0.18),
+    0 0 0 2px rgba(255, 176, 0, 0.18),
+    0 18px 46px rgba(0, 0, 0, 0.42);
 }
 
 @media (min-width: 721px) {
@@ -4361,7 +4382,7 @@ button:focus-visible {
 
 .saved-log-card-main {
   display: grid;
-  grid-template-columns: 92px minmax(300px, 1.35fr) minmax(340px, 1.5fr) minmax(190px, 0.86fr) minmax(220px, 0.92fr);
+  grid-template-columns: 96px minmax(520px, 1fr) minmax(180px, 0.32fr) minmax(340px, 0.54fr);
   gap: 0;
   align-items: stretch;
   min-width: 0;
@@ -4416,8 +4437,22 @@ button:focus-visible {
   gap: 8px;
 }
 
+.saved-log-users {
+  grid-template-columns: minmax(280px, 1.05fr) minmax(230px, 0.86fr);
+  align-items: center;
+  gap: 18px;
+}
+
+.saved-log-loot {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .saved-log-time strong,
-.saved-log-users strong {
+.saved-log-users strong,
+.saved-log-loot strong {
   overflow: hidden;
   color: var(--white);
   text-overflow: ellipsis;
@@ -4457,6 +4492,7 @@ button:focus-visible {
 }
 
 .saved-log-users > small,
+.saved-log-loot > small,
 .saved-log-chest-status span {
   color: var(--green-hot);
   font-size: 0.74rem;
@@ -4485,7 +4521,8 @@ button:focus-visible {
   min-width: 0;
 }
 
-.saved-log-users strong {
+.saved-log-users strong,
+.saved-log-loot strong {
   font-size: 1.35rem;
 }
 
@@ -4800,8 +4837,8 @@ button:focus-visible {
 
 .saved-log-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
   align-self: center;
   align-content: center;
   justify-content: center;
@@ -7409,6 +7446,11 @@ button:focus-visible {
   .saved-log-users .saved-log-chest {
     padding: 0;
     border-top: 0;
+  }
+
+  .saved-log-users {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .saved-log-users strong,
