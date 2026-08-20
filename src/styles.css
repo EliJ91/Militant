@@ -2883,6 +2883,7 @@ button:focus-visible {
 
 .permissions-table-section {
   margin-top: 18px;
+  overflow: visible;
 }
 
 .permissions-add-role {
@@ -2901,10 +2902,11 @@ button:focus-visible {
 }
 
 .permissions-table {
-  --permissions-header-height: 58px;
+  --permissions-header-height: 46px;
   width: 100%;
   min-width: 620px;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
 }
 
@@ -2926,12 +2928,6 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
-.permissions-sticky-header {
-  position: sticky;
-  z-index: 24;
-  top: 0;
-}
-
 .permissions-sticky-header th {
   position: sticky;
   z-index: 30;
@@ -2951,7 +2947,7 @@ button:focus-visible {
   position: sticky;
   z-index: 26;
   top: var(--permissions-header-height);
-  padding: 14px 10px 8px;
+  padding: 10px;
   border-top: 1px solid rgba(87, 216, 120, 0.2);
   border-bottom-color: rgba(87, 216, 120, 0.36);
   background: #102616;
