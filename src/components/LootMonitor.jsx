@@ -184,14 +184,10 @@ function compareSavedLogOrder(left, right) {
   return new Date(getBundleUploadedAt(right)).getTime() - new Date(getBundleUploadedAt(left)).getTime();
 }
 
-function assignStableLogNumbers(bundles) {
-  const numberLookup = new Map([...bundles]
-    .sort((left, right) => new Date(getBundleUploadedAt(left)).getTime() - new Date(getBundleUploadedAt(right)).getTime())
-    .map((bundle, index) => [bundle.id, index + 1]));
-
-  return bundles.map((bundle) => ({
+function assignDisplayLogNumbers(bundles) {
+  return bundles.map((bundle, index) => ({
     ...bundle,
-    logNumber: numberLookup.get(bundle.id) || bundle.logNumber || null,
+    logNumber: bundles.length - index,
   }));
 }
 
@@ -2603,8 +2599,8 @@ export function LootLogArchive({
 
     try {
       const result = await fetchLootLogBundles();
-      const sortedBundles = assignStableLogNumbers([...(result.bundles || [])]).sort(compareSavedLogOrder);
-      setSavedLogBundles(sortedBundles);
+      const sortedBundles = [...(result.bundles || [])].sort(compareSavedLogOrder);
+      setSavedLogBundles(assignDisplayLogNumbers(sortedBundles));
       const availableIds = new Set((result.bundles || []).map((bundle) => bundle.id));
       setSelectedBundleIds((current) => current.filter((bundleId) => availableIds.has(bundleId)));
       setSavedLogStatus({ message: '', state: 'loaded' });
@@ -2753,9 +2749,10 @@ export function LootLogArchive({
     const targetIndex = previousBundles.findIndex((bundle) => bundle.id === targetBundleId);
     if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return;
 
-    const nextBundles = [...previousBundles];
-    const [movedBundle] = nextBundles.splice(sourceIndex, 1);
-    nextBundles.splice(targetIndex, 0, movedBundle);
+    const reorderedBundles = [...previousBundles];
+    const [movedBundle] = reorderedBundles.splice(sourceIndex, 1);
+    reorderedBundles.splice(targetIndex, 0, movedBundle);
+    const nextBundles = assignDisplayLogNumbers(reorderedBundles);
     setSavedLogBundles(nextBundles);
 
     try {

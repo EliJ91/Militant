@@ -337,12 +337,6 @@ function compareBundleArchiveOrder(left, right) {
   return getBundleOrderTimestamp(right) - getBundleOrderTimestamp(left);
 }
 
-function buildStableLogNumberLookup(bundles) {
-  return new Map([...bundles]
-    .sort((left, right) => getBundleOrderTimestamp(left) - getBundleOrderTimestamp(right))
-    .map((bundle, index) => [bundle.id, index + 1]));
-}
-
 async function fetchLootLogBundleVisibility(supabase) {
   const bundles = [];
   for (let from = 0; ; from += DATABASE_PAGE_SIZE) {
@@ -1992,10 +1986,9 @@ export async function listLootLogBundles() {
   if (error) throw error;
 
   const bundles = [...(data || [])].sort(compareBundleArchiveOrder);
-  const logNumberLookup = buildStableLogNumberLookup(data || []);
   const hiddenPlayers = collectGlobalHiddenPlayers(bundles);
   return {
-    bundles: bundles.map((bundle) => mapBundleListRow(bundle, logNumberLookup.get(bundle.id), hiddenPlayers)),
+    bundles: bundles.map((bundle, index) => mapBundleListRow(bundle, bundles.length - index, hiddenPlayers)),
     ctaTimers: CTA_UTC_HOURS.map(formatCtaTimer),
   };
 }

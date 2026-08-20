@@ -345,12 +345,6 @@ function compareBundleArchiveOrder(left: any, right: any) {
   return getBundleOrderTimestamp(right) - getBundleOrderTimestamp(left);
 }
 
-function buildStableLogNumberLookup(bundles: any[] = []) {
-  return new Map([...bundles]
-    .sort((left, right) => getBundleOrderTimestamp(left) - getBundleOrderTimestamp(right))
-    .map((bundle, index) => [bundle.id, index + 1]));
-}
-
 async function fetchLootLogBundleVisibility(supabase: any) {
   const bundles: any[] = [];
   for (let from = 0; ; from += DATABASE_PAGE_SIZE) {
@@ -2377,10 +2371,9 @@ Deno.serve(async (request) => {
 
       const sourceBundles = data || [];
       const bundles = [...sourceBundles].sort(compareBundleArchiveOrder);
-      const logNumberLookup = buildStableLogNumberLookup(sourceBundles);
       const hiddenPlayers = collectGlobalHiddenPlayers(bundles);
       return jsonResponse(200, {
-        bundles: bundles.map((bundle: any) => {
+        bundles: bundles.map((bundle: any, index: number) => {
           const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
           const chestLogs = Array.isArray(bundle.chest_log_submissions) ? bundle.chest_log_submissions : [];
           const fileNames = getBundleFileNames(bundle);
@@ -2395,7 +2388,7 @@ Deno.serve(async (request) => {
             endAt: bundle.end_at,
             hasChestLog: chestLogs.length > 0,
             id: bundle.id,
-            logNumber: logNumberLookup.get(bundle.id) || null,
+            logNumber: bundles.length - index,
             lootFileName: getBundleDisplayLootFileName(bundle),
             startAt: bundle.start_at,
             submissions: submissions.map((submission: any) => ({

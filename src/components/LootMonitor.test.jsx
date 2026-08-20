@@ -1355,7 +1355,7 @@ describe('LootMonitor', () => {
     expect(rows[1]).toHaveTextContent('Older CTA');
   });
 
-  it('lets edit-log users drag to rearrange saved logs without changing their log numbers', async () => {
+  it('lets edit-log users drag to rearrange saved logs without changing row numbers', async () => {
     const dataTransfer = {
       data: {},
       dropEffect: '',
@@ -1400,14 +1400,14 @@ describe('LootMonitor', () => {
       actorName: 'manual-web-upload',
       bundleIds: ['older-bundle', 'newer-bundle'],
       bundles: expect.arrayContaining([
-        expect.objectContaining({ id: 'older-bundle', logNumber: 1 }),
-        expect.objectContaining({ id: 'newer-bundle', logNumber: 2 }),
+        expect.objectContaining({ id: 'older-bundle', logNumber: 2 }),
+        expect.objectContaining({ id: 'newer-bundle', logNumber: 1 }),
       ]),
     }));
     rows = [...container.querySelectorAll('.saved-log-row')];
-    expect(rows[0]).toHaveTextContent('Loot Log#1');
+    expect(rows[0]).toHaveTextContent('Loot Log#2');
     expect(rows[0]).toHaveTextContent('Older CTA');
-    expect(rows[1]).toHaveTextContent('Loot Log#2');
+    expect(rows[1]).toHaveTextContent('Loot Log#1');
     expect(rows[1]).toHaveTextContent('Newer CTA');
   });
 
