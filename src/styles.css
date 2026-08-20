@@ -764,11 +764,22 @@
   scrollbar-width: thin;
 }
 
+.zvz-sheet-scroll.is-editing {
+  width: 100%;
+  overflow-x: hidden;
+}
+
 .zvz-sheet-table {
   width: max-content;
   min-width: max-content;
   border-collapse: separate;
   border-spacing: 0;
+}
+
+.zvz-sheet-table.is-editing {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .zvz-sheet-table th,
@@ -780,6 +791,12 @@
   height: 1px;
   vertical-align: middle;
   white-space: nowrap;
+}
+
+.zvz-sheet-table.is-editing th,
+.zvz-sheet-table.is-editing td {
+  min-width: 0;
+  padding: 4px;
 }
 
 .zvz-sheet-table td.zvz-sheet-empty-cell {
@@ -820,6 +837,32 @@
 .zvz-sheet-table th:nth-child(n+3),
 .zvz-sheet-table td:nth-child(n+3) {
   width: 1%;
+}
+
+.zvz-sheet-table.is-editing th:first-child,
+.zvz-sheet-table.is-editing td:first-child {
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+}
+
+.zvz-sheet-table.is-editing th:nth-child(2),
+.zvz-sheet-table.is-editing td:nth-child(2) {
+  width: 92px;
+  min-width: 92px;
+  max-width: 92px;
+}
+
+.zvz-sheet-table.is-editing th:nth-child(n+3),
+.zvz-sheet-table.is-editing td:nth-child(n+3) {
+  width: auto;
+}
+
+.zvz-sheet-table.is-editing th.zvz-sheet-row-action-cell,
+.zvz-sheet-table.is-editing td.zvz-sheet-row-action-cell {
+  width: 24px;
+  min-width: 24px;
+  max-width: 24px;
 }
 
 .zvz-sheet-table th {
@@ -964,6 +1007,18 @@
   min-height: 84px;
 }
 
+.zvz-sheet-table.is-editing .zvz-sheet-text-editor {
+  width: 100%;
+  min-height: 36px;
+  padding: 5px;
+  font-size: 0.58rem;
+}
+
+.zvz-sheet-table.is-editing .zvz-sheet-item-editor {
+  width: 100%;
+  min-width: 0;
+}
+
 .zvz-sheet-table td:has(.zvz-sheet-item-editor),
 .zvz-sheet-table td:has(.zvz-sheet-view-cell) {
   width: max-content;
@@ -977,6 +1032,10 @@
 
 .zvz-sheet-table td:has(.zvz-sheet-item-editor) {
   padding-bottom: 30px;
+}
+
+.zvz-sheet-table.is-editing td:has(.zvz-sheet-item-editor) {
+  width: auto;
 }
 
 .zvz-sheet-item-menu {
@@ -1051,6 +1110,11 @@
   justify-items: center;
 }
 
+.zvz-sheet-table.is-editing .zvz-sheet-edit-items {
+  grid-template-columns: minmax(0, 1fr) 40px minmax(0, max-content) 13px minmax(0, 1fr);
+  column-gap: 5px;
+}
+
 .zvz-sheet-edit-item-group {
   display: contents;
 }
@@ -1069,6 +1133,12 @@
   object-fit: contain;
 }
 
+.zvz-sheet-table.is-editing .zvz-sheet-edit-item img,
+.zvz-sheet-table.is-editing .zvz-sheet-edit-item .zvz-sheet-item-fallback {
+  width: 40px;
+  height: 40px;
+}
+
 .zvz-sheet-edit-item .zvz-sheet-item-fallback {
   grid-column: 2;
 }
@@ -1083,6 +1153,10 @@
   text-align: center;
   white-space: nowrap;
   justify-self: center;
+}
+
+.zvz-sheet-table.is-editing .zvz-sheet-edit-item strong {
+  font-size: 0.64rem;
 }
 
 .zvz-sheet-edit-item .zvz-sheet-sign-minus {
@@ -1197,6 +1271,12 @@
   white-space: nowrap;
 }
 
+.zvz-sheet-table.is-editing .zvz-sheet-add-item-button {
+  min-height: 17px;
+  padding-block: 2px;
+  font-size: 0.5rem;
+}
+
 .zvz-sheet-add-item-button:hover,
 .zvz-sheet-add-item-button:focus-visible {
   border-color: rgba(87, 216, 120, 0.78);
@@ -1208,6 +1288,16 @@
   width: 11px;
   height: 11px;
   stroke-width: 3;
+}
+
+.zvz-sheet-table.is-editing .zvz-sheet-sign-button {
+  width: 13px;
+  height: 13px;
+}
+
+.zvz-sheet-table.is-editing .zvz-sheet-sign-button svg {
+  width: 9px;
+  height: 9px;
 }
 
 .zvz-sheet-empty-item-editor {

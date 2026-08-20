@@ -30,6 +30,26 @@ const DEFAULT_T8_COLUMNS = COLUMN_KEYS.reduce((state, key) => ({
   [key]: ITEM_COLUMNS.has(key),
 }), {});
 
+function optionTextKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function buildOptionMap(options, keys) {
+  const map = new Map();
+  options.forEach((option) => {
+    keys(option).forEach((key) => {
+      const normalized = optionTextKey(key);
+      if (normalized && !map.has(normalized)) map.set(normalized, option);
+    });
+  });
+  return map;
+}
+
+const T8_OPTIONS_BY_ID = buildOptionMap(T8_ITEM_OPTIONS, (option) => [option.itemId]);
+const ALL_OPTIONS_BY_ID = buildOptionMap(ALL_ITEM_OPTIONS, (option) => [option.itemId]);
+const T8_OPTIONS_BY_NAME = buildOptionMap(T8_ITEM_OPTIONS, (option) => [option.value, option.label]);
+const ALL_OPTIONS_BY_NAME = buildOptionMap(ALL_ITEM_OPTIONS, (option) => [option.value, option.label]);
+
 function searchOptionScore(option, query) {
   const search = query.trim();
   if (!search) return 1;
@@ -207,11 +227,11 @@ function buildSheetFromBuilds(builds = []) {
 }
 
 function findOption(cell) {
-  const name = String(cell.itemName || '').toLowerCase();
-  return ITEM_OPTIONS.find((item) => item.itemId === cell.itemId)
-    || ALL_ITEM_OPTIONS.find((item) => item.itemId === cell.itemId)
-    || ITEM_OPTIONS.find((item) => item.value.toLowerCase() === name)
-    || ALL_ITEM_OPTIONS.find((item) => item.value.toLowerCase() === name)
+  const name = optionTextKey(cell.itemName);
+  return T8_OPTIONS_BY_ID.get(optionTextKey(cell.itemId))
+    || ALL_OPTIONS_BY_ID.get(optionTextKey(cell.itemId))
+    || T8_OPTIONS_BY_NAME.get(name)
+    || ALL_OPTIONS_BY_NAME.get(name)
     || rankedOptions(ITEM_OPTIONS, cell.itemName || '')[0]
     || rankedOptions(ALL_ITEM_OPTIONS, cell.itemName || '')[0]
     || ITEM_OPTIONS.find((item) => name && (
@@ -228,8 +248,8 @@ function findOptionForItem(item, forceT8 = false) {
     const isFoodOrPotion = String(item.itemId || '').includes('_MEAL_')
       || String(item.itemId || '').includes('_POTION_');
     const itemId = displayZvZItemId(isFoodOrPotion ? item.itemId : t8ItemId(item.itemId));
-    return T8_ITEM_OPTIONS.find((option) => option.itemId === itemId)
-      || T8_ITEM_OPTIONS.find((option) => option.label.toLowerCase() === String(item.itemName || '').toLowerCase())
+    return T8_OPTIONS_BY_ID.get(optionTextKey(itemId))
+      || T8_OPTIONS_BY_NAME.get(optionTextKey(item.itemName))
       || rankedOptions(T8_ITEM_OPTIONS, item.itemName || '')[0];
   }
   return findOption({ itemId: item.itemId, itemName: item.itemName });
@@ -481,15 +501,18 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
   const [editingNotes, setEditingNotes] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const selectedItems = buildSlotItems(cell);
+  const selectedItems = useMemo(() => buildSlotItems(cell), [cell]);
+  const searchActive = open || addAfterIndex !== null || Boolean(query.trim());
   const visibleOptions = useMemo(() => {
+    if (!searchActive) return [];
     const sourceOptions = forceT8 ? T8_ITEM_OPTIONS : ALL_ITEM_OPTIONS;
     return rankedOptions(sourceOptions, query).slice(0, 45);
-  }, [forceT8, query]);
+  }, [forceT8, query, searchActive]);
 
   useEffect(() => {
+    if (!open || visibleOptions.length === 0) return;
     warmItemImageCache(visibleOptions.map((option) => option.imageUrl));
-  }, [visibleOptions]);
+  }, [open, visibleOptions]);
 
   useEffect(() => {
     setQuery('');
@@ -1109,8 +1132,8 @@ export default function ZvZSheet({
               ) : null}
             </div>
           </div>
-          <div className="zvz-sheet-scroll">
-            <table className="zvz-sheet-table">
+          <div className={`zvz-sheet-scroll${isEditing ? ' is-editing' : ''}`}>
+            <table className={`zvz-sheet-table${isEditing ? ' is-editing' : ''}`}>
               <thead>
                 <tr>
                   {headers.map((header, index) => (
