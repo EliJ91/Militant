@@ -3149,7 +3149,7 @@ button:focus-visible {
 
 .player-history-log-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.45fr) repeat(5, minmax(110px, 0.7fr)) minmax(140px, 0.85fr);
+  grid-template-columns: minmax(220px, 1.45fr) repeat(4, minmax(110px, 0.7fr));
   gap: 12px;
   align-items: center;
   padding: 12px 14px;

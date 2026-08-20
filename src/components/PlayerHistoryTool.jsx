@@ -9,7 +9,6 @@ const SORT_COLUMNS = [
   { key: 'itemsKept', label: 'Items Kept' },
   { key: 'itemsLost', label: 'Items Lost' },
   { key: 'averageItemsLootedPerCta', label: 'Avg. Looted / CTA' },
-  { key: 'lastCtaAt', label: 'Last CTA' },
 ];
 
 const FILTER_STORAGE_KEY = 'militant.playerLootHistory.filters.v1';
@@ -379,7 +378,6 @@ export default function PlayerHistoryTool() {
                         <td>{formatNumber(player.itemsKept)}</td>
                         <td>{formatNumber(player.itemsLost)}</td>
                         <td>{formatNumber(player.averageItemsLootedPerCta, 1)}</td>
-                        <td className="player-history-date">{formatDate(player.lastCtaAt)}</td>
                       </tr>
                       {isExpanded ? (
                         <tr className="player-history-detail-row">
@@ -398,10 +396,6 @@ export default function PlayerHistoryTool() {
                                     <strong>{cta.lootLogTitle}</strong>
                                   </span>
                                   <span>
-                                    <small>CTAs</small>
-                                    <strong>{formatNumber(cta.ctaCount || 1)}</strong>
-                                  </span>
-                                  <span>
                                     <small>Items Looted</small>
                                     <strong>{formatNumber(cta.itemsLooted)}</strong>
                                   </span>
@@ -416,10 +410,6 @@ export default function PlayerHistoryTool() {
                                   <span>
                                     <small>Avg. Looted / CTA</small>
                                     <strong>{formatNumber(cta.averageItemsLootedPerCta ?? cta.itemsLooted, 1)}</strong>
-                                  </span>
-                                  <span>
-                                    <small>Last CTA</small>
-                                    <strong>{formatDate(cta.lastCtaAt || cta.date)}</strong>
                                   </span>
                                 </a>
                               )) : <p className="members-empty">No loot logs match the selected filters.</p>}
