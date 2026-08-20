@@ -2670,7 +2670,7 @@ button:focus-visible {
 }
 
 .members-table-section {
-  overflow: hidden;
+  overflow: visible;
   margin-top: 18px;
   border: 1px solid rgba(247, 250, 245, 0.14);
   border-radius: 8px;
@@ -2725,7 +2725,7 @@ button:focus-visible {
 }
 
 .members-table-wrap {
-  overflow: auto;
+  overflow: visible;
 }
 
 .members-table {
@@ -2750,8 +2750,13 @@ button:focus-visible {
 }
 
 .members-table th {
+  position: sticky;
+  top: 0;
+  z-index: 24;
   color: var(--muted);
   font-size: 0.68rem;
+  background: #071008;
+  box-shadow: 0 1px 0 rgba(87, 216, 120, 0.28);
   text-transform: uppercase;
   vertical-align: bottom;
 }
