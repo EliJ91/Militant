@@ -694,7 +694,7 @@
 }
 
 .zvz-sheet-panel {
-  margin-top: 18px;
+  margin: 18px auto 0;
   width: fit-content;
   max-width: 100%;
   overflow: hidden;
