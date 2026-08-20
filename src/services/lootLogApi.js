@@ -284,9 +284,16 @@ export async function reorderLootLogBundles({
   actorName,
   bundleIds,
   bundles = [],
+  sourceBundleId = '',
+  targetBundleId = '',
 } = {}) {
   const response = await fetch(getLootLogApiUrl(), {
-    body: JSON.stringify({ action: 'reorder-bundles', bundleIds }),
+    body: JSON.stringify({
+      action: 'reorder-bundles',
+      bundleIds,
+      sourceBundleId,
+      targetBundleId,
+    }),
     headers: { 'Content-Type': 'application/json' },
     method: 'PATCH',
   });
@@ -381,8 +388,11 @@ export async function setLootLogItemIgnored({ actorName, ignored, item }) {
   return result;
 }
 
-export async function fetchLootLogBundles() {
-  const response = await fetch(getLootLogApiUrl());
+export async function fetchLootLogBundles({ limit = 0, offset = 0 } = {}) {
+  const requestUrl = new URL(getLootLogApiUrl(), window.location.href);
+  if (Number(limit) > 0) requestUrl.searchParams.set('limit', String(Math.floor(Number(limit))));
+  if (Number(offset) > 0) requestUrl.searchParams.set('offset', String(Math.floor(Number(offset))));
+  const response = await fetch(requestUrl);
   const result = await response.json();
 
   if (!response.ok) {

@@ -360,6 +360,21 @@ async function fetchLootLogBundleVisibility(supabase: any) {
   return bundles;
 }
 
+async function fetchLootLogBundleOrderRows(supabase: any) {
+  const bundles: any[] = [];
+  for (let from = 0; ; from += DATABASE_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('loot_log_bundles')
+      .select('id,start_at,created_at,updated_at,display_order')
+      .order('id')
+      .range(from, from + DATABASE_PAGE_SIZE - 1);
+    if (error) throw error;
+    bundles.push(...(data || []));
+    if (!data || data.length < DATABASE_PAGE_SIZE) break;
+  }
+  return bundles;
+}
+
 async function getGlobalHiddenPlayers(supabase: any) {
   return collectGlobalHiddenPlayers(await fetchLootLogBundleVisibility(supabase));
 }
@@ -2103,6 +2118,35 @@ Deno.serve(async (request) => {
         return jsonResponse(200, await setLootLogItemIgnored(supabase, body));
       }
       if (body.action === 'reorder-bundles') {
+        const sourceBundleId = String(body.sourceBundleId || '').trim();
+        const targetBundleId = String(body.targetBundleId || '').trim();
+        if (sourceBundleId && targetBundleId) {
+          if (sourceBundleId === targetBundleId) return jsonResponse(200, { updated: 0 });
+          const orderedRows = (await fetchLootLogBundleOrderRows(supabase)).sort(compareBundleArchiveOrder);
+          const sourceIndex = orderedRows.findIndex((row) => row.id === sourceBundleId);
+          const targetIndex = orderedRows.findIndex((row) => row.id === targetBundleId);
+          if (sourceIndex < 0 || targetIndex < 0) throw new Error('One or more loot logs could not be found.');
+
+          const [movedRow] = orderedRows.splice(sourceIndex, 1);
+          orderedRows.splice(targetIndex, 0, movedRow);
+
+          for (const [index, row] of orderedRows.entries()) {
+            const { error } = await supabase
+              .from('loot_log_bundles')
+              .update({
+                display_order: orderedRows.length - index,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', row.id);
+            if (error) throw error;
+          }
+
+          return jsonResponse(200, {
+            bundleIds: orderedRows.map((row) => row.id),
+            updated: orderedRows.length,
+          });
+        }
+
         const ids = [...new Set((Array.isArray(body.bundleIds) ? body.bundleIds : [])
           .map((id: unknown) => String(id || '').trim())
           .filter(Boolean))];
@@ -2379,8 +2423,13 @@ Deno.serve(async (request) => {
       }
 
       await deleteExpiredLootLogBundles(supabase);
+      const limitValue = Number(requestUrl.searchParams.get('limit'));
+      const offsetValue = Number(requestUrl.searchParams.get('offset'));
+      const hasPageLimit = Number.isFinite(limitValue) && limitValue > 0;
+      const pageLimit = hasPageLimit ? Math.min(100, Math.max(1, Math.floor(limitValue))) : 0;
+      const pageOffset = Math.max(0, Number.isFinite(offsetValue) ? Math.floor(offsetValue) : 0);
 
-      const { data, error } = await supabase
+      let bundlesQuery = supabase
         .from('loot_log_bundles')
         .select(`
           id,
@@ -2398,14 +2447,22 @@ Deno.serve(async (request) => {
             id,
             created_at
           )
-        `)
+        `, hasPageLimit ? { count: 'exact' } : undefined)
+        .order('display_order', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
+
+      if (hasPageLimit) {
+        bundlesQuery = bundlesQuery.range(pageOffset, pageOffset + pageLimit - 1);
+      }
+
+      const { data, error, count } = await bundlesQuery;
 
       if (error) throw error;
 
       const sourceBundles = data || [];
-      const bundles = [...sourceBundles].sort(compareBundleArchiveOrder);
-      const hiddenPlayers = collectGlobalHiddenPlayers(bundles);
+      const bundles = hasPageLimit ? sourceBundles : [...sourceBundles].sort(compareBundleArchiveOrder);
+      const totalCount = hasPageLimit ? (count ?? bundles.length) : bundles.length;
+      const hiddenPlayers = hasPageLimit ? [] : collectGlobalHiddenPlayers(bundles);
       return jsonResponse(200, {
         bundles: bundles.map((bundle: any, index: number) => {
           const submissions = Array.isArray(bundle.loot_log_submissions) ? bundle.loot_log_submissions : [];
@@ -2422,7 +2479,7 @@ Deno.serve(async (request) => {
             endAt: bundle.end_at,
             hasChestLog: chestLogs.length > 0,
             id: bundle.id,
-            logNumber: bundles.length - index,
+            logNumber: Math.max(1, totalCount - (hasPageLimit ? pageOffset : 0) - index),
             lootFileName: getBundleDisplayLootFileName(bundle),
             startAt: bundle.start_at,
             submissions: submissions.map((submission: any) => ({
@@ -2441,6 +2498,12 @@ Deno.serve(async (request) => {
           };
         }),
         ctaTimers: CTA_UTC_HOURS.map(formatCtaTimer),
+        pagination: {
+          hasMore: hasPageLimit ? pageOffset + bundles.length < totalCount : false,
+          limit: hasPageLimit ? pageLimit : totalCount,
+          offset: hasPageLimit ? pageOffset : 0,
+          total: totalCount,
+        },
       });
     }
 

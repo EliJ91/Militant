@@ -4294,6 +4294,51 @@ button:focus-visible {
   display: grid;
 }
 
+.saved-log-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 1180px;
+  padding: 16px 18px 20px;
+  border-top: 1px solid rgba(247, 250, 245, 0.08);
+}
+
+.saved-log-pagination button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 36px;
+  border: 1px solid rgba(87, 216, 120, 0.45);
+  border-radius: 8px;
+  background: rgba(7, 45, 20, 0.75);
+  color: var(--white);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.saved-log-pagination button:hover:not(:disabled),
+.saved-log-pagination button:focus-visible {
+  border-color: rgba(87, 216, 120, 0.8);
+  background: rgba(87, 216, 120, 0.18);
+}
+
+.saved-log-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.saved-log-pagination span {
+  min-width: 110px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .saved-log-row {
   min-width: 1180px;
   padding: 20px 18px;

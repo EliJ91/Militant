@@ -1275,6 +1275,38 @@ describe('LootMonitor', () => {
     expect(await screen.findByText('Merged')).toBeInTheDocument();
   });
 
+  it('paginates saved loot logs five at a time', async () => {
+    const bundles = Array.from({ length: 6 }, (_, index) => createBundle({
+      createdAt: `2026-07-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`,
+      id: `bundle-${index + 1}`,
+      logNumber: index + 1,
+      lootFileName: `CTA ${index + 1}`,
+    }));
+    fetchLootLogBundles
+      .mockResolvedValueOnce({
+        bundles: bundles.slice(1).reverse(),
+        pagination: { limit: 5, offset: 0, total: 6 },
+      })
+      .mockResolvedValueOnce({
+        bundles: [bundles[0]],
+        pagination: { limit: 5, offset: 5, total: 6 },
+      });
+
+    render(<LootLogArchive />);
+
+    expect(await screen.findByText('CTA 6')).toBeInTheDocument();
+    expect(screen.getByText('CTA 2')).toBeInTheDocument();
+    expect(screen.queryByText('CTA 1')).not.toBeInTheDocument();
+    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next loot log page' }));
+
+    expect(await screen.findByText('CTA 1')).toBeInTheDocument();
+    expect(screen.queryByText('CTA 6')).not.toBeInTheDocument();
+    expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
+    expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 5, offset: 5 });
+  });
+
   it('selects a loot log after a mobile tap and hold', async () => {
     render(<LootLogArchive canMergeLogs />);
 
@@ -1409,6 +1441,8 @@ describe('LootMonitor', () => {
         expect.objectContaining({ id: 'older-bundle', logNumber: 2 }),
         expect.objectContaining({ id: 'newer-bundle', logNumber: 1 }),
       ]),
+      sourceBundleId: 'newer-bundle',
+      targetBundleId: 'older-bundle',
     }));
     rows = [...container.querySelectorAll('.saved-log-row')];
     expect(rows[0]).toHaveTextContent('Loot Log#2');

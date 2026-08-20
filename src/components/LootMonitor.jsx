@@ -38,6 +38,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DOWNLOAD_AGE_DAYS = 60;
 const RETENTION_DAYS = 90;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
+const SAVED_LOGS_PER_PAGE = 5;
 const LOOT_TOOLTIP_OPEN_EVENT = 'militant:loot-tooltip-open';
 
 function eventSourceKey(event) {
@@ -176,10 +177,19 @@ function compareSavedLogOrder(left, right) {
   return new Date(getBundleUploadedAt(right)).getTime() - new Date(getBundleUploadedAt(left)).getTime();
 }
 
-function assignDisplayLogNumbers(bundles) {
+function assignDisplayLogNumbers(bundles, totalCount = bundles.length, offset = 0) {
   return bundles.map((bundle, index) => ({
     ...bundle,
-    logNumber: bundles.length - index,
+    logNumber: Number.isFinite(Number(bundle.logNumber))
+      ? Number(bundle.logNumber)
+      : Math.max(1, totalCount - offset - index),
+  }));
+}
+
+function renumberVisibleBundles(bundles, totalCount = bundles.length, offset = 0) {
+  return bundles.map((bundle, index) => ({
+    ...bundle,
+    logNumber: Math.max(1, totalCount - offset - index),
   }));
 }
 
@@ -2215,9 +2225,13 @@ function LootLogBundleList({
   onUploadLoot,
   onSaveEdit,
   onUploadChest,
+  onPageChange = () => {},
   onView,
+  page = 1,
+  pageSize = SAVED_LOGS_PER_PAGE,
   status,
   selectedBundleIds,
+  totalBundles = bundles.length,
   updatingBundleId,
   uploadingBundleId,
 }) {
@@ -2225,6 +2239,9 @@ function LootLogBundleList({
   const recentLongPressRef = useRef({ bundleId: '', completedAt: 0 });
   const [dragBundleId, setDragBundleId] = useState('');
   const [dragOverBundleId, setDragOverBundleId] = useState('');
+  const totalPages = Math.max(1, Math.ceil(totalBundles / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageBundles = bundles;
 
   useEffect(() => () => {
     if (longPressRef.current?.timer) window.clearTimeout(longPressRef.current.timer);
@@ -2310,7 +2327,7 @@ function LootLogBundleList({
     <section className="saved-log-section" aria-label="Saved combined loot logs">
       <header className="saved-log-header">
         <h2>Loot Logs</h2>
-        <strong>{status.state === 'loading' ? 'Loading' : `${formatNumber(bundles.length)} logs`}</strong>
+        <strong>{status.state === 'loading' ? 'Loading' : `${formatNumber(totalBundles)} logs`}</strong>
       </header>
       {status.message ? (
         <p className={`saved-log-message ${status.state === 'error' ? 'error' : ''}`}>{status.message}</p>
@@ -2320,7 +2337,7 @@ function LootLogBundleList({
       ) : null}
       {bundles.length > 0 ? (
         <div className="saved-log-list">
-          {bundles.map((bundle) => {
+          {pageBundles.map((bundle) => {
             const totals = bundle.summary?.totals || {};
             const retention = getRetentionStatus(bundle.startAt);
             const isEditing = editingBundleId === bundle.id;
@@ -2516,6 +2533,29 @@ function LootLogBundleList({
           })}
         </div>
       ) : null}
+      {totalBundles > pageSize ? (
+        <nav className="saved-log-pagination" aria-label="Loot log pages">
+          <button
+            aria-label="Previous loot log page"
+            disabled={currentPage <= 1}
+            title={currentPage <= 1 ? 'First page' : 'Previous page'}
+            type="button"
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          >
+            &lt;
+          </button>
+          <span>Page {formatNumber(currentPage)} of {formatNumber(totalPages)}</span>
+          <button
+            aria-label="Next loot log page"
+            disabled={currentPage >= totalPages}
+            title={currentPage >= totalPages ? 'Last page' : 'Next page'}
+            type="button"
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          >
+            &gt;
+          </button>
+        </nav>
+      ) : null}
     </section>
   );
 }
@@ -2544,6 +2584,8 @@ export function LootLogArchive({
     lootFileName: '',
   });
   const [savedLogBundles, setSavedLogBundles] = useState([]);
+  const [savedLogPage, setSavedLogPage] = useState(1);
+  const [savedLogTotal, setSavedLogTotal] = useState(0);
   const [savedLogStatus, setSavedLogStatus] = useState({ message: '', state: 'loading' });
   const [lootUploadFiles, setLootUploadFiles] = useState([]);
   const [lootUploadHelpOpen, setLootUploadHelpOpen] = useState(false);
@@ -2559,20 +2601,35 @@ export function LootLogArchive({
   const [updatingBundleId, setUpdatingBundleId] = useState('');
   const [uploadingBundleId, setUploadingBundleId] = useState('');
 
-  async function loadSavedLogs() {
+  async function loadSavedLogs(page = savedLogPage) {
+    const requestedPage = Math.max(1, Number(page) || 1);
+    const offset = (requestedPage - 1) * SAVED_LOGS_PER_PAGE;
     setSavedLogStatus({ message: '', state: 'loading' });
 
     try {
-      const result = await fetchLootLogBundles();
+      const result = await fetchLootLogBundles({
+        limit: SAVED_LOGS_PER_PAGE,
+        offset,
+      });
+      const total = Math.max(
+        0,
+        Number(result.pagination?.total ?? result.totalCount ?? result.total ?? (result.bundles || []).length) || 0,
+      );
+      const totalPages = Math.max(1, Math.ceil(total / SAVED_LOGS_PER_PAGE));
+      if (requestedPage > totalPages) {
+        await loadSavedLogs(totalPages);
+        return;
+      }
+
       const sortedBundles = [...(result.bundles || [])].sort(compareSavedLogOrder);
-      setSavedLogBundles(assignDisplayLogNumbers(sortedBundles));
-      const availableIds = new Set((result.bundles || []).map((bundle) => bundle.id));
-      setSelectedBundleIds((current) => current.filter((bundleId) => availableIds.has(bundleId)));
+      setSavedLogBundles(assignDisplayLogNumbers(sortedBundles, total, offset));
+      setSavedLogPage(requestedPage);
+      setSavedLogTotal(total);
       setSavedLogStatus({ message: '', state: 'loaded' });
     } catch (savedLogError) {
       setSavedLogStatus({
         message: savedLogError.message || 'Could not load combined logs.',
-        state: 'error',
+      state: 'error',
       });
     }
   }
@@ -2620,7 +2677,7 @@ export function LootLogArchive({
           : `${selectedFiles.length} loot logs uploaded.`,
         state: 'success',
       });
-      await loadSavedLogs();
+      await loadSavedLogs(1);
       return true;
     } catch (uploadError) {
       setActionStatus({
@@ -2696,7 +2753,7 @@ export function LootLogArchive({
         message: `${result.lootFileName || 'Merged loot log'} created.`,
         state: 'success',
       });
-      await loadSavedLogs();
+      await loadSavedLogs(1);
     } catch (mergeError) {
       setActionStatus({
         message: mergeError.message || 'Could not merge the selected loot logs.',
@@ -2717,7 +2774,8 @@ export function LootLogArchive({
     const reorderedBundles = [...previousBundles];
     const [movedBundle] = reorderedBundles.splice(sourceIndex, 1);
     reorderedBundles.splice(targetIndex, 0, movedBundle);
-    const nextBundles = assignDisplayLogNumbers(reorderedBundles);
+    const offset = (savedLogPage - 1) * SAVED_LOGS_PER_PAGE;
+    const nextBundles = renumberVisibleBundles(reorderedBundles, savedLogTotal, offset);
     setSavedLogBundles(nextBundles);
 
     try {
@@ -2725,6 +2783,8 @@ export function LootLogArchive({
         actorName: uploadUsername,
         bundleIds: nextBundles.map((bundle) => bundle.id),
         bundles: nextBundles,
+        sourceBundleId,
+        targetBundleId,
       });
     } catch (reorderError) {
       setSavedLogBundles(previousBundles);
@@ -2776,7 +2836,7 @@ export function LootLogArchive({
           : `${uploadCount} chest logs uploaded.`,
         state: 'success',
       });
-      await loadSavedLogs();
+      await loadSavedLogs(savedLogPage);
       return true;
     } catch (uploadError) {
       setActionStatus({
@@ -2807,7 +2867,7 @@ export function LootLogArchive({
     try {
       await deleteLootLogBundle(bundle.id, { actorName: uploadUsername, bundle });
       setActionStatus({ message: `${bundle.lootFileName || 'Loot log'} deleted.`, state: 'success' });
-      await loadSavedLogs();
+      await loadSavedLogs(savedLogPage);
     } catch (deleteError) {
       setActionStatus({
         message: deleteError.message || 'Could not delete the loot log.',
@@ -3079,13 +3139,17 @@ export function LootLogArchive({
         onDeleteChest={deleteBundleChestLogs}
         onDragReorder={reorderSavedBundles}
         onDownload={downloadBundle}
+        onPageChange={loadSavedLogs}
         onSelectBundle={toggleSelectedBundle}
         onUploadLoot={openLootUpload}
         onSaveEdit={saveEditedBundle}
         onUploadChest={openChestUpload}
         onView={onView}
+        page={savedLogPage}
+        pageSize={SAVED_LOGS_PER_PAGE}
         status={savedLogStatus}
         selectedBundleIds={selectedBundleIds}
+        totalBundles={savedLogTotal}
         updatingBundleId={updatingBundleId}
         uploadingBundleId={uploadingBundleId}
       />
