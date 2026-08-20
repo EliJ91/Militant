@@ -3099,10 +3099,31 @@ button:focus-visible {
 
 .player-history-table {
   min-width: 1180px;
+  table-layout: fixed;
 }
 
-.player-history-table th:first-child {
-  width: 190px;
+.player-history-table th,
+.player-history-table td {
+  text-align: center;
+}
+
+.player-history-table th:nth-child(1) {
+  width: 24%;
+}
+
+.player-history-table th:nth-child(2) {
+  width: 11%;
+}
+
+.player-history-table th:nth-child(3),
+.player-history-table th:nth-child(4),
+.player-history-table th:nth-child(5),
+.player-history-table th:nth-child(6) {
+  width: 16.25%;
+}
+
+.player-history-table .members-sort-button {
+  justify-content: center;
 }
 
 .player-history-row {
@@ -3118,6 +3139,8 @@ button:focus-visible {
 .player-history-name {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
@@ -3132,16 +3155,16 @@ button:focus-visible {
 }
 
 .members-table .player-history-detail-row > td {
-  padding: 0 14px 18px;
+  padding: 0 0 18px;
   background: rgba(1, 6, 3, 0.72);
-  text-align: left;
+  text-align: center;
 }
 
 .player-history-log-list {
   display: grid;
   gap: 10px;
   max-height: min(68vh, 720px);
-  padding: 14px;
+  padding: 14px 16px;
   border-left: 2px solid rgba(87, 216, 120, 0.42);
   overflow-y: auto;
   overscroll-behavior-y: auto;
@@ -3149,10 +3172,10 @@ button:focus-visible {
 
 .player-history-log-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.45fr) repeat(4, minmax(110px, 0.7fr));
-  gap: 12px;
+  grid-template-columns: 24% 11% repeat(4, 16.25%);
+  gap: 0;
   align-items: center;
-  padding: 12px 14px;
+  padding: 0;
   border: 1px solid rgba(87, 216, 120, 0.22);
   border-radius: 8px;
   background: rgba(247, 250, 245, 0.025);
@@ -3171,6 +3194,29 @@ button:focus-visible {
   display: grid;
   min-width: 0;
   gap: 3px;
+  justify-items: center;
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.player-history-log-row span:nth-child(1) {
+  grid-column: 1;
+}
+
+.player-history-log-row span:nth-child(2) {
+  grid-column: 3;
+}
+
+.player-history-log-row span:nth-child(3) {
+  grid-column: 4;
+}
+
+.player-history-log-row span:nth-child(4) {
+  grid-column: 5;
+}
+
+.player-history-log-row span:nth-child(5) {
+  grid-column: 6;
 }
 
 .player-history-log-row small {
