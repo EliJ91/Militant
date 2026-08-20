@@ -111,7 +111,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.39');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.40');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -157,14 +157,14 @@ describe('App', () => {
 
     expect(window.location.hash).toBe('#zvz-sheet');
     expect(screen.getByRole('heading', { level: 1, name: 'ZVZ Sheet' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^upload$/i })).not.toBeInTheDocument();
     const editButton = screen.getByRole('button', { name: /^edit$/i });
     expect(editButton).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
     fireEvent.click(editButton);
-    const updateButton = screen.getByRole('button', { name: /^update$/i });
-    fireEvent.click(updateButton);
-    expect(screen.getByRole('dialog', { name: /update zvz sheet/i })).toBeInTheDocument();
+    const uploadButton = screen.getByRole('button', { name: /^upload$/i });
+    fireEvent.click(uploadButton);
+    expect(screen.getByRole('dialog', { name: /upload zvz sheet/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
 

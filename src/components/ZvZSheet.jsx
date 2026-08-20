@@ -971,7 +971,7 @@ export default function ZvZSheet({
             <header className="zvz-upload-modal-heading">
               <div>
                 <p className="eyebrow">ZVZ Sheet</p>
-                <h2 id="zvz-upload-modal-title">Update ZVZ Sheet</h2>
+                <h2 id="zvz-upload-modal-title">Upload ZVZ Sheet</h2>
               </div>
               <button className="icon-button" disabled={processing} type="button" title="Close" aria-label="Close sheet uploader" onClick={() => setUploadModalOpen(false)}>
                 <X size={19} aria-hidden="true" />
@@ -1033,12 +1033,18 @@ export default function ZvZSheet({
               {canEdit && isEditing ? (
                 <button
                   className={hasUnsavedChanges ? 'primary-button' : 'secondary-button'}
-                  disabled={processing}
+                  disabled={processing || !hasUnsavedChanges}
                   type="button"
-                  onClick={hasUnsavedChanges ? () => saveSheet() : startUpload}
+                  onClick={() => saveSheet()}
                 >
-                  {hasUnsavedChanges ? <Save size={16} aria-hidden="true" /> : <Upload size={16} aria-hidden="true" />}
-                  {hasUnsavedChanges ? 'Save' : 'Update'}
+                  <Save size={16} aria-hidden="true" />
+                  Save
+                </button>
+              ) : null}
+              {canEdit && isEditing ? (
+                <button className="secondary-button" disabled={processing} type="button" onClick={startUpload}>
+                  <Upload size={16} aria-hidden="true" />
+                  Upload
                 </button>
               ) : null}
               {canEdit && isEditing ? (
@@ -1063,12 +1069,11 @@ export default function ZvZSheet({
                             onChange={(event) => updateHeader(index, event.target.value)}
                           />
                         ) : <span>{header}</span>}
-                        {ITEM_COLUMNS.has(COLUMN_KEYS[index]) ? (
+                        {isEditing && ITEM_COLUMNS.has(COLUMN_KEYS[index]) ? (
                           <button
                             aria-pressed={Boolean(t8Columns[COLUMN_KEYS[index]])}
                             className="zvz-sheet-tier-toggle"
                             type="button"
-                            disabled={!isEditing}
                             onClick={() => toggleT8Column(COLUMN_KEYS[index])}
                           >
                             T8
@@ -1115,9 +1120,6 @@ export default function ZvZSheet({
                       <th key={`copy-${COLUMN_KEYS[index]}-${index}`}>
                         <span className="zvz-sheet-header-cell">
                           <span>{header}</span>
-                          {ITEM_COLUMNS.has(COLUMN_KEYS[index]) ? (
-                            <span className="zvz-sheet-tier-toggle" aria-hidden="true">T8</span>
-                          ) : null}
                         </span>
                       </th>
                     ))}

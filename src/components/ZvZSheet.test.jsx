@@ -59,7 +59,7 @@ describe('ZvZSheet saved layouts', () => {
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
   });
 
-  it('keeps update and save inside edit mode', async () => {
+  it('keeps upload and save inside edit mode', async () => {
     render(<ZvZSheet canEdit uploadedBy="Officer" />);
 
     const search = await screen.findByRole('searchbox', { name: /search builds/i });
@@ -68,16 +68,21 @@ describe('ZvZSheet saved layouts', () => {
     expect(screen.queryByLabelText(/build title/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^upload$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^t8$/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/main hand header/i)).not.toBeInTheDocument();
     fireEvent.click(edit);
     expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^update$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^upload$/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^t8$/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^view$/i })).not.toBeInTheDocument();
     expect(screen.getByLabelText(/main hand header/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add row/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
     expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^upload$/i })).not.toBeInTheDocument();
   });
 
   it('opens the build-sheet uploader in a modal for a new layout', async () => {
@@ -86,9 +91,9 @@ describe('ZvZSheet saved layouts', () => {
     await screen.findByRole('searchbox', { name: /search builds/i });
     expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^update$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^upload$/i }));
 
-    expect(screen.getByRole('dialog', { name: /update zvz sheet/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /upload zvz sheet/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
   });
 
