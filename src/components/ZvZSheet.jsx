@@ -455,7 +455,7 @@ function ItemPreview({ cell, forceT8 = false, showImages = true }) {
   const items = buildSlotItems(cell);
   if (items.length === 0) return null;
   return (
-    <span className="zvz-sheet-preview-shell">
+    <span className={`zvz-sheet-preview-shell${!showImages ? ' images-hidden' : ''}`}>
       <span className="zvz-sheet-view-items">
         {items.map((item, index) => {
           const option = findOptionForItem(item, forceT8);

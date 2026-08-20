@@ -971,6 +971,10 @@
   position: relative;
 }
 
+.zvz-sheet-table td:has(.zvz-sheet-preview-shell.images-hidden) {
+  padding-bottom: 6px;
+}
+
 .zvz-sheet-table td:has(.zvz-sheet-item-editor) {
   padding-bottom: 30px;
 }
@@ -1223,6 +1227,10 @@
   min-height: 72px;
 }
 
+.zvz-sheet-table td:has(.zvz-sheet-preview-shell.images-hidden) .zvz-sheet-view-cell {
+  min-height: 0;
+}
+
 .zvz-sheet-preview-shell {
   display: grid;
   place-items: center;
@@ -1232,12 +1240,24 @@
   margin: 0;
 }
 
+.zvz-sheet-preview-shell.images-hidden {
+  align-content: center;
+  gap: 4px;
+  height: auto;
+  min-height: 0;
+}
+
 .zvz-sheet-view-items {
   display: grid;
   align-self: center;
   gap: 6px;
   justify-items: stretch;
   width: max-content;
+}
+
+.zvz-sheet-preview-shell.images-hidden .zvz-sheet-view-items {
+  gap: 2px;
+  justify-items: center;
 }
 
 .zvz-sheet-view-item {
@@ -1258,6 +1278,7 @@
 .zvz-sheet-view-item.images-hidden {
   grid-template-columns: max-content;
   gap: 0;
+  justify-content: center;
 }
 
 .zvz-sheet-view-item img,
@@ -1299,6 +1320,14 @@
   line-height: 1.25;
   text-align: center;
   white-space: nowrap;
+}
+
+.zvz-sheet-preview-shell.images-hidden .zvz-sheet-cell-notes {
+  position: static;
+  width: max-content;
+  max-width: none;
+  margin-top: 2px;
+  overflow: visible;
 }
 
 .zvz-sheet-text-cell {
