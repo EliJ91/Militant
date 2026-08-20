@@ -38,8 +38,35 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DOWNLOAD_AGE_DAYS = 60;
 const RETENTION_DAYS = 90;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
-const SAVED_LOGS_PER_PAGE = 5;
+const SAVED_LOG_PAGE_SIZE_OPTIONS = [3, 5, 10, 25, 50];
+const DEFAULT_SAVED_LOGS_PER_PAGE = 3;
+const SAVED_LOG_PAGE_SIZE_STORAGE_KEY = 'militant.lootLogs.pageSize';
 const LOOT_TOOLTIP_OPEN_EVENT = 'militant:loot-tooltip-open';
+
+function normalizeSavedLogPageSize(value) {
+  const parsed = Number.parseInt(value, 10);
+  return SAVED_LOG_PAGE_SIZE_OPTIONS.includes(parsed) ? parsed : DEFAULT_SAVED_LOGS_PER_PAGE;
+}
+
+function loadSavedLogPageSize() {
+  if (typeof window === 'undefined') return DEFAULT_SAVED_LOGS_PER_PAGE;
+
+  try {
+    return normalizeSavedLogPageSize(window.sessionStorage?.getItem(SAVED_LOG_PAGE_SIZE_STORAGE_KEY));
+  } catch {
+    return DEFAULT_SAVED_LOGS_PER_PAGE;
+  }
+}
+
+function storeSavedLogPageSize(value) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.sessionStorage?.setItem(SAVED_LOG_PAGE_SIZE_STORAGE_KEY, String(normalizeSavedLogPageSize(value)));
+  } catch {
+    // Ignore session storage failures.
+  }
+}
 
 function eventSourceKey(event) {
   return [
@@ -2228,7 +2255,7 @@ function LootLogBundleList({
   onPageChange = () => {},
   onView,
   page = 1,
-  pageSize = SAVED_LOGS_PER_PAGE,
+  pageSize = DEFAULT_SAVED_LOGS_PER_PAGE,
   status,
   selectedBundleIds,
   totalBundles = bundles.length,
@@ -2585,6 +2612,7 @@ export function LootLogArchive({
   });
   const [savedLogBundles, setSavedLogBundles] = useState([]);
   const [savedLogPage, setSavedLogPage] = useState(1);
+  const [savedLogPageSize, setSavedLogPageSize] = useState(loadSavedLogPageSize);
   const [savedLogTotal, setSavedLogTotal] = useState(0);
   const [savedLogStatus, setSavedLogStatus] = useState({ message: '', state: 'loading' });
   const [lootUploadFiles, setLootUploadFiles] = useState([]);
@@ -2601,23 +2629,24 @@ export function LootLogArchive({
   const [updatingBundleId, setUpdatingBundleId] = useState('');
   const [uploadingBundleId, setUploadingBundleId] = useState('');
 
-  async function loadSavedLogs(page = savedLogPage) {
+  async function loadSavedLogs(page = savedLogPage, pageSize = savedLogPageSize) {
     const requestedPage = Math.max(1, Number(page) || 1);
-    const offset = (requestedPage - 1) * SAVED_LOGS_PER_PAGE;
+    const requestedPageSize = normalizeSavedLogPageSize(pageSize);
+    const offset = (requestedPage - 1) * requestedPageSize;
     setSavedLogStatus({ message: '', state: 'loading' });
 
     try {
       const result = await fetchLootLogBundles({
-        limit: SAVED_LOGS_PER_PAGE,
+        limit: requestedPageSize,
         offset,
       });
       const total = Math.max(
         0,
         Number(result.pagination?.total ?? result.totalCount ?? result.total ?? (result.bundles || []).length) || 0,
       );
-      const totalPages = Math.max(1, Math.ceil(total / SAVED_LOGS_PER_PAGE));
+      const totalPages = Math.max(1, Math.ceil(total / requestedPageSize));
       if (requestedPage > totalPages) {
-        await loadSavedLogs(totalPages);
+        await loadSavedLogs(totalPages, requestedPageSize);
         return;
       }
 
@@ -2629,7 +2658,7 @@ export function LootLogArchive({
     } catch (savedLogError) {
       setSavedLogStatus({
         message: savedLogError.message || 'Could not load combined logs.',
-      state: 'error',
+        state: 'error',
       });
     }
   }
@@ -2736,6 +2765,17 @@ export function LootLogArchive({
     ));
   }
 
+  function clearSelectedBundles() {
+    setSelectedBundleIds([]);
+  }
+
+  function changeSavedLogPageSize(event) {
+    const nextPageSize = normalizeSavedLogPageSize(event.target.value);
+    setSavedLogPageSize(nextPageSize);
+    storeSavedLogPageSize(nextPageSize);
+    void loadSavedLogs(1, nextPageSize);
+  }
+
   async function mergeSelectedBundles() {
     if (!canMergeLogs || selectedBundleIds.length < 2 || mergingLogs) return;
 
@@ -2774,7 +2814,7 @@ export function LootLogArchive({
     const reorderedBundles = [...previousBundles];
     const [movedBundle] = reorderedBundles.splice(sourceIndex, 1);
     reorderedBundles.splice(targetIndex, 0, movedBundle);
-    const offset = (savedLogPage - 1) * SAVED_LOGS_PER_PAGE;
+    const offset = (savedLogPage - 1) * savedLogPageSize;
     const nextBundles = renumberVisibleBundles(reorderedBundles, savedLogTotal, offset);
     setSavedLogBundles(nextBundles);
 
@@ -3039,6 +3079,29 @@ export function LootLogArchive({
           </div>
         </div>
         <div className="loot-monitor-heading-actions">
+          <label className="saved-log-page-size-field" title="Logs shown per page">
+            <span>Per page</span>
+            <select
+              aria-label="Logs per page"
+              value={savedLogPageSize}
+              onChange={changeSavedLogPageSize}
+            >
+              {SAVED_LOG_PAGE_SIZE_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </label>
+          {canMergeLogs && selectedBundleIds.length > 0 ? (
+            <button
+              aria-label="Clear selected loot logs"
+              className="view-logs-button saved-log-selection-clear"
+              title="Clear selected logs"
+              type="button"
+              onClick={clearSelectedBundles}
+            >
+              {formatNumber(selectedBundleIds.length)} selected
+            </button>
+          ) : null}
           {canMergeLogs ? (
             <button
               aria-label="Merge"
@@ -3146,7 +3209,7 @@ export function LootLogArchive({
         onUploadChest={openChestUpload}
         onView={onView}
         page={savedLogPage}
-        pageSize={SAVED_LOGS_PER_PAGE}
+        pageSize={savedLogPageSize}
         status={savedLogStatus}
         selectedBundleIds={selectedBundleIds}
         totalBundles={savedLogTotal}

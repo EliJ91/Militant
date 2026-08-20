@@ -161,6 +161,7 @@ describe('LootMonitor', () => {
   beforeEach(() => {
     window.location.hash = '';
     window.localStorage.clear();
+    window.sessionStorage.clear();
     vi.clearAllMocks();
     stubMarketPrices();
     fetchLootLogBundle.mockResolvedValue({ bundle: createBundle() });
@@ -1275,7 +1276,7 @@ describe('LootMonitor', () => {
     expect(await screen.findByText('Merged')).toBeInTheDocument();
   });
 
-  it('paginates saved loot logs five at a time', async () => {
+  it('paginates saved loot logs with a session page size', async () => {
     const bundles = Array.from({ length: 6 }, (_, index) => createBundle({
       createdAt: `2026-07-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`,
       id: `bundle-${index + 1}`,
@@ -1284,27 +1285,71 @@ describe('LootMonitor', () => {
     }));
     fetchLootLogBundles
       .mockResolvedValueOnce({
-        bundles: bundles.slice(1).reverse(),
-        pagination: { limit: 5, offset: 0, total: 6 },
+        bundles: bundles.slice(3).reverse(),
+        pagination: { limit: 3, offset: 0, total: 6 },
       })
       .mockResolvedValueOnce({
-        bundles: [bundles[0]],
-        pagination: { limit: 5, offset: 5, total: 6 },
+        bundles: bundles.slice(0, 3).reverse(),
+        pagination: { limit: 3, offset: 3, total: 6 },
+      })
+      .mockResolvedValueOnce({
+        bundles: bundles.slice(1).reverse(),
+        pagination: { limit: 5, offset: 0, total: 6 },
       });
 
     render(<LootLogArchive />);
 
     expect(await screen.findByText('CTA 6')).toBeInTheDocument();
-    expect(screen.getByText('CTA 2')).toBeInTheDocument();
-    expect(screen.queryByText('CTA 1')).not.toBeInTheDocument();
+    expect(screen.getByText('CTA 4')).toBeInTheDocument();
+    expect(screen.queryByText('CTA 3')).not.toBeInTheDocument();
     expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+    expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 3, offset: 0 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Next loot log page' }));
 
-    expect(await screen.findByText('CTA 1')).toBeInTheDocument();
+    expect(await screen.findByText('CTA 3')).toBeInTheDocument();
     expect(screen.queryByText('CTA 6')).not.toBeInTheDocument();
     expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
-    expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 5, offset: 5 });
+    expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 3, offset: 3 });
+
+    fireEvent.change(screen.getByLabelText('Logs per page'), { target: { value: '5' } });
+
+    await waitFor(() => expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 5, offset: 0 }));
+    expect(await screen.findByText('CTA 6')).toBeInTheDocument();
+    expect(screen.queryByText('CTA 1')).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem('militant.lootLogs.pageSize')).toBe('5');
+  });
+
+  it('keeps selected loot logs across paginated pages', async () => {
+    const bundles = Array.from({ length: 6 }, (_, index) => createBundle({
+      createdAt: `2026-07-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`,
+      id: `bundle-${index + 1}`,
+      lootFileName: `CTA ${index + 1}`,
+    }));
+    fetchLootLogBundles
+      .mockResolvedValueOnce({
+        bundles: bundles.slice(3).reverse(),
+        pagination: { limit: 3, offset: 0, total: 6 },
+      })
+      .mockResolvedValueOnce({
+        bundles: bundles.slice(0, 3).reverse(),
+        pagination: { limit: 3, offset: 3, total: 6 },
+      });
+
+    render(<LootLogArchive canMergeLogs />);
+
+    fireEvent.contextMenu((await screen.findByText('CTA 6')).closest('article'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next loot log page' }));
+    fireEvent.contextMenu((await screen.findByText('CTA 3')).closest('article'));
+
+    expect(screen.getByRole('button', { name: 'Clear selected loot logs' })).toHaveTextContent('2 selected');
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+
+    await waitFor(() => expect(mergeLootLogBundles).toHaveBeenCalledWith({
+      actorName: 'manual-web-upload',
+      bundleIds: ['bundle-6', 'bundle-3'],
+      username: 'manual-web-upload',
+    }));
   });
 
   it('selects a loot log after a mobile tap and hold', async () => {

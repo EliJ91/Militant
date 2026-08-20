@@ -3254,6 +3254,47 @@ button:focus-visible {
   justify-content: flex-end;
 }
 
+.saved-log-page-size-field {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 42px;
+}
+
+.saved-log-page-size-field span {
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.saved-log-page-size-field select {
+  min-height: 42px;
+  min-width: 72px;
+  padding: 8px 30px 8px 12px;
+  border: 1px solid rgba(87, 216, 120, 0.44);
+  border-radius: 7px;
+  background: rgba(2, 4, 3, 0.92);
+  color: var(--white);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.saved-log-selection-clear {
+  border-color: rgba(255, 82, 98, 0.72);
+  background: rgba(255, 82, 98, 0.14);
+  color: #ff9ca5;
+}
+
+.saved-log-selection-clear:hover:not(:disabled) {
+  background: #ff5262;
+  color: var(--white);
+}
+
 .loot-monitor-title-row {
   align-items: center;
   display: flex;
@@ -7301,6 +7342,15 @@ button:focus-visible {
   .loot-monitor-heading-actions > * {
     flex: 1 1 0;
     min-width: 0;
+  }
+
+  .loot-monitor-heading-actions .saved-log-page-size-field,
+  .loot-monitor-heading-actions .saved-log-selection-clear {
+    flex: 0 0 auto;
+  }
+
+  .saved-log-page-size-field span {
+    display: none;
   }
 
   .loot-upload-modal-backdrop {
