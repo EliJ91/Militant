@@ -703,6 +703,36 @@
   background: #07110b;
 }
 
+.zvz-sheet-loading-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: min(440px, 100%);
+  margin: 42px auto 0;
+  padding: 26px;
+  border: 1px solid rgba(87, 216, 120, 0.32);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 0, rgba(87, 216, 120, 0.14), transparent 62%),
+    #07110b;
+  color: var(--white);
+}
+
+.zvz-sheet-loading-card h2 {
+  margin: 3px 0 0;
+  font-size: 1.05rem;
+}
+
+.zvz-sheet-loading-mark {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(87, 216, 120, 0.28);
+  border-top-color: var(--green-hot);
+  border-radius: 999px;
+  animation: refresh-spin 0.9s linear infinite;
+}
+
 .zvz-sheet-toolbar {
   display: flex;
   align-items: center;
@@ -1221,6 +1251,11 @@
 }
 
 .zvz-sheet-view-item.text-only {
+  grid-template-columns: max-content;
+  gap: 0;
+}
+
+.zvz-sheet-view-item.images-hidden {
   grid-template-columns: max-content;
   gap: 0;
 }

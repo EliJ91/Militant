@@ -451,7 +451,7 @@ function sheetToBuilds(headers, rows, t8Columns = DEFAULT_T8_COLUMNS) {
   ));
 }
 
-function ItemPreview({ cell, forceT8 = false }) {
+function ItemPreview({ cell, forceT8 = false, showImages = true }) {
   const items = buildSlotItems(cell);
   if (items.length === 0) return null;
   return (
@@ -461,8 +461,8 @@ function ItemPreview({ cell, forceT8 = false }) {
           const option = findOptionForItem(item, forceT8);
           const textOnly = !option?.imageUrl;
           return (
-            <span className={`zvz-sheet-view-item${textOnly ? ' text-only' : ''}`} key={`${item.itemId}-${item.itemName}-${index}`}>
-              {!textOnly && option?.imageUrl ? (
+            <span className={`zvz-sheet-view-item${textOnly ? ' text-only' : ''}${!showImages ? ' images-hidden' : ''}`} key={`${item.itemId}-${item.itemName}-${index}`}>
+              {showImages && !textOnly && option?.imageUrl ? (
                 <img src={option.imageUrl} alt="" loading="lazy" />
               ) : null}
               <strong>{item.itemName || option?.label}</strong>
@@ -669,10 +669,16 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
   );
 }
 
-function SheetCell({ cell, columnKey, canEdit, forceT8 = false, onChange }) {
+function SheetCell({ cell, columnKey, canEdit, forceT8 = false, onChange, showImages = true }) {
   const normalized = normalizeCell(cell);
   if (ITEM_COLUMNS.has(columnKey)) {
-    return <ItemCellEditor cell={normalized} disabled={!canEdit} forceT8={forceT8} onChange={onChange} />;
+    return canEdit
+      ? <ItemCellEditor cell={normalized} disabled={false} forceT8={forceT8} onChange={onChange} />
+      : (
+        <div className="zvz-sheet-view-cell">
+          <ItemPreview cell={normalized} forceT8={forceT8} showImages={showImages} />
+        </div>
+      );
   }
 
   if (!canEdit) return <span className="zvz-sheet-text-cell">{normalized.text}</span>;
@@ -711,6 +717,7 @@ export default function ZvZSheet({
   const [dragRowIndex, setDragRowIndex] = useState(null);
   const [rows, setRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showItemImages, setShowItemImages] = useState(true);
   const [sourceFileName, setSourceFileName] = useState('');
   const [status, setStatus] = useState('');
   const [t8Columns, setT8Columns] = useState(DEFAULT_T8_COLUMNS);
@@ -979,7 +986,15 @@ export default function ZvZSheet({
         </div>
       </section>
 
-      {loadingLayouts ? <p className="zvz-library-message">Loading current sheet...</p> : null}
+      {loadingLayouts ? (
+        <section className="zvz-sheet-loading-card" aria-live="polite">
+          <div className="zvz-sheet-loading-mark" aria-hidden="true" />
+          <div>
+            <p className="eyebrow">ZVZ Sheet</p>
+            <h2>Loading Sheet</h2>
+          </div>
+        </section>
+      ) : null}
       {!loadingLayouts && rows.length === 0 ? <p className="zvz-library-message">No ZVZ sheet has been saved.</p> : null}
       {status ? <p className="zvz-status" role="status">{status}</p> : null}
       {error ? <p className="zvz-error zvz-load-error" role="alert">{error}</p> : null}
@@ -1046,11 +1061,17 @@ export default function ZvZSheet({
         document.body,
       ) : null}
 
-      {rows.length > 0 || canEdit ? (
+      {!loadingLayouts && (rows.length > 0 || canEdit) ? (
         <section className="zvz-sheet-panel" aria-label="ZVZ sheet">
           <div className="zvz-sheet-toolbar">
-            <strong>{visibleRows.length} rows</strong>
+            <strong>{visibleRows.length} Roles</strong>
             <div className="zvz-sheet-toolbar-actions">
+              {!isEditing ? (
+                <button className="secondary-button" type="button" onClick={() => setShowItemImages((current) => !current)}>
+                  <FileImage size={16} aria-hidden="true" />
+                  {showItemImages ? 'Hide Images' : 'Show Images'}
+                </button>
+              ) : null}
               {canEdit && !isEditing ? (
                 <button className="secondary-button" type="button" onClick={() => setIsEditing(true)}>
                   <Pencil size={16} aria-hidden="true" />
@@ -1161,6 +1182,7 @@ export default function ZvZSheet({
                           cell={displayRow[columnIndex] || emptyCell()}
                           columnKey={key}
                           forceT8={Boolean(t8Columns[key])}
+                          showImages={showItemImages}
                           onChange={(nextCell) => updateCell(rowIndex, columnIndex, nextCell)}
                         />
                       </td>
@@ -1204,6 +1226,7 @@ export default function ZvZSheet({
                             cell={displayRow[columnIndex] || emptyCell()}
                             columnKey={key}
                             forceT8={Boolean(t8Columns[key])}
+                            showImages={showItemImages}
                           />
                         </td>
                       ))}
