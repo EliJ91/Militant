@@ -615,7 +615,7 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
           {addAfterIndex === selectedItems.length ? renderSearchRow(selectedItems.length - 1) : (
             <button
               aria-label="Add item"
-              className="zvz-sheet-sign-button zvz-sheet-sign-plus zvz-sheet-list-plus"
+              className="zvz-sheet-add-item-button zvz-sheet-list-plus"
               type="button"
               onClick={() => {
                 setAddAfterIndex(selectedItems.length);
@@ -623,7 +623,7 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
                 setOpen(true);
               }}
             >
-              <Plus size={11} aria-hidden="true" />
+              Add Item
             </button>
           )}
         </div>
@@ -632,7 +632,7 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
           {addAfterIndex === -1 ? renderSearchRow(-1) : (
             <button
               aria-label="Add item"
-              className="zvz-sheet-sign-button zvz-sheet-sign-plus zvz-sheet-empty-plus"
+              className="zvz-sheet-add-item-button zvz-sheet-empty-plus"
               type="button"
               onClick={() => {
                 setAddAfterIndex(-1);
@@ -640,7 +640,7 @@ function ItemCellEditor({ cell, disabled, forceT8 = false, onChange }) {
                 setOpen(true);
               }}
             >
-              <Plus size={12} aria-hidden="true" />
+              Add Item
             </button>
           )}
         </div>
