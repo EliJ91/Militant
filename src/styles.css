@@ -2901,6 +2901,7 @@ button:focus-visible {
 }
 
 .permissions-table {
+  --permissions-header-height: 58px;
   width: 100%;
   min-width: 620px;
   border-collapse: collapse;
@@ -2932,6 +2933,9 @@ button:focus-visible {
 }
 
 .permissions-sticky-header th {
+  position: sticky;
+  z-index: 30;
+  top: 0;
   border-top: 1px solid rgba(87, 216, 120, 0.24);
   border-bottom-color: rgba(87, 216, 120, 0.42);
   background: #071008;
@@ -2944,13 +2948,21 @@ button:focus-visible {
 }
 
 .permissions-table .permissions-group-row th {
+  position: sticky;
+  z-index: 26;
+  top: var(--permissions-header-height);
   padding: 14px 10px 8px;
+  border-top: 1px solid rgba(87, 216, 120, 0.2);
   border-bottom-color: rgba(87, 216, 120, 0.36);
-  background: rgba(87, 216, 120, 0.08);
+  background: #102616;
   color: var(--green-hot);
   font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-align: left;
+  box-shadow:
+    inset 0 1px 0 rgba(87, 216, 120, 0.18),
+    inset 0 -1px 0 rgba(87, 216, 120, 0.22),
+    0 10px 18px rgba(2, 4, 3, 0.62);
 }
 
 .permissions-table .permissions-group-row:first-child th {
