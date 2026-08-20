@@ -4059,6 +4059,10 @@ button:focus-visible {
   position: relative;
 }
 
+.filter-dropdown[open] {
+  z-index: 90;
+}
+
 .filter-label {
   color: var(--muted);
   font-size: 0.66rem;
@@ -4090,7 +4094,7 @@ button:focus-visible {
 
 .filter-menu {
   position: absolute;
-  z-index: 12;
+  z-index: 95;
   top: calc(100% + 6px);
   right: 0;
   left: 0;
