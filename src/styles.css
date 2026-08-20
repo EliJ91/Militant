@@ -990,7 +990,7 @@
   width: 100%;
   gap: 2px;
   align-self: center;
-  justify-items: start;
+  justify-items: center;
 }
 
 .zvz-sheet-edit-item-group {
@@ -1003,7 +1003,7 @@
   display: grid;
   grid-template-columns: 50px max-content 15px;
   align-items: center;
-  justify-content: start;
+  justify-content: center;
   gap: 7px;
   min-width: 0;
   width: max-content;
@@ -1167,14 +1167,17 @@
 .zvz-sheet-view-cell {
   display: grid;
   grid-template-rows: 1fr;
-  align-items: stretch;
+  align-items: center;
+  justify-items: center;
   width: max-content;
   min-width: 100%;
   min-height: 72px;
 }
 
 .zvz-sheet-preview-shell {
-  display: block;
+  display: grid;
+  align-content: center;
+  justify-content: center;
   height: 100%;
   width: max-content;
   min-width: 100%;
@@ -1185,7 +1188,7 @@
   display: grid;
   align-self: center;
   gap: 4px;
-  justify-items: start;
+  justify-items: center;
 }
 
 .zvz-sheet-view-item {
