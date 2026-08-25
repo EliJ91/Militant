@@ -22,24 +22,24 @@
 
 .zvz-shell {
   width: calc(100% - 48px);
-  min-height: calc(100vh - 76px);
+  min-height: calc(100vh - 62px);
   margin: 0 auto;
-  padding: 30px 20px 56px;
+  padding: 18px 20px 44px;
 }
 
 .zvz-heading {
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 18px;
-  padding-bottom: 22px;
+  gap: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
 
 .zvz-heading h1 {
-  margin: 6px 0 0;
+  margin: 2px 0 0;
   color: var(--white);
-  font-size: 3rem;
+  font-size: 2.35rem;
   line-height: 1;
 }
 
@@ -55,7 +55,7 @@
 
 .zvz-heading-search input {
   width: 100%;
-  height: 42px;
+  height: 36px;
 }
 
 .zvz-heading-actions .secondary-button {
@@ -67,8 +67,8 @@
 
 .zvz-heading-actions .icon-button {
   display: inline-grid;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   place-items: center;
   padding: 0;
   border: 1px solid rgba(247, 250, 245, 0.24);
@@ -1542,7 +1542,7 @@
   .rat-toolbar { flex-wrap: nowrap; overflow-x: auto; }
   .rat-toolbar > * { flex: 0 0 auto; }
   .zvz-shell {
-    padding: 22px 14px 40px;
+    padding: 16px 14px 36px;
   }
 
   .zvz-heading {
@@ -1551,7 +1551,7 @@
   }
 
   .zvz-heading h1 {
-    font-size: 2.15rem;
+    font-size: 2rem;
   }
 
   .zvz-heading-actions .secondary-button {
@@ -2116,7 +2116,7 @@ button:focus-visible {
 }
 
 .brand-lockup-compact .brand-wordmark {
-  width: 220px;
+  width: 190px;
 }
 
 .landing-copy {
@@ -2178,8 +2178,8 @@ button:focus-visible {
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.36);
   display: flex;
   justify-content: space-between;
-  min-height: 76px;
-  padding: 14px max(20px, calc((100vw - 1200px) / 2));
+  min-height: 62px;
+  padding: 8px max(20px, calc((100vw - 1200px) / 2));
 }
 
 .topbar-actions {
@@ -2221,8 +2221,8 @@ button:focus-visible {
 
 .topbar-profile-avatar,
 .topbar-profile-fallback {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border: 1px solid rgba(87, 216, 120, 0.62);
   border-radius: 999px;
   background: rgba(87, 216, 120, 0.12);
@@ -2454,21 +2454,21 @@ button:focus-visible {
 
 .dashboard-shell {
   margin: 0 auto;
-  min-height: calc(100vh - 76px);
-  padding: 34px 20px 48px;
+  min-height: calc(100vh - 62px);
+  padding: 18px 20px 40px;
   width: min(1200px, 100%);
 }
 
 .dashboard-heading {
   border-bottom: 1px solid var(--line);
   display: grid;
-  gap: 8px;
-  padding-bottom: 22px;
+  gap: 4px;
+  padding-bottom: 12px;
 }
 
 .dashboard-heading h1 {
   color: var(--white);
-  font-size: 3rem;
+  font-size: 2.35rem;
   letter-spacing: 0;
   line-height: 1;
   margin: 0;
@@ -3243,7 +3243,7 @@ button:focus-visible {
   align-items: end;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
+  gap: 14px;
 }
 
 .loot-monitor-heading-actions {
@@ -3258,7 +3258,7 @@ button:focus-visible {
   align-items: center;
   display: inline-flex;
   gap: 8px;
-  min-height: 42px;
+  min-height: 36px;
 }
 
 .saved-log-page-size-field span {
@@ -3271,9 +3271,9 @@ button:focus-visible {
 }
 
 .saved-log-page-size-field select {
-  min-height: 42px;
+  min-height: 36px;
   min-width: 72px;
-  padding: 8px 30px 8px 12px;
+  padding: 6px 30px 6px 12px;
   border: 1px solid rgba(87, 216, 120, 0.44);
   border-radius: 7px;
   background: rgba(2, 4, 3, 0.92);
@@ -3326,9 +3326,9 @@ button:focus-visible {
   cursor: pointer;
   display: inline-flex;
   justify-content: center;
-  min-height: 42px;
-  min-width: 150px;
-  padding: 8px 16px;
+  min-height: 36px;
+  min-width: 132px;
+  padding: 6px 14px;
   border: 1px solid rgba(87, 216, 120, 0.44);
   border-radius: 7px;
   background: rgba(87, 216, 120, 0.13);
@@ -6558,9 +6558,9 @@ button:focus-visible {
 .secondary-button,
 .energy-update-button,
 .energy-purge-confirm {
-  min-width: 142px;
-  min-height: 42px;
-  padding: 9px 16px;
+  min-width: 132px;
+  min-height: 36px;
+  padding: 7px 14px;
   border-radius: 7px;
   font-size: 0.76rem;
   font-weight: 900;
@@ -7248,7 +7248,7 @@ button:focus-visible {
   .topbar {
     align-items: center;
     gap: 12px;
-    padding: 12px 14px;
+    padding: 8px 14px;
   }
 
   .topbar-menu-toggle {
@@ -7287,11 +7287,11 @@ button:focus-visible {
   }
 
   .brand-lockup-compact .brand-wordmark {
-    width: min(170px, 46vw);
+    width: min(160px, 46vw);
   }
 
   .dashboard-heading h1 {
-    font-size: 2.3rem;
+    font-size: 2rem;
   }
 
   .loot-monitor-heading {
