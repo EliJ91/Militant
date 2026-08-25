@@ -3384,7 +3384,7 @@ export default function LootMonitor({
   const report = useMemo(() => {
     if (!selectedBundle) return null;
     const chestText = selectedBundle.chestLogReportText || rawChestLogText || selectedBundle.chestLogText || '';
-    const sourceLookup = buildRawLootSourceLookup(sourceLootLogText);
+    const sourceLookup = buildRawLootSourceLookup(rawLootLogText || sourceLootLogText);
     const sourceCursor = new Map();
     const events = (selectedBundle.events || []).map((event) => {
       const key = eventSourceKey(event);
@@ -3398,7 +3398,7 @@ export default function LootMonitor({
     });
     const baseReport = buildLootMonitorReportFromEvents(events, chestText);
     return applyLootDeathChecks(baseReport, selectedBundle.deathChecks || []);
-  }, [rawChestLogText, sourceLootLogText, selectedBundle]);
+  }, [rawChestLogText, rawLootLogText, sourceLootLogText, selectedBundle]);
   const selectedTotals = selectedBundle?.summary?.totals || report?.totals || {};
   const activeFilters = filters;
   const ignoredItemKeys = useMemo(() => new Set(

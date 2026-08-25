@@ -413,9 +413,9 @@ describe('LootMonitor', () => {
   it('shows custody chain in kept item tooltips', async () => {
     const canonicalLootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
-      "2026-06-18T18:33:30.420Z;CHAIR;Militant;Windyyyzz;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;2;;;",
+      "2026-06-18T18:33:30.420Z;CHAIR;Militant;Windyyyzz;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;2;FURIX;EnemyGuild;Enemy",
     ].join('\n');
-    const rawSubmissionText = lootText.replace('18:33:30.420Z', '18:33:30.4201234Z');
+    const rawSubmissionText = `${lootText.replace('18:33:30.420Z', '18:33:30.4201234Z')};;;;;123456;Meltwater Bog`;
 
     fetchLootLogBundle.mockResolvedValue({
       bundle: createBundle({
@@ -449,8 +449,9 @@ describe('LootMonitor', () => {
     fireEvent.mouseEnter(renderedTile);
     expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
     expect(screen.getByRole('tooltip')).toHaveTextContent(
-      "2026-06-18T18:33:30.4201234Z;CHAIR;Militant;Windyyyzz;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;2;FURIX;EnemyGuild;Enemy",
+      "2026-06-18T18:33:30.420Z;CHAIR;Militant;Windyyyzz;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;2;FURIX;EnemyGuild;Enemy",
     );
+    expect(screen.getByRole('tooltip')).not.toHaveTextContent('Meltwater Bog');
     fireEvent.mouseLeave(renderedTile);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 
