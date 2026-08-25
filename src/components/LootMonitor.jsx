@@ -3435,9 +3435,6 @@ export default function LootMonitor({
       .filter((player) => canViewHiddenPlayers || canEditHiddenPlayers || !player.hidden);
     return players;
   }, [activeFilters, canEditHiddenPlayers, canViewHiddenPlayers, hiddenPlayerKeys, visibleRows]);
-  const visiblePlayersWithEmv = useMemo(() => (
-    sortVisiblePlayers(addPlayerEmv(visiblePlayers, marketPrices), activeFilters)
-  ), [activeFilters, marketPrices, visiblePlayers]);
   const deathLinksByPlayer = useMemo(() => {
     const linksByPlayer = new Map();
     (selectedBundle?.deathChecks || []).forEach((deathCheck) => {
@@ -3472,6 +3469,12 @@ export default function LootMonitor({
   const unfetchedKeptItemIds = useMemo(() => (
     visibleKeptItemIds.filter((itemId) => !Object.hasOwn(marketPrices, itemId))
   ), [marketPrices, visibleKeptItemIds]);
+  const emvDisplayPending = !localOnly
+    && unfetchedKeptItemIds.length > 0
+    && (activeFilters.sortBy === 'emv' || activeFilters.hideUnder500kEmv);
+  const visiblePlayersWithEmv = useMemo(() => (
+    sortVisiblePlayers(addPlayerEmv(visiblePlayers, marketPrices), activeFilters)
+  ), [activeFilters, marketPrices, visiblePlayers]);
   const visibleImageUrls = useMemo(() => (
     visiblePlayers.flatMap((player) => player.tiles.map((tile) => tile.imageUrl)).filter(Boolean)
   ), [visiblePlayers]);
@@ -4030,7 +4033,9 @@ export default function LootMonitor({
               <span>Name</span>
               <span>Items</span>
             </header>
-            {visiblePlayersWithEmv.length === 0 ? (
+            {emvDisplayPending ? (
+              <p className="loot-message">Calculating EMV before sorting players.</p>
+            ) : visiblePlayersWithEmv.length === 0 ? (
               <p className="loot-message">No item icons match the current filters.</p>
             ) : (
               <div className="loot-player-list">

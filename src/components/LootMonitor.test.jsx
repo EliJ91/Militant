@@ -900,6 +900,69 @@ describe('LootMonitor', () => {
     expect(screen.getByText(/GuildlessPlayer/).closest('.loot-player-row')).toHaveTextContent('EMV $230');
   });
 
+  it('waits for market prices before showing EMV-sorted players', async () => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ sortBy: 'emv' }));
+    let resolveMarket;
+    const marketRequest = new Promise((resolve) => {
+      resolveMarket = resolve;
+    });
+    vi.stubGlobal('fetch', vi.fn((url) => (
+      String(url).includes('locations=') ? marketResponse([]) : marketRequest
+    )));
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: '',
+        events: [
+          {
+            ...storedEvents[0],
+            item: "Adept's Lymhurst Cape",
+            itemId: 'T4_CAPEITEM_FW_LYMHURST@3',
+            player: 'LowValue',
+            quantity: 1,
+          },
+          {
+            ...storedEvents[0],
+            item: "Expert's Bag",
+            itemId: 'T5_BAG@1',
+            player: 'HighValue',
+            quantity: 1,
+          },
+        ],
+        hasChestLog: false,
+      }),
+    });
+
+    const { container } = render(<LootMonitor bundleId="bundle-18" />);
+
+    expect(await screen.findByText('Calculating EMV before sorting players.')).toBeInTheDocument();
+    expect(screen.queryByText(/LowValue/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/HighValue/)).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveMarket(marketResponse([
+        {
+          data: [{ timestamp: '2026-06-01T00:00:00', avg_price: 100, item_count: 5 }],
+          item_id: 'T4_CAPEITEM_FW_LYMHURST@3',
+          location: 'Lymhurst',
+          quality: 1,
+        },
+        {
+          data: [{ timestamp: '2026-06-01T00:00:00', avg_price: 1000, item_count: 5 }],
+          item_id: 'T5_BAG@1',
+          location: 'Bridgewatch',
+          quality: 1,
+        },
+      ]));
+    });
+
+    expect(await screen.findByText('EMV $1,150')).toBeInTheDocument();
+    expect(screen.queryByText('Calculating EMV before sorting players.')).not.toBeInTheDocument();
+    const playerNames = [...container.querySelectorAll('.loot-player-name strong')]
+      .map((element) => element.textContent);
+    expect(playerNames[0]).toContain('HighValue');
+    expect(playerNames[1]).toContain('LowValue');
+  });
+
   it('filters weapons separately from ordinary item types', async () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ typeFilters: ['__none__'] }));
     fetchLootLogBundle.mockResolvedValue({
