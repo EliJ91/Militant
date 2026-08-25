@@ -1419,15 +1419,20 @@ export function LootItemTile({
       closePinnedTooltip();
     }
 
+    function handlePageScroll(event) {
+      if (typeof Node !== 'undefined' && event.target instanceof Node && tooltipRef.current?.contains(event.target)) return;
+      closePinnedTooltip();
+    }
+
     document.addEventListener('click', handleAwayPress, true);
     document.addEventListener('pointerdown', handleAwayPress, true);
-    if (!historyClickMode) window.addEventListener('scroll', closePinnedTooltip, true);
+    if (!historyClickMode) window.addEventListener('scroll', handlePageScroll, true);
     window.addEventListener(LOOT_TOOLTIP_OPEN_EVENT, handleTooltipOpen);
 
     return () => {
       document.removeEventListener('click', handleAwayPress, true);
       document.removeEventListener('pointerdown', handleAwayPress, true);
-      if (!historyClickMode) window.removeEventListener('scroll', closePinnedTooltip, true);
+      if (!historyClickMode) window.removeEventListener('scroll', handlePageScroll, true);
       window.removeEventListener(LOOT_TOOLTIP_OPEN_EVENT, handleTooltipOpen);
     };
   }, [hasCustodyTooltip, historyClickMode, tooltipId]);

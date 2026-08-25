@@ -468,6 +468,8 @@ describe('LootMonitor', () => {
 
     fireEvent.click(renderedTile);
     expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
+    fireEvent.scroll(screen.getByRole('tooltip'));
+    expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
     fireEvent.scroll(window);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 
