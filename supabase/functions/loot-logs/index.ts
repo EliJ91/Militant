@@ -1397,9 +1397,7 @@ function buildPlayerHistorySnapshotRows(events: any[], chestLogs: any[], deathCh
     ...chestEvents.map((row) => ({
       order: row.amount < 0 ? 2 : row.sourceIndex === finalSourceIndex ? 4 : 3,
       row,
-      timestamp: row.amount > 0 && row.sourceIndex === finalSourceIndex
-        ? Number.POSITIVE_INFINITY
-        : row.timestamp,
+      timestamp: row.timestamp,
       type: row.amount < 0 ? 'withdrawal' : 'deposit',
     })),
   ].sort((left, right) => left.timestamp - right.timestamp || left.order - right.order);
@@ -1442,7 +1440,9 @@ function buildPlayerHistorySnapshotRows(events: any[], chestLogs: any[], deathCh
     const traded = own.missing > 0
       ? consumeAnyHolder(itemKey, own.missing, lot.guild)
       : { consumed: [], missing: 0 };
-    addLots(chestPool, itemKey, [...own.consumed, ...traded.consumed]);
+    if (row.sourceIndex !== finalSourceIndex) {
+      addLots(chestPool, itemKey, [...own.consumed, ...traded.consumed]);
+    }
     if (traded.missing > 0 && row.sourceIndex !== finalSourceIndex) {
       addLots(chestPool, itemKey, [{ ...lot, quantity: traded.missing, tracked: false }]);
     }

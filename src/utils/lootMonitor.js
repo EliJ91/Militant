@@ -727,7 +727,7 @@ export function buildLootMonitorReportFromParsedLoot(loot, chestText) {
     ...chest.rows.map((row) => ({
       order: row.isFinalChest ? 4 : 3,
       row,
-      timestamp: row.isFinalChest ? '' : row.timestamp,
+      timestamp: row.timestamp,
       type: 'deposit',
     })),
   ].sort((left, right) => (
@@ -781,7 +781,7 @@ export function buildLootMonitorReportFromParsedLoot(loot, chestText) {
     const tradedDeposit = ownDeposit.missing > 0
       ? consumeAnyLots(holderLots, itemKey, ownDeposit.missing, itemRow.guild)
       : { consumed: [], missing: 0 };
-    addLotsToPool(chestLots, itemKey, [...ownDeposit.consumed, ...tradedDeposit.consumed].map((lot) => (
+    const depositedLots = [...ownDeposit.consumed, ...tradedDeposit.consumed].map((lot) => (
       isTrackedLot(lot) ? lot : {
         ...lot,
         alliance: itemRow.alliance,
@@ -794,7 +794,20 @@ export function buildLootMonitorReportFromParsedLoot(loot, chestText) {
       custodyChain: isTrackedLot(lot)
         ? [...(lot.custodyChain || []), custodyStep('Deposited', row)]
         : lot.custodyChain,
-    })));
+    }));
+
+    if (row.isFinalChest) {
+      depositedLots.forEach((lot) => addReportQuantity(
+        rowMap,
+        lot,
+        isTrackedLot(lot) ? 'accounted' : 'donated',
+        lot.quantity,
+        { custodyChain: (lot.custodyChain || []).join(' -> '), quality: row.quality },
+      ));
+    } else {
+      addLotsToPool(chestLots, itemKey, depositedLots);
+    }
+
     if (tradedDeposit.missing > 0) {
       if (row.isFinalChest) {
         addReportQuantity(rowMap, itemRow, 'donated', tradedDeposit.missing, {

@@ -525,7 +525,7 @@ describe('loot monitor report', () => {
     });
   });
 
-  it('uses the final chest count to resolve custody even when the chest timestamp is earlier', () => {
+  it('does not use an earlier final chest deposit to resolve later loot', () => {
     const lootText = [
       'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
       "2026-06-24T04:20:00.000Z;CHAIR;Militant;A1;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
@@ -541,13 +541,16 @@ describe('loot monitor report', () => {
     const depositor = report.rows.find((row) => row.player === 'PlayerB' && row.item === "Master's Realmbreaker");
 
     expect(looter).toMatchObject({
-      accounted: 1,
+      accounted: 0,
       itemId: 'T6_2H_AXE_AVALON@3',
-      kept: 0,
+      kept: 1,
       looted: 1,
-      status: 'resolved',
+      status: 'kept',
     });
-    expect(depositor).toBeUndefined();
+    expect(depositor).toMatchObject({
+      donated: 1,
+      status: 'donated',
+    });
   });
 
   it('matches a final realmbreaker deposit to a looter in the depositor guild', () => {
