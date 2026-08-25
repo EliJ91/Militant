@@ -68,15 +68,30 @@ function storeSavedLogPageSize(value) {
   }
 }
 
+function normalizeEventSourceTimestamp(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? text : date.toISOString();
+}
+
 function eventSourceKey(event) {
   return [
     String(event?.eventType || 'looted'),
-    String(event?.timestamp || ''),
+    normalizeEventSourceTimestamp(event?.timestamp),
     String(event?.itemId || event?.item || '').trim().toLowerCase(),
     String(event?.player || '').trim().toLowerCase(),
     String(event?.quantity || 0),
     String(event?.lostTo || '').trim().toLowerCase(),
   ].join('|');
+}
+
+function getRawLootSubmissionText(bundle) {
+  return (bundle?.submissions || [])
+    .map((submission) => String(submission?.rawLogText || '').trim())
+    .filter(Boolean)
+    .join('\n\n--- NEXT LOOT LOG ---\n\n');
 }
 
 function buildRawLootSourceLookup(rawText) {
@@ -3348,15 +3363,13 @@ export default function LootMonitor({
 
   const hasChestLog = Boolean(selectedBundle?.hasChestLog && selectedBundle?.chestLogText);
   const sourceLootLogText = useMemo(() => {
-    if (selectedBundle?.lootLogText) return selectedBundle.lootLogText;
-
-    const rawSubmissions = (selectedBundle?.submissions || [])
-      .map((submission) => submission.rawLogText || '')
-      .filter(Boolean);
-    return rawSubmissions.join('\n\n--- NEXT LOOT LOG ---\n\n');
+    const rawSubmissionText = getRawLootSubmissionText(selectedBundle);
+    return rawSubmissionText || selectedBundle?.lootLogText || '';
   }, [selectedBundle]);
   const rawLootLogText = useMemo(() => (
-    sourceLootLogText || (selectedBundle?.events?.length ? buildLootLogExport(selectedBundle.events) : '')
+    selectedBundle?.lootLogText
+      || sourceLootLogText
+      || (selectedBundle?.events?.length ? buildLootLogExport(selectedBundle.events) : '')
   ), [selectedBundle, sourceLootLogText]);
   const rawChestLogText = useMemo(() => {
     const rawSubmissions = (selectedBundle?.chestSubmissions || [])
