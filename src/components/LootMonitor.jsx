@@ -570,11 +570,6 @@ function loadInitialFilters() {
   return getSharedFiltersFromHash() || loadSavedFilters();
 }
 
-function usesMobileTooltipClick() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-  return window.matchMedia('(hover: none), (pointer: coarse)').matches;
-}
-
 function buildLootLogHistoryUrl(entry) {
   const bundleId = String(entry?.bundleId || '').trim();
   if (!bundleId) return '';
@@ -1444,7 +1439,7 @@ export function LootItemTile({
   }
 
   function toggleCustodyTooltip() {
-    if (!hasCustodyTooltip || (!historyClickMode && tile.status !== 'accounted' && !usesMobileTooltipClick())) return;
+    if (!hasCustodyTooltip) return;
 
     if (custodyTooltip.visible && custodyTooltip.pinned) {
       setCustodyTooltip((current) => ({ ...current, pinned: false, visible: false }));
@@ -1474,7 +1469,7 @@ export function LootItemTile({
       onIgnore(tile);
       return;
     }
-    if (tile.status === 'accounted' && deathLinks.length > 0) {
+    if (tile.status === 'accounted' && deathLinks.length > 0 && !hasHistoryTooltip) {
       copyDeathLinks();
       return;
     }
@@ -1487,7 +1482,7 @@ export function LootItemTile({
       onIgnore(tile);
       return;
     }
-    if (!hasCustodyTooltip || (!historyClickMode && tile.status !== 'accounted' && !usesMobileTooltipClick())) return;
+    if (!hasCustodyTooltip) return;
 
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -1505,7 +1500,7 @@ export function LootItemTile({
         aria-label={label}
         className={`loot-item-tile ${tile.status}-tile ${hasCustodyTooltip && !ignoreMode ? 'has-custody-tooltip' : ''} ${ignoreMode ? 'ignore-selection-tile' : ''}`}
         role={ignoreMode ? 'button' : undefined}
-        tabIndex={ignoreMode ? 0 : undefined}
+        tabIndex={ignoreMode || hasCustodyTooltip ? 0 : undefined}
         title={ignoreMode ? `Ignore ${tile.item}` : hasCustodyTooltip ? undefined : title}
         onBlur={historyClickMode ? undefined : closeCustodyTooltip}
         onClick={handleTileClick}

@@ -457,10 +457,6 @@ describe('LootMonitor', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 
     fireEvent.click(renderedTile);
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
-    fireEvent.click(renderedTile);
     expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
     fireEvent.click(renderedTile);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
