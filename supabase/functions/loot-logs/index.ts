@@ -379,6 +379,19 @@ async function getGlobalHiddenPlayers(supabase: any) {
   return collectGlobalHiddenPlayers(await fetchLootLogBundleVisibility(supabase));
 }
 
+async function getNextLootLogDisplayOrder(supabase: any) {
+  const { data, error } = await supabase
+    .from('loot_log_bundles')
+    .select('display_order')
+    .not('display_order', 'is', null)
+    .order('display_order', { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  const currentMax = Number(data?.[0]?.display_order);
+  return (Number.isFinite(currentMax) ? currentMax : 0) + 1;
+}
+
 function getLootLogIgnoredItemKey(item: any = {}) {
   const itemId = String(item.itemId || item.item_id || '').trim().toLowerCase();
   if (itemId) return `id:${itemId}`;
@@ -1728,7 +1741,12 @@ async function mergeLootLogBundles(supabase: any, body: any) {
 
   const { data: targetBundle, error: targetError } = await supabase
     .from('loot_log_bundles')
-    .insert({ combined_loot_summary: mergeMetadata, end_at: endAt, start_at: startAt })
+    .insert({
+      combined_loot_summary: mergeMetadata,
+      display_order: await getNextLootLogDisplayOrder(supabase),
+      end_at: endAt,
+      start_at: startAt,
+    })
     .select('id,start_at,end_at,combined_loot_summary')
     .single();
   if (targetError) throw targetError;
@@ -2668,7 +2686,12 @@ Deno.serve(async (request) => {
       const hiddenPlayers = await getGlobalHiddenPlayers(supabase);
       const { data, error } = await supabase
         .from('loot_log_bundles')
-        .insert({ combined_loot_summary: { hiddenPlayers }, end_at: range.endAt, start_at: range.startAt })
+        .insert({
+          combined_loot_summary: { hiddenPlayers },
+          display_order: await getNextLootLogDisplayOrder(supabase),
+          end_at: range.endAt,
+          start_at: range.startAt,
+        })
         .select('id,start_at,end_at,combined_loot_summary')
         .single();
 
