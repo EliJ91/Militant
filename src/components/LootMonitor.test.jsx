@@ -448,6 +448,7 @@ describe('LootMonitor', () => {
 
     fireEvent.mouseEnter(renderedTile);
     expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
+    expect(screen.getByRole('tooltip')).toHaveClass('history-tooltip');
     expect(screen.getByRole('tooltip')).toHaveTextContent(
       "2026-06-18T18:33:30.420Z;CHAIR;Militant;Windyyyzz;T4_CAPEITEM_FW_LYMHURST@3;Adept's Lymhurst Cape;2;FURIX;EnemyGuild;Enemy",
     );

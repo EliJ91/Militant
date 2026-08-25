@@ -1332,6 +1332,7 @@ export function LootItemTile({
       .split('\n')
       .filter(Boolean)
       .flatMap((chain) => chain.split(' -> ').filter(Boolean));
+  const usesWideTooltip = hasHistoryTooltip || custodySteps.some((entry) => String(entry || '').includes(';'));
   const title = hasCustodyTooltip
     ? `${tile.item}\n${custodySteps.join('\n')}`
     : tile.lostTo ? `${itemDetail} - ${statusLabel} to ${tile.lostTo}` : `${itemDetail} - ${statusLabel}`;
@@ -1534,7 +1535,7 @@ export function LootItemTile({
       {!ignoreMode && hasCustodyTooltip && custodyTooltip.visible && typeof document !== 'undefined' ? createPortal(
         <div
           ref={tooltipRef}
-          className="loot-item-custody-tooltip"
+          className={`loot-item-custody-tooltip${usesWideTooltip ? ' history-tooltip' : ''}`}
           id={tooltipId}
           role="tooltip"
           style={{

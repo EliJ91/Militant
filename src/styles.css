@@ -6016,6 +6016,13 @@ button:focus-visible {
   pointer-events: auto;
 }
 
+.loot-item-custody-tooltip.history-tooltip {
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
 .loot-item-custody-tooltip strong {
   color: var(--white);
   font-size: 0.8rem;
@@ -6027,12 +6034,23 @@ button:focus-visible {
   white-space: pre-wrap;
 }
 
+.loot-item-custody-tooltip.history-tooltip strong,
+.loot-item-custody-tooltip.history-tooltip span {
+  overflow-wrap: normal;
+  white-space: pre;
+}
+
 .loot-item-custody-tooltip a {
   display: grid;
   gap: 2px;
   padding: 5px 0;
   color: #dfe8dc;
   text-decoration: none;
+}
+
+.loot-item-custody-tooltip.history-tooltip a {
+  width: max-content;
+  min-width: 100%;
 }
 
 .loot-item-custody-tooltip a:hover span {
