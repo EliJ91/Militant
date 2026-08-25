@@ -659,11 +659,23 @@ function consumeAnyLots(store, itemKey, quantity, guildScope = '') {
 
   if (!normalizedGuildScope) return { consumed, missing: remaining };
 
-  for (const key of [...store.keys()]) {
-    if (remaining <= 0) break;
-    if (!key.endsWith(`::${itemKey}`)) continue;
+  const matchingEntries = [...store.entries()]
+    .filter(([key]) => key.endsWith(`::${itemKey}`))
+    .sort(([leftKey, leftLots], [rightKey, rightLots]) => {
+      const leftLot = leftLots.find((lot) => normalize(lot.guild) === normalizedGuildScope && isTrackedLot(lot))
+        || leftLots.find((lot) => normalize(lot.guild) === normalizedGuildScope)
+        || leftLots[0];
+      const rightLot = rightLots.find((lot) => normalize(lot.guild) === normalizedGuildScope && isTrackedLot(lot))
+        || rightLots.find((lot) => normalize(lot.guild) === normalizedGuildScope)
+        || rightLots[0];
+      const leftName = normalize(leftLot?.sourceLooter || leftLot?.player || leftKey);
+      const rightName = normalize(rightLot?.sourceLooter || rightLot?.player || rightKey);
+      return leftName.localeCompare(rightName) || leftKey.localeCompare(rightKey);
+    });
 
-    const lots = store.get(key) || [];
+  for (const [key, lots] of matchingEntries) {
+    if (remaining <= 0) break;
+
     const result = consumeLotArray(
       lots,
       remaining,

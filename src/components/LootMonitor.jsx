@@ -1316,7 +1316,7 @@ export function LootItemTile({
   )).filter(Boolean))];
   const historyEntries = Array.isArray(tile.historyEntries) ? tile.historyEntries : [];
   const hasHistoryTooltip = historyEntries.length > 0;
-  const hasCustodyTooltip = hasHistoryTooltip || (tile.status === 'kept' && tile.custodyChains) || deathEvents.length > 0;
+  const hasCustodyTooltip = hasHistoryTooltip || Boolean(tile.custodyChains) || deathEvents.length > 0;
   const custodySteps = hasHistoryTooltip
     ? historyEntries.map((entry) => entry.label || '')
     : deathEvents.length > 0

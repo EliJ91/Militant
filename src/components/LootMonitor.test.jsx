@@ -399,7 +399,10 @@ describe('LootMonitor', () => {
     expect(container.querySelector('.loot-board-section')).not.toContainElement(screenshotButton);
     const renderedTile = container.querySelector('.loot-item-tile');
     expect(renderedTile.querySelector('img').getAttribute('src')).toContain('/item-image/');
-    expect(renderedTile).toHaveAttribute('title', expect.stringContaining('T4_CAPEITEM_FW_LYMHURST@3'));
+    expect(renderedTile).not.toHaveAttribute('title');
+    fireEvent.mouseEnter(renderedTile);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('T4_CAPEITEM_FW_LYMHURST@3');
+    fireEvent.mouseLeave(renderedTile);
     fireEvent.click(emvThresholdButton);
     expect(emvThresholdButton).toHaveAttribute('aria-pressed', 'true');
     expect(container.querySelector('.loot-item-tile')).not.toBeInTheDocument();
@@ -478,6 +481,34 @@ describe('LootMonitor', () => {
     fireEvent.click(secondTile);
     expect(screen.getByRole('tooltip')).toHaveTextContent("Journeyman's Bag");
     expect(screen.getByRole('tooltip')).not.toHaveTextContent("Adept's Lymhurst Cape");
+  });
+
+  it('shows custody chain history on resolved item tooltips', async () => {
+    fetchLootLogBundle.mockResolvedValue({
+      bundle: createBundle({
+        chestLogText: [
+          '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+          '"06/18/2026 18:50:00"\t"Courier"\t"Adept\'s Lymhurst Cape"\t"3"\t"4"\t"1"',
+        ].join('\n'),
+        chestSubmissions: [],
+        chestSubmitters: [],
+        events: [storedEvents[0]],
+        hasChestLog: true,
+      }),
+    });
+
+    const { container } = render(<LootMonitor bundleId="bundle-18" />);
+
+    expect(await screen.findByText('Windyyyzz')).toBeInTheDocument();
+    const resolvedTile = container.querySelector('.loot-item-tile.resolved-tile');
+    expect(resolvedTile).toBeInTheDocument();
+    expect(resolvedTile).not.toHaveAttribute('title');
+
+    fireEvent.mouseEnter(resolvedTile);
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent("Adept's Lymhurst Cape");
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Windyyyzz');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Courier');
   });
 
   it('opens a recent-deaths option when a player name is clicked', async () => {

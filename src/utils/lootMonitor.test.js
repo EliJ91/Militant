@@ -604,4 +604,33 @@ describe('loot monitor report', () => {
     });
     expect(depositor).toBeUndefined();
   });
+
+  it('uses transferred chest custody to satisfy the matching expected looted item before donation', () => {
+    const lootText = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name',
+      "2026-08-25T00:03:00.000Z;CHAIR;Militant;Shoook;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+      "2026-08-25T00:30:00.000Z;CHAIR;Militant;MarkMPM;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+      "2026-08-25T00:31:00.000Z;CHAIR;Militant;Software;T6_2H_AXE_AVALON@3;Master's Realmbreaker;1;;;@MOB_T5",
+    ].join('\n');
+    const finalChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"08/25/2026 01:04:03"\t"Kenjaminian"\t"Master\'s Realmbreaker"\t"3"\t"4"\t"1"',
+    ].join('\n');
+    const activityChest = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Amount"',
+      '"08/25/2026 00:56:39"\t"Kenjaminian"\t"Master\'s Realmbreaker"\t"3"\t"4"\t"-1"',
+      '"08/25/2026 00:52:22"\t"Hiccup"\t"Master\'s Realmbreaker"\t"3"\t"4"\t"1"',
+    ].join('\n');
+
+    const report = buildLootMonitorReport(lootText, `${finalChest}\n${activityChest}`);
+    const mark = report.rows.find((row) => row.player === 'MarkMPM' && row.item === "Master's Realmbreaker");
+    const kenjamin = report.rows.find((row) => row.player === 'Kenjaminian' && row.item === "Master's Realmbreaker");
+    const shoook = report.rows.find((row) => row.player === 'Shoook' && row.item === "Master's Realmbreaker");
+
+    expect(mark).toMatchObject({ kept: 0, looted: 1, status: 'resolved' });
+    expect(kenjamin).toMatchObject({ accounted: 1, donated: 0, kept: 0, status: 'resolved' });
+    expect(kenjamin.custodyChains).toContain('MarkMPM');
+    expect(kenjamin.custodyChains).toContain('"08/25/2026 00:56:39"\t"Kenjaminian"');
+    expect(shoook).toMatchObject({ kept: 1, looted: 1, status: 'kept' });
+  });
 });

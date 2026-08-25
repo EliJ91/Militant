@@ -1362,9 +1362,23 @@ function buildPlayerHistorySnapshotRows(events: any[], chestLogs: any[], deathCh
   const consumeAnyHolder = (itemKey: string, quantity: number, guild: string) => {
     const consumed: any[] = [];
     let remaining = quantity;
-    for (const [key, lots] of holders) {
+    const normalizedGuild = normalize(guild);
+    const matchingEntries = [...holders.entries()]
+      .filter(([key]) => key.endsWith(`::${itemKey}`))
+      .sort(([leftKey, leftLots], [rightKey, rightLots]) => {
+        const leftLot = leftLots.find((lot) => normalize(lot.guild) === normalizedGuild && lot.tracked !== false)
+          || leftLots.find((lot) => normalize(lot.guild) === normalizedGuild)
+          || leftLots[0];
+        const rightLot = rightLots.find((lot) => normalize(lot.guild) === normalizedGuild && lot.tracked !== false)
+          || rightLots.find((lot) => normalize(lot.guild) === normalizedGuild)
+          || rightLots[0];
+        const leftName = normalize(leftLot?.player || leftKey);
+        const rightName = normalize(rightLot?.player || rightKey);
+        return leftName.localeCompare(rightName) || leftKey.localeCompare(rightKey);
+      });
+
+    for (const [key, lots] of matchingEntries) {
       if (remaining <= 0) break;
-      if (!key.endsWith(`::${itemKey}`)) continue;
       const result = consumePlayerHistoryLots(lots, remaining, (lot) => normalize(lot.guild) === normalize(guild));
       consumed.push(...result.consumed);
       remaining = result.missing;
