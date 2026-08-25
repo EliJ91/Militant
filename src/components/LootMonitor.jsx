@@ -38,8 +38,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DOWNLOAD_AGE_DAYS = 60;
 const RETENTION_DAYS = 90;
 const CTA_UTC_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
-const SAVED_LOG_PAGE_SIZE_OPTIONS = [3, 5, 10, 25, 50];
-const DEFAULT_SAVED_LOGS_PER_PAGE = 3;
+const SAVED_LOG_PAGE_SIZE_OPTIONS = [5, 10, 15, 25, 50];
+const DEFAULT_SAVED_LOGS_PER_PAGE = 5;
 const SAVED_LOG_PAGE_SIZE_STORAGE_KEY = 'militant.lootLogs.pageSize';
 const LOOT_TOOLTIP_OPEN_EVENT = 'militant:loot-tooltip-open';
 

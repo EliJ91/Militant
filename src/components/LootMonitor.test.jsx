@@ -1357,39 +1357,39 @@ describe('LootMonitor', () => {
     }));
     fetchLootLogBundles
       .mockResolvedValueOnce({
-        bundles: bundles.slice(3).reverse(),
-        pagination: { limit: 3, offset: 0, total: 6 },
-      })
-      .mockResolvedValueOnce({
-        bundles: bundles.slice(0, 3).reverse(),
-        pagination: { limit: 3, offset: 3, total: 6 },
-      })
-      .mockResolvedValueOnce({
         bundles: bundles.slice(1).reverse(),
         pagination: { limit: 5, offset: 0, total: 6 },
+      })
+      .mockResolvedValueOnce({
+        bundles: bundles.slice(0, 1).reverse(),
+        pagination: { limit: 5, offset: 5, total: 6 },
+      })
+      .mockResolvedValueOnce({
+        bundles: [...bundles].reverse(),
+        pagination: { limit: 10, offset: 0, total: 6 },
       });
 
     render(<LootLogArchive />);
 
     expect(await screen.findByText('CTA 6')).toBeInTheDocument();
-    expect(screen.getByText('CTA 4')).toBeInTheDocument();
-    expect(screen.queryByText('CTA 3')).not.toBeInTheDocument();
+    expect(screen.getByText('CTA 2')).toBeInTheDocument();
+    expect(screen.queryByText('CTA 1')).not.toBeInTheDocument();
     expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
-    expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 3, offset: 0 });
+    expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 5, offset: 0 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Next loot log page' }));
 
-    expect(await screen.findByText('CTA 3')).toBeInTheDocument();
+    expect(await screen.findByText('CTA 1')).toBeInTheDocument();
     expect(screen.queryByText('CTA 6')).not.toBeInTheDocument();
     expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
-    expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 3, offset: 3 });
+    expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 5, offset: 5 });
 
-    fireEvent.change(screen.getByLabelText('Logs per page'), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText('Logs per page'), { target: { value: '10' } });
 
-    await waitFor(() => expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 5, offset: 0 }));
+    await waitFor(() => expect(fetchLootLogBundles).toHaveBeenLastCalledWith({ limit: 10, offset: 0 }));
     expect(await screen.findByText('CTA 6')).toBeInTheDocument();
-    expect(screen.queryByText('CTA 1')).not.toBeInTheDocument();
-    expect(window.sessionStorage.getItem('militant.lootLogs.pageSize')).toBe('5');
+    expect(screen.getByText('CTA 1')).toBeInTheDocument();
+    expect(window.sessionStorage.getItem('militant.lootLogs.pageSize')).toBe('10');
   });
 
   it('keeps selected loot logs across paginated pages', async () => {
@@ -1400,26 +1400,26 @@ describe('LootMonitor', () => {
     }));
     fetchLootLogBundles
       .mockResolvedValueOnce({
-        bundles: bundles.slice(3).reverse(),
-        pagination: { limit: 3, offset: 0, total: 6 },
+        bundles: bundles.slice(1).reverse(),
+        pagination: { limit: 5, offset: 0, total: 6 },
       })
       .mockResolvedValueOnce({
-        bundles: bundles.slice(0, 3).reverse(),
-        pagination: { limit: 3, offset: 3, total: 6 },
+        bundles: bundles.slice(0, 1).reverse(),
+        pagination: { limit: 5, offset: 5, total: 6 },
       });
 
     render(<LootLogArchive canMergeLogs />);
 
     fireEvent.contextMenu((await screen.findByText('CTA 6')).closest('article'));
     fireEvent.click(screen.getByRole('button', { name: 'Next loot log page' }));
-    fireEvent.contextMenu((await screen.findByText('CTA 3')).closest('article'));
+    fireEvent.contextMenu((await screen.findByText('CTA 1')).closest('article'));
 
     expect(screen.getByRole('button', { name: 'Clear selected loot logs' })).toHaveTextContent('2 selected');
     fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
 
     await waitFor(() => expect(mergeLootLogBundles).toHaveBeenCalledWith({
       actorName: 'manual-web-upload',
-      bundleIds: ['bundle-6', 'bundle-3'],
+      bundleIds: ['bundle-6', 'bundle-1'],
       username: 'manual-web-upload',
     }));
   });

@@ -4382,7 +4382,7 @@ button:focus-visible {
 
 .saved-log-row {
   min-width: 1180px;
-  padding: 20px 18px;
+  padding: 12px 18px;
 }
 
 .saved-log-row + .saved-log-row {
@@ -4438,8 +4438,8 @@ button:focus-visible {
 .saved-log-card {
   position: relative;
   display: grid;
-  gap: 14px;
-  padding: 14px 18px;
+  gap: 10px;
+  padding: 10px 16px;
   overflow: hidden;
   border: 1px solid rgba(87, 216, 120, 0.34);
   border-radius: 12px;
@@ -4487,7 +4487,7 @@ button:focus-visible {
 
 .saved-log-card-main {
   display: grid;
-  grid-template-columns: 96px minmax(520px, 1fr) minmax(180px, 0.32fr) minmax(340px, 0.54fr);
+  grid-template-columns: 94px minmax(520px, 1fr) minmax(160px, 0.28fr) minmax(330px, 0.5fr);
   gap: 0;
   align-items: stretch;
   min-width: 0;
@@ -4499,8 +4499,8 @@ button:focus-visible {
 .saved-log-time,
 .saved-log-totals,
 .saved-log-actions {
-  min-height: 108px;
-  padding: 8px 20px;
+  min-height: 78px;
+  padding: 6px 16px;
   border-left: 1px solid rgba(247, 250, 245, 0.12);
 }
 
@@ -4508,7 +4508,7 @@ button:focus-visible {
 .saved-log-time {
   border-left: 0;
   justify-items: center;
-  padding: 8px 18px 8px 0;
+  padding: 6px 14px 6px 0;
   text-align: center;
 }
 
@@ -4518,7 +4518,7 @@ button:focus-visible {
   gap: 5px;
   width: calc(100% + 18px);
   margin-left: -18px;
-  padding: 8px 14px;
+  padding: 6px 12px;
   color: var(--green-hot);
   text-transform: uppercase;
 }
@@ -4539,19 +4539,19 @@ button:focus-visible {
 .saved-log-chest {
   display: grid;
   align-content: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .saved-log-users {
   grid-template-columns: minmax(280px, 1.05fr) minmax(230px, 0.86fr);
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 .saved-log-loot {
   display: grid;
   align-content: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -4628,7 +4628,7 @@ button:focus-visible {
 
 .saved-log-users strong,
 .saved-log-loot strong {
-  font-size: 1.35rem;
+  font-size: 1.2rem;
 }
 
 .saved-log-users > span {
@@ -4776,13 +4776,13 @@ button:focus-visible {
 
 .saved-log-totals strong {
   color: var(--white);
-  font-size: 1.42rem;
+  font-size: 1.22rem;
   line-height: 1;
 }
 
 .saved-log-totals small {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   letter-spacing: 0.06em;
   line-height: 1;
   text-transform: uppercase;
@@ -4918,8 +4918,8 @@ button:focus-visible {
   align-items: center;
   width: 100%;
   min-width: 0;
-  height: 34px;
-  min-height: 34px;
+  height: 30px;
+  min-height: 30px;
   justify-content: center;
   padding: 0 10px;
   font-size: 0.62rem;
@@ -4943,7 +4943,7 @@ button:focus-visible {
 .saved-log-actions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
+  gap: 6px;
   align-self: center;
   align-content: center;
   justify-content: center;
