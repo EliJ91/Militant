@@ -110,9 +110,10 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'ZVZ Sheet' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
-    expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('svg')).toBeInTheDocument();
-    expect(screen.getByTitle('Siphoned Energy Tracker').querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.81');
+    const siphonedEnergyLink = screen.getByRole('link', { name: /siphoned energy tracker/i });
+    expect(siphonedEnergyLink.querySelector('svg')).toBeInTheDocument();
+    expect(siphonedEnergyLink.querySelector('img')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.82');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',

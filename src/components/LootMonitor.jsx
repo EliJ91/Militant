@@ -149,7 +149,6 @@ const TILE_STATUS_LABELS = {
 };
 
 export const DEFAULT_FILTERS = {
-  alliances: [],
   guilds: [],
   hideUnder500kEmv: false,
   sortBy: 'items',
@@ -489,7 +488,6 @@ function sanitizeFilters(value = {}) {
     : statusValues.has(migratedStatus) ? [migratedStatus] : [];
 
   return {
-    alliances: sanitizeStringArray(value.alliances ?? (value.alliance ? [value.alliance] : [])),
     guilds: sanitizeStringArray(value.guilds ?? (value.guild ? [value.guild] : [])),
     hideUnder500kEmv: Boolean(value.hideUnder500kEmv),
     sortBy: sortByValues.has(value.sortBy) ? value.sortBy : DEFAULT_FILTERS.sortBy,
@@ -512,7 +510,6 @@ function loadSavedFilters() {
 }
 
 const SHARED_FILTER_PARAMS = {
-  alliances: 'a',
   guilds: 'g',
   status: 's',
   typeFilters: 'y',
@@ -681,7 +678,6 @@ export function getVisibleRows(rows, filters) {
       || (status === 'resolved' && row.accounted > 0)
     ))) return false;
     if (!matchesAny(guildValuesForRow(row), filters.guilds)) return false;
-    if (!matchesAny(allianceValuesForRow(row), filters.alliances)) return false;
     return allowsItemFilters(row, filters);
   });
 }
@@ -3409,10 +3405,9 @@ export default function LootMonitor({
     report?.rows?.filter((row) => !ignoredItemKeys.has(getLootLogIgnoredItemKey(row))) || []
   ), [ignoredItemKeys, report]);
   const filterOptions = useMemo(() => {
-    if (!report) return { alliances: [], guilds: [] };
+    if (!report) return { guilds: [] };
 
     return {
-      alliances: valuesToOptions(displayableRows.flatMap(allianceValuesForRow), displayAlliance),
       guilds: valuesToOptions(displayableRows.flatMap(guildValuesForRow), displayGuild),
     };
   }, [displayableRows, report]);
@@ -3966,14 +3961,6 @@ export default function LootMonitor({
               options={filterOptions.guilds}
               selectedValues={filters.guilds}
               onChange={(value) => updateFilter('guilds', value)}
-            />
-            <MultiSelectDropdown
-              allLabel="All alliances"
-              getLabel={displayAlliance}
-              label="Alliance"
-              options={filterOptions.alliances}
-              selectedValues={filters.alliances}
-              onChange={(value) => updateFilter('alliances', value)}
             />
             <label>
               <span>Sort</span>

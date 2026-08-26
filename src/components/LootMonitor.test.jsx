@@ -371,7 +371,6 @@ describe('LootMonitor', () => {
 
   it('loads a saved bundle and keeps the saved monitor filters', async () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      alliances: ['CHAIR'],
       guilds: ['Militant'],
       sortBy: 'items',
       sortDirection: 'asc',
@@ -386,6 +385,7 @@ describe('LootMonitor', () => {
     expect(screen.queryByRole('button', { name: 'Choose files' })).not.toBeInTheDocument();
     expect(screen.getByText('Sort By')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Total Items')).toBeInTheDocument();
+    expect(screen.queryByText('Alliance')).not.toBeInTheDocument();
     const emvThresholdButton = screen.getByRole('button', { name: 'Hide under 500k EMV' });
     expect(emvThresholdButton).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByText('Item Type')).toBeInTheDocument();
@@ -760,7 +760,6 @@ describe('LootMonitor', () => {
       value: { writeText },
     });
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      alliances: ['CHAIR'],
       guilds: ['Militant'],
       hideUnder500kEmv: true,
       sortBy: 'emv',
@@ -779,7 +778,7 @@ describe('LootMonitor', () => {
     expect(sharedParams.has('filters')).toBe(false);
     expect(sharedUrl.hostname).toBe('militant-discord-interactions.ejjernigan.workers.dev');
     expect(sharedParams.get('bundle')).toBe('bundle-18');
-    expect(sharedParams.getAll('a')).toEqual(['CHAIR']);
+    expect(sharedParams.has('a')).toBe(false);
     expect(sharedParams.getAll('g')).toEqual(['Militant']);
     expect(sharedParams.getAll('s')).toEqual(['kept']);
     expect(sharedParams.has('t')).toBe(false);
@@ -793,7 +792,7 @@ describe('LootMonitor', () => {
 
   it('loads filters from a shared loot log link', async () => {
     const previousHash = window.location.hash;
-    window.location.hash = '#shared-log/bundle-18?a=CHAIR&g=Militant&s=kept&y=cape&o=asc&b=emv&h=1';
+    window.location.hash = '#shared-log/bundle-18?g=Militant&s=kept&y=cape&o=asc&b=emv&h=1';
 
     render(<LootMonitor bundleId="bundle-18" showShare={false} />);
 
