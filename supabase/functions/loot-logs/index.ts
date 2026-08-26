@@ -220,8 +220,8 @@ function cleanDisplayLogName(value: unknown) {
 
 function getBundleDisplayLootFileName(bundle: any, originalFileName?: unknown, startAt = bundle?.start_at) {
   const summary = bundle?.combined_loot_summary || {};
-  return cleanDisplayLogName(summary.discordThreadName)
-    || cleanDisplayLogName(summary.displayLootFileName)
+  return cleanDisplayLogName(summary.displayLootFileName)
+    || cleanDisplayLogName(summary.discordThreadName)
     || cleanDisplayLogName(summary.fileNames?.loot)
     || cleanDisplayLogName(originalFileName)
     || getBundleFileNames(bundle, startAt).baseName;
@@ -2292,9 +2292,6 @@ Deno.serve(async (request) => {
 
           if (error) throw error;
         }));
-
-      await clearLootLogDeathChecks(supabase, bundleId);
-      await refreshPlayerHistorySnapshot(supabase, bundleId);
 
       return jsonResponse(200, {
         bundle: updatedBundle,

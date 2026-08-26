@@ -76,6 +76,7 @@ describe('getBundleFileNames', () => {
     const bundle = {
       combined_loot_summary: {
         displayLootFileName: 'Custom Raid Loot Log',
+        discordThreadName: 'Original Discord Thread',
         fileNames: { loot: 'Custom Raid Loot Log' },
       },
     };

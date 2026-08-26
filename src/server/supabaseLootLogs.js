@@ -217,8 +217,8 @@ function cleanDisplayLogName(value) {
 
 export function getBundleDisplayLootFileName(bundle, originalFileName, startAt = bundle?.start_at) {
   const summary = bundle?.combined_loot_summary || {};
-  return cleanDisplayLogName(summary.discordThreadName)
-    || cleanDisplayLogName(summary.displayLootFileName)
+  return cleanDisplayLogName(summary.displayLootFileName)
+    || cleanDisplayLogName(summary.discordThreadName)
     || cleanDisplayLogName(summary.fileNames?.loot)
     || cleanDisplayLogName(originalFileName)
     || getBundleFileNames(bundle, startAt).baseName;
