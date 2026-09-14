@@ -113,7 +113,7 @@ describe('App', () => {
     const siphonedEnergyLink = screen.getByRole('link', { name: /siphoned energy tracker/i });
     expect(siphonedEnergyLink.querySelector('svg')).toBeInTheDocument();
     expect(siphonedEnergyLink.querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.82');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.83');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
@@ -150,27 +150,17 @@ describe('App', () => {
     expect(fetchLootLogBundle).not.toHaveBeenCalled();
   });
 
-  it('opens ZVZ Sheet for users with view access and shows editing to editors', async () => {
+  it('keeps the ZVZ Sheet visible but disabled', async () => {
     getCurrentAuthSession.mockResolvedValue({ user: { id: '264193431830528006' } });
     window.location.hash = '#dashboard';
     render(<App />);
 
-    fireEvent.click(await screen.findByRole('link', { name: /zvz sheet/i }));
-
-    expect(window.location.hash).toBe('#zvz-sheet');
-    expect(screen.getByRole('heading', { level: 1, name: 'ZVZ Sheet' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^upload$/i })).not.toBeInTheDocument();
-    const editButton = await screen.findByRole('button', { name: /^edit$/i });
-    expect(editButton).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
-    fireEvent.click(editButton);
-    const uploadButton = screen.getByRole('button', { name: /^upload$/i });
-    fireEvent.click(uploadButton);
-    expect(screen.getByRole('dialog', { name: /upload zvz sheet/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /choose file/i })).toBeInTheDocument();
+    const zvzTool = await screen.findByRole('button', { name: /zvz sheet/i });
+    expect(zvzTool).toHaveAttribute('aria-disabled', 'true');
+    expect(zvzTool).not.toHaveAttribute('href');
   });
 
-  it('keeps ZvZ build editing hidden from view-only roles', async () => {
+  it('blocks direct ZVZ Sheet routes while the tool is disabled', async () => {
     fetchPermissionSettings.mockResolvedValue({
       settings: {
         roles: [{
@@ -187,14 +177,11 @@ describe('App', () => {
       access_token: 'supabase-jwt',
       user: { id: 'viewer', user_metadata: { provider_id: 'viewer' } },
     });
-    window.location.hash = '#dashboard';
+    window.location.hash = '#zvz-sheet';
     render(<App />);
 
-    fireEvent.click(await screen.findByRole('link', { name: /zvz sheet/i }));
-
-    expect(screen.getByRole('heading', { level: 1, name: 'ZVZ Sheet' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /new layout/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /choose file/i })).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'ZVZ Sheet' })).not.toBeInTheDocument();
   });
 
   it('opens Player Loot History from the dashboard', async () => {

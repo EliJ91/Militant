@@ -33,6 +33,7 @@ import packageJson from '../package.json';
 
 const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
 const APP_VERSION = packageJson.version;
+const ZVZ_SHEET_ENABLED = false;
 
 function getRoute() {
   const route = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '').toLowerCase();
@@ -47,7 +48,7 @@ function getRoute() {
   if (route === 'rat-catcher') return 'rat-catcher';
   if (route === 'permissions') return 'permissions';
   if (route === 'action-logs') return 'action-logs';
-  if (route === 'zvz-sheet') return 'zvz-sheet';
+  if (route === 'zvz-sheet') return ZVZ_SHEET_ENABLED ? 'zvz-sheet' : 'dashboard';
   return route === 'dashboard' ? 'dashboard' : 'landing';
 }
 
@@ -771,6 +772,7 @@ function DashboardPage({
     },
     {
       description: 'View and maintain the current ZvZ equipment sheet.',
+      disabled: !ZVZ_SHEET_ENABLED,
       group: 'tools',
       icon: Swords,
       permissions: ['viewZvZBuilds', 'editZvZBuilds'],
@@ -819,13 +821,16 @@ function DashboardPage({
                 <div className="tool-board">
                   {group.tools.map((tool) => {
                     const ToolIcon = tool.icon;
+                    const ToolCard = tool.disabled ? 'div' : 'a';
                     return (
-                      <a
-                        className="tool-card tool-card-button"
-                        href={tool.to}
+                      <ToolCard
+                        aria-disabled={tool.disabled ? 'true' : undefined}
+                        className={`tool-card tool-card-button${tool.disabled ? ' tool-card-disabled' : ''}`}
+                        data-tooltip={tool.disabled ? 'Temporarily disabled' : undefined}
+                        href={tool.disabled ? undefined : tool.to}
                         key={tool.title}
-                        title={tool.title}
-                        onClick={(event) => handleInternalLinkClick(event, tool.to)}
+                        role={tool.disabled ? 'button' : undefined}
+                        onClick={tool.disabled ? undefined : (event) => handleInternalLinkClick(event, tool.to)}
                       >
                         <span className={tool.image ? 'tool-card-icon image' : 'tool-card-icon'} aria-hidden="true">
                           {tool.image ? <img src={tool.image} alt="" /> : <ToolIcon size={28} strokeWidth={1.8} />}
@@ -834,7 +839,7 @@ function DashboardPage({
                           <h3>{tool.title}</h3>
                           <p>{tool.description}</p>
                         </span>
-                      </a>
+                      </ToolCard>
                     );
                   })}
                 </div>
@@ -1518,7 +1523,7 @@ export default function App() {
       <DashboardPage currentUser={currentUser} onSignOut={handleSignOut} permissions={effectivePermissions} {...topbarContext} />
     );
   } else if (route === 'zvz-sheet') {
-    page = effectivePermissions.viewZvZBuilds || effectivePermissions.editZvZBuilds ? (
+    page = ZVZ_SHEET_ENABLED && (effectivePermissions.viewZvZBuilds || effectivePermissions.editZvZBuilds) ? (
       <ZvZSheetPage
         canCopyScreenshot={Boolean(effectivePermissions.copyZvZSheetScreenshot)}
         canEdit={Boolean(effectivePermissions.editZvZBuilds)}
