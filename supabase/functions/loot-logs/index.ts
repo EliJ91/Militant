@@ -227,6 +227,41 @@ function getBundleDisplayLootFileName(bundle: any, originalFileName?: unknown, s
     || getBundleFileNames(bundle, startAt).baseName;
 }
 
+function parsePurgeDate(value: unknown) {
+  const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error('A valid purge date is required.');
+
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const valid = date.getUTCFullYear() === Number(year)
+    && date.getUTCMonth() === Number(month) - 1
+    && date.getUTCDate() === Number(day);
+  if (!valid) throw new Error('A valid purge date is required.');
+
+  return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) + 1)).toISOString();
+}
+
+async function purgeLootLogBundles(supabase: any, value: unknown) {
+  const purgeDate = String(value || '');
+  const cutoff = parsePurgeDate(purgeDate);
+  const { count, data, error } = await supabase
+    .from('loot_log_bundles')
+    .delete({ count: 'exact' })
+    .lt('created_at', cutoff)
+    .select('id');
+
+  if (error) throw error;
+  const deletedRows = count ?? data?.length ?? 0;
+  if (deletedRows > 0) await rebuildPlayerHistoryCache(supabase);
+
+  return {
+    cutoff,
+    deletedBundleIds: (data || []).map((bundle: any) => bundle.id),
+    deletedRows,
+    purgeDate,
+  };
+}
+
 function getBundleDisplayChestFileName(bundle: any, startAt = bundle?.start_at) {
   return getBundleDisplayLootFileName(bundle, '', startAt);
 }
@@ -2306,6 +2341,9 @@ Deno.serve(async (request) => {
       const body = await request.json();
       if (body.deleteExpired) {
         return jsonResponse(200, await deleteExpiredLootLogBundles(supabase));
+      }
+      if (body.purgeBeforeDate) {
+        return jsonResponse(200, await purgeLootLogBundles(supabase, body.purgeBeforeDate));
       }
 
       const bundleId = String(body.bundleId || '').trim();

@@ -12,6 +12,7 @@ import {
   fetchLootLogBundle,
   fetchLootLogBundles,
   mergeLootLogBundles,
+  purgeLootLogBundles,
   reorderLootLogBundles,
   setLootLogItemIgnored,
   submitChestLog,
@@ -577,6 +578,34 @@ function buildLootLogHistoryUrl(entry) {
   if (entry.item) params.set('item', entry.item);
   const query = params.toString();
   return `#loot-monitor/${encodeURIComponent(bundleId)}${query ? `?${query}` : ''}`;
+}
+
+function padDatePart(value) {
+  return String(value).padStart(2, '0');
+}
+
+function daysInPurgeMonth(year, month) {
+  return new Date(Number(year), Number(month), 0).getDate();
+}
+
+function purgeDateParts(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return { day: match[3], month: match[2], year: match[1] };
+
+  const date = new Date();
+  return {
+    day: padDatePart(date.getDate()),
+    month: padDatePart(date.getMonth() + 1),
+    year: String(date.getFullYear()),
+  };
+}
+
+function formatPurgeDisplayDate({ day, month, year }) {
+  return `${month}/${day}/${year}`;
+}
+
+function purgeDateValue({ day, month, year }) {
+  return `${year}-${month}-${day}`;
 }
 
 function clampNumber(value, min, max) {
@@ -2636,7 +2665,15 @@ export function LootLogArchive({
   const [chestUploadFiles, setChestUploadFiles] = useState([]);
   const [chestUploadText, setChestUploadText] = useState('');
   const [overrideCurrentChestLog, setOverrideCurrentChestLog] = useState(false);
+  const [isPurgeOpen, setIsPurgeOpen] = useState(false);
   const [mergingLogs, setMergingLogs] = useState(false);
+  const [purgeButtonArmed, setPurgeButtonArmed] = useState(false);
+  const [purgeConfirming, setPurgeConfirming] = useState(false);
+  const [purgeConfirmSeconds, setPurgeConfirmSeconds] = useState(3);
+  const [purgeDate, setPurgeDate] = useState(() => purgeDateParts());
+  const [purgeHoverActive, setPurgeHoverActive] = useState(false);
+  const [purgeHoverSeconds, setPurgeHoverSeconds] = useState(3);
+  const [purgeStatus, setPurgeStatus] = useState({ message: '', state: 'idle' });
   const [selectedBundleIds, setSelectedBundleIds] = useState([]);
   const [updatingBundleId, setUpdatingBundleId] = useState('');
   const [uploadingBundleId, setUploadingBundleId] = useState('');
@@ -2678,6 +2715,51 @@ export function LootLogArchive({
   useEffect(() => {
     loadSavedLogs();
   }, []);
+
+  useEffect(() => {
+    if (!isPurgeOpen) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape' && purgeStatus.state !== 'purging') setIsPurgeOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isPurgeOpen, purgeStatus.state]);
+
+  useEffect(() => {
+    if (!isPurgeOpen || !purgeConfirming || purgeConfirmSeconds <= 0) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setPurgeConfirmSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [isPurgeOpen, purgeConfirming, purgeConfirmSeconds]);
+
+  useEffect(() => {
+    if (!purgeHoverActive) return undefined;
+    if (purgeHoverSeconds <= 0) {
+      setPurgeButtonArmed(true);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setPurgeHoverSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [purgeHoverActive, purgeHoverSeconds]);
+
+  const purgeYearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years = new Set(Array.from({ length: 10 }, (_, index) => String(currentYear - index)));
+    savedLogBundles.forEach((bundle) => {
+      const year = String(getBundleUploadedAt(bundle) || '').slice(0, 4);
+      if (/^\d{4}$/.test(year)) years.add(year);
+    });
+    return [...years].sort((left, right) => Number(right) - Number(left));
+  }, [savedLogBundles]);
+  const purgeDayOptions = useMemo(() => (
+    Array.from({ length: daysInPurgeMonth(purgeDate.year, purgeDate.month) }, (_, index) => padDatePart(index + 1))
+  ), [purgeDate.month, purgeDate.year]);
 
   async function uploadLootLogs(files, bundle = null) {
     const selectedFiles = [...(Array.isArray(files) ? files : [files])].filter(Boolean);
@@ -2953,6 +3035,75 @@ export function LootLogArchive({
     }
   }
 
+  function openPurgeDialog() {
+    setPurgeDate(purgeDateParts(getBundleUploadedAt(savedLogBundles[0])));
+    setPurgeConfirming(false);
+    setPurgeConfirmSeconds(3);
+    setPurgeStatus({ message: '', state: 'idle' });
+    setIsPurgeOpen(true);
+  }
+
+  function startPurgeHover() {
+    setPurgeHoverActive(true);
+    setPurgeHoverSeconds(3);
+    setPurgeButtonArmed(false);
+  }
+
+  function resetPurgeHover() {
+    setPurgeHoverActive(false);
+    setPurgeHoverSeconds(3);
+    setPurgeButtonArmed(false);
+  }
+
+  function openArmedPurgeDialog() {
+    if (!purgeButtonArmed) return;
+    resetPurgeHover();
+    openPurgeDialog();
+  }
+
+  function updatePurgeDate(part, value) {
+    setPurgeConfirming(false);
+    setPurgeConfirmSeconds(3);
+    setPurgeDate((current) => {
+      const next = { ...current, [part]: value };
+      const maxDay = daysInPurgeMonth(next.year, next.month);
+      if (Number(next.day) > maxDay) next.day = padDatePart(maxDay);
+      return next;
+    });
+  }
+
+  function startPurgeConfirmation() {
+    if (purgeStatus.state === 'purging') return;
+    setPurgeConfirming(true);
+    setPurgeConfirmSeconds(3);
+    setPurgeStatus({ message: '', state: 'idle' });
+  }
+
+  async function purgeLogs() {
+    if (purgeStatus.state === 'purging' || !purgeConfirming || purgeConfirmSeconds > 0) return;
+    setPurgeStatus({ message: 'Purging...', state: 'purging' });
+
+    try {
+      const result = await purgeLootLogBundles({
+        actorName: uploadUsername,
+        date: purgeDateValue(purgeDate),
+      });
+      setPurgeStatus({ message: '', state: 'idle' });
+      setActionStatus({
+        message: `Purged ${result.deletedRows || 0} loot logs through ${formatPurgeDisplayDate(purgeDate)}.`,
+        state: 'success',
+      });
+      setSelectedBundleIds([]);
+      setIsPurgeOpen(false);
+      await loadSavedLogs(1);
+    } catch (error) {
+      setPurgeStatus({
+        message: error.message || 'Could not purge loot logs.',
+        state: 'error',
+      });
+    }
+  }
+
   function editBundle(bundle) {
     setEditingBundleId(bundle.id);
     setEditValues({
@@ -3138,6 +3289,21 @@ export function LootLogArchive({
               {actionStatus.state === 'loading' ? 'Uploading' : 'Upload'}
             </button>
           ) : null}
+          {canDeleteLogs ? (
+            <button
+              aria-label="Purge data"
+              aria-disabled={!purgeButtonArmed}
+              className={purgeButtonArmed ? 'energy-purge-button ready' : 'energy-purge-button'}
+              data-tooltip={purgeButtonArmed ? 'Purge data' : 'Hover to unlock'}
+              title={purgeButtonArmed ? 'Purge data' : 'Hover to unlock'}
+              type="button"
+              onClick={openArmedPurgeDialog}
+              onMouseEnter={startPurgeHover}
+              onMouseLeave={resetPurgeHover}
+            >
+              <span aria-hidden="true">{purgeHoverActive && !purgeButtonArmed ? purgeHoverSeconds : '\u{1F5D1}'}</span>
+            </button>
+          ) : null}
           <button
             aria-label="Refresh logs"
             className="view-logs-button view-logs-icon-button"
@@ -3157,6 +3323,116 @@ export function LootLogArchive({
       </section>
 
       <StatusToasts messages={[actionStatus]} />
+
+      {isPurgeOpen ? (
+        <div
+          className="energy-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && purgeStatus.state !== 'purging') {
+              setIsPurgeOpen(false);
+            }
+          }}
+        >
+          <section
+            aria-labelledby="loot-log-purge-title"
+            aria-modal="true"
+            className="energy-import-modal energy-purge-modal"
+            role="dialog"
+          >
+            <div className="energy-modal-heading">
+              <div>
+                <p className="eyebrow">Purge Data</p>
+                <h2 id="loot-log-purge-title">Purge Loot Logs</h2>
+              </div>
+              <button
+                aria-label="Close purge dialog"
+                className="energy-modal-close"
+                disabled={purgeStatus.state === 'purging'}
+                type="button"
+                onClick={() => setIsPurgeOpen(false)}
+              >
+                &times;
+              </button>
+            </div>
+            <p className="energy-purge-warning">
+              This is irreversible. All loot logs uploaded on the selected date and before will be permanently deleted.
+            </p>
+            <div className="energy-purge-date-row">
+              <label>
+                <span>Month</span>
+                <select
+                  value={purgeDate.month}
+                  onChange={(event) => updatePurgeDate('month', event.target.value)}
+                >
+                  {Array.from({ length: 12 }, (_, index) => padDatePart(index + 1)).map((month) => (
+                    <option key={month} value={month}>{month}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Day</span>
+                <select
+                  value={purgeDate.day}
+                  onChange={(event) => updatePurgeDate('day', event.target.value)}
+                >
+                  {purgeDayOptions.map((day) => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Year</span>
+                <select
+                  value={purgeDate.year}
+                  onChange={(event) => updatePurgeDate('year', event.target.value)}
+                >
+                  {purgeYearOptions.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {purgeStatus.message ? (
+              <p className={`energy-message ${purgeStatus.state}`}>{purgeStatus.message}</p>
+            ) : null}
+            {purgeConfirming ? (
+              <p className="energy-purge-final-warning">
+                Confirm permanent deletion through {formatPurgeDisplayDate(purgeDate)}.
+              </p>
+            ) : null}
+            <div className="energy-import-actions">
+              <button
+                className="primary-button energy-purge-confirm"
+                disabled={purgeStatus.state === 'purging' || (purgeConfirming && purgeConfirmSeconds > 0)}
+                type="button"
+                onClick={purgeConfirming ? purgeLogs : startPurgeConfirmation}
+              >
+                {purgeStatus.state === 'purging'
+                  ? 'Purging...'
+                  : purgeConfirming
+                    ? purgeConfirmSeconds > 0 ? `Confirm (${purgeConfirmSeconds})` : 'Confirm'
+                    : 'Purge'}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={purgeStatus.state === 'purging'}
+                type="button"
+                onClick={() => {
+                  if (purgeConfirming) {
+                    setPurgeConfirming(false);
+                    setPurgeConfirmSeconds(3);
+                    return;
+                  }
+                  setIsPurgeOpen(false);
+                }}
+              >
+                {purgeConfirming ? 'Back' : 'Cancel'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {lootUploadHelpOpen ? (
         <UploadInstructionsModal onClose={() => setLootUploadHelpOpen(false)} />

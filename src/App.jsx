@@ -836,7 +836,10 @@ function DashboardPage({
                           {tool.image ? <img src={tool.image} alt="" /> : <ToolIcon size={28} strokeWidth={1.8} />}
                         </span>
                         <span className="tool-card-copy">
-                          <h3>{tool.title}</h3>
+                          <h3>
+                            {tool.title}
+                            {tool.disabled ? <> <span className="tool-card-disabled-label">(Disabled)</span></> : null}
+                          </h3>
                           <p>{tool.description}</p>
                         </span>
                       </ToolCard>

@@ -2596,6 +2596,12 @@ button:focus-visible {
   margin: 0;
 }
 
+.tool-card-disabled-label {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 0.78em;
+}
+
 .tool-card p {
   color: var(--muted);
   line-height: 1.55;

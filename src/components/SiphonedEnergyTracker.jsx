@@ -451,6 +451,7 @@ export default function SiphonedEnergyTracker({ canSetStartDate = false, canUpda
                 aria-label="Purge data"
                 aria-disabled={!purgeButtonArmed}
                 className={purgeButtonArmed ? 'energy-purge-button ready' : 'energy-purge-button'}
+                data-tooltip={purgeButtonArmed ? 'Purge data' : 'Hover to unlock'}
                 title={purgeButtonArmed ? 'Purge data' : 'Hover to unlock'}
                 type="button"
                 onClick={openArmedPurgeDialog}

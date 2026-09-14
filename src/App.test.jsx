@@ -107,13 +107,13 @@ describe('App', () => {
     expect(screen.getByText('Map Discord roles to webapp access controls.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Loot Log Viewer' })).toBeInTheDocument();
     expect(screen.getByText('Open loot logs locally without saving or changing any data.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'ZVZ Sheet' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ZVZ Sheet (Disabled)' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Administration' })).toBeInTheDocument();
     const siphonedEnergyLink = screen.getByRole('link', { name: /siphoned energy tracker/i });
     expect(siphonedEnergyLink.querySelector('svg')).toBeInTheDocument();
     expect(siphonedEnergyLink.querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.83');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.84');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',

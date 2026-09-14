@@ -8,6 +8,7 @@ import {
   fetchLootLogBundle,
   fetchLootLogBundles,
   mergeLootLogBundles,
+  purgeLootLogBundles,
   reorderLootLogBundles,
   setLootLogItemIgnored,
   setLootLogPlayerHidden,
@@ -36,6 +37,7 @@ vi.mock('../services/lootLogApi', () => ({
   fetchLootLogBundle: vi.fn(),
   fetchLootLogBundles: vi.fn(),
   mergeLootLogBundles: vi.fn(),
+  purgeLootLogBundles: vi.fn(),
   reorderLootLogBundles: vi.fn(),
   setLootLogItemIgnored: vi.fn(),
   setLootLogPlayerHidden: vi.fn(),
@@ -168,6 +170,7 @@ describe('LootMonitor', () => {
     fetchLootLogBundles.mockResolvedValue({ bundles: [createBundle()] });
     fetchIgnoredLootItems.mockResolvedValue({ items: [] });
     mergeLootLogBundles.mockResolvedValue({ bundleId: 'merged-bundle', lootFileName: 'Merged - 18UTC-JUN-18' });
+    purgeLootLogBundles.mockResolvedValue({ deletedRows: 1, purgeDate: '2026-06-20' });
     reorderLootLogBundles.mockResolvedValue({ bundleIds: ['bundle-18'], updated: 1 });
     setLootLogItemIgnored.mockImplementation(({ ignored, item }) => Promise.resolve({
       ignored,
@@ -1484,6 +1487,38 @@ describe('LootMonitor', () => {
     confirm.mockRestore();
   });
 
+  it('purges loot logs through the selected upload date', async () => {
+    render(<LootLogArchive uploadUsername="Onslawht" />);
+    await screen.findAllByText('18UTC-JUN-18');
+    vi.useFakeTimers();
+
+    const purgeButton = screen.getByRole('button', { name: 'Purge data' });
+    fireEvent.mouseEnter(purgeButton);
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    fireEvent.click(purgeButton);
+
+    const dialog = screen.getByRole('dialog', { name: 'Purge Loot Logs' });
+    expect(dialog).toHaveTextContent('This is irreversible');
+    expect(within(dialog).getByLabelText('Month')).toHaveValue('06');
+    expect(within(dialog).getByLabelText('Day')).toHaveValue('20');
+    expect(within(dialog).getByLabelText('Year')).toHaveValue('2026');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Purge' }));
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+    vi.useRealTimers();
+
+    await waitFor(() => expect(purgeLootLogBundles).toHaveBeenCalledWith({
+      actorName: 'Onslawht',
+      date: '2026-06-20',
+    }));
+    expect(await screen.findByText('Purged 1 loot logs through 06/20/2026.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Purge Loot Logs' })).not.toBeInTheDocument();
+  });
+
   it('deletes only linked chest logs after confirmation', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     render(<LootLogArchive />);
@@ -1511,6 +1546,7 @@ describe('LootMonitor', () => {
     await screen.findByRole('link', { name: 'View' });
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete Chest Log' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Purge data' })).not.toBeInTheDocument();
   });
 
   it('orders saved bundles by uploaded date newest first', async () => {

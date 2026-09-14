@@ -104,6 +104,20 @@ const DEATH_CHECK_BATCH_SIZE = 1;
 const DEATH_REQUEST_TIMEOUT_MS = 12000;
 const DEATH_EVENT_REQUEST_TIMEOUT_MS = 8000;
 
+function parsePurgeDate(value) {
+  const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error('A valid purge date is required.');
+
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const valid = date.getUTCFullYear() === Number(year)
+    && date.getUTCMonth() === Number(month) - 1
+    && date.getUTCDate() === Number(day);
+  if (!valid) throw new Error('A valid purge date is required.');
+
+  return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) + 1)).toISOString();
+}
+
 function chunkArray(values, size) {
   const chunks = [];
   for (let index = 0; index < values.length; index += size) {
@@ -1833,6 +1847,28 @@ export async function updateLootLogBundle({ bundleId, ctaHour, dateUtc, fileName
     ctaTimer: getCtaTimer(range.startAt),
     displayLootFileName: fileNames.baseName,
     fileNames,
+  };
+}
+
+export async function purgeLootLogBundles(date) {
+  const supabase = createSupabaseAdmin();
+  const purgeDate = String(date || '');
+  const cutoff = parsePurgeDate(purgeDate);
+  const { count, data, error } = await supabase
+    .from('loot_log_bundles')
+    .delete({ count: 'exact' })
+    .lt('created_at', cutoff)
+    .select('id');
+
+  if (error) throw error;
+  const deletedRows = count ?? data?.length ?? 0;
+  if (deletedRows > 0) await rebuildPlayerLootHistoryCache(supabase);
+
+  return {
+    cutoff,
+    deletedBundleIds: (data || []).map((bundle) => bundle.id),
+    deletedRows,
+    purgeDate,
   };
 }
 

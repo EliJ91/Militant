@@ -280,6 +280,29 @@ export async function updateLootLogBundle({
   return result;
 }
 
+export async function purgeLootLogBundles({ actorName, date }) {
+  const response = await fetch(getLootLogApiUrl(), {
+    body: JSON.stringify({ purgeBeforeDate: date }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'DELETE',
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not purge loot logs.');
+  }
+
+  void recordActionLog({
+    action: 'Loot logs purged',
+    actorName,
+    details: { count: result.deletedRows || 0 },
+    targetName: date,
+    targetType: 'loot-log',
+  });
+
+  return result;
+}
+
 export async function reorderLootLogBundles({
   actorName,
   bundleIds,

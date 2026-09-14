@@ -104,10 +104,13 @@ function lootLogApi() {
           deleteChestLogs,
           deleteExpiredLootLogBundles,
           deleteLootLogBundle,
+          purgeLootLogBundles,
         } = await import('./src/server/supabaseLootLogs.js');
         const body = await readJsonBody(req);
         const result = body.deleteExpired
           ? await deleteExpiredLootLogBundles()
+          : body.purgeBeforeDate
+            ? await purgeLootLogBundles(body.purgeBeforeDate)
           : body.deleteChestLogs
             ? await deleteChestLogs(body.bundleId)
             : await deleteLootLogBundle(body.bundleId);
