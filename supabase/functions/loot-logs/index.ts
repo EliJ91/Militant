@@ -244,19 +244,37 @@ function parsePurgeDate(value: unknown) {
 async function purgeLootLogBundles(supabase: any, value: unknown) {
   const purgeDate = String(value || '');
   const cutoff = parsePurgeDate(purgeDate);
-  const { count, data, error } = await supabase
-    .from('loot_log_bundles')
-    .delete({ count: 'exact' })
-    .lt('created_at', cutoff)
-    .select('id');
+  const deletedBundleIds: string[] = [];
+  for (let from = 0; ; from += DATABASE_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('loot_log_bundles')
+      .select('id')
+      .lt('created_at', cutoff)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + DATABASE_PAGE_SIZE - 1);
+    if (error) throw error;
+    deletedBundleIds.push(...(data || []).map((bundle: any) => bundle.id));
+    if (!data || data.length < DATABASE_PAGE_SIZE) break;
+  }
 
-  if (error) throw error;
-  const deletedRows = count ?? data?.length ?? 0;
+  // Large cascading deletes can exceed PostgREST's per-statement timeout. Delete
+  // one complete bundle per transaction so each cascade stays bounded and a
+  // retry can safely continue after any interrupted request.
+  for (const bundleId of deletedBundleIds) {
+    const { error: deleteError } = await supabase
+      .from('loot_log_bundles')
+      .delete()
+      .eq('id', bundleId);
+    if (deleteError) throw deleteError;
+  }
+
+  const deletedRows = deletedBundleIds.length;
   if (deletedRows > 0) await rebuildPlayerHistoryCache(supabase);
 
   return {
     cutoff,
-    deletedBundleIds: (data || []).map((bundle: any) => bundle.id),
+    deletedBundleIds,
     deletedRows,
     purgeDate,
   };

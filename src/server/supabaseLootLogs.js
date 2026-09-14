@@ -1854,19 +1854,36 @@ export async function purgeLootLogBundles(date) {
   const supabase = createSupabaseAdmin();
   const purgeDate = String(date || '');
   const cutoff = parsePurgeDate(purgeDate);
-  const { count, data, error } = await supabase
-    .from('loot_log_bundles')
-    .delete({ count: 'exact' })
-    .lt('created_at', cutoff)
-    .select('id');
+  const deletedBundleIds = [];
+  for (let from = 0; ; from += DATABASE_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('loot_log_bundles')
+      .select('id')
+      .lt('created_at', cutoff)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + DATABASE_PAGE_SIZE - 1);
+    if (error) throw error;
+    deletedBundleIds.push(...(data || []).map((bundle) => bundle.id));
+    if (!data || data.length < DATABASE_PAGE_SIZE) break;
+  }
 
-  if (error) throw error;
-  const deletedRows = count ?? data?.length ?? 0;
+  // Keep each cascading delete within the database statement timeout. Each
+  // bundle remains atomic, and rerunning the purge safely finishes any remainder.
+  for (const bundleId of deletedBundleIds) {
+    const { error: deleteError } = await supabase
+      .from('loot_log_bundles')
+      .delete()
+      .eq('id', bundleId);
+    if (deleteError) throw deleteError;
+  }
+
+  const deletedRows = deletedBundleIds.length;
   if (deletedRows > 0) await rebuildPlayerLootHistoryCache(supabase);
 
   return {
     cutoff,
-    deletedBundleIds: (data || []).map((bundle) => bundle.id),
+    deletedBundleIds,
     deletedRows,
     purgeDate,
   };

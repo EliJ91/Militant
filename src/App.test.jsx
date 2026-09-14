@@ -113,7 +113,7 @@ describe('App', () => {
     const siphonedEnergyLink = screen.getByRole('link', { name: /siphoned energy tracker/i });
     expect(siphonedEnergyLink.querySelector('svg')).toBeInTheDocument();
     expect(siphonedEnergyLink.querySelector('img')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.85');
+    expect(screen.getByLabelText('Application version')).toHaveTextContent('v1.10.86');
     expect(screen.getByLabelText('Logged in as Onslawht')).toBeInTheDocument();
     expect(container.querySelector('.topbar-profile-avatar')).toHaveAttribute(
       'src',
