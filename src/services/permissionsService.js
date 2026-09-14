@@ -17,6 +17,7 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'overrideLootLog', label: 'Override Loot Log', area: 'Loot Logs' },
   { key: 'overrideChestLog', label: 'Override Chest Log', area: 'Loot Logs' },
   { key: 'deleteChestLootLogs', label: 'Delete Chest/Loot Logs', area: 'Loot Logs' },
+  { key: 'purgeLootLogs', label: 'Purge Loot Logs', area: 'Loot Logs' },
   { key: 'viewDeaths', label: 'View Deaths', area: 'Loot Logs' },
   { key: 'addDeathId', label: 'Add Death ID', area: 'Loot Logs' },
   { key: 'viewHiddenLootLogPlayers', label: 'View Hidden Players (Loot Log)', area: 'Loot Logs' },
@@ -34,7 +35,7 @@ export const WEBAPP_PERMISSION_DEFINITIONS = [
   { key: 'extractZvZSheet', label: 'Extract ZVZ Sheet', area: 'ZVZ Sheet' },
   { key: 'viewSiphonedEnergy', label: 'View Siphoned Energy Tracker', area: 'Siphoned Energy' },
   { key: 'updateSiphonedEnergy', label: 'Update Siphoned Energy Tracker', area: 'Siphoned Energy' },
-  { key: 'setSiphonedEnergyStartDate', label: 'Set Start Date', area: 'Siphoned Energy' },
+  { key: 'setSiphonedEnergyStartDate', label: 'Purge Logs', area: 'Siphoned Energy' },
 ];
 
 function createDefaultPermissionSettings() {

@@ -93,7 +93,7 @@ function purgeDateValue({ day, month, year }) {
   return `${year}-${month}-${day}`;
 }
 
-export default function SiphonedEnergyTracker({ canSetStartDate = false, canUpdate = true }) {
+export default function SiphonedEnergyTracker({ canPurge = false, canSetStartDate = false, canUpdate = true }) {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [isPurgeOpen, setIsPurgeOpen] = useState(false);
   const [ledgerSearch, setLedgerSearch] = useState('');
@@ -435,31 +435,35 @@ export default function SiphonedEnergyTracker({ canSetStartDate = false, canUpda
             <strong>{lastUpdated?.label || 'None'}</strong>
             {lastUpdated?.elapsed ? <span>{lastUpdated.elapsed}</span> : null}
           </div>
-          {canUpdate ? (
+          {canUpdate || canPurge ? (
             <div className="energy-update-actions">
-              <button
-                className="view-logs-button energy-open-update"
-                type="button"
-                onClick={() => {
-                  setUpdateStatus({ message: '', state: 'idle' });
-                  setIsUpdateOpen(true);
-                }}
-              >
-                Update Log
-              </button>
-              <button
-                aria-label="Purge data"
-                aria-disabled={!purgeButtonArmed}
-                className={purgeButtonArmed ? 'energy-purge-button ready' : 'energy-purge-button'}
-                data-tooltip={purgeButtonArmed ? 'Purge data' : 'Hover to unlock'}
-                title={purgeButtonArmed ? 'Purge data' : 'Hover to unlock'}
-                type="button"
-                onClick={openArmedPurgeDialog}
-                onMouseEnter={startPurgeHover}
-                onMouseLeave={resetPurgeHover}
-              >
-                <span aria-hidden="true">{purgeHoverActive && !purgeButtonArmed ? purgeHoverSeconds : '\u{1F5D1}'}</span>
-              </button>
+              {canUpdate ? (
+                <button
+                  className="view-logs-button energy-open-update"
+                  type="button"
+                  onClick={() => {
+                    setUpdateStatus({ message: '', state: 'idle' });
+                    setIsUpdateOpen(true);
+                  }}
+                >
+                  Update Log
+                </button>
+              ) : null}
+              {canPurge ? (
+                <button
+                  aria-label="Purge data"
+                  aria-disabled={!purgeButtonArmed}
+                  className={purgeButtonArmed ? 'energy-purge-button ready' : 'energy-purge-button'}
+                  data-tooltip={purgeButtonArmed ? 'Purge data' : 'Hover to unlock'}
+                  title={purgeButtonArmed ? 'Purge data' : 'Hover to unlock'}
+                  type="button"
+                  onClick={openArmedPurgeDialog}
+                  onMouseEnter={startPurgeHover}
+                  onMouseLeave={resetPurgeHover}
+                >
+                  <span aria-hidden="true">{purgeHoverActive && !purgeButtonArmed ? purgeHoverSeconds : '\u{1F5D1}'}</span>
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>

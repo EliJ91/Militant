@@ -1488,7 +1488,7 @@ describe('LootMonitor', () => {
   });
 
   it('purges loot logs through the selected upload date', async () => {
-    render(<LootLogArchive uploadUsername="Onslawht" />);
+    render(<LootLogArchive canPurgeLogs uploadUsername="Onslawht" />);
     await screen.findAllByText('18UTC-JUN-18');
     vi.useFakeTimers();
 

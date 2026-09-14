@@ -45,8 +45,9 @@ describe('PermissionsTool', () => {
     expect(screen.getByRole('rowheader', { name: 'Edit Hidden Players' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Copy Screenshot' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Edit Ignore Items' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'Purge Loot Logs' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Update Siphoned Energy Tracker' })).toBeInTheDocument();
-    expect(screen.getByRole('rowheader', { name: 'Set Start Date' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'Purge Logs' })).toBeInTheDocument();
     expect(screen.getAllByRole('columnheader', { name: /General|Action Log|Loot Logs|Loot Log Viewer|Members|Player Loot History|Siphoned Energy/ }).map((heading) => heading.textContent)).toEqual([
       'General',
       'Action Log',

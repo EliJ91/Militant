@@ -70,4 +70,17 @@ describe('permissions service', () => {
       { area: 'ZVZ Sheet', key: 'extractZvZSheet', label: 'Extract ZVZ Sheet' },
     ]);
   });
+
+  it('keeps loot-log purge controls behind dedicated permissions', () => {
+    expect(WEBAPP_PERMISSION_DEFINITIONS).toContainEqual({
+      area: 'Loot Logs',
+      key: 'purgeLootLogs',
+      label: 'Purge Loot Logs',
+    });
+    expect(WEBAPP_PERMISSION_DEFINITIONS).toContainEqual({
+      area: 'Siphoned Energy',
+      key: 'setSiphonedEnergyStartDate',
+      label: 'Purge Logs',
+    });
+  });
 });

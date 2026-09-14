@@ -2636,6 +2636,7 @@ export function LootLogArchive({
   canMergeLogs = false,
   canOverrideChestLog = false,
   canOverrideLootLog = false,
+  canPurgeLogs = false,
   canUploadChestLogs = true,
   canUploadLootLogs = true,
   onView = () => {},
@@ -3289,7 +3290,7 @@ export function LootLogArchive({
               {actionStatus.state === 'loading' ? 'Uploading' : 'Upload'}
             </button>
           ) : null}
-          {canDeleteLogs ? (
+          {canPurgeLogs ? (
             <button
               aria-label="Purge data"
               aria-disabled={!purgeButtonArmed}

@@ -1016,6 +1016,7 @@ function LootLogsPage({
         canMergeLogs={Boolean(permissions.mergeLootLogs)}
         canOverrideChestLog={Boolean(permissions.overrideChestLog)}
         canOverrideLootLog={Boolean(permissions.overrideLootLog)}
+        canPurgeLogs={Boolean(permissions.purgeLootLogs)}
         canUploadChestLogs={Boolean(permissions.uploadChestLogs)}
         canUploadLootLogs={Boolean(permissions.uploadLootLogs)}
         onView={onViewBundle}
@@ -1026,6 +1027,7 @@ function LootLogsPage({
 }
 
 function SiphonedEnergyPage({
+  canPurge = false,
   canSetStartDate = false,
   canUpdate = false,
   currentUser = null,
@@ -1048,7 +1050,7 @@ function SiphonedEnergyPage({
       viewAsRoleIds={viewAsRoleIds}
       viewAsRoles={viewAsRoles}
     >
-      <SiphonedEnergyTracker canSetStartDate={canSetStartDate} canUpdate={canUpdate} />
+      <SiphonedEnergyTracker canPurge={canPurge} canSetStartDate={canSetStartDate} canUpdate={canUpdate} />
     </ToolPage>
   );
 }
@@ -1449,7 +1451,8 @@ export default function App() {
   } else if (route === 'siphoned-energy') {
     page = (
       <SiphonedEnergyPage
-        canSetStartDate={Boolean(effectivePermissions.setSiphonedEnergyStartDate)}
+        canPurge={Boolean(effectivePermissions.setSiphonedEnergyStartDate)}
+        canSetStartDate={Boolean(effectivePermissions.updateSiphonedEnergy)}
         canUpdate={Boolean(effectivePermissions.updateSiphonedEnergy)}
         currentUser={currentUser}
         isAuthenticated={isAuthenticated}

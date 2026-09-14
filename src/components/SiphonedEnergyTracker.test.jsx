@@ -227,7 +227,7 @@ describe('SiphonedEnergyTracker', () => {
   });
 
   it('purges transactions through the selected date', async () => {
-    render(<SiphonedEnergyTracker />);
+    render(<SiphonedEnergyTracker canPurge />);
     await screen.findAllByText('Bhrennoh');
     vi.useFakeTimers();
 
