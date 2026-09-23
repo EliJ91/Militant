@@ -3596,7 +3596,7 @@ button:focus-visible {
 
 .upload-instructions-modal {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(920px, 100%);
   max-height: calc(100vh - 36px);
   border: 1px solid rgba(87, 216, 120, 0.42);
@@ -3773,6 +3773,71 @@ button:focus-visible {
   color: #e7d69b;
   font-size: 0.72rem;
   line-height: 1.45;
+}
+
+.upload-guide-legend {
+  padding: 12px 16px 14px;
+  border-top: 1px solid rgba(247, 250, 245, 0.12);
+  background: #050a07;
+}
+
+.upload-guide-legend h3 {
+  margin: 0 0 9px;
+  color: var(--white);
+  font-size: 0.95rem;
+  letter-spacing: 0;
+}
+
+.upload-guide-legend-items {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.upload-guide-legend-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.upload-guide-status-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+}
+
+.upload-guide-status-dot.legend-kept {
+  background: var(--status-kept);
+}
+
+.upload-guide-status-dot.legend-accounted {
+  background: var(--status-accounted);
+}
+
+.upload-guide-status-dot.legend-donated {
+  background: var(--status-donated);
+}
+
+.upload-guide-status-dot.legend-resolved {
+  background: var(--status-resolved);
+}
+
+.upload-guide-status-dot.legend-lost {
+  background: var(--status-lost);
+}
+
+.upload-guide-legend-item p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.upload-guide-legend-item strong {
+  margin-right: 4px;
+  color: var(--white);
 }
 
 .loot-upload-dropzone {
@@ -7239,8 +7304,13 @@ button:focus-visible {
 
   .upload-guide-intro,
   .upload-guide-section summary,
-  .upload-guide-content {
+  .upload-guide-content,
+  .upload-guide-legend {
     padding: 13px;
+  }
+
+  .upload-guide-legend-items {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .landing-page {

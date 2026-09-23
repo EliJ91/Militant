@@ -1154,6 +1154,12 @@ describe('LootMonitor', () => {
     expect(deathGuide).toHaveTextContent('For example, in the URL "/kill/123456789" has death ID 123456789.');
     expect(deathGuide).not.toHaveTextContent('Add Death ID permission');
     expect(deathGuide).not.toHaveTextContent('Matching Kept inventory becomes Accounted.');
+    const statusGuide = within(instructionsDialog).getByRole('heading', { name: 'Item Status Colors' }).closest('section');
+    expect(statusGuide).toHaveTextContent('Kept Loot still held by a player and not deposited or lost.');
+    expect(statusGuide).toHaveTextContent('Accounted Kept loot matched to a verified player death.');
+    expect(statusGuide).toHaveTextContent('Donated Loot deposited in the final chest that was not expected from the loot log.');
+    expect(statusGuide).toHaveTextContent('Resolved Loot successfully traced to the final chest.');
+    expect(statusGuide).toHaveTextContent('Lost Loot lost when the looting player died.');
     expect(within(instructionsDialog).queryByRole('heading', { name: 'Review And Manage' })).not.toBeInTheDocument();
     expect(within(instructionsDialog).queryByRole('img')).not.toBeInTheDocument();
     fireEvent.click(within(instructionsDialog).getByRole('button', { name: 'Close upload instructions' }));
